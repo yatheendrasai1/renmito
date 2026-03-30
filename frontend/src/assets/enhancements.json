@@ -282,6 +282,26 @@
       "screenshot": null,
       "changelog": "",
       "notes": "Nav text direction flips between themes: light mode nav #8d99ae (medium) needs dark text #1A1C2A; dark mode nav #4A5568 (dark) needs light text #D0D8E8."
+    },
+    {
+      "id": "1.14",
+      "version": "1.14",
+      "type": "internal",
+      "title": "Git repository setup and .gitignore data exclusion",
+      "description": "Initialised a GitHub repository at github.com/yatheendrasai1/renmito and pushed the codebase. Updated .gitignore to exclude runtime-generated filesystem log data (backend/data/*.json), build artefacts (frontend/dist/, frontend/.angular/), environment files (.env), and OS noise (.DS_Store). Untracked the previously committed data file so it no longer appears in version history going forward.",
+      "status": "implemented",
+      "implementedAt": "2026-03-30T12:00:00",
+      "tags": ["git", "devops", "process", "gitignore"],
+      "priority": null,
+      "relatedTo": [],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": "main",
+      "screenshot": null,
+      "changelog": "",
+      "notes": "backend/data/ is intentionally excluded — it holds one JSON file per calendar day (YYYY-MM-DD.json) written at runtime by the Express API. These are user-specific logs and should not be committed."
     }
   ]
 }

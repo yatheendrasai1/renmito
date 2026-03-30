@@ -1,2 +1,16 @@
+# Dependencies
 backend/node_modules/
 frontend/node_modules/
+
+# Filesystem log data — daily JSON files written at runtime, not for version control
+backend/data/
+
+# Build output
+frontend/dist/
+frontend/.angular/
+
+# Environment & OS
+.env
+.env.*
+.DS_Store
+Thumbs.db
