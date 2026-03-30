@@ -4,7 +4,7 @@ const path = require('path');
 const logsRouter = require('./routes/logs');
 
 const app = express();
-const PORT = 3000;
+const PORT = 5890;
 
 // Middleware
 app.use(cors({
@@ -12,6 +12,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type']
 }));
+
 app.use(express.json());
 
 // Static route to serve logs data directory

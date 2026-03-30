@@ -8,7 +8,7 @@ import { LogEntry, CreateLogEntry } from '../models/log.model';
   providedIn: 'root'
 })
 export class LogService {
-  private readonly apiBase = 'http://localhost:3000/api/logs';
+  private readonly apiBase = 'http://localhost:5890/api/logs';
 
   constructor(private http: HttpClient) {}
 
