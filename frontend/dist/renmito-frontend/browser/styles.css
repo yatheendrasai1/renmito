@@ -1,0 +1,151 @@
+/* src/styles.css */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+:root {
+  --header-bg: #1A1B28;
+  --header-text: #FFFFFF;
+  --header-icon-bg: rgba(255,255,255,0.13);
+  --header-icon-hover: rgba(255,255,255,0.24);
+  --nav-bg: #4A5568;
+  --nav-text: #D0D8E8;
+  --nav-text-muted: #7A8FAA;
+  --nav-item-hover: rgba(255,255,255,0.08);
+  --nav-item-active: rgba(233,79,55,0.16);
+  --nav-item-active-border: #e94f37;
+  --bg-primary: #121320;
+  --bg-surface: #1C1E30;
+  --bg-card: #252840;
+  --accent: #252840;
+  --accent-bright: #e94f37;
+  --accent-hover: #2F3250;
+  --text-primary: #E0E4F0;
+  --text-secondary: #8090A8;
+  --text-muted: #4A5878;
+  --border: #2A2D48;
+  --border-light: #383C5A;
+  --highlight-today: #e94f37;
+  --highlight-selected: #4A90E2;
+  --timeline-bg: #1A1B28;
+  --timeline-line: #2A2D42;
+  --timeline-text: #D0D8E8;
+  --timeline-text-muted:#4A5878;
+  --drag-overlay: rgba(233,79,55,0.32);
+  --shadow: 0 4px 20px rgba(0,0,0,0.45);
+  --radius: 8px;
+  --radius-sm: 4px;
+}
+[data-theme=light] {
+  --header-bg: #2b2d42;
+  --header-text: #FFFFFF;
+  --header-icon-bg: rgba(255,255,255,0.16);
+  --header-icon-hover: rgba(255,255,255,0.28);
+  --nav-bg: #8d99ae;
+  --nav-text: #1A1C2A;
+  --nav-text-muted: #3A4556;
+  --nav-item-hover: rgba(0,0,0,0.10);
+  --nav-item-active: rgba(43,45,66,0.14);
+  --nav-item-active-border: #2b2d42;
+  --bg-primary: #F5F7FA;
+  --bg-surface: #FFFFFF;
+  --bg-card: #F0F2F5;
+  --accent: #F0F2F5;
+  --accent-bright: #e94f37;
+  --accent-hover: #E4E8EE;
+  --text-primary: #1A1C2A;
+  --text-secondary: #3A4060;
+  --text-muted: #6A7290;
+  --border: #D8DCE8;
+  --border-light: #C4C8D8;
+  --highlight-today: #e94f37;
+  --highlight-selected: #2878D8;
+  --timeline-bg: #2b2d42;
+  --timeline-line: #3D4060;
+  --timeline-text: #D0D8E8;
+  --timeline-text-muted:#6A7290;
+  --drag-overlay: rgba(233,79,55,0.55);
+  --shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+html,
+body {
+  height: 100%;
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+button:focus-visible {
+  outline: 2px solid var(--highlight-selected);
+  outline-offset: 2px;
+}
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--highlight-selected);
+}
+select option {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* angular:styles/global:styles */
+/*# sourceMappingURL=styles.css.map */

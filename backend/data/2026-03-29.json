@@ -1,0 +1,29 @@
+[
+  {
+    "id": "cdee5d25-a9b5-4d9e-83fc-d2670bef81c5",
+    "date": "2026-03-29",
+    "startTime": "14:00",
+    "endTime": "16:45",
+    "type": "work",
+    "label": "meeting",
+    "color": "#4A90E2"
+  },
+  {
+    "id": "da9b10ed-8a77-4466-b766-035f0b08c2fe",
+    "date": "2026-03-29",
+    "startTime": "17:15",
+    "endTime": "18:45",
+    "type": "work",
+    "label": "meeeting2",
+    "color": "#4A90E2"
+  },
+  {
+    "id": "8caa7359-c0ce-4c54-8b40-558c84322a09",
+    "date": "2026-03-29",
+    "startTime": "21:00",
+    "endTime": "23:15",
+    "type": "lunch",
+    "label": "dinner, rice, omlette",
+    "color": "#F5A623"
+  }
+]
