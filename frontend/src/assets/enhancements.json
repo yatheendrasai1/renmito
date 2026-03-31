@@ -322,6 +322,46 @@
       "screenshot": null,
       "changelog": "",
       "notes": "Implemented via Math.round(minutes/10)*10 applied live in onMouseDown, onTrackMouseMove, and onDocMouseMove. snapToQuarter(15) replaced with snapToTen(10). minutesToPixels() helper added."
+    },
+    {
+      "id": "1.16",
+      "version": "1.16",
+      "type": "minor",
+      "title": "Editable start/end times in the log form",
+      "description": "Replaced the static time display in the New/Edit Log Entry popup with two native <input type='time'> fields. Both start and end times are now editable. The duration badge updates live as times change. The Save button is disabled when end time <= start time, with an inline 'end ≤ start' error indicator. In edit mode, the form is pre-populated with the existing log's times. ngOnChanges now also re-initialises on startTime/endTime input changes so time edits from the log list are reflected correctly.",
+      "status": "implemented",
+      "implementedAt": "2026-03-31T10:00:00",
+      "tags": ["ux", "form", "time-editing"],
+      "priority": null,
+      "relatedTo": [],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "formStartTime and formEndTime are internal state initialised from @Input startTime/endTime (create) or editEntry.startTime/endTime (edit). save() uses these form values, not the @Input props."
+    },
+    {
+      "id": "1.17",
+      "version": "1.17",
+      "type": "major",
+      "title": "Vertical timeline with logs displayed to the right",
+      "description": "Complete redesign of the timeline from a horizontal 1920px scrolling strip to a vertical 1440px (24h × 60px/hr) scrollable canvas. Time labels sit in the left column (0–46px). A narrow drag strip (46–70px) with subtle background is the interaction zone — clicking/dragging outside it (on the log area) does not start a selection. Log bars are vertical bands (left: 74px to right edge) positioned at their exact start/end times since 1px = 1min. The selection info (time range, duration, + Create Log button, clear button) has moved from the bottom selection bar into the timeline header row beside the date label. Drag snapping (10-min A/B zones from 1.15) is preserved. Hover dashed line is now horizontal. All time pills are positioned to the right of the drag strip so they don't overlap hour labels.",
+      "status": "implemented",
+      "implementedAt": "2026-03-31T10:30:00",
+      "tags": ["ui", "timeline", "layout", "major-redesign"],
+      "priority": null,
+      "relatedTo": ["1.15"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "HOUR_HEIGHT=60, TOTAL_HEIGHT=1440=TOTAL_MINUTES so pixelsToMinutes and minutesToPixels are 1:1. Pre-computed tickMarks array (120 entries) used instead of nested ngFor. LOG_AREA_OFFSET=74 guard prevents drag from starting when clicking log bars."
     }
   ]
 }

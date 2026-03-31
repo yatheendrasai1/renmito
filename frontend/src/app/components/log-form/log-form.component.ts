@@ -29,18 +29,35 @@ const CUSTOM_COLOR  = '#9B9B9B';
           </button>
         </div>
 
-        <!-- Time range -->
-        <div class="time-display">
-          <div class="time-badge">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"
-                 style="margin-right:6px;vertical-align:middle;">
-              <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
-              <path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5"
-                    stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            {{ startTime }} – {{ endTime }}
+        <!-- Time range — editable -->
+        <div class="time-range-row">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"
+               style="flex-shrink:0;color:var(--highlight-selected)">
+            <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+
+          <div class="time-field">
+            <span class="time-field-label">Start</span>
+            <input type="time" name="formStartTime"
+                   [(ngModel)]="formStartTime"
+                   class="time-input" />
           </div>
-          <span class="duration-label">{{ durationLabel }}</span>
+
+          <span class="time-arrow">→</span>
+
+          <div class="time-field">
+            <span class="time-field-label">End</span>
+            <input type="time" name="formEndTime"
+                   [(ngModel)]="formEndTime"
+                   class="time-input" />
+          </div>
+
+          <span class="duration-label" *ngIf="durationLabel">{{ durationLabel }}</span>
+          <span class="duration-label duration-label--error" *ngIf="!durationLabel && formStartTime && formEndTime">
+            end ≤ start
+          </span>
         </div>
 
         <form (ngSubmit)="save()" #logForm="ngForm">
@@ -205,26 +222,73 @@ const CUSTOM_COLOR  = '#9B9B9B';
     }
     .close-btn:hover { background: var(--bg-card); color: var(--text-primary); }
 
-    /* ── Time display ────────────────────────────────── */
-    .time-display {
+    /* ── Time range row (editable) ───────────────────── */
+    .time-range-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       background: var(--bg-card);
       border-radius: var(--radius-sm);
       padding: 10px 14px;
       margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-wrap: wrap;
     }
 
-    .time-badge {
-      font-size: 15px;
-      font-weight: 600;
+    .time-field {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .time-field-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+    }
+
+    .time-input {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
       color: var(--highlight-selected);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 4px 8px;
+      width: 120px;
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+    }
+    .time-input:focus {
+      border-color: var(--highlight-selected);
+      outline: none;
+    }
+
+    /* Suppress the native time-picker spinner in some browsers */
+    .time-input::-webkit-calendar-picker-indicator {
+      opacity: 0.5;
+      cursor: pointer;
+      filter: invert(0.5);
+    }
+
+    .time-arrow {
+      font-size: 16px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      margin-top: 14px;
     }
 
     .duration-label {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text-muted);
+      margin-top: 14px;
+      white-space: nowrap;
+    }
+
+    .duration-label--error {
+      color: #e94560;
+      font-weight: 600;
     }
 
     /* ── Form group ──────────────────────────────────── */
@@ -331,7 +395,7 @@ const CUSTOM_COLOR  = '#9B9B9B';
 
     .custom-input::placeholder { color: var(--text-muted); }
 
-    input { width: 100%; }
+    input[type="text"] { width: 100%; }
 
     /* ── Actions ─────────────────────────────────────── */
     .form-actions {
@@ -391,20 +455,24 @@ export class LogFormComponent implements OnInit, OnChanges {
   readonly chipItems: ActivityType[]     = ACTIVITY_TYPES.filter(a => CHIP_TYPES.includes(a.type));
   readonly dropdownItems: ActivityType[] = ACTIVITY_TYPES.filter(a => DROPDOWN_KEYS.includes(a.type));
 
+  /* editable time state */
+  formStartTime = '00:00';
+  formEndTime   = '01:00';
+
   /* form state */
   selectedType  = 'work';
   selectedColor = getActivityColor('work');
   labelValue    = '';
   editMode      = false;
 
-  dropdownValue  = '';   // '' | activity type key | 'custom'
+  dropdownValue  = '';
   isCustom       = false;
   customTypeName = '';
 
   /* ── computed ──────────────────────────────────────── */
 
   get durationLabel(): string {
-    const diff = this.toMins(this.endTime) - this.toMins(this.startTime);
+    const diff = this.toMins(this.formEndTime) - this.toMins(this.formStartTime);
     if (diff <= 0) return '';
     const h = Math.floor(diff / 60), m = diff % 60;
     if (h === 0) return `${m}m`;
@@ -415,6 +483,7 @@ export class LogFormComponent implements OnInit, OnChanges {
   get canSave(): boolean {
     if (!this.labelValue.trim()) return false;
     if (this.isCustom && !this.customTypeName.trim()) return false;
+    if (this.toMins(this.formEndTime) <= this.toMins(this.formStartTime)) return false;
     return true;
   }
 
@@ -432,28 +501,31 @@ export class LogFormComponent implements OnInit, OnChanges {
   ngOnInit(): void { this.initForm(); }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['editEntry']) this.initForm();
+    if (changes['editEntry'] || changes['startTime'] || changes['endTime']) {
+      this.initForm();
+    }
   }
 
   initForm(): void {
     if (this.editEntry) {
-      this.editMode     = true;
-      this.labelValue   = this.editEntry.label;
+      this.editMode      = true;
+      this.formStartTime = this.editEntry.startTime;
+      this.formEndTime   = this.editEntry.endTime;
+      this.labelValue    = this.editEntry.label;
       this.selectedColor = this.editEntry.color;
       const t = this.editEntry.type;
 
       if (CHIP_TYPES.includes(t)) {
-        this.selectedType  = t;
-        this.dropdownValue = '';
-        this.isCustom      = false;
+        this.selectedType   = t;
+        this.dropdownValue  = '';
+        this.isCustom       = false;
         this.customTypeName = '';
       } else if (DROPDOWN_KEYS.includes(t)) {
-        this.selectedType  = t;
-        this.dropdownValue = t;
-        this.isCustom      = false;
+        this.selectedType   = t;
+        this.dropdownValue  = t;
+        this.isCustom       = false;
         this.customTypeName = '';
       } else {
-        // unknown / custom type stored previously
         this.selectedType   = t;
         this.dropdownValue  = 'custom';
         this.isCustom       = true;
@@ -461,6 +533,8 @@ export class LogFormComponent implements OnInit, OnChanges {
       }
     } else {
       this.editMode      = false;
+      this.formStartTime = this.startTime;
+      this.formEndTime   = this.endTime;
       this.selectedType  = 'work';
       this.selectedColor = getActivityColor('work');
       this.labelValue    = '';
@@ -492,7 +566,6 @@ export class LogFormComponent implements OnInit, OnChanges {
       this.selectedType   = value;
       this.selectedColor  = getActivityColor(value);
     } else {
-      /* placeholder re-selected — keep current type, just clear dropdown indicator */
       this.isCustom       = false;
       this.customTypeName = '';
     }
@@ -509,8 +582,8 @@ export class LogFormComponent implements OnInit, OnChanges {
     const color = this.isCustom ? CUSTOM_COLOR : this.selectedColor;
 
     const entry: CreateLogEntry = {
-      startTime: this.startTime,
-      endTime:   this.endTime,
+      startTime: this.formStartTime,
+      endTime:   this.formEndTime,
       type,
       label: this.labelValue.trim(),
       color
@@ -534,6 +607,7 @@ export class LogFormComponent implements OnInit, OnChanges {
   }
 
   private toMins(time: string): number {
+    if (!time || !time.includes(':')) return 0;
     const [h, m] = time.split(':').map(Number);
     return h * 60 + m;
   }

@@ -21,231 +21,326 @@ export interface DragSelection {
   endMinutes: number;
 }
 
+/** A pre-computed 10-minute tick mark entry. */
+interface TickMark { pos: number; isHalf: boolean; }
+
 @Component({
   selector: 'app-timeline',
   standalone: true,
   imports: [CommonModule],
   template: `
     <div class="timeline-wrapper">
-      <div class="timeline-date-label">
-        {{ dateLabel }}
+
+      <!-- ── Header: date label + selection badge ───── -->
+      <div class="timeline-header">
+        <div class="timeline-date-label">{{ dateLabel }}</div>
+
+        <div class="selection-badge" *ngIf="hasDragSelection && !isDragging">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
+               style="flex-shrink:0;color:var(--highlight-selected)">
+            <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="sel-time">{{ dragSelection?.startTime }} – {{ dragSelection?.endTime }}</span>
+          <span class="sel-dur">{{ selectionDuration }}</span>
+          <button class="btn-create-log" (click)="openCreateForm()">+ Create Log</button>
+          <button class="btn-clear-sel" (click)="clearSelection()" aria-label="Clear selection">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" stroke-width="1.8"
+                    stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <div class="timeline-scroll-container" #scrollContainer>
+      <!-- ── Scrollable timeline canvas ─────────────── -->
+      <div class="scroll-container" #scrollContainer>
         <div
-          class="timeline-track"
+          class="timeline-canvas"
           #track
           (mousedown)="onMouseDown($event)"
           (mousemove)="onTrackMouseMove($event)"
           (mouseenter)="onTrackMouseEnter()"
           (mouseleave)="onTrackMouseLeave()"
         >
-          <!-- Hour columns -->
-          <div class="hour-column" *ngFor="let hour of hours" [style.left.px]="hour * HOUR_WIDTH">
-            <div class="hour-label">{{ formatHour(hour) }}</div>
-            <!-- Quarter subdivisions -->
-            <div class="quarter-line" [style.left.px]="HOUR_WIDTH * 0.25"></div>
-            <div class="quarter-line" [style.left.px]="HOUR_WIDTH * 0.5"></div>
-            <div class="quarter-line" [style.left.px]="HOUR_WIDTH * 0.75"></div>
-            <div class="hour-line"></div>
+          <!-- Hour labels (left column) -->
+          <div class="hour-label"
+               *ngFor="let hour of hours"
+               [style.top.px]="hour * HOUR_HEIGHT">
+            {{ formatHour(hour) }}
           </div>
+          <div class="hour-label" [style.top.px]="24 * HOUR_HEIGHT">24:00</div>
 
-          <!-- End cap hour line for 24:00 -->
-          <div class="hour-end-line" [style.left.px]="24 * HOUR_WIDTH"></div>
+          <!-- Hour grid lines (full width from strip rightward) -->
+          <div class="hour-line"
+               *ngFor="let hour of hours"
+               [style.top.px]="hour * HOUR_HEIGHT"></div>
+          <div class="hour-line" [style.top.px]="24 * HOUR_HEIGHT"></div>
+
+          <!-- 10-minute tick marks -->
+          <div class="tick-line"
+               *ngFor="let tick of tickMarks"
+               [class.tick-line--half]="tick.isHalf"
+               [style.top.px]="tick.pos"></div>
+
+          <!-- Drag strip highlight (visual affordance, no pointer events) -->
+          <div class="drag-strip-bg"></div>
+
+          <!-- Drag selection overlay -->
+          <div class="drag-overlay"
+               *ngIf="isDragging || hasDragSelection"
+               [style.top.px]="dragOverlayTop"
+               [style.height.px]="dragOverlayHeight"></div>
 
           <!-- Log entry bars -->
           <div
             class="log-bar"
             *ngFor="let log of logs"
             [class.log-bar--highlighted]="log.id === highlightedLogId"
-            [style.left.px]="timeToPixels(log.startTime)"
-            [style.width.px]="barWidth(log)"
+            [style.top.px]="timeToPixels(log.startTime)"
+            [style.height.px]="barHeight(log)"
             [style.background]="log.color"
             [attr.data-log-id]="log.id"
             [title]="log.label + ' (' + log.startTime + ' – ' + log.endTime + ')'"
             (click)="onBarClick(log, $event)"
           >
             <span class="log-bar-label">{{ log.label }}</span>
+            <span class="log-bar-time" *ngIf="barHeight(log) >= 22">
+              {{ log.startTime }}–{{ log.endTime }}
+            </span>
           </div>
 
-          <!-- Drag selection overlay -->
-          <div
-            class="drag-overlay"
-            *ngIf="isDragging || hasDragSelection"
-            [style.left.px]="dragOverlayLeft"
-            [style.width.px]="dragOverlayWidth"
-          ></div>
-
           <!-- Current time indicator -->
-          <div
-            class="current-time-line"
-            *ngIf="isToday"
-            [style.left.px]="currentTimePixels"
-          >
+          <div class="current-time-line" *ngIf="isToday"
+               [style.top.px]="currentTimePixels">
             <div class="current-time-dot"></div>
           </div>
 
-          <!-- Hover indicator: dashed line + time pill (idle, not dragging) -->
+          <!-- Hover indicator: horizontal dashed line + time pill (idle) -->
           <ng-container *ngIf="isHoveringTrack && !isDragging">
-            <div class="hover-line" [style.left.px]="hoverX"></div>
-            <div class="hover-pill"
-                 [style.left.px]="hoverX"
-                 [class.hover-pill--flip]="hoverX > TOTAL_WIDTH - 60">
-              {{ hoverTimeLabel }}
-            </div>
+            <div class="hover-line" [style.top.px]="hoverY"></div>
+            <div class="hover-pill" [style.top.px]="hoverY">{{ hoverTimeLabel }}</div>
           </ng-container>
 
-          <!-- During drag: start time + live end time pills -->
+          <!-- During drag: anchor pill + live end pill -->
           <ng-container *ngIf="isDragging">
-            <div class="drag-anchor-pill"
-                 [style.left.px]="dragStartX"
-                 [class.drag-anchor-pill--flip]="dragStartX > TOTAL_WIDTH - 60">
+            <div class="drag-anchor-pill" [style.top.px]="dragStartY">
               {{ dragStartTimeLabel }}
             </div>
-            <div class="drag-end-pill"
-                 [style.left.px]="dragCurrentX"
-                 [class.drag-end-pill--flip]="dragCurrentX > TOTAL_WIDTH - 60">
+            <div class="drag-end-pill" [style.top.px]="dragCurrentY">
               {{ dragCurrentTimeLabel }}
             </div>
           </ng-container>
+
         </div>
       </div>
 
-      <!-- Drag selection info bar -->
-      <div class="selection-bar" *ngIf="hasDragSelection && !isDragging">
-        <div class="selection-info">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="margin-right:6px; vertical-align:middle; flex-shrink:0;">
-            <circle cx="8" cy="8" r="6.5" stroke="#4A90E2" stroke-width="1.5"/>
-            <path d="M8 5v3l2 2" stroke="#4A90E2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span class="selection-time">{{ dragSelection?.startTime }} – {{ dragSelection?.endTime }}</span>
-          <span class="selection-duration">{{ selectionDuration }}</span>
-        </div>
-        <div class="selection-actions">
-          <button class="btn-create-log" (click)="openCreateForm()">
-            + Create Log
-          </button>
-          <button class="btn-clear-selection" (click)="clearSelection()" aria-label="Clear selection">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </button>
-        </div>
-      </div>
     </div>
   `,
   styles: [`
+    /* ── Wrapper ─────────────────────────────────────── */
     .timeline-wrapper {
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: 8px;
       min-width: 0;
       width: 100%;
+    }
+
+    /* ── Header row ──────────────────────────────────── */
+    .timeline-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 32px;
     }
 
     .timeline-date-label {
       font-size: 13px;
       font-weight: 500;
       color: var(--text-primary);
-      margin-bottom: 8px;
-      padding-left: 4px;
     }
 
-    .timeline-scroll-container {
-      overflow-x: auto;
-      overflow-y: visible;
+    /* ── Selection badge (in header) ─────────────────── */
+    .selection-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-surface);
+      border: 1px solid rgba(74,144,226,0.4);
+      border-radius: var(--radius);
+      padding: 5px 10px;
+    }
+
+    .sel-time {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--highlight-selected);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sel-dur {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-card);
+      padding: 2px 7px;
+      border-radius: 8px;
+    }
+
+    .btn-create-log {
+      background: var(--highlight-selected);
+      color: #fff;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+    }
+    .btn-create-log:hover { opacity: 0.85; }
+
+    .btn-clear-sel {
+      background: none;
+      color: var(--text-muted);
+      padding: 3px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-clear-sel:hover { background: var(--bg-card); color: var(--text-primary); }
+
+    /* ── Scroll container ────────────────────────────── */
+    .scroll-container {
+      overflow-y: auto;
+      overflow-x: hidden;
+      height: 520px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
       background: var(--timeline-bg);
       width: 100%;
       box-sizing: border-box;
-    }
-
-    .timeline-track {
       position: relative;
-      width: 1920px;   /* 24 * 80px */
-      height: 200px;
-      cursor: crosshair;
+    }
+
+    /* ── Timeline canvas ─────────────────────────────── */
+    /*
+     * Layout (pixels from left):
+     *   0 – 46px  : hour labels
+     *  46 – 70px  : drag strip  (cursor: crosshair)
+     *  70px+      : log bar display area
+     */
+    .timeline-canvas {
+      position: relative;
+      width: 100%;
+      height: 1440px; /* 24 hours × 60px/hr = 1440px  (1px = 1 min) */
       background: var(--timeline-bg);
-      border-radius: var(--radius);
-      overflow: visible;
+      cursor: crosshair;
+      user-select: none;
     }
 
-    .hour-column {
-      position: absolute;
-      top: 0;
-      height: 100%;
-      width: 80px;
-    }
-
+    /* ── Hour labels ─────────────────────────────────── */
     .hour-label {
       position: absolute;
-      top: 6px;
-      left: 4px;
+      left: 0;
+      width: 44px;
+      transform: translateY(-50%);
       font-size: 10px;
-      font-weight: 500;
+      font-weight: 600;
       color: var(--timeline-text);
+      text-align: right;
+      padding-right: 6px;
       pointer-events: none;
+      z-index: 2;
       white-space: nowrap;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.2px;
     }
 
+    /* ── Grid lines ──────────────────────────────────── */
     .hour-line {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 1px;
-      height: 100%;
+      left: 46px;
+      right: 0;
+      height: 1px;
       background: var(--border);
       pointer-events: none;
+      z-index: 1;
     }
 
-    .hour-end-line {
+    .tick-line {
+      position: absolute;
+      left: 46px;
+      width: 14px;
+      height: 1px;
+      background: var(--timeline-text-muted);
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    /* Half-hour ticks slightly longer and more visible */
+    .tick-line--half {
+      width: 22px;
+      opacity: 0.6;
+    }
+
+    /* ── Drag strip ──────────────────────────────────── */
+    .drag-strip-bg {
       position: absolute;
       top: 0;
-      width: 1px;
+      left: 46px;
+      width: 24px;
       height: 100%;
-      background: var(--border);
+      background: rgba(255,255,255,0.04);
+      border-right: 1px solid var(--border-light);
       pointer-events: none;
+      z-index: 1;
     }
 
-    .quarter-line {
+    /* ── Drag selection overlay ──────────────────────── */
+    /* Spans the full width after the time-label column so the
+       selected time band is clearly visible across the canvas. */
+    .drag-overlay {
       position: absolute;
-      top: 28px;
-      width: 1px;
-      height: calc(100% - 28px);
-      background: var(--timeline-line);
-      opacity: 0.5;
+      left: 46px;
+      right: 0;
+      background: var(--drag-overlay);
+      border-left: 3px solid rgba(74,144,226,0.75);
+      border-top: 1px solid rgba(74,144,226,0.45);
+      border-bottom: 1px solid rgba(74,144,226,0.45);
+      border-radius: 0 3px 3px 0;
       pointer-events: none;
+      z-index: 5;
     }
 
+    /* ── Log entry bars ──────────────────────────────── */
     .log-bar {
       position: absolute;
-      top: 28px;
-      height: calc(100% - 36px);
+      left: 74px;
+      right: 6px;
       border-radius: 4px;
       display: flex;
-      align-items: center;
-      padding: 0 8px;
-      cursor: pointer;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 3px 8px;
       overflow: hidden;
-      transition: filter 0.15s ease, transform 0.1s ease;
-      min-width: 4px;
-      z-index: 2;
+      cursor: pointer;
+      min-height: 4px;
+      z-index: 3;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      transition: filter 0.15s ease, transform 0.1s ease;
     }
 
     .log-bar:hover {
       filter: brightness(1.15);
-      transform: scaleY(1.04);
-      z-index: 3;
+      transform: scaleY(1.01);
+      z-index: 4;
     }
 
     .log-bar--highlighted {
       outline: 2px solid #fff;
       outline-offset: 2px;
       filter: brightness(1.2);
-      transform: scaleY(1.08);
       z-index: 6;
       animation: bar-pulse 0.6s ease-out;
     }
@@ -259,63 +354,61 @@ export interface DragSelection {
     .log-bar-label {
       font-size: 11px;
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.9);
+      color: rgba(255,255,255,0.95);
       text-shadow: 0 1px 2px rgba(0,0,0,0.5);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       pointer-events: none;
+      line-height: 1.3;
     }
 
-    .drag-overlay {
-      position: absolute;
-      top: 28px;
-      height: calc(100% - 36px);
-      background: var(--drag-overlay);
-      border: 1px solid rgba(74, 144, 226, 0.6);
-      border-radius: 3px;
+    .log-bar-time {
+      font-size: 9px;
+      color: rgba(255,255,255,0.72);
+      font-variant-numeric: tabular-nums;
       pointer-events: none;
-      z-index: 4;
+      line-height: 1.2;
     }
 
+    /* ── Current time indicator ──────────────────────── */
     .current-time-line {
       position: absolute;
-      top: 0;
-      width: 2px;
-      height: 100%;
+      left: 0;
+      right: 0;
+      height: 2px;
       background: var(--highlight-today);
       pointer-events: none;
-      z-index: 5;
-      opacity: 0.8;
+      z-index: 7;
+      opacity: 0.9;
     }
 
     .current-time-dot {
       position: absolute;
-      top: 26px;
-      left: -4px;
+      left: 44px;
+      top: -4px;
       width: 10px;
       height: 10px;
       border-radius: 50%;
       background: var(--highlight-today);
     }
 
-    /* ── Hover indicator ────────────────────────────────── */
+    /* ── Hover indicator ─────────────────────────────── */
     .hover-line {
       position: absolute;
-      top: 0;
-      width: 1px;
-      height: 100%;
-      background: var(--timeline-text-muted);
-      opacity: 0.7;
+      left: 46px;
+      right: 0;
+      height: 0;
+      border-top: 1px dashed var(--timeline-text);
+      opacity: 0.55;
       pointer-events: none;
       z-index: 6;
-      border-left: 1px dashed var(--timeline-text);
     }
 
     .hover-pill {
       position: absolute;
-      top: 4px;
-      transform: translateX(-50%);
+      left: 72px;
+      transform: translateY(-50%);
       background: var(--bg-primary);
       color: var(--text-primary);
       border: 1px solid var(--border-light);
@@ -330,15 +423,11 @@ export interface DragSelection {
       box-shadow: 0 2px 6px rgba(0,0,0,0.25);
     }
 
-    .hover-pill--flip {
-      transform: translateX(-100%);
-    }
-
-    /* ── Drag time pills ─────────────────────────────────── */
+    /* ── Drag time pills ─────────────────────────────── */
     .drag-anchor-pill {
       position: absolute;
-      top: 4px;
-      transform: translateX(-50%);
+      left: 72px;
+      transform: translateY(-50%);
       background: var(--bg-card);
       color: var(--text-secondary);
       border: 1px solid var(--border-light);
@@ -352,14 +441,10 @@ export interface DragSelection {
       font-variant-numeric: tabular-nums;
     }
 
-    .drag-anchor-pill--flip {
-      transform: translateX(-100%);
-    }
-
     .drag-end-pill {
       position: absolute;
-      top: 4px;
-      transform: translateX(-50%);
+      left: 72px;
+      transform: translateY(-50%);
       background: var(--highlight-selected);
       color: #fff;
       border-radius: 4px;
@@ -372,109 +457,61 @@ export interface DragSelection {
       font-variant-numeric: tabular-nums;
       box-shadow: 0 2px 8px rgba(74,144,226,0.45);
     }
-
-    .drag-end-pill--flip {
-      transform: translateX(-100%);
-    }
-
-    .selection-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--bg-surface);
-      border: 1px solid rgba(74, 144, 226, 0.4);
-      border-top: none;
-      border-radius: 0 0 var(--radius) var(--radius);
-      padding: 8px 14px;
-      gap: 12px;
-    }
-
-    .selection-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex: 1;
-    }
-
-    .selection-time {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--highlight-selected);
-    }
-
-    .selection-duration {
-      font-size: 12px;
-      color: var(--text-muted);
-      background: var(--bg-card);
-      padding: 2px 8px;
-      border-radius: 10px;
-    }
-
-    .selection-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .btn-create-log {
-      background: var(--highlight-selected);
-      color: white;
-      padding: 6px 14px;
-      font-size: 12px;
-      font-weight: 600;
-      border-radius: var(--radius-sm);
-    }
-
-    .btn-create-log:hover {
-      background: #3a7fcf;
-    }
-
-    .btn-clear-selection {
-      background: var(--bg-card);
-      color: var(--text-muted);
-      padding: 6px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .btn-clear-selection:hover {
-      background: var(--accent-hover);
-      color: var(--text-primary);
-    }
   `]
 })
 export class TimelineComponent implements OnChanges {
   @Input() logs: LogEntry[] = [];
   @Input() selectedDate: Date = new Date();
   @Input() highlightedLogId: string | null = null;
-  @Output() selectionMade = new EventEmitter<DragSelection>();
+  @Output() selectionMade    = new EventEmitter<DragSelection>();
   @Output() createLogClicked = new EventEmitter<DragSelection>();
-  @Output() logClicked = new EventEmitter<LogEntry>();
+  @Output() logClicked       = new EventEmitter<LogEntry>();
 
-  @ViewChild('track', { static: false }) trackRef!: ElementRef<HTMLDivElement>;
-  @ViewChild('scrollContainer', { static: false }) scrollContainerRef!: ElementRef<HTMLDivElement>;
+  @ViewChild('track', { static: false })
+  trackRef!: ElementRef<HTMLDivElement>;
 
-  readonly HOUR_WIDTH = 80;
-  readonly TOTAL_MINUTES = 1440;
-  readonly TOTAL_WIDTH = 1920; // 24 * 80
+  @ViewChild('scrollContainer', { static: false })
+  scrollContainerRef!: ElementRef<HTMLDivElement>;
+
+  /* ── Dimensions ──────────────────────────────────────
+   * HOUR_HEIGHT = 60px per hour → 1 px = 1 minute
+   * TOTAL_HEIGHT = 24 × 60 = 1440 px  (= TOTAL_MINUTES)
+   * So pixelsToMinutes(px) = px  and  minutesToPixels(m) = m
+   * ──────────────────────────────────────────────────── */
+  readonly HOUR_HEIGHT    = 60;
+  readonly TOTAL_MINUTES  = 1440;
+  readonly TOTAL_HEIGHT   = 1440; // 24 * HOUR_HEIGHT
 
   hours = Array.from({ length: 24 }, (_, i) => i);
 
-  isDragging = false;
+  /** Pre-computed 10-minute tick marks (excludes full hour positions). */
+  readonly tickMarks: TickMark[] = (() => {
+    const marks: TickMark[] = [];
+    for (let h = 0; h < 24; h++) {
+      for (const t of [10, 20, 30, 40, 50]) {
+        marks.push({ pos: h * 60 + t, isHalf: t === 30 });
+      }
+    }
+    return marks;
+  })();
+
+  /* ── Drag / hover state ──────────────────────────── */
+  isDragging       = false;
   hasDragSelection = false;
-  dragStartX = 0;
-  dragCurrentX = 0;
+  dragStartY       = 0;
+  dragCurrentY     = 0;
   dragSelection: DragSelection | null = null;
-  isToday = false;
+
+  isHoveringTrack = false;
+  hoverY          = 0;
+
+  /* ── Date / time state ──────────────────────────── */
+  isToday           = false;
   currentTimePixels = 0;
 
-  /* hover state */
-  isHoveringTrack = false;
-  hoverX = 0;
-
   constructor(private cdr: ChangeDetectorRef) {}
+
+  /* ── Computed getters ────────────────────────────── */
 
   get dateLabel(): string {
     if (!this.selectedDate) return '';
@@ -483,39 +520,40 @@ export class TimelineComponent implements OnChanges {
     });
   }
 
-  get dragOverlayLeft(): number {
-    return Math.min(this.dragStartX, this.dragCurrentX);
+  get dragOverlayTop(): number {
+    return Math.min(this.dragStartY, this.dragCurrentY);
   }
 
-  get dragOverlayWidth(): number {
-    return Math.abs(this.dragCurrentX - this.dragStartX);
+  get dragOverlayHeight(): number {
+    return Math.abs(this.dragCurrentY - this.dragStartY);
   }
 
   get selectionDuration(): string {
     if (!this.dragSelection) return '';
     const diff = this.dragSelection.endMinutes - this.dragSelection.startMinutes;
     if (diff <= 0) return '';
-    const h = Math.floor(diff / 60);
-    const m = diff % 60;
+    const h = Math.floor(diff / 60), m = diff % 60;
     if (h === 0) return `${m}m`;
     if (m === 0) return `${h}h`;
     return `${h}h ${m}m`;
   }
 
-  /** Exact minute-precision time at hover position (no snap — shows raw cursor time). */
+  /** Exact cursor time (no snap) — shown in hover pill. */
   get hoverTimeLabel(): string {
-    return this.minutesToTime(Math.round(this.pixelsToMinutes(this.hoverX)));
+    return this.minutesToTime(Math.round(this.pixelsToMinutes(this.hoverY)));
   }
 
-  /** Drag anchor — always a snapped 10-min mark (set on mousedown). */
+  /** Snapped start anchor time — shown in drag anchor pill. */
   get dragStartTimeLabel(): string {
-    return this.minutesToTime(Math.round(this.pixelsToMinutes(this.dragStartX)));
+    return this.minutesToTime(Math.round(this.pixelsToMinutes(this.dragStartY)));
   }
 
-  /** Live drag end — snapped to nearest 10-min mark in real time. */
+  /** Snapped live end time — shown in drag end pill. */
   get dragCurrentTimeLabel(): string {
-    return this.minutesToTime(Math.round(this.pixelsToMinutes(this.dragCurrentX)));
+    return this.minutesToTime(Math.round(this.pixelsToMinutes(this.dragCurrentY)));
   }
+
+  /* ── Lifecycle ───────────────────────────────────── */
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['selectedDate'] && this.selectedDate) {
@@ -526,57 +564,58 @@ export class TimelineComponent implements OnChanges {
 
   checkIsToday(): void {
     const today = new Date();
-    const sel = this.selectedDate;
+    const sel   = this.selectedDate;
     this.isToday =
       today.getFullYear() === sel.getFullYear() &&
-      today.getMonth() === sel.getMonth() &&
-      today.getDate() === sel.getDate();
+      today.getMonth()    === sel.getMonth()    &&
+      today.getDate()     === sel.getDate();
 
     if (this.isToday) {
       const now = new Date();
-      const totalMins = now.getHours() * 60 + now.getMinutes();
-      this.currentTimePixels = (totalMins / this.TOTAL_MINUTES) * this.TOTAL_WIDTH;
+      this.currentTimePixels = this.minutesToPixels(now.getHours() * 60 + now.getMinutes());
     }
   }
+
+  /* ── Coordinate helpers ──────────────────────────── */
 
   formatHour(hour: number): string {
     return String(hour).padStart(2, '0') + ':00';
   }
 
-  timeToPixels(time: string): number {
-    const mins = this.timeToMinutes(time);
-    return (mins / this.TOTAL_MINUTES) * this.TOTAL_WIDTH;
-  }
-
-  barWidth(log: LogEntry): number {
-    const startMins = this.timeToMinutes(log.startTime);
-    const endMins = this.timeToMinutes(log.endTime);
-    const diff = endMins - startMins;
-    if (diff <= 0) return 0;
-    return (diff / this.TOTAL_MINUTES) * this.TOTAL_WIDTH;
-  }
-
-  getTrackX(event: MouseEvent): number {
+  /** Returns raw Y coordinate within the canvas (before snapping). */
+  getTrackY(event: MouseEvent): number {
     if (!this.trackRef) return 0;
     const rect = this.trackRef.nativeElement.getBoundingClientRect();
-    return event.clientX - rect.left;
+    return event.clientY - rect.top;
   }
 
+  /** px → minutes. With TOTAL_HEIGHT = TOTAL_MINUTES = 1440, this is 1:1. */
   pixelsToMinutes(px: number): number {
-    return (px / this.TOTAL_WIDTH) * this.TOTAL_MINUTES;
+    return (px / this.TOTAL_HEIGHT) * this.TOTAL_MINUTES;
+  }
+
+  /** minutes → px. 1:1 with these dimensions. */
+  minutesToPixels(minutes: number): number {
+    return (minutes / this.TOTAL_MINUTES) * this.TOTAL_HEIGHT;
+  }
+
+  timeToPixels(time: string): number {
+    return this.minutesToPixels(this.timeToMinutes(time));
+  }
+
+  barHeight(log: LogEntry): number {
+    const diff = this.timeToMinutes(log.endTime) - this.timeToMinutes(log.startTime);
+    if (diff <= 0) return 0;
+    return this.minutesToPixels(diff);
   }
 
   /**
    * Snap to nearest 10-minute mark.
-   * A-zone (0–4 min past a mark) → rounds DOWN (no movement).
-   * B-zone (5–9 min past a mark) → rounds UP (advances to next mark).
+   * A-zone (0–4 min past mark) → rounds DOWN.
+   * B-zone (5–9 min past mark) → rounds UP.
    */
   snapToTen(minutes: number): number {
     return Math.round(minutes / 10) * 10;
-  }
-
-  minutesToPixels(minutes: number): number {
-    return (minutes / this.TOTAL_MINUTES) * this.TOTAL_WIDTH;
   }
 
   minutesToTime(minutes: number): string {
@@ -591,70 +630,71 @@ export class TimelineComponent implements OnChanges {
     return h * 60 + m;
   }
 
+  /* ── Mouse handlers ──────────────────────────────── */
+
   onMouseDown(event: MouseEvent): void {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || !this.trackRef) return;
+
+    // Don't start drag when clicking directly on a log bar (those open edit form)
+    if ((event.target as HTMLElement).closest('.log-bar')) return;
+
     event.preventDefault();
-    const rawX     = Math.max(0, Math.min(this.getTrackX(event), this.TOTAL_WIDTH));
-    const snappedX = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawX)));
-    this.isDragging = true;
+    const rawY     = Math.max(0, Math.min(this.getTrackY(event), this.TOTAL_HEIGHT));
+    const snappedY = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawY)));
+
+    this.isDragging      = true;
     this.hasDragSelection = false;
-    this.dragStartX   = snappedX;
-    this.dragCurrentX = snappedX;
-    this.dragSelection = null;
+    this.dragStartY      = snappedY;
+    this.dragCurrentY    = snappedY;
+    this.dragSelection   = null;
   }
 
-  /** Track-level mousemove: hover stays exact; drag end snaps to 10-min grid. */
+  /** Canvas-level mousemove: hover stays exact; drag end snaps live to 10-min grid. */
   onTrackMouseMove(event: MouseEvent): void {
     if (!this.trackRef) return;
-    const rawX = Math.max(0, Math.min(this.getTrackX(event), this.TOTAL_WIDTH));
-    this.hoverX = rawX; // hover cursor — always exact, no snap
+    const rawY = Math.max(0, Math.min(this.getTrackY(event), this.TOTAL_HEIGHT));
+    this.hoverY = rawY;
     if (this.isDragging) {
-      this.dragCurrentX = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawX)));
+      this.dragCurrentY = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawY)));
     }
     this.cdr.detectChanges();
   }
 
-  onTrackMouseEnter(): void {
-    this.isHoveringTrack = true;
-  }
+  onTrackMouseEnter(): void { this.isHoveringTrack = true; }
 
   onTrackMouseLeave(): void {
     this.isHoveringTrack = false;
-    // drag continues — let document:mouseup end it
     this.cdr.detectChanges();
   }
 
-  /** Document-level mousemove: keeps drag alive when cursor leaves the track. */
+  /** Document-level mousemove: keeps drag alive when cursor leaves the canvas. */
   @HostListener('document:mousemove', ['$event'])
   onDocMouseMove(event: MouseEvent): void {
     if (!this.isDragging || !this.trackRef) return;
-    const rawX = Math.max(0, Math.min(this.getTrackX(event), this.TOTAL_WIDTH));
-    this.dragCurrentX = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawX)));
-    this.hoverX = rawX;
+    const rawY = Math.max(0, Math.min(this.getTrackY(event), this.TOTAL_HEIGHT));
+    this.dragCurrentY = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawY)));
+    this.hoverY = rawY;
     this.cdr.detectChanges();
   }
 
   @HostListener('document:mouseup', ['$event'])
-  onMouseUp(event: MouseEvent): void {
+  onMouseUp(_event: MouseEvent): void {
     if (!this.isDragging) return;
     this.isDragging = false;
 
-    // dragStartX / dragCurrentX are already snapped to 10-min grid from live events.
-    // Just sort them into start < end.
-    let startMins = Math.round(this.pixelsToMinutes(Math.min(this.dragStartX, this.dragCurrentX)));
-    let endMins   = Math.round(this.pixelsToMinutes(Math.max(this.dragStartX, this.dragCurrentX)));
+    // dragStartY / dragCurrentY are already snapped — sort into start < end
+    let startMins = Math.round(this.pixelsToMinutes(Math.min(this.dragStartY, this.dragCurrentY)));
+    let endMins   = Math.round(this.pixelsToMinutes(Math.max(this.dragStartY, this.dragCurrentY)));
 
     // Minimum selection of 10 minutes
-    if (endMins - startMins < 10) {
-      endMins = startMins + 10;
-    }
+    if (endMins - startMins < 10) endMins = startMins + 10;
 
     startMins = Math.max(0, Math.min(startMins, this.TOTAL_MINUTES));
     endMins   = Math.max(0, Math.min(endMins,   this.TOTAL_MINUTES));
 
-    // Align overlay pixels exactly to snapped minute values
-    this.dragStartX   = this.minutesToPixels(startMins);
-    this.dragCurrentX = this.minutesToPixels(endMins);
+    // Snap overlay pixels to exact final values
+    this.dragStartY   = this.minutesToPixels(startMins);
+    this.dragCurrentY = this.minutesToPixels(endMins);
 
     this.dragSelection = {
       startTime:    this.minutesToTime(startMins),
@@ -678,29 +718,26 @@ export class TimelineComponent implements OnChanges {
     this.logClicked.emit(log);
   }
 
-  /** Scroll the timeline so the given log bar is centred in the visible area. */
+  /** Scroll the timeline so the given log bar is centred vertically. */
   scrollToLog(log: LogEntry): void {
     if (!this.scrollContainerRef) return;
-    const container = this.scrollContainerRef.nativeElement;
-    const barLeft  = this.timeToPixels(log.startTime);
-    const barRight = barLeft + this.barWidth(log);
-    const barCenter = (barLeft + barRight) / 2;
-    const containerWidth = container.clientWidth;
-    const targetScroll = barCenter - containerWidth / 2;
-    container.scrollTo({ left: Math.max(0, targetScroll), behavior: 'smooth' });
+    const container   = this.scrollContainerRef.nativeElement;
+    const barTop      = this.timeToPixels(log.startTime);
+    const barBottom   = barTop + this.barHeight(log);
+    const barCenter   = (barTop + barBottom) / 2;
+    const targetScroll = barCenter - container.clientHeight / 2;
+    container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
   }
 
   clearSelection(): void {
     this.hasDragSelection = false;
-    this.isDragging = false;
-    this.dragSelection = null;
-    this.dragStartX = 0;
-    this.dragCurrentX = 0;
+    this.isDragging       = false;
+    this.dragSelection    = null;
+    this.dragStartY       = 0;
+    this.dragCurrentY     = 0;
   }
 
   openCreateForm(): void {
-    if (this.dragSelection) {
-      this.createLogClicked.emit(this.dragSelection);
-    }
+    if (this.dragSelection) this.createLogClicked.emit(this.dragSelection);
   }
 }

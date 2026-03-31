@@ -162,7 +162,7 @@ import { getActivityLabel } from './constants/activity-types';
                   <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/>
                   <path d="M8 5v4M8 11v1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
                 </svg>
-                Drag on the timeline to create a log entry. Click an existing bar to edit it.
+                Drag the time strip to select a range, then click "+ Create Log". Click a bar to edit.
               </div>
 
               <!-- Log List -->
@@ -456,12 +456,7 @@ import { getActivityLabel } from './constants/activity-types';
       border-radius: var(--radius);
       padding: 16px;
       min-width: 0;
-      overflow: hidden;
-      /* Enhancement 1.4 — occupy at least half the viewport */
-      min-height: calc(50vh - 80px);
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
+      /* Enhancement 1.17 — vertical timeline manages its own 520px scroll height */
     }
 
     .timeline-hint {
