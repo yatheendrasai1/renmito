@@ -502,17 +502,17 @@ export class TimelineComponent implements OnChanges {
     return `${h}h ${m}m`;
   }
 
-  /** Exact minute-precision time at hover position. */
+  /** Exact minute-precision time at hover position (no snap — shows raw cursor time). */
   get hoverTimeLabel(): string {
     return this.minutesToTime(Math.round(this.pixelsToMinutes(this.hoverX)));
   }
 
-  /** Drag start time (minute precision). */
+  /** Drag anchor — always a snapped 10-min mark (set on mousedown). */
   get dragStartTimeLabel(): string {
     return this.minutesToTime(Math.round(this.pixelsToMinutes(this.dragStartX)));
   }
 
-  /** Live drag end time (minute precision — finer than the final quarter-snap). */
+  /** Live drag end — snapped to nearest 10-min mark in real time. */
   get dragCurrentTimeLabel(): string {
     return this.minutesToTime(Math.round(this.pixelsToMinutes(this.dragCurrentX)));
   }
@@ -566,8 +566,17 @@ export class TimelineComponent implements OnChanges {
     return (px / this.TOTAL_WIDTH) * this.TOTAL_MINUTES;
   }
 
-  snapToQuarter(minutes: number): number {
-    return Math.round(minutes / 15) * 15;
+  /**
+   * Snap to nearest 10-minute mark.
+   * A-zone (0–4 min past a mark) → rounds DOWN (no movement).
+   * B-zone (5–9 min past a mark) → rounds UP (advances to next mark).
+   */
+  snapToTen(minutes: number): number {
+    return Math.round(minutes / 10) * 10;
+  }
+
+  minutesToPixels(minutes: number): number {
+    return (minutes / this.TOTAL_MINUTES) * this.TOTAL_WIDTH;
   }
 
   minutesToTime(minutes: number): string {
@@ -585,21 +594,22 @@ export class TimelineComponent implements OnChanges {
   onMouseDown(event: MouseEvent): void {
     if (event.button !== 0) return;
     event.preventDefault();
-    const x = Math.max(0, Math.min(this.getTrackX(event), this.TOTAL_WIDTH));
+    const rawX     = Math.max(0, Math.min(this.getTrackX(event), this.TOTAL_WIDTH));
+    const snappedX = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawX)));
     this.isDragging = true;
     this.hasDragSelection = false;
-    this.dragStartX = x;
-    this.dragCurrentX = x;
+    this.dragStartX   = snappedX;
+    this.dragCurrentX = snappedX;
     this.dragSelection = null;
   }
 
-  /** Track-level mousemove: updates hover position AND drag end during drag. */
+  /** Track-level mousemove: hover stays exact; drag end snaps to 10-min grid. */
   onTrackMouseMove(event: MouseEvent): void {
     if (!this.trackRef) return;
-    const x = Math.max(0, Math.min(this.getTrackX(event), this.TOTAL_WIDTH));
-    this.hoverX = x;
+    const rawX = Math.max(0, Math.min(this.getTrackX(event), this.TOTAL_WIDTH));
+    this.hoverX = rawX; // hover cursor — always exact, no snap
     if (this.isDragging) {
-      this.dragCurrentX = x;
+      this.dragCurrentX = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawX)));
     }
     this.cdr.detectChanges();
   }
@@ -618,9 +628,9 @@ export class TimelineComponent implements OnChanges {
   @HostListener('document:mousemove', ['$event'])
   onDocMouseMove(event: MouseEvent): void {
     if (!this.isDragging || !this.trackRef) return;
-    const x = Math.max(0, Math.min(this.getTrackX(event), this.TOTAL_WIDTH));
-    this.dragCurrentX = x;
-    this.hoverX = x;
+    const rawX = Math.max(0, Math.min(this.getTrackX(event), this.TOTAL_WIDTH));
+    this.dragCurrentX = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawX)));
+    this.hoverX = rawX;
     this.cdr.detectChanges();
   }
 
@@ -629,32 +639,28 @@ export class TimelineComponent implements OnChanges {
     if (!this.isDragging) return;
     this.isDragging = false;
 
-    const left = Math.min(this.dragStartX, this.dragCurrentX);
-    const right = Math.max(this.dragStartX, this.dragCurrentX);
+    // dragStartX / dragCurrentX are already snapped to 10-min grid from live events.
+    // Just sort them into start < end.
+    let startMins = Math.round(this.pixelsToMinutes(Math.min(this.dragStartX, this.dragCurrentX)));
+    let endMins   = Math.round(this.pixelsToMinutes(Math.max(this.dragStartX, this.dragCurrentX)));
 
-    let startMins = this.snapToQuarter(this.pixelsToMinutes(left));
-    let endMins = this.snapToQuarter(this.pixelsToMinutes(right));
-
-    // Minimum selection of 15 minutes
-    if (endMins - startMins < 15) {
-      endMins = startMins + 15;
+    // Minimum selection of 10 minutes
+    if (endMins - startMins < 10) {
+      endMins = startMins + 10;
     }
 
     startMins = Math.max(0, Math.min(startMins, this.TOTAL_MINUTES));
-    endMins = Math.max(0, Math.min(endMins, this.TOTAL_MINUTES));
+    endMins   = Math.max(0, Math.min(endMins,   this.TOTAL_MINUTES));
 
-    const startTimeStr = this.minutesToTime(startMins);
-    const endTimeStr = this.minutesToTime(endMins);
-
-    // Recalculate overlay based on snapped values
-    this.dragStartX = (startMins / this.TOTAL_MINUTES) * this.TOTAL_WIDTH;
-    this.dragCurrentX = (endMins / this.TOTAL_MINUTES) * this.TOTAL_WIDTH;
+    // Align overlay pixels exactly to snapped minute values
+    this.dragStartX   = this.minutesToPixels(startMins);
+    this.dragCurrentX = this.minutesToPixels(endMins);
 
     this.dragSelection = {
-      startTime: startTimeStr,
-      endTime: endTimeStr,
+      startTime:    this.minutesToTime(startMins),
+      endTime:      this.minutesToTime(endMins),
       startMinutes: startMins,
-      endMinutes: endMins
+      endMinutes:   endMins
     };
 
     if (endMins > startMins) {

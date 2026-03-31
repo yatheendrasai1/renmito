@@ -302,6 +302,26 @@
       "screenshot": null,
       "changelog": "",
       "notes": "backend/data/ is intentionally excluded — it holds one JSON file per calendar day (YYYY-MM-DD.json) written at runtime by the Express API. These are user-specific logs and should not be committed."
+    },
+    {
+      "id": "1.15",
+      "version": "1.15",
+      "type": "minor",
+      "title": "Timeline drag snaps to 10-minute intervals (A/B zone logic)",
+      "description": "Drag selection on the timeline now snaps in 10-minute increments in real time. Each 10-minute slot is divided into A-zone (0–4 min past the mark) and B-zone (5–9 min). In A-zone the selection boundary stays at the lower mark; once the cursor crosses the midpoint into B-zone it jumps to the next 10-min mark. Applies identically when dragging backward. Both the drag overlay and the live end-time pill update in 10-min steps as the cursor moves. Hover pill (non-drag) remains exact to the minute. Minimum selection reduced from 15 min to 10 min.",
+      "status": "implemented",
+      "implementedAt": "2026-03-31T09:00:00",
+      "tags": ["ux", "timeline", "drag", "snapping"],
+      "priority": null,
+      "relatedTo": [],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "Implemented via Math.round(minutes/10)*10 applied live in onMouseDown, onTrackMouseMove, and onDocMouseMove. snapToQuarter(15) replaced with snapToTen(10). minutesToPixels() helper added."
     }
   ]
 }
