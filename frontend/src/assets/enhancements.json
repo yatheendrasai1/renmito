@@ -364,6 +364,26 @@
       "notes": "Two-collection log type architecture uses Mongoose refPath on logTypeId + logTypeSource discriminator for dynamic populate. backend/data/ directory is now fully unused. DB_USERNAME, DB_PASSWORD, and JWT_SECRET must be set in backend/.env before starting the server. config.js is the single source of truth for all environment variables."
     },
     {
+      "id": "1.24",
+      "version": "1.24",
+      "type": "trivial",
+      "title": "Side-by-side timeline and log list (50/50 split)",
+      "description": "Restructured the logger content area from a single vertical stack to a two-column CSS grid. Left column (50%) contains the timeline header, timeline canvas, and drag hint. Right column (50%) contains the log list. The log list column is position:sticky top:0 and has max-height:638px with overflow-y:auto so it scrolls independently at the same visual height as the timeline. On mobile (≤700px) the grid collapses to a single column — timeline full-width on top, log list full-width below with no max-height constraint.",
+      "status": "implemented",
+      "implementedAt": "2026-04-04T21:00:00",
+      "tags": ["layout", "ui", "responsive", "timeline", "log-list"],
+      "priority": null,
+      "relatedTo": ["1.23"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": "main",
+      "screenshot": null,
+      "changelog": "",
+      "notes": "638px max-height on the log list matches the approximate rendered height of the timeline column (content-header ~30px + gap 14px + timeline-container 552px + gap 14px + hint 24px). Responsive breakpoint at 700px (narrower than the nav breakpoint at 960px)."
+    },
+    {
       "id": "1.23",
       "version": "1.23",
       "type": "trivial",

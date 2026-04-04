@@ -142,37 +142,42 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
               </div>
             </div>
 
-            <!-- Timeline header -->
-            <div class="content-header">
-              <h2 class="section-title">Timeline — {{ dateShortLabel }}</h2>
-              <div class="loading-indicator" *ngIf="isLoading">
-                <span class="spinner"></span> Loading…
+            <!-- ── Split: Timeline (left) + Log list (right) — 1.24 -->
+            <div class="logger-split">
+
+              <!-- Left column: Timeline -->
+              <div class="split-timeline">
+                <div class="content-header">
+                  <h2 class="section-title">Timeline — {{ dateShortLabel }}</h2>
+                  <div class="loading-indicator" *ngIf="isLoading">
+                    <span class="spinner"></span> Loading…
+                  </div>
+                </div>
+
+                <div class="timeline-container">
+                  <app-timeline
+                    #timelineRef
+                    [logs]="logs"
+                    [selectedDate]="selectedDate"
+                    [highlightedLogId]="highlightedLogId"
+                    (selectionMade)="onSelectionChanged($event)"
+                    (createLogClicked)="onCreateLogClicked($event)"
+                    (logClicked)="editLog($event)"
+                  ></app-timeline>
+                </div>
+
+                <div class="timeline-hint" *ngIf="!isLoading">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
+                       style="vertical-align:middle;margin-right:4px;">
+                    <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M8 5v4M8 11v1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  </svg>
+                  Drag the time strip to select a range, then click "+ Create Log". Click a bar to edit.
+                </div>
               </div>
-            </div>
 
-            <!-- Timeline -->
-            <div class="timeline-container">
-              <app-timeline
-                #timelineRef
-                [logs]="logs"
-                [selectedDate]="selectedDate"
-                [highlightedLogId]="highlightedLogId"
-                (selectionMade)="onSelectionChanged($event)"
-                (createLogClicked)="onCreateLogClicked($event)"
-                (logClicked)="editLog($event)"
-              ></app-timeline>
-            </div>
-
-            <div class="timeline-hint" *ngIf="!isLoading">
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
-                   style="vertical-align:middle;margin-right:4px;">
-                <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/>
-                <path d="M8 5v4M8 11v1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-              </svg>
-              Drag the time strip to select a range, then click "+ Create Log". Click a bar to edit.
-            </div>
-
-            <!-- Log List -->
+              <!-- Right column: Log List -->
+              <div class="split-logs">
             <div class="log-list-section">
               <div class="log-list-header">
                 <h2 class="section-title">Logs for this day</h2>
@@ -228,7 +233,10 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
                 <p>No logs recorded for this day.</p>
                 <span>Drag on the timeline above to get started.</span>
               </div>
-            </div>
+            </div><!-- /log-list-section -->
+              </div><!-- /split-logs -->
+
+            </div><!-- /logger-split -->
 
           </div><!-- /content-area -->
         </div><!-- /view-area -->
@@ -424,6 +432,35 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
     .date-bar-btn:hover:not(:disabled) { background: var(--accent-hover); color: var(--text-primary); }
     .date-bar-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+    /* ── Split layout — 1.24 ───────────────────────────────
+     * Desktop: timeline left | log list right (50/50)
+     * Mobile:  timeline full-width, log list below         */
+    .logger-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .split-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    /* Log list column scrolls independently at the same height
+       as the timeline column (~header + container + hint).    */
+    .split-logs {
+      min-width: 0;
+      position: sticky;
+      top: 0;
+    }
+    .split-logs .log-list-section {
+      max-height: 638px;
+      overflow-y: auto;
+    }
+
     /* ── Content header ─────────────────────────────────── */
     .content-header { display: flex; align-items: center; justify-content: space-between; }
     .section-title {
@@ -551,6 +588,13 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
       .nav-group-label { display: none; }
       .left-nav-item span { display: none; }
       .left-nav-item { justify-content: center; padding: 10px; }
+    }
+
+    /* Mobile: stack timeline above log list, both full-width */
+    @media (max-width: 700px) {
+      .logger-split { grid-template-columns: 1fr; }
+      .split-logs { position: static; }
+      .split-logs .log-list-section { max-height: none; overflow-y: visible; }
     }
   `]
 })
