@@ -1,25 +1,40 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const logsRouter = require('./routes/logs');
+const config             = require('./config');
+const express            = require('express');
+const cors               = require('cors');
+const mongoose           = require('mongoose');
+const logsRouter         = require('./routes/logs');
+const authRouter         = require('./routes/auth');
+const logTypesRouter     = require('./routes/logtypes');
+const authMiddleware     = require('./middleware/authMiddleware');
+const seedDefaultLogTypes = require('./utils/seedDefaults');
 
-const app = express();
-const PORT = 5890;
+const app  = express();
+const PORT = config.server.port;
+mongoose.connect(config.db.uri)
+  .then(async () => {
+    console.log('Connected to MongoDB Atlas');
+    await seedDefaultLogTypes();
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err.message);
+    process.exit(1);
+  });
 
 // Middleware
 app.use(cors({
   origin: 'http://localhost:4200',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
 
-// Static route to serve logs data directory
-app.use('/data', express.static(path.join(__dirname, '../data')));
+// Public routes — no auth required
+app.use('/api/auth', authRouter);
 
-// API routes
-app.use('/api/logs', logsRouter);
+// Protected routes — valid JWT required
+app.use('/api/logs',     authMiddleware, logsRouter);
+app.use('/api/logtypes', authMiddleware, logTypesRouter);
 
 // Health check
 app.get('/health', (req, res) => {

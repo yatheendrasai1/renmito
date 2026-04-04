@@ -4,15 +4,22 @@ import { CalendarComponent } from './components/calendar/calendar.component';
 import { TimelineComponent, DragSelection } from './components/timeline/timeline.component';
 import { LogFormComponent } from './components/log-form/log-form.component';
 import { EnhancementsDrawerComponent } from './components/enhancements-drawer/enhancements-drawer.component';
+import { LoginComponent } from './auth/login.component';
 import { LogService } from './services/log.service';
+import { AuthService } from './services/auth.service';
+import { LogTypeService } from './services/log-type.service';
 import { LogEntry, CreateLogEntry } from './models/log.model';
-import { getActivityLabel } from './constants/activity-types';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, CalendarComponent, TimelineComponent, LogFormComponent, EnhancementsDrawerComponent],
+  imports: [CommonModule, CalendarComponent, TimelineComponent, LogFormComponent, EnhancementsDrawerComponent, LoginComponent],
   template: `
+    <!-- ── Login gate ──────────────────────────────────── -->
+    <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
+
+    <!-- ── Main app (shown only when authenticated) ───── -->
+    <ng-container *ngIf="isAuthenticated">
     <div class="app-shell">
 
       <!-- ── Top Header ─────────────────────────────────── -->
@@ -28,6 +35,7 @@ import { getActivityLabel } from './constants/activity-types';
 
         <div class="header-actions">
           <span class="header-date">{{ todayLabel }}</span>
+          <span class="header-user" *ngIf="currentUser">{{ currentUser.userName }}</span>
 
           <!-- Enhancement log -->
           <button class="header-icon-btn" (click)="showEnhancementsDrawer = true"
@@ -39,6 +47,16 @@ import { getActivityLabel } from './constants/activity-types';
               <line x1="8" y1="13" x2="16" y2="13"/>
               <line x1="8" y1="17" x2="16" y2="17"/>
               <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </button>
+
+          <!-- Logout -->
+          <button class="header-icon-btn" (click)="logout()" title="Log out" aria-label="Log out">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
             </svg>
           </button>
 
@@ -188,16 +206,16 @@ import { getActivityLabel } from './constants/activity-types';
                     (click)="focusLog(log)"
                   >
                     <div class="log-list-index">{{ i + 1 }}</div>
-                    <div class="log-list-color-bar" [style.background]="log.color"></div>
+                    <div class="log-list-color-bar" [style.background]="log.logType?.color ?? '#9B9B9B'"></div>
                     <div class="log-list-body">
-                      <div class="log-list-label">{{ log.label }}</div>
+                      <div class="log-list-label">{{ log.title }}</div>
                       <div class="log-list-meta">
                         <span class="log-list-type-badge"
-                              [style.background]="log.color + '22'"
-                              [style.color]="log.color">
-                          {{ getActivityLabel(log.type) }}
+                              [style.background]="(log.logType?.color ?? '#9B9B9B') + '22'"
+                              [style.color]="log.logType?.color ?? '#9B9B9B'">
+                          {{ log.logType?.name ?? '—' }}
                         </span>
-                        <span class="log-list-time">{{ log.startTime }} – {{ log.endTime }}</span>
+                        <span class="log-list-time">{{ log.startAt }} – {{ log.endAt }}</span>
                         <span class="log-list-duration">{{ getDuration(log) }}</span>
                       </div>
                     </div>
@@ -230,6 +248,7 @@ import { getActivityLabel } from './constants/activity-types';
     </div><!-- /app-shell -->
 
     <!-- Enhancement log drawer -->
+
     <app-enhancements-drawer
       [isOpen]="showEnhancementsDrawer"
       (close)="showEnhancementsDrawer = false"
@@ -246,6 +265,7 @@ import { getActivityLabel } from './constants/activity-types';
       (deleted)="onLogDeleted($event)"
       (cancelled)="closeForm()"
     ></app-log-form>
+    </ng-container><!-- /isAuthenticated -->
   `,
   styles: [`
 
@@ -620,6 +640,21 @@ import { getActivityLabel } from './constants/activity-types';
       color: var(--text-muted);
     }
 
+    /* ── User chip ───────────────────────────────────────── */
+    .header-user {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.75);
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 3px 10px;
+      letter-spacing: 0.3px;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     /* ── Responsive ──────────────────────────────────────── */
     @media (max-width: 960px) {
       .left-nav { width: 52px; padding: 20px 6px; }
@@ -633,6 +668,9 @@ import { getActivityLabel } from './constants/activity-types';
 })
 export class AppComponent implements OnInit {
   @ViewChild('timelineRef') timelineRef!: TimelineComponent;
+
+  isAuthenticated = false;
+  currentUser = this.authService.getUser();
 
   activeView: 'logger' = 'logger';
   theme: 'dark' | 'light' = 'dark';
@@ -648,9 +686,11 @@ export class AppComponent implements OnInit {
   formEndTime = '10:00';
   editingEntry: LogEntry | null = null;
 
-  readonly getActivityLabel = getActivityLabel;
-
-  constructor(private logService: LogService) {}
+  constructor(
+    private logService: LogService,
+    private authService: AuthService,
+    private logTypeService: LogTypeService
+  ) {}
 
   get todayLabel(): string {
     return new Date().toLocaleDateString('en-US', {
@@ -670,10 +710,32 @@ export class AppComponent implements OnInit {
     this.theme = saved ?? 'dark';
     document.documentElement.setAttribute('data-theme', this.theme);
 
+    // Auth gate — check stored token
+    this.isAuthenticated = this.authService.isLoggedIn();
+    if (this.isAuthenticated) {
+      this.currentUser = this.authService.getUser();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      this.selectedDate = today;
+      this.loadLogs();
+    }
+  }
+
+  onLoggedIn(): void {
+    this.isAuthenticated = true;
+    this.currentUser = this.authService.getUser();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     this.selectedDate = today;
     this.loadLogs();
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.logTypeService.clearCache();
+    this.isAuthenticated = false;
+    this.currentUser = null;
+    this.logs = [];
   }
 
   toggleTheme(): void {
@@ -694,7 +756,7 @@ export class AppComponent implements OnInit {
   }
 
   getDuration(log: LogEntry): string {
-    const diff = this.timeToMinutes(log.endTime) - this.timeToMinutes(log.startTime);
+    const diff = this.timeToMinutes(log.endAt) - this.timeToMinutes(log.startAt);
     if (diff <= 0) return '';
     const h = Math.floor(diff / 60);
     const m = diff % 60;
@@ -708,7 +770,7 @@ export class AppComponent implements OnInit {
     this.logService.getLogsForDate(this.selectedDate).subscribe({
       next: (logs) => {
         this.logs = logs.sort((a, b) =>
-          this.timeToMinutes(a.startTime) - this.timeToMinutes(b.startTime)
+          this.timeToMinutes(a.startAt) - this.timeToMinutes(b.startAt)
         );
         this.isLoading = false;
       },
@@ -733,10 +795,10 @@ export class AppComponent implements OnInit {
   }
 
   editLog(log: LogEntry): void {
-    this.formStartTime = log.startTime;
-    this.formEndTime = log.endTime;
-    this.editingEntry = log;
-    this.showForm = true;
+    this.formStartTime = log.startAt;
+    this.formEndTime   = log.endAt;
+    this.editingEntry  = log;
+    this.showForm      = true;
   }
 
   onLogSaved(entry: CreateLogEntry): void {
@@ -769,11 +831,11 @@ export class AppComponent implements OnInit {
 
     const rows = this.logs.map(log => [
       dateStr,
-      log.startTime,
-      log.endTime,
+      log.startAt,
+      log.endAt,
       this.getDuration(log),
-      this.getActivityLabel(log.type),
-      `"${log.label.replace(/"/g, '""')}"` // quote-escape label
+      log.logType?.name ?? '',
+      `"${log.title.replace(/"/g, '""')}"` // quote-escape title
     ]);
 
     const csv = [header, ...rows].map(r => r.join(',')).join('\n');

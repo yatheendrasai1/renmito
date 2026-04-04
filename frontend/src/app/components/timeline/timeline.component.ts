@@ -98,16 +98,16 @@ interface TickMark { pos: number; isHalf: boolean; }
             class="log-bar"
             *ngFor="let log of logs"
             [class.log-bar--highlighted]="log.id === highlightedLogId"
-            [style.top.px]="timeToPixels(log.startTime)"
+            [style.top.px]="timeToPixels(log.startAt)"
             [style.height.px]="barHeight(log)"
-            [style.background]="log.color"
+            [style.background]="log.logType?.color ?? '#9B9B9B'"
             [attr.data-log-id]="log.id"
-            [title]="log.label + ' (' + log.startTime + ' – ' + log.endTime + ')'"
+            [title]="log.title + ' (' + log.startAt + ' – ' + log.endAt + ')'"
             (click)="onBarClick(log, $event)"
           >
-            <span class="log-bar-label">{{ log.label }}</span>
+            <span class="log-bar-label">{{ log.title }}</span>
             <span class="log-bar-time" *ngIf="barHeight(log) >= 22">
-              {{ log.startTime }}–{{ log.endTime }}
+              {{ log.startAt }}–{{ log.endAt }}
             </span>
           </div>
 
@@ -604,7 +604,7 @@ export class TimelineComponent implements OnChanges {
   }
 
   barHeight(log: LogEntry): number {
-    const diff = this.timeToMinutes(log.endTime) - this.timeToMinutes(log.startTime);
+    const diff = this.timeToMinutes(log.endAt) - this.timeToMinutes(log.startAt);
     if (diff <= 0) return 0;
     return this.minutesToPixels(diff);
   }
@@ -722,7 +722,7 @@ export class TimelineComponent implements OnChanges {
   scrollToLog(log: LogEntry): void {
     if (!this.scrollContainerRef) return;
     const container   = this.scrollContainerRef.nativeElement;
-    const barTop      = this.timeToPixels(log.startTime);
+    const barTop      = this.timeToPixels(log.startAt);
     const barBottom   = barTop + this.barHeight(log);
     const barCenter   = (barTop + barBottom) / 2;
     const targetScroll = barCenter - container.clientHeight / 2;
