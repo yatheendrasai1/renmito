@@ -3,12 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { LogEntry, CreateLogEntry } from '../models/log.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class LogService {
-  private readonly apiBase = 'http://localhost:5890/api/logs';
+  private readonly apiBase = `${environment.apiBase}/logs`;
 
   constructor(private http: HttpClient) {}
 

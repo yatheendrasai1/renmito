@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface AuthUser {
   id: string;
@@ -15,7 +16,7 @@ interface AuthResponse {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly apiBase = 'http://localhost:5890/api/auth';
+  private readonly apiBase = `${environment.apiBase}/auth`;
   private readonly TOKEN_KEY = 'renmito-token';
   private readonly USER_KEY  = 'renmito-user';
 

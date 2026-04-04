@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, shareReplay, tap } from 'rxjs';
 import { LogType } from '../models/log-type.model';
+import { environment } from '../../environments/environment';
 
 export interface CreateLogTypePayload {
   name: string;
@@ -13,7 +14,7 @@ export interface CreateLogTypePayload {
 
 @Injectable({ providedIn: 'root' })
 export class LogTypeService {
-  private readonly apiBase = 'http://localhost:5890/api/logtypes';
+  private readonly apiBase = `${environment.apiBase}/logtypes`;
 
   // Cache for the duration of the session
   private cache$: Observable<LogType[]> | null = null;

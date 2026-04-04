@@ -12,6 +12,11 @@ const config = {
   },
   server: {
     port: parseInt(process.env.PORT || '5890', 10)
+  },
+  cors: {
+    // Local dev: http://localhost:4200
+    // Vercel:    set CORS_ORIGIN=* in project environment variables
+    origin: process.env.CORS_ORIGIN || 'http://localhost:4200'
   }
 };
 

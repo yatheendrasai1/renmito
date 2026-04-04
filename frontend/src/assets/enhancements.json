@@ -364,6 +364,26 @@
       "notes": "Two-collection log type architecture uses Mongoose refPath on logTypeId + logTypeSource discriminator for dynamic populate. backend/data/ directory is now fully unused. DB_USERNAME, DB_PASSWORD, and JWT_SECRET must be set in backend/.env before starting the server. config.js is the single source of truth for all environment variables."
     },
     {
+      "id": "1.20",
+      "version": "1.20",
+      "type": "major",
+      "title": "Vercel deployment — frontend static site + serverless API",
+      "description": "Configured the full-stack app for zero-config Vercel deployment as a single project. (1) vercel.json at the root sets installCommand (backend npm install), buildCommand (Angular production build), outputDirectory (frontend/dist/renmito-frontend/browser), and two rewrites: /api/:path* → /api/index (serverless function), /:path* → /index.html (SPA fallback). (2) api/index.js at root is the Vercel serverless entry point — exports the Express app so Vercel can invoke it as an HTTP handler. (3) backend/src/app.js refactored for serverless: mongoose.connect() is now lazy and cached per container (ensureConnection() with readyState check and promise caching), preventing connection leaks on cold starts; app.listen() is conditional on !process.env.VERCEL so local dev still works normally; CORS origin is now read from config.cors.origin instead of hardcoded. (4) backend/src/config.js gained a cors.origin key defaulting to http://localhost:4200, overridable via CORS_ORIGIN env var (set to * in Vercel dashboard). (5) Angular environments: created frontend/src/environments/environment.ts (apiBase: http://localhost:5890/api) and environment.prod.ts (apiBase: /api — relative, so production calls go to the same Vercel domain). angular.json production config now has fileReplacements to swap environment.ts with environment.prod.ts at build time. (6) All three frontend services (LogService, LogTypeService, AuthService) now derive their apiBase from environment.apiBase instead of hardcoded localhost:5890. (7) backend/.env.example updated with CORS_ORIGIN documentation.",
+      "status": "implemented",
+      "implementedAt": "2026-04-04T19:00:00",
+      "tags": ["deployment", "vercel", "serverless", "devops", "environment", "config"],
+      "priority": null,
+      "relatedTo": ["1.14", "1.18"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": "main",
+      "screenshot": null,
+      "changelog": "",
+      "notes": "Vercel env vars to set in dashboard: DB_USERNAME, DB_PASSWORD, JWT_SECRET, CORS_ORIGIN=*. No VERCEL env var needed — Vercel injects it automatically. Local dev unchanged: backend runs on port 5890, frontend on port 4200."
+    },
+    {
       "id": "1.19",
       "version": "1.19",
       "type": "major",

@@ -12,5 +12,6 @@ frontend/.angular/
 # Environment & OS
 .env
 .env.*
+!backend/.env.example
 .DS_Store
 Thumbs.db
