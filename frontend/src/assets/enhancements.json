@@ -24,6 +24,25 @@
   },
   "enhancements": [
     {
+      "id": "1.27",
+      "version": "1.27",
+      "type": "minor",
+      "title": "Brand colour scheme: navy header, purple nav, navy timeline",
+      "description": "Applied a consistent brand colour palette across three UI zones via CSS custom properties in styles.css — changes apply to both dark and light themes. (1) Top nav bar: --header-bg #15173D (deep navy), --header-text #F1E9E9 (warm off-white), icon hover tints updated to rgba(241,233,233,...). (2) Left main menu: --nav-bg #982598 (purple), --nav-text #F1E9E9, --nav-text-muted rgba(241,233,233,0.55), --nav-item-hover rgba(255,255,255,0.12), --nav-item-active rgba(255,255,255,0.18), --nav-item-active-border #F1E9E9. (3) Timeline canvas: --timeline-bg #15173D, --timeline-text #F1E9E9, --timeline-text-muted rgba(241,233,233,0.4), --timeline-line #2A2D52.",
+      "status": "implemented",
+      "implementedAt": "2026-04-04T00:00:00.000Z",
+      "tags": ["theme", "branding", "colours", "nav", "timeline", "css-variables"],
+      "relatedTo": ["1.26", "1.22"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "All colour changes are in CSS custom properties only (styles.css :root and [data-theme=light]). No component template or logic was touched. Both themes use the same brand colours for header/nav/timeline since these are structural brand elements independent of light/dark preference."
+    },
+    {
       "id": "1.1",
       "version": "1.1",
       "type": "feature",

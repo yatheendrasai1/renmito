@@ -15,17 +15,17 @@
 ───────────────────────────────────────────────────────── */
 :root {
   /* structural */
-  --header-bg:          #1A1B28;
-  --header-text:        #FFFFFF;
-  --header-icon-bg:     rgba(255,255,255,0.13);
-  --header-icon-hover:  rgba(255,255,255,0.24);
+  --header-bg:          #15173D;
+  --header-text:        #F1E9E9;
+  --header-icon-bg:     rgba(241,233,233,0.13);
+  --header-icon-hover:  rgba(241,233,233,0.24);
 
-  --nav-bg:             #4A5568;
-  --nav-text:           #D0D8E8;
-  --nav-text-muted:     #7A8FAA;
-  --nav-item-hover:     rgba(255,255,255,0.08);
-  --nav-item-active:    rgba(233,79,55,0.16);
-  --nav-item-active-border: #e94f37;
+  --nav-bg:             #982598;
+  --nav-text:           #F1E9E9;
+  --nav-text-muted:     rgba(241,233,233,0.55);
+  --nav-item-hover:     rgba(255,255,255,0.12);
+  --nav-item-active:    rgba(255,255,255,0.18);
+  --nav-item-active-border: #F1E9E9;
 
   /* surfaces */
   --bg-primary:         #121320;
@@ -48,11 +48,11 @@
   --highlight-today:    #e94f37;
   --highlight-selected: #4A90E2;
 
-  /* timeline — same dark charcoal as header, always light text */
-  --timeline-bg:        #1A1B28;
-  --timeline-line:      #2A2D42;
-  --timeline-text:      #D0D8E8;
-  --timeline-text-muted:#4A5878;
+  /* timeline */
+  --timeline-bg:        #15173D;
+  --timeline-line:      #2A2D52;
+  --timeline-text:      #F1E9E9;
+  --timeline-text-muted:rgba(241,233,233,0.4);
   --drag-overlay:       rgba(233,79,55,0.32);
 
   /* misc */
@@ -71,17 +71,17 @@
 ───────────────────────────────────────────────────────── */
 [data-theme="light"] {
   /* structural */
-  --header-bg:          #2b2d42;
-  --header-text:        #FFFFFF;
-  --header-icon-bg:     rgba(255,255,255,0.16);
-  --header-icon-hover:  rgba(255,255,255,0.28);
+  --header-bg:          #15173D;
+  --header-text:        #F1E9E9;
+  --header-icon-bg:     rgba(241,233,233,0.16);
+  --header-icon-hover:  rgba(241,233,233,0.28);
 
-  --nav-bg:             #8d99ae;
-  --nav-text:           #1A1C2A;
-  --nav-text-muted:     #3A4556;
-  --nav-item-hover:     rgba(0,0,0,0.10);
-  --nav-item-active:    rgba(43,45,66,0.14);
-  --nav-item-active-border: #2b2d42;
+  --nav-bg:             #982598;
+  --nav-text:           #F1E9E9;
+  --nav-text-muted:     rgba(241,233,233,0.55);
+  --nav-item-hover:     rgba(255,255,255,0.12);
+  --nav-item-active:    rgba(255,255,255,0.18);
+  --nav-item-active-border: #F1E9E9;
 
   /* surfaces */
   --bg-primary:         #F5F7FA;
@@ -104,11 +104,11 @@
   --highlight-today:    #e94f37;
   --highlight-selected: #2878D8;
 
-  /* timeline — charcoal bg, always light text */
-  --timeline-bg:        #2b2d42;
-  --timeline-line:      #3D4060;
-  --timeline-text:      #D0D8E8;
-  --timeline-text-muted:#6A7290;
+  /* timeline */
+  --timeline-bg:        #15173D;
+  --timeline-line:      #2A2D52;
+  --timeline-text:      #F1E9E9;
+  --timeline-text-muted:rgba(241,233,233,0.45);
   --drag-overlay:       rgba(233,79,55,0.55);
 
   /* misc */
