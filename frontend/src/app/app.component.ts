@@ -148,7 +148,7 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
               <!-- Left column: Timeline -->
               <div class="split-timeline">
                 <div class="content-header">
-                  <h2 class="section-title">Timeline — {{ dateShortLabel }}</h2>
+                  <h2 class="section-title">Timeline</h2>
                   <div class="loading-indicator" *ngIf="isLoading">
                     <span class="spinner"></span> Loading…
                   </div>
@@ -178,13 +178,14 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
 
               <!-- Right column: Log List -->
               <div class="split-logs">
+                <div class="content-header">
+                  <h2 class="section-title">Logs for the day</h2>
+                  <span class="log-count" *ngIf="logs.length > 0">
+                    {{ logs.length }} entr{{ logs.length === 1 ? 'y' : 'ies' }}
+                  </span>
+                </div>
+
             <div class="log-list-section">
-              <div class="log-list-header">
-                <h2 class="section-title">Logs for this day</h2>
-                <span class="log-count" *ngIf="logs.length > 0">
-                  {{ logs.length }} entr{{ logs.length === 1 ? 'y' : 'ies' }}
-                </span>
-              </div>
 
               <div class="log-list-skeleton" *ngIf="isLoading">
                 <div class="skeleton-row" *ngFor="let i of [1,2,3]"></div>
@@ -363,11 +364,13 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
       transition: width 0.22s ease;
     }
 
-    /* Collapsed state */
-    .left-nav--collapsed { width: 52px; padding: 20px 6px; }
-    .left-nav--collapsed .nav-group-label { display: none; }
-    .left-nav--collapsed .left-nav-item span { display: none; }
-    .left-nav--collapsed .left-nav-item { justify-content: center; padding: 10px; }
+    /* Collapsed state — fully hidden, takes no space */
+    .left-nav--collapsed {
+      width: 0;
+      padding: 0;
+      border-right-width: 0;
+      overflow: hidden;
+    }
 
     .nav-group { display: flex; flex-direction: column; gap: 4px; }
     .nav-group-label {
@@ -488,7 +491,6 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
       background: var(--bg-surface); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 16px;
     }
-    .log-list-header { display: flex; align-items: center; justify-content: space-between; }
     .log-count {
       font-size: 11px; color: var(--text-muted);
       background: var(--bg-card); padding: 2px 8px; border-radius: 10px;
@@ -583,12 +585,9 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
     .btn-cal-apply:hover { opacity: 0.88; }
 
     /* ── Responsive ─────────────────────────────────────── */
-    @media (max-width: 960px) {
-      .left-nav { width: 52px; padding: 20px 6px; }
-      .nav-group-label { display: none; }
-      .left-nav-item span { display: none; }
-      .left-nav-item { justify-content: center; padding: 10px; }
-    }
+    /* Nav collapse is controlled solely by the hamburger toggle (navCollapsed).
+       No media query auto-collapses it — the user's explicit toggle is the
+       single source of truth for open vs. closed state.                      */
 
     /* Mobile: stack timeline above log list, both full-width */
     @media (max-width: 700px) {
@@ -607,8 +606,8 @@ export class AppComponent implements OnInit {
   activeView: 'logger' = 'logger';
   theme: 'dark' | 'light' = 'dark';
 
-  // ── 1.22: Nav collapse ──────────────────────────────────
-  navCollapsed = false;
+  // ── 1.22: Nav collapse — collapsed by default ───────────
+  navCollapsed = true;
 
   selectedDate: Date = new Date();
   logs:         LogEntry[] = [];
@@ -647,7 +646,8 @@ export class AppComponent implements OnInit {
     this.theme = savedTheme ?? 'dark';
     document.documentElement.setAttribute('data-theme', this.theme);
 
-    this.navCollapsed = localStorage.getItem('renmito-nav-collapsed') === 'true';
+    // Default is collapsed; only expand if explicitly saved as 'false'
+    this.navCollapsed = localStorage.getItem('renmito-nav-collapsed') !== 'false';
 
     this.isAuthenticated = this.authService.isLoggedIn();
     if (this.isAuthenticated) {

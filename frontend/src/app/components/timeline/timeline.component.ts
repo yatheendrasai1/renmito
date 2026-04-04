@@ -30,11 +30,10 @@ interface TickMark { pos: number; isHalf: boolean; }
   template: `
     <div class="timeline-wrapper">
 
-      <!-- ── Header: date label + selection badge ───── -->
+      <!-- ── Header: selection/create bar ─────────────── -->
       <div class="timeline-header">
-        <div class="timeline-date-label">{{ dateLabel }}</div>
 
-        <div class="selection-badge" *ngIf="hasDragSelection && !isDragging">
+        <div class="selection-badge" *ngIf="!isDragging">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
                style="flex-shrink:0;color:var(--highlight-selected)">
             <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
@@ -153,19 +152,13 @@ interface TickMark { pos: number; isHalf: boolean; }
     .timeline-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       flex-wrap: wrap;
       gap: 8px;
-      min-height: 32px;
+      min-height: 38px;
     }
 
-    .timeline-date-label {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-primary);
-    }
-
-    /* ── Selection badge (in header) ─────────────────── */
+    /* ── Selection / create badge ────────────────────── */
     .selection-badge {
       display: flex;
       align-items: center;
@@ -223,6 +216,20 @@ interface TickMark { pos: number; isHalf: boolean; }
       width: 100%;
       box-sizing: border-box;
       position: relative;
+    }
+
+    /* Consistent scrollbar that respects the container's border-radius */
+    .scroll-container::-webkit-scrollbar { width: 5px; }
+    .scroll-container::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+    .scroll-container::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+    .scroll-container::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
     }
 
     /* ── Timeline canvas ─────────────────────────────── */
@@ -515,13 +522,6 @@ export class TimelineComponent implements OnChanges {
 
   /* ── Computed getters ────────────────────────────── */
 
-  get dateLabel(): string {
-    if (!this.selectedDate) return '';
-    return this.selectedDate.toLocaleDateString('en-US', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    });
-  }
-
   get dragOverlayTop(): number {
     return Math.min(this.dragStartY, this.dragCurrentY);
   }
@@ -560,8 +560,40 @@ export class TimelineComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['selectedDate'] && this.selectedDate) {
       this.checkIsToday();
-      this.clearSelection();
+      this.initDefaultSelection();
     }
+  }
+
+  /**
+   * Sets a default selection of the last 1 hour (today) or 09:00–10:00 (other days).
+   * Called on date change and on clear so the "+ Create Log" bar is always populated.
+   */
+  initDefaultSelection(): void {
+    let endMins: number;
+
+    if (this.isToday) {
+      const now = new Date();
+      endMins = this.snapToTen(now.getHours() * 60 + now.getMinutes());
+      // Ensure at least 60 min from start-of-day
+      if (endMins < 60) endMins = 60;
+    } else {
+      endMins = 10 * 60; // 10:00
+    }
+
+    const startMins = Math.max(0, endMins - 60);
+    endMins         = Math.min(endMins, this.TOTAL_MINUTES);
+
+    this.dragStartY   = this.minutesToPixels(startMins);
+    this.dragCurrentY = this.minutesToPixels(endMins);
+    this.isDragging   = false;
+
+    this.dragSelection = {
+      startTime:    this.minutesToTime(startMins),
+      endTime:      this.minutesToTime(endMins),
+      startMinutes: startMins,
+      endMinutes:   endMins
+    };
+    this.hasDragSelection = true;
   }
 
   checkIsToday(): void {
@@ -734,11 +766,7 @@ export class TimelineComponent implements OnChanges {
   }
 
   clearSelection(): void {
-    this.hasDragSelection = false;
-    this.isDragging       = false;
-    this.dragSelection    = null;
-    this.dragStartY       = 0;
-    this.dragCurrentY     = 0;
+    this.initDefaultSelection();
   }
 
   openCreateForm(): void {

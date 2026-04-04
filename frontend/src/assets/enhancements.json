@@ -364,6 +364,25 @@
       "notes": "Two-collection log type architecture uses Mongoose refPath on logTypeId + logTypeSource discriminator for dynamic populate. backend/data/ directory is now fully unused. DB_USERNAME, DB_PASSWORD, and JWT_SECRET must be set in backend/.env before starting the server. config.js is the single source of truth for all environment variables."
     },
     {
+      "id": "1.26",
+      "version": "1.26",
+      "type": "trivial",
+      "title": "Timeline UX polish: scrollbar corners, persistent create bar, levelled section headers",
+      "description": "Five UX fixes across the timeline and layout. (1) Scrollbar corner fix: added ::-webkit-scrollbar rules on .scroll-container so the scrollbar rail respects the container's border-radius, eliminating the sharp vs rounded edge inconsistency on mobile. (2) Removed redundant date label from the timeline header. (3) The selection badge ('+ Create Log' row) was conditionally rendered only when a drag selection existed, causing layout shift. It is now always visible (ngIf reduced to !isDragging). A default 1-hour selection is initialised on every date change via initDefaultSelection(): for today it uses the last 60 minutes snapped to 10-min grid; for other dates it defaults to 09:00–10:00. clearSelection() delegates to initDefaultSelection() so the bar never disappears. (4) Nav observation fix: .left-nav--collapsed now sets width:0, padding:0, border:0, overflow:hidden — fully invisible and space-free when closed. The @media (max-width:960px) block that was unconditionally forcing icon-only width was removed; the hamburger toggle is now the sole controller of open/closed state on all screen sizes. (5) Section header alignment: 'Logs for the day' heading and count badge moved out of log-list-section card into a content-header div above it, mirroring the left column's structure exactly. Both 'Timeline' and 'Logs for the day' labels now share the same content-header element and sit at the same visual height. log-list-header div and its CSS removed.",
+      "status": "implemented",
+      "implementedAt": "2026-04-04T00:00:00.000Z",
+      "tags": ["timeline", "ux", "mobile", "scrollbar", "css", "layout", "nav", "section-headers"],
+      "relatedTo": ["1.25", "1.24", "1.22"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "nav collapsed fix: localStorage key 'renmito-nav-collapsed' is read with !== 'false' so default is collapsed. Removing the 960px media query was key — it was overriding the navCollapsed class binding and preventing expand on any device narrower than 960px. Section header levelling: both columns now use content-header (outside the card) → card structure, making vertical alignment automatic via the CSS grid row."
+    },
+    {
       "id": "1.25",
       "version": "1.25",
       "type": "trivial",
