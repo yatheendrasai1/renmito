@@ -1,0 +1,137 @@
+[
+  {
+    "domain": "work",
+    "category": "codetime",
+    "name": "Code Time",
+    "color": "#4A90E2",
+    "icon": "laptop",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "work",
+    "category": "meeting",
+    "name": "Meeting",
+    "color": "#5C6BC0",
+    "icon": "users",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "work",
+    "category": "design",
+    "name": "Design",
+    "color": "#42A5F5",
+    "icon": "calendar",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "work",
+    "category": "documentation",
+    "name": "Documentation",
+    "color": "#26A69A",
+    "icon": "file-text",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "personal",
+    "category": "food",
+    "name": "Breakfast",
+    "color": "#FF7043",
+    "icon": "home",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "personal",
+    "category": "food",
+    "name": "Lunch",
+    "color": "#FF7043",
+    "icon": "home",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "personal",
+    "category": "food",
+    "name": "Dinner",
+    "color": "#FF7043",
+    "icon": "home",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "personal",
+    "category": "food",
+    "name": "Food Intake",
+    "color": "#FF7043",
+    "icon": "home",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "personal",
+    "category": "outdoor",
+    "name": "Transit",
+    "color": "#EC407A",
+    "icon": "shopping-cart",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "personal",
+    "category": "wellbeing",
+    "name": "WellBeing",
+    "color": "#66BB6A",
+    "icon": "activity",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "personal",
+    "category": "sleep",
+    "name": "Zleep",
+    "color": "#7E57C2",
+    "icon": "moon",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "personal",
+    "category": "learning",
+    "name": "Learning",
+    "color": "#29B6F6",
+    "icon": "book-open",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "family",
+    "category": "familytime",
+    "name": "Family Time",
+    "color": "#FFA726",
+    "icon": "users",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "personal",
+    "category": "entertainment",
+    "name": "Entertainment",
+    "color": "#EF5350",
+    "icon": "film",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "personal",
+    "category": "sports",
+    "name": "Sports",
+    "color": "#9CCC65",
+    "icon": "dumbbell",
+    "isBuiltIn": true,
+    "isActive": true
+  }
+]
