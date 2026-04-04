@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "installCommand": "cd backend && npm install",
   "buildCommand": "cd frontend && npm install && npx ng build --configuration production",
   "outputDirectory": "frontend/dist/renmito-frontend/browser",
   "rewrites": [
