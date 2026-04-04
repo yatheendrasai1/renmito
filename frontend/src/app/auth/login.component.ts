@@ -10,21 +10,14 @@ import { AuthService } from '../services/auth.service';
   template: `
     <div class="login-page">
 
+      <!-- Product name — outside the card, over the background -->
+      <div class="login-hero">
+        <h1 class="login-product-name">Renmito</h1>
+        <p class="login-tagline">Track your time. Own your day.</p>
+      </div>
+
       <!-- Card -->
       <div class="login-card">
-
-        <!-- Logo -->
-        <div class="login-logo">
-          <svg width="36" height="36" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-            <circle cx="14" cy="14" r="12" stroke="rgba(255,255,255,0.9)" stroke-width="2"/>
-            <path d="M14 8v6l4 3" stroke="rgba(255,255,255,0.9)" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="14" cy="14" r="2" fill="rgba(255,255,255,0.7)"/>
-          </svg>
-          <span class="login-app-name">Renmito</span>
-        </div>
-
-        <p class="login-tagline">Track your time. Own your day.</p>
 
         <!-- Tab switcher -->
         <div class="login-tabs">
@@ -120,48 +113,60 @@ import { AuthService } from '../services/auth.service';
     .login-page {
       min-height: 100vh;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: var(--bg-primary);
+      gap: 32px;
+      background-image:
+        linear-gradient(135deg, rgba(21,23,61,0.72) 0%, rgba(152,37,152,0.45) 100%),
+        url('/assets/login_background.jpeg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
       padding: 24px;
+    }
+
+    /* Product name hero — sits above the card over the background */
+    .login-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .login-product-name {
+      font-family: 'Archivo Black', sans-serif;
+      font-weight: 400;
+      font-size: 80px;
+      color: #F1E9E9;
+      letter-spacing: -1px;
+      line-height: 1;
+      margin: 0;
+      text-shadow: 0 4px 24px rgba(0,0,0,0.45);
+    }
+
+    .login-tagline {
+      margin: 0;
+      font-size: 13px;
+      color: rgba(241,233,233,0.72);
+      text-align: center;
+      letter-spacing: 0.5px;
     }
 
     .login-card {
       width: 100%;
       max-width: 400px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
+      background: rgba(18, 19, 32, 0.82);
+      border: 1px solid rgba(241,233,233,0.12);
       border-radius: 14px;
-      padding: 36px 32px 28px;
+      padding: 32px 32px 28px;
       display: flex;
       flex-direction: column;
       gap: 20px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
-    }
-
-    /* Logo */
-    .login-logo {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      background: var(--header-bg);
-      border-radius: 10px;
-      padding: 14px 20px;
-    }
-    .login-app-name {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--header-text);
-      letter-spacing: -0.4px;
-    }
-
-    .login-tagline {
-      margin: 0;
-      font-size: 12px;
-      color: var(--text-muted);
-      text-align: center;
-      letter-spacing: 0.3px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.55);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
     }
 
     /* Tabs */
@@ -311,6 +316,7 @@ import { AuthService } from '../services/auth.service';
     .login-switch-btn:hover { color: #3a7fcf; }
 
     @media (max-width: 480px) {
+      .login-product-name { font-size: 52px; }
       .login-card { padding: 28px 20px 22px; }
     }
   `]

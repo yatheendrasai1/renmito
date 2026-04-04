@@ -24,6 +24,25 @@
   },
   "enhancements": [
     {
+      "id": "1.28",
+      "version": "1.28",
+      "type": "minor",
+      "title": "Login screen: background image, large brand name, glass-morphism card",
+      "description": "Redesigned the login screen with three visual changes. (1) Background image: login_background.jpeg added to src/assets/ and applied to .login-page via background-image with a dual-tone brand gradient overlay (navy #15173D 72% → purple #982598 45%, 135deg). Used /assets/ absolute path in component inline styles (Angular does not process url() paths in styles:[...] through the build pipeline). (2) Product name moved outside the card as a standalone hero heading using Archivo Black (400, 80px) from Google Fonts — added to index.html link tag alongside Inter. Text colour #F1E9E9 with text-shadow for legibility over the background. Scales to 52px on mobile (≤480px). (3) Logo block removed from the login card. Card now starts directly with the tab switcher. Card background changed to rgba(18,19,32,0.82) + backdrop-filter:blur(18px) for glass-morphism effect.",
+      "status": "implemented",
+      "implementedAt": "2026-04-05T00:00:00.000Z",
+      "tags": ["login", "ui", "background-image", "glass-morphism", "branding", "typography", "archivo-black"],
+      "relatedTo": ["1.27"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "Archivo Black is weight 400 by design — it is a display typeface with a single weight. Google Fonts URL: family=Archivo+Black. The /assets/ leading slash is required for Angular inline component styles because the Angular build does not rewrite url() references in styles:[...] arrays, unlike styleUrls which go through the CSS loader."
+    },
+    {
       "id": "1.27",
       "version": "1.27",
       "type": "minor",
