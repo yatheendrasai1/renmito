@@ -7,7 +7,6 @@ import {
   SimpleChanges,
   ElementRef,
   ViewChild,
-  HostListener,
   ChangeDetectorRef
 } from '@angular/core';
 
@@ -59,10 +58,12 @@ interface TickMark { pos: number; isHalf: boolean; }
         <div
           class="timeline-canvas"
           #track
-          (mousedown)="onMouseDown($event)"
-          (mousemove)="onTrackMouseMove($event)"
-          (mouseenter)="onTrackMouseEnter()"
-          (mouseleave)="onTrackMouseLeave()"
+          (pointerdown)="onPointerDown($event)"
+          (pointermove)="onPointerMove($event)"
+          (pointerup)="onPointerUp($event)"
+          (pointercancel)="onPointerUp($event)"
+          (pointerenter)="onTrackPointerEnter($event)"
+          (pointerleave)="onTrackPointerLeave($event)"
         >
           <!-- Hour labels (left column) -->
           <div class="hour-label"
@@ -238,6 +239,7 @@ interface TickMark { pos: number; isHalf: boolean; }
       background: var(--timeline-bg);
       cursor: crosshair;
       user-select: none;
+      touch-action: none;
     }
 
     /* ── Hour labels ─────────────────────────────────── */
@@ -583,7 +585,7 @@ export class TimelineComponent implements OnChanges {
   }
 
   /** Returns raw Y coordinate within the canvas (before snapping). */
-  getTrackY(event: MouseEvent): number {
+  getTrackY(event: PointerEvent): number {
     if (!this.trackRef) return 0;
     const rect = this.trackRef.nativeElement.getBoundingClientRect();
     return event.clientY - rect.top;
@@ -630,27 +632,34 @@ export class TimelineComponent implements OnChanges {
     return h * 60 + m;
   }
 
-  /* ── Mouse handlers ──────────────────────────────── */
+  /* ── Pointer handlers (mouse + touch unified via Pointer Events API) ──────── */
 
-  onMouseDown(event: MouseEvent): void {
-    if (event.button !== 0 || !this.trackRef) return;
+  onPointerDown(event: PointerEvent): void {
+    // Primary button only for mouse; any touch/pen contact is fine
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    if (!this.trackRef) return;
 
-    // Don't start drag when clicking directly on a log bar (those open edit form)
+    // Don't start drag when tapping directly on a log bar (those open edit form)
     if ((event.target as HTMLElement).closest('.log-bar')) return;
 
     event.preventDefault();
+
+    // Capture the pointer so pointermove/pointerup fire even outside the element
+    this.trackRef.nativeElement.setPointerCapture(event.pointerId);
+
     const rawY     = Math.max(0, Math.min(this.getTrackY(event), this.TOTAL_HEIGHT));
     const snappedY = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawY)));
 
-    this.isDragging      = true;
+    this.isDragging       = true;
     this.hasDragSelection = false;
-    this.dragStartY      = snappedY;
-    this.dragCurrentY    = snappedY;
-    this.dragSelection   = null;
+    this.dragStartY       = snappedY;
+    this.dragCurrentY     = snappedY;
+    this.dragSelection    = null;
   }
 
-  /** Canvas-level mousemove: hover stays exact; drag end snaps live to 10-min grid. */
-  onTrackMouseMove(event: MouseEvent): void {
+  /** pointermove: hover stays exact; drag end snaps live to 10-min grid.
+   *  setPointerCapture keeps this firing even when the pointer leaves the canvas. */
+  onPointerMove(event: PointerEvent): void {
     if (!this.trackRef) return;
     const rawY = Math.max(0, Math.min(this.getTrackY(event), this.TOTAL_HEIGHT));
     this.hoverY = rawY;
@@ -660,27 +669,22 @@ export class TimelineComponent implements OnChanges {
     this.cdr.detectChanges();
   }
 
-  onTrackMouseEnter(): void { this.isHoveringTrack = true; }
-
-  onTrackMouseLeave(): void {
-    this.isHoveringTrack = false;
-    this.cdr.detectChanges();
+  /** Show hover indicator only for mouse pointers (not touch/pen). */
+  onTrackPointerEnter(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') this.isHoveringTrack = true;
   }
 
-  /** Document-level mousemove: keeps drag alive when cursor leaves the canvas. */
-  @HostListener('document:mousemove', ['$event'])
-  onDocMouseMove(event: MouseEvent): void {
-    if (!this.isDragging || !this.trackRef) return;
-    const rawY = Math.max(0, Math.min(this.getTrackY(event), this.TOTAL_HEIGHT));
-    this.dragCurrentY = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawY)));
-    this.hoverY = rawY;
-    this.cdr.detectChanges();
+  onTrackPointerLeave(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') {
+      this.isHoveringTrack = false;
+      this.cdr.detectChanges();
+    }
   }
 
-  @HostListener('document:mouseup', ['$event'])
-  onMouseUp(_event: MouseEvent): void {
+  onPointerUp(_event: PointerEvent): void {
     if (!this.isDragging) return;
     this.isDragging = false;
+    this.isHoveringTrack = false;
 
     // dragStartY / dragCurrentY are already snapped — sort into start < end
     let startMins = Math.round(this.pixelsToMinutes(Math.min(this.dragStartY, this.dragCurrentY)));

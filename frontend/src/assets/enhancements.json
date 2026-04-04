@@ -364,6 +364,25 @@
       "notes": "Two-collection log type architecture uses Mongoose refPath on logTypeId + logTypeSource discriminator for dynamic populate. backend/data/ directory is now fully unused. DB_USERNAME, DB_PASSWORD, and JWT_SECRET must be set in backend/.env before starting the server. config.js is the single source of truth for all environment variables."
     },
     {
+      "id": "1.25",
+      "version": "1.25",
+      "type": "trivial",
+      "title": "Touch drag support on mobile via Pointer Events API",
+      "description": "Replaced all mouse-specific event handlers on the timeline canvas (mousedown, mousemove, mouseenter, mouseleave) and the two document-level @HostListener decorators (document:mousemove, document:mouseup) with a single unified Pointer Events API implementation. onPointerDown calls setPointerCapture(event.pointerId) so pointermove and pointerup continue firing on the element even when the finger slides outside the canvas boundary, eliminating the need for document-level listeners. touch-action:none was added to .timeline-canvas so the browser does not intercept vertical touch movement for page scroll during a drag. Hover indicator and isHoveringTrack guard against pointerType === 'mouse' so the dashed hover line only appears for mouse users. pointercancel is mapped to onPointerUp to handle interrupted gestures (e.g. phone call, notification). HostListener removed from Angular imports entirely.",
+      "status": "implemented",
+      "implementedAt": "2026-04-04T00:00:00.000Z",
+      "tags": ["mobile", "touch", "drag", "pointer-events", "timeline", "ux"],
+      "relatedTo": ["1.24"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "Key API: element.setPointerCapture(pointerId) replaces document-level mousemove/mouseup listeners. touch-action:none on the canvas is mandatory — without it the browser claims the touch gesture for scroll before pointerdown fires. Hover pill is suppressed for touch/pen pointerType to avoid visual noise during drag."
+    },
+    {
       "id": "1.24",
       "version": "1.24",
       "type": "trivial",
