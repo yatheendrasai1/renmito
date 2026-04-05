@@ -40,7 +40,7 @@
       "branch": null,
       "screenshot": null,
       "changelog": "",
-      "notes": "Zone boundary is 46 px, matching the .hour-label width (44 px) plus a 2 px gap. Mouse users are unaffected — the zone check is guarded by event.pointerType !== 'mouse'. The wider mobile scrollbar is a secondary fallback scroll method."
+      "notes": "REGRESSION FIX applied post-implementation: The zone-based approach (removing touch-action:none + x-coordinate check) was reverted because (a) without touch-action:none the browser cancels pointer events mid-drag breaking time-range selection, and (b) webkit custom scrollbars on iOS/Android are overlay-only indicators — they cannot be touch-dragged regardless of CSS width. Final approach: restore touch-action:none on the canvas (fixes drag selection) and add ▲ / Now / ▼ tap buttons in the timeline header (mobile-only, display:none on desktop) that call scrollBy()/scrollTo() programmatically — tap buttons work reliably on all mobile browsers."
     },
     {
       "id": "1.31",
