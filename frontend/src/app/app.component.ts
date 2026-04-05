@@ -516,6 +516,9 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
     /* Log list column scrolls independently at the same height
        as the timeline column (~header + container + hint).    */
     .split-logs {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
       min-width: 0;
       position: sticky;
       top: 0;
@@ -702,6 +705,7 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
 
     /* Mobile: stack timeline above log list, both full-width */
     @media (max-width: 700px) {
+      .header-date { display: none; }
       .logger-split { grid-template-columns: 1fr; }
       .split-logs { position: static; }
       .split-logs .log-list-section { max-height: none; overflow-y: visible; }

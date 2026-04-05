@@ -195,8 +195,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
               id="labelInput"
               name="labelInput"
               [(ngModel)]="labelValue"
-              placeholder="What were you doing?"
-              required
+              placeholder="What were you doing? (optional)"
               maxlength="120"
               rows="3"
               autocomplete="off"
@@ -486,7 +485,6 @@ export class LogFormComponent implements OnInit, OnChanges {
 
   get canSave(): boolean {
     return !!this.selectedLogType &&
-           !!this.labelValue.trim() &&
            this.toMins(this.formEndTime) > this.toMins(this.formStartTime);
   }
 
@@ -634,7 +632,7 @@ export class LogFormComponent implements OnInit, OnChanges {
     const entry: CreateLogEntry = {
       startTime: this.formStartTime,
       endTime:   this.formEndTime,
-      title:     this.labelValue.trim(),
+      title:     this.labelValue.trim() || 'default',
       logTypeId: this.selectedLogType!._id,
       date:      this.formDate || undefined
     };

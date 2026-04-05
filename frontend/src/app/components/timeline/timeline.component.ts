@@ -733,7 +733,10 @@ export class TimelineComponent implements OnChanges {
   onPointerDown(event: PointerEvent): void {
     if (!this.trackRef) return;
 
-    // Always capture and track the pointer
+    // Let log-bar clicks pass through to their own (click) handler
+    if ((event.target as HTMLElement).closest('.log-bar')) return;
+
+    // Capture pointer and track for pinch detection
     this.trackRef.nativeElement.setPointerCapture(event.pointerId);
     this.activePointerMap.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
@@ -748,9 +751,8 @@ export class TimelineComponent implements OnChanges {
       return;
     }
 
-    // Single pointer — existing drag-select logic
+    // Single pointer — drag-select logic
     if (event.pointerType === 'mouse' && event.button !== 0) return;
-    if ((event.target as HTMLElement).closest('.log-bar')) return;
 
     event.preventDefault();
 

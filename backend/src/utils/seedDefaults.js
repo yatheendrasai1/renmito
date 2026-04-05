@@ -2,15 +2,19 @@ const DefaultLogType = require('../models/DefaultLogType');
 const defaultLogTypes = require('../data/defaultLogTypes.json');
 
 /**
- * Seeds the "defaultlogtypes" collection from defaultLogTypes.json.
- * Runs only when the collection is empty — safe to call on every startup.
+ * Upserts all default log types from defaultLogTypes.json by name.
+ * Safe to call on every startup — adds missing entries and updates
+ * existing ones (e.g. domain changes like Transit work→personal).
  */
 async function seedDefaultLogTypes() {
-  const count = await DefaultLogType.countDocuments();
-  if (count > 0) return; // already seeded
-
-  await DefaultLogType.insertMany(defaultLogTypes);
-  console.log(`Seeded ${defaultLogTypes.length} default log types into defaultlogtypes collection`);
+  for (const lt of defaultLogTypes) {
+    await DefaultLogType.updateOne(
+      { name: lt.name },
+      { $set: lt },
+      { upsert: true }
+    );
+  }
+  console.log(`Upserted ${defaultLogTypes.length} default log types`);
 }
 
 module.exports = seedDefaultLogTypes;
