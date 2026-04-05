@@ -583,7 +583,8 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
       background: rgba(74,144,226,0.12) !important;
     }
     .log-list-item--dimmed {
-      opacity: 0.22;
+      opacity: 0.38;
+      /* Visually de-emphasised but still tappable — do NOT add pointer-events:none */
     }
 
     .log-list-index { font-size: 11px; font-weight: 600; color: var(--text-muted); width: 18px; text-align: center; flex-shrink: 0; }

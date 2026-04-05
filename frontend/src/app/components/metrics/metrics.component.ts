@@ -30,12 +30,25 @@ interface MetricCard {
       <!-- ── Section header ───────────────────────────── -->
       <div class="metrics-header">
         <h2 class="metrics-title">Metrics</h2>
-        <select class="metrics-view-select"
-                [ngModel]="view"
-                (ngModelChange)="onViewChange($event)">
-          <option value="professional">Professional</option>
-          <option value="personal">Personal</option>
-        </select>
+        <div class="metrics-header-right">
+          <!-- Explicit clear button — visible on all devices when a card is active -->
+          <button class="metrics-clear-btn"
+                  *ngIf="selectedCardIdx !== null"
+                  (click)="clearSelection()"
+                  aria-label="Clear metric filter">
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+              <path d="M9 3L3 9M3 3l6 6" stroke="currentColor" stroke-width="1.8"
+                    stroke-linecap="round"/>
+            </svg>
+            Clear
+          </button>
+          <select class="metrics-view-select"
+                  [ngModel]="view"
+                  (ngModelChange)="onViewChange($event)">
+            <option value="professional">Professional</option>
+            <option value="personal">Personal</option>
+          </select>
+        </div>
       </div>
 
       <!-- ── Cards row ────────────────────────────────── -->
@@ -71,6 +84,7 @@ interface MetricCard {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
     }
 
     .metrics-title {
@@ -79,6 +93,32 @@ interface MetricCard {
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 1px;
+    }
+
+    .metrics-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .metrics-clear-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--highlight-selected);
+      background: rgba(74,144,226,0.1);
+      border: 1px solid rgba(74,144,226,0.35);
+      border-radius: var(--radius-sm);
+      padding: 4px 9px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .metrics-clear-btn:hover {
+      background: rgba(74,144,226,0.18);
+      border-color: var(--highlight-selected);
     }
 
     .metrics-view-select {
@@ -183,7 +223,7 @@ export class MetricsComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['selectedDate'] && this.selectedDate) {
       this.fetchPrevDayLogs();
-      this.deselect();
+      this.clearSelection();
     }
   }
 
@@ -200,19 +240,19 @@ export class MetricsComponent implements OnChanges {
 
   onViewChange(v: MetricView): void {
     this.view = v;
-    this.deselect();
+    this.clearSelection();
   }
 
   selectCard(idx: number): void {
     if (this.selectedCardIdx === idx) {
-      this.deselect();
+      this.clearSelection();
     } else {
       this.selectedCardIdx = idx;
       this.cardHighlight.emit(this.activeCards[idx].logIds);
     }
   }
 
-  private deselect(): void {
+  clearSelection(): void {
     this.selectedCardIdx = null;
     this.cardHighlight.emit(null);
   }
