@@ -116,10 +116,7 @@ interface TickMark { pos: number; isHalf: boolean; }
             [title]="log.title + ' (' + log.startAt + ' – ' + log.endAt + ')'"
             (click)="onBarClick(log, $event)"
           >
-            <span class="log-bar-label">{{ log.title }}</span>
-            <span class="log-bar-time" *ngIf="barHeight(log) >= 22">
-              {{ log.startAt }}–{{ log.endAt }}
-            </span>
+            <span class="log-bar-label">{{ log.logType?.name ?? log.title }}</span>
           </div>
 
           <!-- Current time indicator -->

@@ -310,22 +310,23 @@ export class MetricsComponent implements OnChanges {
   /* ── Professional cards ──────────────────────────── */
 
   private get professionalCards(): MetricCard[] {
-    const work    = this.totalWorkHours;
+    const work    = this.totalWorkHours;          // excludes transit
     const code    = this.hoursWhere(l => this.isWork(l, 'codetime'));
     const meet    = this.hoursWhere(l => this.isWork(l, 'meeting'));
     const design  = this.hoursWhere(l => this.isWork(l, 'design'));
     const transit = this.hoursWhere(l => this.isWork(l, 'transit'));
+    const dayTotal = 24; // transit % shown as fraction of full day
 
     return [
       { label: 'Total Work Hours', main: this.fmtH(work),    side: null,
-        logIds: this.logIdsWhere(l => l.logType?.domain === 'work') },
+        logIds: this.logIdsWhere(l => l.logType?.domain === 'work' && l.logType?.category !== 'transit') },
       { label: 'Coding Time',      main: this.fmtH(code),    side: this.pct(code, work),
         logIds: this.logIdsWhere(l => this.isWork(l, 'codetime')) },
       { label: 'Meetings',         main: this.fmtH(meet),    side: this.pct(meet, work),
         logIds: this.logIdsWhere(l => this.isWork(l, 'meeting')) },
       { label: 'Design',           main: this.fmtH(design),  side: this.pct(design, work),
         logIds: this.logIdsWhere(l => this.isWork(l, 'design')) },
-      { label: 'Transit',          main: this.fmtH(transit), side: this.pct(transit, work),
+      { label: 'Transit',          main: this.fmtH(transit), side: this.pct(transit, dayTotal),
         logIds: this.logIdsWhere(l => this.isWork(l, 'transit')) }
     ];
   }
@@ -350,8 +351,9 @@ export class MetricsComponent implements OnChanges {
 
   /* ── Metric computation ──────────────────────────── */
 
+  /** Transit is excluded — it's travel time, not productive work. */
   private get totalWorkHours(): number {
-    return this.hoursWhere(l => l.logType?.domain === 'work');
+    return this.hoursWhere(l => l.logType?.domain === 'work' && l.logType?.category !== 'transit');
   }
 
   /**
