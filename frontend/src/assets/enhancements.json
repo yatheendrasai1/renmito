@@ -59,7 +59,7 @@
       "branch": null,
       "screenshot": null,
       "changelog": "",
-      "notes": "At 45 px/hr the full 24-hour canvas is 1080px (vs 1440px at 60px/hr). The default scroll container (520px) now shows ~11.5 hours at a glance instead of ~8.7."
+      "notes": "Final default: 26 px/hr (520px container ÷ 20 hours). At 26 px/hr the full 24-hour canvas is 624px; the 520px scroll container shows exactly 20 hours at a glance without scrolling. Went through 60→45→26 px/hr to reach this value. Pinch range unchanged (25–150 px/hr)."
     },
     {
       "id": "1.33",
