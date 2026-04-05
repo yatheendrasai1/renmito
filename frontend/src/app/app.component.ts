@@ -9,6 +9,7 @@ import { ThemeEditorComponent, applyPaletteToDOM, loadSavedPalette } from './com
 import { LogService } from './services/log.service';
 import { AuthService } from './services/auth.service';
 import { LogTypeService } from './services/log-type.service';
+import { PreferenceService } from './services/preference.service';
 import { LogEntry, CreateLogEntry } from './models/log.model';
 
 @Component({
@@ -775,7 +776,8 @@ export class AppComponent implements OnInit {
   constructor(
     private logService:     LogService,
     private authService:    AuthService,
-    private logTypeService: LogTypeService
+    private logTypeService: LogTypeService,
+    private prefService:    PreferenceService
   ) {}
 
   get todayLabel(): string {
@@ -800,9 +802,9 @@ export class AppComponent implements OnInit {
     this.theme = savedTheme ?? 'dark';
     document.documentElement.setAttribute('data-theme', this.theme);
 
-    // ── 1.42: Restore saved colour palette (overrides CSS vars) ─
-    const savedPalette = loadSavedPalette();
-    if (savedPalette) { applyPaletteToDOM(savedPalette); }
+    // ── 1.42: Apply localStorage palette instantly (zero-flicker fast path) ─
+    const cachedPalette = loadSavedPalette();
+    if (cachedPalette) { applyPaletteToDOM(cachedPalette); }
 
     // Default is collapsed; only expand if explicitly saved as 'false'
     this.navCollapsed = localStorage.getItem('renmito-nav-collapsed') !== 'false';
@@ -814,6 +816,8 @@ export class AppComponent implements OnInit {
       today.setHours(0, 0, 0, 0);
       this.selectedDate = today;
       this.loadLogs();
+      // Sync palette from DB (may differ if the user changed it on another device)
+      this.syncPaletteFromDB();
     }
   }
 
@@ -824,6 +828,18 @@ export class AppComponent implements OnInit {
     today.setHours(0, 0, 0, 0);
     this.selectedDate = today;
     this.loadLogs();
+    // Always fetch the freshest palette from DB right after login
+    this.syncPaletteFromDB();
+  }
+
+  /** Fetch palette from DB, apply it and update localStorage cache. */
+  private syncPaletteFromDB(): void {
+    this.prefService.getPalette().subscribe(palette => {
+      if (palette) {
+        applyPaletteToDOM(palette);
+        localStorage.setItem('renmito-palette', JSON.stringify(palette));
+      }
+    });
   }
 
   logout(): void {

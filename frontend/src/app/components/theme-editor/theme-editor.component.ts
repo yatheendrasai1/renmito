@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { PreferenceService } from '../../services/preference.service';
 
 // ─────────────────────────────────────────────────────────────
 //  Public types
@@ -468,18 +469,18 @@ export class ThemeEditorComponent implements OnInit {
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
 
   pickerConfigs: { label: string; key: keyof ColorPalette }[] = [
-    { label: 'Background',       key: 'bg'        },
-    { label: 'Navigation',       key: 'primary'   },
-    { label: 'Header / Timeline', key: 'secondary' },
-    { label: 'Accent / Highlights', key: 'accent' },
+    { label: 'Background',          key: 'bg'        },
+    { label: 'Navigation',          key: 'primary'   },
+    { label: 'Header / Timeline',   key: 'secondary' },
+    { label: 'Accent / Highlights', key: 'accent'    },
   ];
 
+  constructor(private prefService: PreferenceService) {}
+
   ngOnInit(): void {
+    // Populate pickers from localStorage (already applied by AppComponent on startup)
     const saved = loadSavedPalette();
-    if (saved) {
-      this.currentPalette = { ...saved };
-      applyPaletteToDOM(this.currentPalette);
-    }
+    if (saved) { this.currentPalette = { ...saved }; }
   }
 
   selectPreset(p: ColorPalette): void {
@@ -502,17 +503,26 @@ export class ThemeEditorComponent implements OnInit {
   }
 
   reset(): void {
+    // Clear DOM overrides so stylesheet defaults take over
     clearPaletteFromDOM();
+    // Re-apply the built-in dark default explicitly so pickers reflect it
     this.currentPalette = { ...PALETTE_PRESETS[0] };
-    // Re-apply default to stay consistent
     applyPaletteToDOM(this.currentPalette);
     localStorage.setItem(PALETTE_STORAGE_KEY, JSON.stringify(this.currentPalette));
+    // Persist reset to DB too
+    this.prefService.deletePalette().subscribe();
+    // Re-save the default so DB reflects the chosen state
+    this.prefService.savePalette(this.currentPalette).subscribe();
     this.flashSaved();
   }
 
   private applyAndSave(): void {
+    // 1. Apply instantly to DOM
     applyPaletteToDOM(this.currentPalette);
+    // 2. Write-through to localStorage (fast cache for next page load)
     localStorage.setItem(PALETTE_STORAGE_KEY, JSON.stringify(this.currentPalette));
+    // 3. Persist to DB in the background (userPreferences collection)
+    this.prefService.savePalette(this.currentPalette).subscribe();
     this.flashSaved();
   }
 
