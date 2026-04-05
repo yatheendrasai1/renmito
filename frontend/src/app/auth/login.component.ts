@@ -148,7 +148,6 @@ import { AuthService } from '../services/auth.service';
       display: block;
       width: 100%;
       height: auto;
-      transform: scale(1.667);
       transform-origin: center center;
     }
 

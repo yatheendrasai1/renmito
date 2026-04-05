@@ -246,8 +246,19 @@ export function loadSavedPalette(): ColorPalette | null {
 
       <!-- ── Footer ─── -->
       <div class="te-footer">
-        <button class="te-reset-btn" (click)="reset()">Reset to Default</button>
-        <span class="te-saved-badge" *ngIf="justSaved">Saved ✓</span>
+        <button class="te-reset-btn" (click)="reset()">Reset</button>
+        <div class="te-footer-right">
+          <span class="te-saved-badge" *ngIf="justSaved">Saved ✓</span>
+          <button class="te-save-btn" (click)="saveToProfile()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            Save Theme
+          </button>
+        </div>
       </div>
 
     </div>
@@ -425,6 +436,12 @@ export function loadSavedPalette(): ColorPalette | null {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
+    }
+    .te-footer-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     .te-reset-btn {
       background: rgba(255,255,255,0.06);
@@ -439,15 +456,33 @@ export function loadSavedPalette(): ColorPalette | null {
     }
     .te-reset-btn:hover { background: rgba(255,255,255,0.12); color: #C0CFEF; }
 
+    .te-save-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #4A7AE8;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .te-save-btn:hover { background: #3A6ADA; }
+    .te-save-btn:active { opacity: 0.85; }
+
     .te-saved-badge {
       font-size: 11px;
       font-weight: 600;
       color: #6BCC9A;
-      animation: badgeFade 1.5s ease forwards;
+      white-space: nowrap;
+      animation: badgeFade 2s ease forwards;
     }
     @keyframes badgeFade {
       0%   { opacity: 1; }
-      70%  { opacity: 1; }
+      65%  { opacity: 1; }
       100% { opacity: 0; }
     }
 
@@ -483,14 +518,16 @@ export class ThemeEditorComponent implements OnInit {
     if (saved) { this.currentPalette = { ...saved }; }
   }
 
+  /** Preset click — live preview only, no persistence. */
   selectPreset(p: ColorPalette): void {
     this.currentPalette = { ...p };
-    this.applyAndSave();
+    applyPaletteToDOM(this.currentPalette);
   }
 
+  /** Color-picker change — live preview only, no persistence. */
   onColorChange(key: keyof ColorPalette, value: string): void {
     (this.currentPalette as unknown as Record<string, string>)[key] = value;
-    this.applyAndSave();
+    applyPaletteToDOM(this.currentPalette);
   }
 
   isActivePreset(p: ColorPalette): boolean {
@@ -502,33 +539,35 @@ export class ThemeEditorComponent implements OnInit {
     );
   }
 
-  reset(): void {
-    // Clear DOM overrides so stylesheet defaults take over
-    clearPaletteFromDOM();
-    // Re-apply the built-in dark default explicitly so pickers reflect it
-    this.currentPalette = { ...PALETTE_PRESETS[0] };
+  /**
+   * Explicit save: writes current palette to localStorage AND the
+   * userPreferences collection in MongoDB.
+   */
+  saveToProfile(): void {
     applyPaletteToDOM(this.currentPalette);
     localStorage.setItem(PALETTE_STORAGE_KEY, JSON.stringify(this.currentPalette));
-    // Persist reset to DB too
-    this.prefService.deletePalette().subscribe();
-    // Re-save the default so DB reflects the chosen state
-    this.prefService.savePalette(this.currentPalette).subscribe();
-    this.flashSaved();
+    this.prefService.savePalette(this.currentPalette).subscribe({
+      next:  () => this.flashSaved(),
+      error: () => this.flashSaved(), // still show badge; errors are logged inside service
+    });
   }
 
-  private applyAndSave(): void {
-    // 1. Apply instantly to DOM
+  /**
+   * Reset: reverts to the default dark preset and removes the saved
+   * palette from both localStorage and the DB.
+   */
+  reset(): void {
+    this.currentPalette = { ...PALETTE_PRESETS[0] };
     applyPaletteToDOM(this.currentPalette);
-    // 2. Write-through to localStorage (fast cache for next page load)
-    localStorage.setItem(PALETTE_STORAGE_KEY, JSON.stringify(this.currentPalette));
-    // 3. Persist to DB in the background (userPreferences collection)
-    this.prefService.savePalette(this.currentPalette).subscribe();
+    clearPaletteFromDOM();
+    // Remove from DB
+    this.prefService.deletePalette().subscribe();
     this.flashSaved();
   }
 
   private flashSaved(): void {
     this.justSaved = true;
     if (this.saveTimer) clearTimeout(this.saveTimer);
-    this.saveTimer = setTimeout(() => (this.justSaved = false), 1600);
+    this.saveTimer = setTimeout(() => (this.justSaved = false), 2000);
   }
 }
