@@ -233,12 +233,26 @@ interface TickMark { pos: number; isHalf: boolean; }
       background: var(--text-muted);
     }
 
+    /* Mobile: widen scrollbar so it's easy to grab with a finger */
+    @media (max-width: 700px) {
+      .scroll-container::-webkit-scrollbar { width: 10px; }
+      .scroll-container::-webkit-scrollbar-thumb {
+        border-radius: 5px;
+        border: 2px solid var(--timeline-bg);
+      }
+    }
+
     /* ── Timeline canvas ─────────────────────────────── */
     /*
      * Layout (pixels from left):
-     *   0 – 46px  : hour labels
-     *  46 – 70px  : drag strip  (cursor: crosshair)
-     *  70px+      : log bar display area
+     *   0 – 46px  : hour labels  → touch scrolls here (no touch-action override)
+     *  46 – 70px  : drag strip   → touch drag-selects here (preventDefault in JS)
+     *  70px+      : log bar area → same as drag strip
+     *
+     * touch-action is intentionally omitted here so the browser can scroll
+     * when a touch starts in the hour-label zone (x < 46px). For touches
+     * in the drag zone (x ≥ 46px) onPointerDown calls preventDefault() to
+     * suppress scroll and start a time-range selection instead.
      */
     .timeline-canvas {
       position: relative;
@@ -247,7 +261,6 @@ interface TickMark { pos: number; isHalf: boolean; }
       background: var(--timeline-bg);
       cursor: crosshair;
       user-select: none;
-      touch-action: none;
     }
 
     /* ── Hour labels ─────────────────────────────────── */
@@ -681,6 +694,14 @@ export class TimelineComponent implements OnChanges {
 
     // Don't start drag when tapping directly on a log bar (those open edit form)
     if ((event.target as HTMLElement).closest('.log-bar')) return;
+
+    // On touch/pen: allow the browser to scroll when the finger is in the
+    // hour-label zone (left 46 px). Only intercept touches in the drag strip
+    // (≥ 46 px) where drag-select makes sense.
+    if (event.pointerType !== 'mouse') {
+      const rect = this.trackRef.nativeElement.getBoundingClientRect();
+      if (event.clientX - rect.left < 46) return;
+    }
 
     event.preventDefault();
 

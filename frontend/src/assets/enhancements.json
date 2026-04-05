@@ -24,6 +24,25 @@
   },
   "enhancements": [
     {
+      "id": "1.32",
+      "version": "1.32",
+      "type": "minor",
+      "title": "Mobile timeline: zone-based touch handling for scroll vs. drag-select",
+      "description": "Removed the blanket touch-action: none from the timeline canvas so the browser can scroll the timeline on mobile. Added an X-coordinate zone check in onPointerDown: touches/pen events starting in the left 46 px (hour-label column) return early without calling preventDefault(), letting the browser handle them as native scroll gestures. Touches in the drag strip (≥ 46 px) still call preventDefault() and start the time-range selection as before. Added a wider (10 px) scrollbar for mobile via a max-width: 700px media query so the scrollbar is easy to grab with a finger.",
+      "status": "implemented",
+      "implementedAt": "2026-04-05T00:00:00.000Z",
+      "tags": ["mobile", "touch", "scroll", "timeline", "ux", "pointer-events", "drag-select"],
+      "relatedTo": ["1.25", "1.26"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "Zone boundary is 46 px, matching the .hour-label width (44 px) plus a 2 px gap. Mouse users are unaffected — the zone check is guarded by event.pointerType !== 'mouse'. The wider mobile scrollbar is a secondary fallback scroll method."
+    },
+    {
       "id": "1.31",
       "version": "1.31",
       "type": "trivial",
