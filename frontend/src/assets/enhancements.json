@@ -24,6 +24,25 @@
   },
   "enhancements": [
     {
+      "id": "1.29",
+      "version": "1.29",
+      "type": "trivial",
+      "title": "Move Transit log type from personal to work domain",
+      "description": "Changed the domain field of the 'Transit' default log type in backend/src/data/defaultLogTypes.json from 'personal' to 'work'. The seed file is read at server startup via seedDefaultLogTypes() which uses bulkWrite with $setOnInsert, so existing Transit records in the DB are not overwritten automatically — a one-time manual update or DB re-seed is needed to apply the change to already-seeded environments.",
+      "status": "implemented",
+      "implementedAt": "2026-04-05T00:00:00.000Z",
+      "tags": ["log-types", "seed", "domain", "transit", "work"],
+      "relatedTo": [],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "Because seedDefaultLogTypes uses $setOnInsert, this change only affects fresh environments or new deployments. To update an existing DB, run: db.defaultlogtypes.updateOne({ name: 'Transit' }, { $set: { domain: 'work' } }) in the MongoDB Atlas shell."
+    },
+    {
       "id": "1.28",
       "version": "1.28",
       "type": "minor",
