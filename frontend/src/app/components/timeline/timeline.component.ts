@@ -538,11 +538,12 @@ export class TimelineComponent implements OnChanges {
   scrollContainerRef!: ElementRef<HTMLDivElement>;
 
   /* ── Dimensions ──────────────────────────────────────
-   * hourHeight: pixels per hour — starts at 60 (1px = 1min), changed by pinch.
-   * totalHeight: 24 × hourHeight — drives canvas height and all pixel math.
+   * hourHeight: pixels per hour — default 45 (75% of the original 60px).
+   * Changed at runtime by pinch-to-zoom. totalHeight = 24 × hourHeight
+   * drives the canvas height binding and all pixel↔minute conversions.
    * TOTAL_MINUTES stays fixed (minutes in a day never changes).
    * ──────────────────────────────────────────────────── */
-  hourHeight = 60;                   // mutable — changed by pinch-to-zoom
+  hourHeight = 45;                   // mutable — changed by pinch-to-zoom
   readonly MIN_HOUR_HEIGHT = 25;     // most compressed view
   readonly MAX_HOUR_HEIGHT = 150;    // most zoomed-in view
   readonly TOTAL_MINUTES   = 1440;
@@ -576,7 +577,7 @@ export class TimelineComponent implements OnChanges {
   isPinching            = false;
   private activePointerMap = new Map<number, { x: number; y: number }>();
   private pinchStartDist   = 0;
-  private pinchStartHourH  = 60;
+  private pinchStartHourH  = 45;
   private pinchFocalMinute = 0; // time (minutes) that stays fixed under pinch midpoint
 
   /* ── Date / time state ──────────────────────────── */

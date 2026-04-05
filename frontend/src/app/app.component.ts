@@ -282,6 +282,24 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
             </div><!-- /logger-split -->
 
           </div><!-- /content-area -->
+
+          <!-- ── Footer — 1.35 ─────────────────────────────── -->
+          <footer class="app-footer">
+            <div class="footer-brand">
+              <svg width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+                <circle cx="14" cy="14" r="12" stroke="rgba(241,233,233,0.85)" stroke-width="1.8"/>
+                <path d="M14 8v6l4 3" stroke="rgba(241,233,233,0.85)" stroke-width="1.8"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="14" cy="14" r="2" fill="rgba(241,233,233,0.6)"/>
+              </svg>
+              <span class="footer-logo-text">Renmito</span>
+            </div>
+            <p class="footer-tagline">
+              Your personal time chronicle — log your day, reflect on your patterns, and make every hour count.
+            </p>
+            <span class="footer-copy">© {{ currentYear }} Renmito</span>
+          </footer>
+
         </div><!-- /view-area -->
       </div><!-- /app-body -->
     </div><!-- /app-shell -->
@@ -633,6 +651,48 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
     }
     .btn-cal-apply:hover { opacity: 0.88; }
 
+    /* ── Footer — 1.35 ─────────────────────────────────── */
+    .app-footer {
+      margin-top: 20px;
+      background: var(--nav-bg);
+      border-radius: var(--radius);
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex-shrink: 0;
+    }
+
+    .footer-logo-text {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--nav-text);
+      letter-spacing: -0.3px;
+    }
+
+    .footer-tagline {
+      flex: 1;
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--nav-text-muted);
+      min-width: 180px;
+      margin: 0;
+    }
+
+    .footer-copy {
+      font-size: 11px;
+      color: var(--nav-text-muted);
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
     /* ── Responsive ─────────────────────────────────────── */
     /* Nav collapse is controlled solely by the hamburger toggle (navCollapsed).
        No media query auto-collapses it — the user's explicit toggle is the
@@ -654,6 +714,7 @@ export class AppComponent implements OnInit {
 
   activeView: 'logger' = 'logger';
   theme: 'dark' | 'light' = 'dark';
+  readonly currentYear = new Date().getFullYear();
 
   // ── 1.22: Nav collapse — collapsed by default ───────────
   navCollapsed = true;
