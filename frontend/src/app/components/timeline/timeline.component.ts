@@ -40,20 +40,16 @@ interface TickMark { pos: number; isHalf: boolean; }
             <path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5"
                   stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <ng-container *ngIf="dragSelection; else noSel">
-            <span class="sel-time">{{ dragSelection.startTime }} – {{ dragSelection.endTime }}</span>
-            <span class="sel-dur">{{ selectionDuration }}</span>
+          <ng-container *ngIf="dragSelection || isDragging; else noSel">
+            <span class="sel-time">
+              {{ isDragging ? dragStartTimeLabel : dragSelection!.startTime }} – {{ isDragging ? dragCurrentTimeLabel : dragSelection!.endTime }}
+            </span>
+            <span class="sel-dur" *ngIf="!isDragging">{{ selectionDuration }}</span>
           </ng-container>
           <ng-template #noSel>
-            <span class="sel-hint">{{ isDragging ? 'Selecting…' : 'Drag or tap to select' }}</span>
+            <span class="sel-hint">Drag or tap to select</span>
           </ng-template>
           <button class="btn-create-log" (click)="openCreateForm()">+ Create Log</button>
-          <button class="btn-clear-sel" *ngIf="dragSelection" (click)="clearSelection()" aria-label="Clear selection">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-              <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" stroke-width="1.8"
-                    stroke-linecap="round"/>
-            </svg>
-          </button>
         </div>
 
         <!-- Mobile-only scroll controls (touch-action:none on canvas blocks swipe scroll) -->
@@ -214,17 +210,6 @@ interface TickMark { pos: number; isHalf: boolean; }
       border-radius: var(--radius-sm);
     }
     .btn-create-log:hover { opacity: 0.85; }
-
-    .btn-clear-sel {
-      background: none;
-      color: var(--text-muted);
-      padding: 3px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .btn-clear-sel:hover { background: var(--bg-card); color: var(--text-primary); }
 
     /* ── Scroll container ────────────────────────────── */
     .scroll-container {
