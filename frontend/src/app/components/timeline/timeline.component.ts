@@ -65,6 +65,7 @@ interface TickMark { pos: number; isHalf: boolean; }
         <div
           class="timeline-canvas"
           #track
+          [style.height.px]="totalHeight"
           (pointerdown)="onPointerDown($event)"
           (pointermove)="onPointerMove($event)"
           (pointerup)="onPointerUp($event)"
@@ -75,16 +76,16 @@ interface TickMark { pos: number; isHalf: boolean; }
           <!-- Hour labels (left column) -->
           <div class="hour-label"
                *ngFor="let hour of hours"
-               [style.top.px]="hour * HOUR_HEIGHT">
+               [style.top.px]="hour * hourHeight">
             {{ formatHour(hour) }}
           </div>
-          <div class="hour-label" [style.top.px]="24 * HOUR_HEIGHT">24:00</div>
+          <div class="hour-label" [style.top.px]="24 * hourHeight">24:00</div>
 
           <!-- Hour grid lines (full width from strip rightward) -->
           <div class="hour-line"
                *ngFor="let hour of hours"
-               [style.top.px]="hour * HOUR_HEIGHT"></div>
-          <div class="hour-line" [style.top.px]="24 * HOUR_HEIGHT"></div>
+               [style.top.px]="hour * hourHeight"></div>
+          <div class="hour-line" [style.top.px]="24 * hourHeight"></div>
 
           <!-- 10-minute tick marks -->
           <div class="tick-line"
@@ -283,11 +284,13 @@ interface TickMark { pos: number; isHalf: boolean; }
      * cancels pointer events mid-drag and breaks time-range selection.
      * Scrolling on mobile is handled instead by the ▲ / Now / ▼ tap buttons
      * in the timeline header (only rendered on ≤ 700px screens).
+     * Canvas height is driven by [style.height.px]="totalHeight" (hourHeight × 24)
+     * so it stretches/shrinks automatically as the user pinch-zooms.
      */
     .timeline-canvas {
       position: relative;
       width: 100%;
-      height: 1440px; /* 24 hours × 60px/hr = 1440px  (1px = 1 min) */
+      /* height is set dynamically via [style.height.px]="totalHeight" */
       background: var(--timeline-bg);
       cursor: crosshair;
       user-select: none;
@@ -535,26 +538,29 @@ export class TimelineComponent implements OnChanges {
   scrollContainerRef!: ElementRef<HTMLDivElement>;
 
   /* ── Dimensions ──────────────────────────────────────
-   * HOUR_HEIGHT = 60px per hour → 1 px = 1 minute
-   * TOTAL_HEIGHT = 24 × 60 = 1440 px  (= TOTAL_MINUTES)
-   * So pixelsToMinutes(px) = px  and  minutesToPixels(m) = m
+   * hourHeight: pixels per hour — starts at 60 (1px = 1min), changed by pinch.
+   * totalHeight: 24 × hourHeight — drives canvas height and all pixel math.
+   * TOTAL_MINUTES stays fixed (minutes in a day never changes).
    * ──────────────────────────────────────────────────── */
-  readonly HOUR_HEIGHT    = 60;
-  readonly TOTAL_MINUTES  = 1440;
-  readonly TOTAL_HEIGHT   = 1440; // 24 * HOUR_HEIGHT
+  hourHeight = 60;                   // mutable — changed by pinch-to-zoom
+  readonly MIN_HOUR_HEIGHT = 25;     // most compressed view
+  readonly MAX_HOUR_HEIGHT = 150;    // most zoomed-in view
+  readonly TOTAL_MINUTES   = 1440;
+
+  get totalHeight(): number { return 24 * this.hourHeight; }
 
   hours = Array.from({ length: 24 }, (_, i) => i);
 
-  /** Pre-computed 10-minute tick marks (excludes full hour positions). */
-  readonly tickMarks: TickMark[] = (() => {
+  /** 10-minute tick marks — recomputed whenever hourHeight changes. */
+  get tickMarks(): TickMark[] {
     const marks: TickMark[] = [];
     for (let h = 0; h < 24; h++) {
       for (const t of [10, 20, 30, 40, 50]) {
-        marks.push({ pos: h * 60 + t, isHalf: t === 30 });
+        marks.push({ pos: this.minutesToPixels(h * 60 + t), isHalf: t === 30 });
       }
     }
     return marks;
-  })();
+  }
 
   /* ── Drag / hover state ──────────────────────────── */
   isDragging       = false;
@@ -566,9 +572,17 @@ export class TimelineComponent implements OnChanges {
   isHoveringTrack = false;
   hoverY          = 0;
 
+  /* ── Pinch-to-zoom state ────────────────────────────── */
+  isPinching            = false;
+  private activePointerMap = new Map<number, { x: number; y: number }>();
+  private pinchStartDist   = 0;
+  private pinchStartHourH  = 60;
+  private pinchFocalMinute = 0; // time (minutes) that stays fixed under pinch midpoint
+
   /* ── Date / time state ──────────────────────────── */
-  isToday           = false;
-  currentTimePixels = 0;
+  isToday            = false;
+  currentTimeMins    = 0;
+  get currentTimePixels(): number { return this.minutesToPixels(this.currentTimeMins); }
 
   constructor(private cdr: ChangeDetectorRef) {}
 
@@ -658,7 +672,7 @@ export class TimelineComponent implements OnChanges {
 
     if (this.isToday) {
       const now = new Date();
-      this.currentTimePixels = this.minutesToPixels(now.getHours() * 60 + now.getMinutes());
+      this.currentTimeMins = now.getHours() * 60 + now.getMinutes();
     }
   }
 
@@ -675,14 +689,14 @@ export class TimelineComponent implements OnChanges {
     return event.clientY - rect.top;
   }
 
-  /** px → minutes. With TOTAL_HEIGHT = TOTAL_MINUTES = 1440, this is 1:1. */
+  /** px → minutes. Scale depends on current hourHeight. */
   pixelsToMinutes(px: number): number {
-    return (px / this.TOTAL_HEIGHT) * this.TOTAL_MINUTES;
+    return (px / this.totalHeight) * this.TOTAL_MINUTES;
   }
 
-  /** minutes → px. 1:1 with these dimensions. */
+  /** minutes → px. Scale depends on current hourHeight. */
   minutesToPixels(minutes: number): number {
-    return (minutes / this.TOTAL_MINUTES) * this.TOTAL_HEIGHT;
+    return (minutes / this.TOTAL_MINUTES) * this.totalHeight;
   }
 
   timeToPixels(time: string): number {
@@ -719,19 +733,30 @@ export class TimelineComponent implements OnChanges {
   /* ── Pointer handlers (mouse + touch unified via Pointer Events API) ──────── */
 
   onPointerDown(event: PointerEvent): void {
-    // Primary button only for mouse; any touch/pen contact is fine
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (!this.trackRef) return;
 
-    // Don't start drag when tapping directly on a log bar (those open edit form)
+    // Always capture and track the pointer
+    this.trackRef.nativeElement.setPointerCapture(event.pointerId);
+    this.activePointerMap.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (this.activePointerMap.size >= 2) {
+      // Second finger down → switch to pinch mode (cancel any drag in progress)
+      this.isDragging      = false;
+      this.isPinching      = true;
+      this.pinchStartDist  = this.calcPinchDist();
+      this.pinchStartHourH = this.hourHeight;
+      this.pinchFocalMinute = this.calcPinchFocalMinute();
+      event.preventDefault();
+      return;
+    }
+
+    // Single pointer — existing drag-select logic
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
     if ((event.target as HTMLElement).closest('.log-bar')) return;
 
     event.preventDefault();
 
-    // Capture the pointer so pointermove/pointerup fire even outside the element
-    this.trackRef.nativeElement.setPointerCapture(event.pointerId);
-
-    const rawY     = Math.max(0, Math.min(this.getTrackY(event), this.TOTAL_HEIGHT));
+    const rawY     = Math.max(0, Math.min(this.getTrackY(event), this.totalHeight));
     const snappedY = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawY)));
 
     this.isDragging       = true;
@@ -745,7 +770,20 @@ export class TimelineComponent implements OnChanges {
    *  setPointerCapture keeps this firing even when the pointer leaves the canvas. */
   onPointerMove(event: PointerEvent): void {
     if (!this.trackRef) return;
-    const rawY = Math.max(0, Math.min(this.getTrackY(event), this.TOTAL_HEIGHT));
+
+    // Update tracked position for this pointer
+    if (this.activePointerMap.has(event.pointerId)) {
+      this.activePointerMap.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+
+    // Pinch in progress — delegate to pinch handler, skip drag/hover
+    if (this.isPinching && this.activePointerMap.size === 2) {
+      this.handlePinch();
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const rawY = Math.max(0, Math.min(this.getTrackY(event), this.totalHeight));
     this.hoverY = rawY;
     if (this.isDragging) {
       this.dragCurrentY = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(rawY)));
@@ -765,9 +803,20 @@ export class TimelineComponent implements OnChanges {
     }
   }
 
-  onPointerUp(_event: PointerEvent): void {
+  onPointerUp(event: PointerEvent): void {
+    this.activePointerMap.delete(event.pointerId);
+
+    // Pinch ended when fewer than 2 fingers remain
+    if (this.isPinching) {
+      if (this.activePointerMap.size < 2) {
+        this.isPinching = false;
+      }
+      this.cdr.detectChanges();
+      return;
+    }
+
     if (!this.isDragging) return;
-    this.isDragging = false;
+    this.isDragging      = false;
     this.isHoveringTrack = false;
 
     // dragStartY / dragCurrentY are already snapped — sort into start < end
@@ -816,6 +865,69 @@ export class TimelineComponent implements OnChanges {
   onBarClick(log: LogEntry, event: MouseEvent): void {
     event.stopPropagation();
     this.logClicked.emit(log);
+  }
+
+  /* ── Pinch-to-zoom helpers ──────────────────────────── */
+
+  /** Euclidean distance between the two tracked pointers. */
+  private calcPinchDist(): number {
+    const pts = [...this.activePointerMap.values()];
+    if (pts.length < 2) return 1;
+    const dx = pts[0].x - pts[1].x;
+    const dy = pts[0].y - pts[1].y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  /** Timeline minute that sits under the midpoint of the two fingers. */
+  private calcPinchFocalMinute(): number {
+    const pts = [...this.activePointerMap.values()];
+    const midClientY = (pts[0].y + pts[1].y) / 2;
+    const container  = this.scrollContainerRef?.nativeElement;
+    if (!container) return 0;
+    const rect    = container.getBoundingClientRect();
+    const scrollY = container.scrollTop + midClientY - rect.top;
+    return this.pixelsToMinutes(Math.max(0, scrollY));
+  }
+
+  /**
+   * Called on every pointermove while two fingers are active.
+   * Scales hourHeight proportionally to the change in finger spread,
+   * then adjusts scrollTop so the focal minute stays under the midpoint.
+   */
+  private handlePinch(): void {
+    const newDist = this.calcPinchDist();
+    if (newDist < 1) return;
+
+    const scale    = newDist / this.pinchStartDist;
+    const newHourH = Math.max(
+      this.MIN_HOUR_HEIGHT,
+      Math.min(this.MAX_HOUR_HEIGHT, this.pinchStartHourH * scale)
+    );
+    if (Math.abs(newHourH - this.hourHeight) < 0.5) return; // skip tiny jitter
+
+    const container = this.scrollContainerRef?.nativeElement;
+    const pts       = [...this.activePointerMap.values()];
+    const midClientY = (pts[0].y + pts[1].y) / 2;
+
+    // Convert existing drag selection to minutes BEFORE scaling, re-project after
+    const selStartMins = this.pixelsToMinutes(this.dragStartY);
+    const selEndMins   = this.pixelsToMinutes(this.dragCurrentY);
+
+    // Apply new zoom level
+    this.hourHeight = newHourH;
+
+    // Re-project drag selection into new pixel space
+    this.dragStartY   = this.minutesToPixels(selStartMins);
+    this.dragCurrentY = this.minutesToPixels(selEndMins);
+
+    // Adjust scroll to keep focal minute under the pinch midpoint
+    if (container) {
+      const rect        = container.getBoundingClientRect();
+      const viewOffset  = midClientY - rect.top;  // px from container top in viewport
+      const newTotalH   = 24 * newHourH;
+      const newFocalPx  = (this.pinchFocalMinute / this.TOTAL_MINUTES) * newTotalH;
+      container.scrollTop = Math.max(0, newFocalPx - viewOffset);
+    }
   }
 
   /** Scroll the timeline so the given log bar is centred vertically. */

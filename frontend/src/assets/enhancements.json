@@ -24,6 +24,25 @@
   },
   "enhancements": [
     {
+      "id": "1.33",
+      "version": "1.33",
+      "type": "minor",
+      "title": "Mobile timeline: two-finger pinch-to-zoom",
+      "description": "Added two-finger pinch gesture support to the timeline canvas on mobile. Spreading two fingers zooms in (hourHeight increases, showing fewer hours in more detail); pinching zooms out (hourHeight decreases, compressing the full day into less vertical space). HOUR_HEIGHT was converted from a readonly constant to a mutable hourHeight field (default 60, min 25, max 150). TOTAL_HEIGHT became a get totalHeight() getter (24 × hourHeight) that drives the canvas [style.height.px] binding and all pixel↔minute conversion functions. tickMarks converted from a precomputed readonly array to a getter so tick positions recompute on zoom. The pinch implementation uses the Pointer Events API (already in use): activePointerMap tracks up to 2 concurrent pointers; when a second pointer arrives onPointerDown switches to pinch mode; onPointerMove calls handlePinch() which scales hourHeight proportionally to the change in finger spread and adjusts scrollTop so the focal minute (under the midpoint of the two fingers) stays fixed on screen. The existing drag-select overlay is re-projected into the new pixel space on each pinch frame. Mouse users are completely unaffected.",
+      "status": "implemented",
+      "implementedAt": "2026-04-05T00:00:00.000Z",
+      "tags": ["mobile", "touch", "pinch", "zoom", "timeline", "gesture", "pointer-events"],
+      "relatedTo": ["1.32", "1.25"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "zoom range: 25–150 px/hr (default 60). At 25 px/hr the full 24-hour day fits in ~600px; at 150 px/hr it expands to 3600px. The focal-minute scroll correction uses (pinchFocalMinute / TOTAL_MINUTES) × newTotalHeight to keep the pinch centre visually stable during the gesture."
+    },
+    {
       "id": "1.32",
       "version": "1.32",
       "type": "minor",
