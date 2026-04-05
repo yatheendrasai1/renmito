@@ -33,17 +33,22 @@ interface TickMark { pos: number; isHalf: boolean; }
       <!-- ── Header: selection/create bar ─────────────── -->
       <div class="timeline-header">
 
-        <div class="selection-badge" *ngIf="!isDragging">
+        <div class="selection-badge">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
                style="flex-shrink:0;color:var(--highlight-selected)">
             <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
             <path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5"
                   stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span class="sel-time">{{ dragSelection?.startTime }} – {{ dragSelection?.endTime }}</span>
-          <span class="sel-dur">{{ selectionDuration }}</span>
+          <ng-container *ngIf="dragSelection; else noSel">
+            <span class="sel-time">{{ dragSelection.startTime }} – {{ dragSelection.endTime }}</span>
+            <span class="sel-dur">{{ selectionDuration }}</span>
+          </ng-container>
+          <ng-template #noSel>
+            <span class="sel-hint">{{ isDragging ? 'Selecting…' : 'Drag or tap to select' }}</span>
+          </ng-template>
           <button class="btn-create-log" (click)="openCreateForm()">+ Create Log</button>
-          <button class="btn-clear-sel" (click)="clearSelection()" aria-label="Clear selection">
+          <button class="btn-clear-sel" *ngIf="dragSelection" (click)="clearSelection()" aria-label="Clear selection">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
               <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" stroke-width="1.8"
                     stroke-linecap="round"/>
@@ -192,6 +197,12 @@ interface TickMark { pos: number; isHalf: boolean; }
       background: var(--bg-card);
       padding: 2px 7px;
       border-radius: 8px;
+    }
+
+    .sel-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
     }
 
     .btn-create-log {
@@ -964,6 +975,10 @@ export class TimelineComponent implements OnChanges {
   }
 
   openCreateForm(): void {
-    if (this.dragSelection) this.createLogClicked.emit(this.dragSelection);
+    if (this.dragSelection) {
+      this.createLogClicked.emit(this.dragSelection);
+    } else {
+      this.createLogClicked.emit({ startTime: '09:00', endTime: '10:00', startMinutes: 540, endMinutes: 600 });
+    }
   }
 }
