@@ -23,7 +23,21 @@ const userPreferenceSchema = new mongoose.Schema(
       required: true,
       unique:   true,
     },
+    /** The currently active palette (applied on load). */
     palette: { type: paletteSchema, default: null },
+
+    /**
+     * User-saved named presets — max 10 per account.
+     * Each entry has its own _id so it can be deleted individually.
+     */
+    customPresets: {
+      type:    [paletteSchema],
+      default: [],
+      validate: {
+        validator: (arr) => arr.length <= 10,
+        message:   'Maximum of 10 custom presets allowed per account.'
+      }
+    },
   },
   { timestamps: true, collection: 'userPreferences' }
 );

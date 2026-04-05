@@ -832,12 +832,12 @@ export class AppComponent implements OnInit {
     this.syncPaletteFromDB();
   }
 
-  /** Fetch palette from DB, apply it and update localStorage cache. */
+  /** Fetch preferences from DB, apply active palette and update localStorage cache. */
   private syncPaletteFromDB(): void {
-    this.prefService.getPalette().subscribe(palette => {
-      if (palette) {
-        applyPaletteToDOM(palette);
-        localStorage.setItem('renmito-palette', JSON.stringify(palette));
+    this.prefService.getPreferences().subscribe(prefs => {
+      if (prefs?.palette) {
+        applyPaletteToDOM(prefs.palette);
+        localStorage.setItem('renmito-palette', JSON.stringify(prefs.palette));
       }
     });
   }

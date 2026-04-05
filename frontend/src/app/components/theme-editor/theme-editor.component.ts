@@ -200,19 +200,19 @@ export function loadSavedPalette(): ColorPalette | null {
         </button>
       </div>
 
-      <!-- ── Presets ─── -->
+      <!-- ── Built-in presets ─── -->
       <div class="te-section">
-        <div class="te-section-label">Presets</div>
+        <div class="te-section-label">Built-in Presets</div>
         <div class="te-presets">
           <button
-            *ngFor="let p of presets"
+            *ngFor="let p of builtinPresets"
             class="te-preset-chip"
             [class.te-preset-chip--active]="isActivePreset(p)"
             (click)="selectPreset(p)"
             [title]="p.name"
           >
             <div class="te-swatch-row">
-              <div class="te-swatch" [style.background]="p.bg"       title="Background"></div>
+              <div class="te-swatch" [style.background]="p.bg"        title="Background"></div>
               <div class="te-swatch" [style.background]="p.primary"   title="Navigation"></div>
               <div class="te-swatch" [style.background]="p.secondary" title="Header/Timeline"></div>
               <div class="te-swatch" [style.background]="p.accent"    title="Accent"></div>
@@ -222,11 +222,43 @@ export function loadSavedPalette(): ColorPalette | null {
         </div>
       </div>
 
+      <!-- ── My Presets ─── -->
+      <div class="te-section" *ngIf="customPresets.length > 0">
+        <div class="te-section-label">
+          My Presets
+          <span class="te-preset-count">{{ customPresets.length }}/10</span>
+        </div>
+        <div class="te-presets">
+          <div
+            *ngFor="let p of customPresets"
+            class="te-preset-chip te-preset-chip--custom"
+            [class.te-preset-chip--active]="isActivePreset(p)"
+          >
+            <!-- click the swatch area to apply -->
+            <div class="te-preset-apply" (click)="selectPreset(p)" [title]="'Apply ' + p.name">
+              <div class="te-swatch-row">
+                <div class="te-swatch" [style.background]="p.bg"        title="Background"></div>
+                <div class="te-swatch" [style.background]="p.primary"   title="Navigation"></div>
+                <div class="te-swatch" [style.background]="p.secondary" title="Header/Timeline"></div>
+                <div class="te-swatch" [style.background]="p.accent"    title="Accent"></div>
+              </div>
+              <span class="te-preset-name">{{ p.name }}</span>
+            </div>
+            <!-- delete button -->
+            <button class="te-preset-delete" (click)="deletePreset(p)" [title]="'Delete ' + p.name"
+                    aria-label="Delete preset">
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                <path d="M9 3L3 9M3 3l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Custom pickers ─── -->
       <div class="te-section">
         <div class="te-section-label">Customize</div>
         <div class="te-pickers">
-
           <div class="te-picker-row" *ngFor="let cfg of pickerConfigs">
             <label class="te-picker-label">{{ cfg.label }}</label>
             <div class="te-picker-wrap">
@@ -240,23 +272,52 @@ export function loadSavedPalette(): ColorPalette | null {
               <span class="te-hex-val">{{ currentPalette[cfg.key] | uppercase }}</span>
             </div>
           </div>
-
         </div>
+      </div>
+
+      <!-- ── Save-as-preset prompt (inline) ─── -->
+      <div class="te-section te-name-prompt" *ngIf="showNamePrompt">
+        <div class="te-section-label">Name your preset</div>
+        <div class="te-name-row">
+          <input
+            class="te-name-input"
+            type="text"
+            [(ngModel)]="pendingName"
+            placeholder="e.g. My Ocean Blue"
+            maxlength="32"
+            (keydown.enter)="confirmSavePreset()"
+            (keydown.escape)="cancelNamePrompt()"
+            #nameInput
+          >
+          <button class="te-name-confirm" (click)="confirmSavePreset()"
+                  [disabled]="!pendingName.trim()">Save</button>
+          <button class="te-name-cancel"  (click)="cancelNamePrompt()">✕</button>
+        </div>
+        <span class="te-name-error" *ngIf="nameError">{{ nameError }}</span>
       </div>
 
       <!-- ── Footer ─── -->
       <div class="te-footer">
         <button class="te-reset-btn" (click)="reset()">Reset</button>
         <div class="te-footer-right">
-          <span class="te-saved-badge" *ngIf="justSaved">Saved ✓</span>
-          <button class="te-save-btn" (click)="saveToProfile()">
+          <span class="te-saved-badge" *ngIf="justSaved">{{ savedMsg }}</span>
+          <button class="te-save-btn" (click)="saveToProfile()"
+                  [title]="'Apply & save as active theme'">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-              <polyline points="17 21 17 13 7 13 7 21"/>
-              <polyline points="7 3 7 8 15 8"/>
+              <polyline points="20 6 9 17 4 12"/>
             </svg>
-            Save Theme
+            Apply
+          </button>
+          <button class="te-preset-save-btn" (click)="openNamePrompt()"
+                  [disabled]="customPresets.length >= 10"
+                  [title]="customPresets.length >= 10 ? 'Maximum 10 presets reached' : 'Save as a named preset'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5"  y1="12" x2="19" y2="12"/>
+            </svg>
+            Save as Preset
           </button>
         </div>
       </div>
@@ -269,7 +330,7 @@ export function loadSavedPalette(): ColorPalette | null {
       position: fixed;
       top: 68px;
       right: 16px;
-      width: 320px;
+      width: 340px;
       max-height: calc(100vh - 88px);
       overflow-y: auto;
       background: #1E1E2E;
@@ -429,6 +490,105 @@ export function loadSavedPalette(): ColorPalette | null {
       min-width: 60px;
     }
 
+    /* ── Custom preset chips have a delete button ── */
+    .te-preset-chip--custom {
+      flex-direction: row;
+      align-items: center;
+      gap: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    .te-preset-apply {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 8px 8px 10px;
+      cursor: pointer;
+      min-width: 0;
+    }
+    .te-preset-delete {
+      flex-shrink: 0;
+      width: 28px;
+      height: 100%;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,100,100,0.08);
+      border: none;
+      border-left: 1px solid #2E2E45;
+      color: #C08080;
+      cursor: pointer;
+      border-radius: 0 8px 8px 0;
+      transition: background 0.15s, color 0.15s;
+    }
+    .te-preset-delete:hover { background: rgba(255,80,80,0.22); color: #FF8080; }
+
+    /* Preset count badge */
+    .te-preset-count {
+      float: right;
+      font-size: 10px;
+      font-weight: 600;
+      color: #5A6A88;
+      background: #252535;
+      padding: 1px 7px;
+      border-radius: 8px;
+    }
+
+    /* ── Save-as-preset inline prompt ── */
+    .te-name-prompt { background: #252538; border-top: 1px solid #2E2E45; }
+    .te-name-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .te-name-input {
+      flex: 1;
+      background: #1A1A2E;
+      border: 1px solid #3A3A55;
+      border-radius: 6px;
+      color: #E0E4F0;
+      font-size: 12px;
+      padding: 6px 10px;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .te-name-input:focus { border-color: #5A7AE8; }
+    .te-name-input::placeholder { color: #4A5A78; }
+    .te-name-confirm {
+      background: #4A7AE8;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .te-name-confirm:hover:not(:disabled) { background: #3A6ADA; }
+    .te-name-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+    .te-name-cancel {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid #3A3A55;
+      border-radius: 6px;
+      color: #8090A8;
+      font-size: 12px;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .te-name-cancel:hover { background: rgba(255,255,255,0.12); }
+    .te-name-error {
+      display: block;
+      margin-top: 6px;
+      font-size: 11px;
+      color: #FF8080;
+    }
+
     /* ── Footer ── */
     .te-footer {
       padding: 12px 16px;
@@ -441,14 +601,14 @@ export function loadSavedPalette(): ColorPalette | null {
     .te-footer-right {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     .te-reset-btn {
       background: rgba(255,255,255,0.06);
       border: 1px solid #3A3A55;
       border-radius: 6px;
       color: #8090A8;
-      padding: 7px 14px;
+      padding: 7px 12px;
       font-size: 12px;
       font-weight: 500;
       cursor: pointer;
@@ -459,19 +619,37 @@ export function loadSavedPalette(): ColorPalette | null {
     .te-save-btn {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
+      background: #3A8A5A;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .te-save-btn:hover { background: #2A7A4A; }
+
+    .te-preset-save-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
       background: #4A7AE8;
       border: none;
       border-radius: 6px;
       color: #fff;
-      padding: 7px 14px;
+      padding: 7px 12px;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
+      white-space: nowrap;
       transition: background 0.15s, opacity 0.15s;
     }
-    .te-save-btn:hover { background: #3A6ADA; }
-    .te-save-btn:active { opacity: 0.85; }
+    .te-preset-save-btn:hover:not(:disabled) { background: #3A6ADA; }
+    .te-preset-save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .te-saved-badge {
       font-size: 11px;
@@ -496,11 +674,18 @@ export class ThemeEditorComponent implements OnInit {
   @Input()  isOpen = false;
   @Output() close  = new EventEmitter<void>();
 
-  presets = PALETTE_PRESETS;
+  readonly builtinPresets = PALETTE_PRESETS;
+  customPresets: ColorPalette[] = [];
 
   currentPalette: ColorPalette = { ...PALETTE_PRESETS[0] };
 
+  // Save-as-preset inline prompt state
+  showNamePrompt = false;
+  pendingName    = '';
+  nameError      = '';
+
   justSaved = false;
+  savedMsg  = 'Saved ✓';
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
 
   pickerConfigs: { label: string; key: keyof ColorPalette }[] = [
@@ -513,12 +698,19 @@ export class ThemeEditorComponent implements OnInit {
   constructor(private prefService: PreferenceService) {}
 
   ngOnInit(): void {
-    // Populate pickers from localStorage (already applied by AppComponent on startup)
+    // Populate pickers from localStorage instantly
     const saved = loadSavedPalette();
     if (saved) { this.currentPalette = { ...saved }; }
+
+    // Load custom presets from DB
+    this.prefService.getPreferences().subscribe(prefs => {
+      if (prefs?.customPresets) {
+        this.customPresets = prefs.customPresets;
+      }
+    });
   }
 
-  /** Preset click — live preview only, no persistence. */
+  /** Preset / custom preset click — live preview only, no persistence. */
   selectPreset(p: ColorPalette): void {
     this.currentPalette = { ...p };
     applyPaletteToDOM(this.currentPalette);
@@ -539,33 +731,68 @@ export class ThemeEditorComponent implements OnInit {
     );
   }
 
-  /**
-   * Explicit save: writes current palette to localStorage AND the
-   * userPreferences collection in MongoDB.
-   */
+  /** Apply: writes active palette to localStorage + DB (no preset saved). */
   saveToProfile(): void {
     applyPaletteToDOM(this.currentPalette);
     localStorage.setItem(PALETTE_STORAGE_KEY, JSON.stringify(this.currentPalette));
     this.prefService.savePalette(this.currentPalette).subscribe({
-      next:  () => this.flashSaved(),
-      error: () => this.flashSaved(), // still show badge; errors are logged inside service
+      next:  () => this.flashSaved('Applied ✓'),
+      error: () => this.flashSaved('Applied ✓'),
     });
   }
 
-  /**
-   * Reset: reverts to the default dark preset and removes the saved
-   * palette from both localStorage and the DB.
-   */
+  /** Open the inline name-prompt to save as a named preset. */
+  openNamePrompt(): void {
+    if (this.customPresets.length >= 10) return;
+    this.pendingName   = this.currentPalette.name !== 'Custom' ? this.currentPalette.name : '';
+    this.nameError     = '';
+    this.showNamePrompt = true;
+  }
+
+  cancelNamePrompt(): void {
+    this.showNamePrompt = false;
+    this.pendingName    = '';
+    this.nameError      = '';
+  }
+
+  confirmSavePreset(): void {
+    const name = this.pendingName.trim();
+    if (!name) { this.nameError = 'Please enter a name.'; return; }
+    if (this.customPresets.length >= 10) {
+      this.nameError = 'Maximum 10 presets reached. Delete one first.';
+      return;
+    }
+
+    const preset: ColorPalette = { ...this.currentPalette, name };
+    this.prefService.addPreset(preset).subscribe({
+      next: presets => {
+        if (presets) {
+          this.customPresets = presets;
+          this.cancelNamePrompt();
+          this.flashSaved('Preset saved ✓');
+        }
+      },
+      error: () => { this.nameError = 'Failed to save. Please try again.'; }
+    });
+  }
+
+  deletePreset(p: ColorPalette): void {
+    this.prefService.deletePreset(p.name).subscribe(presets => {
+      if (presets !== null) { this.customPresets = presets; }
+    });
+  }
+
+  /** Reset: reverts to default dark preset, clears localStorage + DB. */
   reset(): void {
     this.currentPalette = { ...PALETTE_PRESETS[0] };
     applyPaletteToDOM(this.currentPalette);
     clearPaletteFromDOM();
-    // Remove from DB
     this.prefService.deletePalette().subscribe();
-    this.flashSaved();
+    this.flashSaved('Reset ✓');
   }
 
-  private flashSaved(): void {
+  private flashSaved(msg = 'Saved ✓'): void {
+    this.savedMsg  = msg;
     this.justSaved = true;
     if (this.saveTimer) clearTimeout(this.saveTimer);
     this.saveTimer = setTimeout(() => (this.justSaved = false), 2000);

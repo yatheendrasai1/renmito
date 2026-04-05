@@ -5,56 +5,79 @@ import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { ColorPalette } from '../components/theme-editor/theme-editor.component';
 
+export interface UserPreferences {
+  palette:       ColorPalette | null;
+  customPresets: ColorPalette[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class PreferenceService {
   private readonly apiBase = `${environment.apiBase}/preferences`;
 
   constructor(private http: HttpClient) {}
 
-  /**
-   * Fetches the user's stored palette from the DB.
-   * Returns null if none has been saved yet (HTTP 204) or on error.
-   */
-  getPalette(): Observable<ColorPalette | null> {
+  /** Returns active palette + all custom presets. Null on 204 / error. */
+  getPreferences(): Observable<UserPreferences | null> {
     return this.http
-      .get<{ palette: ColorPalette } | null>(this.apiBase)
+      .get<UserPreferences>(this.apiBase)
       .pipe(
-        map(res => res?.palette ?? null),
+        map(res => res ?? null),
         catchError(err => {
-          // 204 No Content comes through as a successful null body — handled by map above.
-          // Any real error (network, 5xx) is swallowed so the app still loads.
-          console.warn('Could not fetch palette preference:', err?.message);
+          console.warn('Could not fetch preferences:', err?.message);
           return of(null);
         })
       );
   }
 
-  /**
-   * Upserts the palette in the DB.
-   * Errors are swallowed — localStorage remains the reliable local cache.
-   */
+  /** Upserts the currently active palette. */
   savePalette(palette: ColorPalette): Observable<ColorPalette | null> {
     return this.http
       .put<{ palette: ColorPalette }>(`${this.apiBase}/palette`, palette)
       .pipe(
         map(res => res?.palette ?? null),
         catchError(err => {
-          console.warn('Could not save palette preference:', err?.message);
+          console.warn('Could not save palette:', err?.message);
           return of(null);
         })
       );
   }
 
-  /**
-   * Clears the stored palette (resets to app default).
-   */
+  /** Clears the active palette. */
   deletePalette(): Observable<void> {
     return this.http
       .delete<void>(`${this.apiBase}/palette`)
       .pipe(
         catchError(err => {
-          console.warn('Could not delete palette preference:', err?.message);
+          console.warn('Could not delete palette:', err?.message);
           return of(undefined);
+        })
+      );
+  }
+
+  /** Adds a named custom preset (max 10 enforced by backend). */
+  addPreset(preset: ColorPalette): Observable<ColorPalette[] | null> {
+    return this.http
+      .post<{ customPresets: ColorPalette[] }>(`${this.apiBase}/presets`, preset)
+      .pipe(
+        map(res => res?.customPresets ?? null),
+        catchError(err => {
+          console.warn('Could not add preset:', err?.message);
+          return of(null);
+        })
+      );
+  }
+
+  /** Deletes a custom preset by name. */
+  deletePreset(name: string): Observable<ColorPalette[] | null> {
+    return this.http
+      .delete<{ customPresets: ColorPalette[] }>(
+        `${this.apiBase}/presets/${encodeURIComponent(name)}`
+      )
+      .pipe(
+        map(res => res?.customPresets ?? null),
+        catchError(err => {
+          console.warn('Could not delete preset:', err?.message);
+          return of(null);
         })
       );
   }
