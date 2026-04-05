@@ -310,6 +310,7 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
       [startTime]="formStartTime"
       [endTime]="formEndTime"
       [editEntry]="editingEntry"
+      [currentDate]="selectedDateStr"
       (saved)="onLogSaved($event)"
       (updated)="onLogUpdated($event)"
       (deleted)="onLogDeleted($event)"
@@ -749,6 +750,11 @@ export class AppComponent implements OnInit {
     });
   }
 
+  get selectedDateStr(): string {
+    const d = this.selectedDate;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
   get dateShortLabel(): string {
     return this.selectedDate.toLocaleDateString('en-US', {
       weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
@@ -920,14 +926,26 @@ export class AppComponent implements OnInit {
   }
 
   onLogSaved(entry: CreateLogEntry): void {
-    this.logService.createLog(this.selectedDate, entry).subscribe({
+    let targetDate = this.selectedDate;
+    if (entry.date && entry.date !== this.selectedDateStr) {
+      const [y, m, d] = entry.date.split('-').map(Number);
+      targetDate = new Date(y, m - 1, d);
+      targetDate.setHours(0, 0, 0, 0);
+    }
+    this.logService.createLog(targetDate, entry).subscribe({
       next: () => { this.closeForm(); this.loadLogs(); },
       error: () => alert('Failed to save log. Please try again.')
     });
   }
 
-  onLogUpdated(event: { id: string; entry: Partial<CreateLogEntry> }): void {
-    this.logService.updateLog(this.selectedDate, event.id, event.entry).subscribe({
+  onLogUpdated(event: { id: string; entry: Partial<CreateLogEntry>; newDate?: string }): void {
+    let targetDate = this.selectedDate;
+    if (event.newDate) {
+      const [y, m, d] = event.newDate.split('-').map(Number);
+      targetDate = new Date(y, m - 1, d);
+      targetDate.setHours(0, 0, 0, 0);
+    }
+    this.logService.updateLog(targetDate, event.id, event.entry).subscribe({
       next: () => { this.closeForm(); this.loadLogs(); },
       error: () => alert('Failed to update log. Please try again.')
     });

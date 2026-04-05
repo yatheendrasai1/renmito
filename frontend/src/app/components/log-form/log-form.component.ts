@@ -29,23 +29,41 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
           </button>
         </div>
 
-        <!-- Time range -->
-        <div class="time-range-row">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;color:var(--highlight-selected)">
-            <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <div class="time-field">
-            <span class="time-field-label">Start</span>
-            <input type="time" name="formStartTime" [(ngModel)]="formStartTime" class="time-input"/>
+        <!-- Time range + Date -->
+        <div class="time-range-card">
+
+          <!-- Row 1: Time -->
+          <div class="time-range-row">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;color:var(--highlight-selected)">
+              <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div class="time-field">
+              <span class="time-field-label">Start</span>
+              <input type="time" name="formStartTime" [(ngModel)]="formStartTime" class="time-input"/>
+            </div>
+            <span class="time-arrow">→</span>
+            <div class="time-field">
+              <span class="time-field-label">End</span>
+              <input type="time" name="formEndTime" [(ngModel)]="formEndTime" class="time-input"/>
+            </div>
+            <span class="duration-label" *ngIf="durationLabel">{{ durationLabel }}</span>
+            <span class="duration-label duration-label--error" *ngIf="!durationLabel && formStartTime && formEndTime">end ≤ start</span>
           </div>
-          <span class="time-arrow">→</span>
-          <div class="time-field">
-            <span class="time-field-label">End</span>
-            <input type="time" name="formEndTime" [(ngModel)]="formEndTime" class="time-input"/>
+
+          <!-- Divider -->
+          <div class="time-card-divider"></div>
+
+          <!-- Row 2: Date -->
+          <div class="date-row">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;color:var(--text-muted)">
+              <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M1.5 6h13M5 1v3M11 1v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            <span class="time-field-label" style="align-self:center">Date</span>
+            <input type="date" name="formDate" [(ngModel)]="formDate" class="date-input"/>
           </div>
-          <span class="duration-label" *ngIf="durationLabel">{{ durationLabel }}</span>
-          <span class="duration-label duration-label--error" *ngIf="!durationLabel && formStartTime && formEndTime">end ≤ start</span>
+
         </div>
 
         <form (ngSubmit)="save()" #logForm="ngForm">
@@ -229,8 +247,14 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .close-btn { background: none; color: var(--text-muted); padding: 4px; border-radius: var(--radius-sm); display: flex; align-items: center; }
     .close-btn:hover { background: var(--bg-card); color: var(--text-primary); }
 
-    /* Time row */
-    .time-range-row { display: flex; align-items: center; gap: 10px; background: var(--bg-card); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 20px; flex-wrap: wrap; }
+    /* Time + Date card */
+    .time-range-card { background: var(--bg-card); border-radius: var(--radius-sm); margin-bottom: 20px; overflow: hidden; }
+    .time-range-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; flex-wrap: wrap; }
+    .time-card-divider { height: 1px; background: var(--border-light); margin: 0 14px; }
+    .date-row { display: flex; align-items: center; gap: 8px; padding: 8px 14px; }
+    .date-input { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 12px; font-weight: 600; padding: 4px 8px; width: 150px; cursor: pointer; }
+    .date-input:focus { border-color: var(--highlight-selected); outline: none; color: var(--highlight-selected); }
+    .date-input::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: pointer; filter: invert(0.5); }
     .time-field { display: flex; flex-direction: column; gap: 2px; }
     .time-field-label { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.7px; }
     .time-input { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-sm); color: var(--highlight-selected); font-size: 14px; font-weight: 700; padding: 4px 8px; width: 120px; font-variant-numeric: tabular-nums; cursor: pointer; }
@@ -366,12 +390,13 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
   `]
 })
 export class LogFormComponent implements OnInit, OnChanges {
-  @Input() startTime = '00:00';
-  @Input() endTime   = '01:00';
-  @Input() editEntry: LogEntry | null = null;
+  @Input() startTime   = '00:00';
+  @Input() endTime     = '01:00';
+  @Input() editEntry:   LogEntry | null = null;
+  @Input() currentDate = '';
 
   @Output() saved     = new EventEmitter<CreateLogEntry>();
-  @Output() updated   = new EventEmitter<{ id: string; entry: Partial<CreateLogEntry> }>();
+  @Output() updated   = new EventEmitter<{ id: string; entry: Partial<CreateLogEntry>; newDate?: string }>();
   @Output() deleted   = new EventEmitter<string>();
   @Output() cancelled = new EventEmitter<void>();
 
@@ -384,6 +409,7 @@ export class LogFormComponent implements OnInit, OnChanges {
   // ── time ──────────────────────────────────────────────
   formStartTime = '00:00';
   formEndTime   = '01:00';
+  formDate      = '';
 
   // ── type selection ─────────────────────────────────────
   selectedLogType: LogType | null = null;
@@ -458,6 +484,7 @@ export class LogFormComponent implements OnInit, OnChanges {
       this.editMode      = true;
       this.formStartTime = this.editEntry.startAt;
       this.formEndTime   = this.editEntry.endAt;
+      this.formDate      = this.editEntry.date;
       this.labelValue    = this.editEntry.title;
 
       // Restore log type — match by id first, then by name
@@ -469,6 +496,7 @@ export class LogFormComponent implements OnInit, OnChanges {
       this.editMode        = false;
       this.formStartTime   = this.startTime;
       this.formEndTime     = this.endTime;
+      this.formDate        = this.currentDate;
       this.labelValue      = '';
       this.selectedLogType = this.logTypes.find(lt => lt.domain === 'work') ?? this.logTypes[0] ?? null;
     }
@@ -536,11 +564,18 @@ export class LogFormComponent implements OnInit, OnChanges {
       startTime: this.formStartTime,
       endTime:   this.formEndTime,
       title:     this.labelValue.trim(),
-      logTypeId: this.selectedLogType!._id
+      logTypeId: this.selectedLogType!._id,
+      date:      this.formDate || undefined
     };
 
     if (this.editMode && this.editEntry) {
-      this.updated.emit({ id: this.editEntry.id, entry });
+      const payload: { id: string; entry: Partial<CreateLogEntry>; newDate?: string } = {
+        id: this.editEntry.id, entry
+      };
+      if (this.formDate && this.formDate !== this.editEntry.date) {
+        payload.newDate = this.formDate;
+      }
+      this.updated.emit(payload);
     } else {
       this.saved.emit(entry);
     }

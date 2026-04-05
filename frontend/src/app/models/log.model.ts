@@ -22,4 +22,5 @@ export interface CreateLogEntry {
   endTime: string;     // HH:MM
   title: string;       // matches timelogs.title
   logTypeId: string;   // always required — every timelog must reference a LogType
+  date?: string;       // YYYY-MM-DD — overrides the selectedDate when set
 }
