@@ -5,6 +5,7 @@ import { TimelineComponent, DragSelection } from './components/timeline/timeline
 import { LogFormComponent } from './components/log-form/log-form.component';
 import { LoginComponent } from './auth/login.component';
 import { MetricsComponent } from './components/metrics/metrics.component';
+import { ThemeEditorComponent, applyPaletteToDOM, loadSavedPalette } from './components/theme-editor/theme-editor.component';
 import { LogService } from './services/log.service';
 import { AuthService } from './services/auth.service';
 import { LogTypeService } from './services/log-type.service';
@@ -13,7 +14,7 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent],
+  imports: [CommonModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -57,6 +58,21 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
               <polyline points="16 17 21 12 16 7"/>
               <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+
+          <!-- Palette editor toggle -->
+          <button class="header-icon-btn"
+                  (click)="showThemeEditor = !showThemeEditor"
+                  [class.header-icon-btn--active]="showThemeEditor"
+                  title="Color palette editor"
+                  aria-label="Open color palette editor">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="13.5" cy="6.5" r="2.5"/>
+              <circle cx="19"   cy="13"  r="2.5"/>
+              <circle cx="6"    cy="13"  r="2.5"/>
+              <circle cx="10"   cy="19"  r="2.5"/>
             </svg>
           </button>
 
@@ -317,6 +333,12 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
       (cancelled)="closeForm()"
     ></app-log-form>
 
+    <!-- ── Theme / Palette Editor — 1.42 ───────────── -->
+    <app-theme-editor
+      *ngIf="showThemeEditor"
+      (close)="showThemeEditor = false"
+    ></app-theme-editor>
+
     <!-- ── Calendar popup — 1.23 ─────────────────────── -->
     <div class="cal-overlay" *ngIf="showCalendarPopup"
          (click)="onCalOverlayClick($event)">
@@ -394,6 +416,11 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
     }
     .header-icon-btn:hover, .theme-toggle-btn:hover {
       background: var(--header-icon-hover); color: #fff;
+    }
+    .header-icon-btn--active {
+      background: var(--header-icon-hover) !important;
+      color: #fff !important;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.25);
     }
 
     .header-user {
@@ -725,6 +752,9 @@ export class AppComponent implements OnInit {
   // ── 1.22: Nav collapse — collapsed by default ───────────
   navCollapsed = true;
 
+  // ── 1.42: Palette / theme editor ─────────────────────────
+  showThemeEditor = false;
+
   selectedDate: Date = new Date();
   logs:         LogEntry[] = [];
   isLoading     = false;
@@ -769,6 +799,10 @@ export class AppComponent implements OnInit {
     const savedTheme = localStorage.getItem('renmito-theme') as 'dark' | 'light' | null;
     this.theme = savedTheme ?? 'dark';
     document.documentElement.setAttribute('data-theme', this.theme);
+
+    // ── 1.42: Restore saved colour palette (overrides CSS vars) ─
+    const savedPalette = loadSavedPalette();
+    if (savedPalette) { applyPaletteToDOM(savedPalette); }
 
     // Default is collapsed; only expand if explicitly saved as 'false'
     this.navCollapsed = localStorage.getItem('renmito-nav-collapsed') !== 'false';
