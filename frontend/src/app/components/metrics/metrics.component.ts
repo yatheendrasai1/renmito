@@ -367,12 +367,14 @@ export class MetricsComponent implements OnChanges {
 
     for (const l of this.prevDayLogs) {
       if (l.logType?.domain !== 'personal' || l.logType?.category !== 'sleep') continue;
+      if (!l.endAt) continue;
       const s = this.toMins(l.startAt);
       const e = this.toMins(l.endAt);
       mins += Math.max(0, Math.min(e, 24 * 60) - Math.max(s, PREV_START));
     }
     for (const l of this.logs) {
       if (l.logType?.domain !== 'personal' || l.logType?.category !== 'sleep') continue;
+      if (!l.endAt) continue;
       const s = this.toMins(l.startAt);
       const e = this.toMins(l.endAt);
       mins += Math.max(0, Math.min(e, DAY_END) - Math.max(s, 0));
@@ -386,6 +388,7 @@ export class MetricsComponent implements OnChanges {
     return this.logs
       .filter(l => {
         if (l.logType?.domain !== 'personal' || l.logType?.category !== 'sleep') return false;
+        if (!l.endAt) return false;
         return Math.min(this.toMins(l.endAt), DAY_END) - Math.max(this.toMins(l.startAt), 0) > 0;
       })
       .map(l => l.id);
@@ -393,12 +396,13 @@ export class MetricsComponent implements OnChanges {
 
   private hoursWhere(pred: (l: LogEntry) => boolean): number {
     return this.logs
+      .filter(l => l.entryType !== 'point')
       .filter(pred)
-      .reduce((sum, l) => sum + Math.max(0, this.toMins(l.endAt) - this.toMins(l.startAt)), 0) / 60;
+      .reduce((sum, l) => sum + Math.max(0, this.toMins(l.endAt ?? '00:00') - this.toMins(l.startAt)), 0) / 60;
   }
 
   private logIdsWhere(pred: (l: LogEntry) => boolean): string[] {
-    return this.logs.filter(pred).map(l => l.id);
+    return this.logs.filter(l => l.entryType !== 'point').filter(pred).map(l => l.id);
   }
 
   private isWork(l: LogEntry, category: string): boolean {

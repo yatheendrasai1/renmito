@@ -18,6 +18,8 @@ export interface DragSelection {
   endTime: string;
   startMinutes: number;
   endMinutes: number;
+  /** Set when two point logs are merged — IDs to delete after the range log is saved. */
+  mergeSourceIds?: [string, string];
 }
 
 /** A pre-computed 10-minute tick mark entry. */
@@ -33,7 +35,8 @@ interface TickMark { pos: number; isHalf: boolean; }
       <!-- ── Header: selection/create bar ─────────────── -->
       <div class="timeline-header">
 
-        <div class="selection-badge">
+        <!-- Normal mode: drag-selection badge -->
+        <div class="selection-badge" *ngIf="!mergeMode">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
                style="flex-shrink:0;color:var(--highlight-selected)">
             <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
@@ -50,6 +53,18 @@ interface TickMark { pos: number; isHalf: boolean; }
             <span class="sel-hint">Drag or tap to select</span>
           </ng-template>
           <button class="btn-create-log" (click)="openCreateForm()">+ Create Log</button>
+        </div>
+
+        <!-- Merge mode: pick-second-point banner -->
+        <div class="merge-banner" *ngIf="mergeMode">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
+               style="flex-shrink:0;color:#F6A623">
+            <circle cx="4" cy="8" r="2.5" stroke="currentColor" stroke-width="1.4"/>
+            <circle cx="12" cy="8" r="2.5" stroke="currentColor" stroke-width="1.4"/>
+            <line x1="6.5" y1="8" x2="9.5" y2="8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="1.5 1.5"/>
+          </svg>
+          <span class="merge-hint">Select another point log to create a time range</span>
+          <button class="btn-cancel-merge" (click)="cancelMerge()">Cancel</button>
         </div>
 
         <!-- Mobile-only scroll controls (touch-action:none on canvas blocks swipe scroll) -->
@@ -106,17 +121,50 @@ interface TickMark { pos: number; isHalf: boolean; }
           <!-- Log entry bars -->
           <div
             class="log-bar"
-            *ngFor="let log of logs"
+            *ngFor="let log of rangeLogs"
             [class.log-bar--highlighted]="isBarHighlighted(log)"
             [class.log-bar--dimmed]="isBarDimmed(log)"
             [style.top.px]="timeToPixels(log.startAt)"
             [style.height.px]="barHeight(log)"
             [style.background]="log.logType?.color ?? '#9B9B9B'"
             [attr.data-log-id]="log.id"
-            [title]="log.title + ' (' + log.startAt + ' – ' + log.endAt + ')'"
+            [title]="log.title + ' (' + log.startAt + ' – ' + (log.endAt ?? '') + ')'"
             (click)="onBarClick(log, $event)"
           >
             <span class="log-bar-label">{{ log.logType?.name ?? log.title }}</span>
+          </div>
+
+          <!-- Point log markers -->
+          <div
+            class="point-marker"
+            *ngFor="let log of pointLogs"
+            [class.point-marker--highlighted]="isBarHighlighted(log)"
+            [class.point-marker--dimmed]="isBarDimmed(log)"
+            [class.point-marker--selected]="selectedPointLog?.id === log.id && !mergeMode"
+            [class.point-marker--anchor]="mergeMode && selectedPointLog?.id === log.id"
+            [class.point-marker--target]="mergeMode && selectedPointLog?.id !== log.id"
+            [style.top.px]="timeToPixels(log.startAt)"
+            [style.border-color]="log.logType?.color ?? '#9B9B9B'"
+            [attr.data-log-id]="log.id"
+            [title]="mergeMode && selectedPointLog?.id !== log.id
+              ? 'Use ' + (log.logType?.name ?? log.title) + ' (' + log.startAt + ') as range endpoint'
+              : (log.logType?.name ?? log.title) + ' at ' + log.startAt"
+            (click)="onPointMarkerClick(log, $event)"
+          >
+            <div class="point-marker-dot" [style.background]="log.logType?.color ?? '#9B9B9B'"></div>
+            <span class="point-marker-label" [style.color]="log.logType?.color ?? '#9B9B9B'">
+              {{ log.logType?.name ?? log.title }}
+            </span>
+            <span class="point-marker-time">{{ log.startAt }}</span>
+
+            <!-- Merge trigger button — shown on the selected marker when NOT yet in merge mode -->
+            <button
+              *ngIf="selectedPointLog?.id === log.id && !mergeMode"
+              class="point-merge-btn"
+              (click)="enterMergeMode($event)"
+              title="Pair with another point log to create a time range"
+              aria-label="Start merge"
+            >+</button>
           </div>
 
           <!-- Current time indicator -->
@@ -513,6 +561,164 @@ interface TickMark { pos: number; isHalf: boolean; }
       font-variant-numeric: tabular-nums;
       box-shadow: 0 2px 8px rgba(74,144,226,0.45);
     }
+
+    /* ── Point log markers ─────────────────────────────── */
+    .point-marker {
+      position: absolute;
+      left: 70px;
+      right: 6px;
+      /* Visible stripe + invisible padding above/below for easier tapping */
+      height: 20px;
+      background: transparent;
+      border-top: 3px solid;
+      display: flex;
+      align-items: flex-start;
+      padding-top: 0;
+      cursor: pointer;
+      z-index: 3;
+      transform: translateY(-10px); /* centre the 3px line in the 20px hit area */
+      transition: filter 0.15s;
+    }
+    .point-marker:hover { filter: brightness(1.3); z-index: 4; }
+
+    .point-marker-dot {
+      position: absolute;
+      left: -10px;
+      top: -6px;          /* vertically centre on the 3px border-top */
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      border: 2px solid var(--timeline-bg);
+      flex-shrink: 0;
+    }
+
+    .point-marker-label {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      background: var(--timeline-bg);
+      border-radius: 3px;
+      white-space: nowrap;
+      text-shadow: none;
+      margin-left: 8px;
+      transform: translateY(-9px);
+      pointer-events: none;
+    }
+
+    .point-marker-time {
+      font-size: 10px;
+      color: var(--timeline-text-muted);
+      margin-left: 4px;
+      transform: translateY(-9px);
+      font-variant-numeric: tabular-nums;
+      pointer-events: none;
+    }
+
+    .point-marker--highlighted {
+      filter: brightness(1.3);
+      z-index: 6;
+    }
+
+    .point-marker--dimmed {
+      opacity: 0.18;
+    }
+
+    /* Selected (awaiting merge mode) */
+    .point-marker--selected {
+      z-index: 8;
+      filter: brightness(1.2);
+    }
+    .point-marker--selected .point-marker-dot {
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.35);
+    }
+
+    /* Anchor: the first point log chosen, in merge mode */
+    .point-marker--anchor {
+      z-index: 8;
+      opacity: 1;
+    }
+    .point-marker--anchor .point-marker-dot {
+      box-shadow: 0 0 0 3px rgba(246,166,35,0.6);
+    }
+
+    /* Target: all OTHER point logs during merge mode — pulsing invite */
+    .point-marker--target {
+      z-index: 7;
+      cursor: crosshair;
+      animation: mergePulse 1.4s ease-in-out infinite;
+    }
+    @keyframes mergePulse {
+      0%, 100% { filter: brightness(1);   opacity: 1; }
+      50%       { filter: brightness(1.4); opacity: 0.85; }
+    }
+    .point-marker--target .point-marker-dot {
+      box-shadow: 0 0 0 4px rgba(255,255,255,0.2);
+    }
+    .point-marker--target:hover {
+      filter: brightness(1.6) !important;
+      animation: none;
+    }
+
+    /* "+" merge trigger button */
+    .point-merge-btn {
+      position: absolute;
+      right: -6px;
+      top: -14px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #F6A623;
+      border: 2px solid var(--timeline-bg);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 12;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+      transition: background 0.15s, transform 0.15s;
+      padding: 0;
+    }
+    .point-merge-btn:hover { background: #E09010; transform: scale(1.15); }
+
+    /* ── Merge mode header banner ─────────────────────── */
+    .merge-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(246,166,35,0.12);
+      border: 1px solid rgba(246,166,35,0.45);
+      border-radius: var(--radius);
+      padding: 5px 12px;
+      animation: mergeSlideIn 0.18s ease;
+    }
+    @keyframes mergeSlideIn {
+      from { opacity: 0; transform: translateX(8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .merge-hint {
+      font-size: 12px;
+      font-weight: 600;
+      color: #F6A623;
+      flex: 1;
+    }
+
+    .btn-cancel-merge {
+      background: rgba(246,166,35,0.15);
+      border: 1px solid rgba(246,166,35,0.4);
+      border-radius: var(--radius-sm);
+      color: #F6A623;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-cancel-merge:hover { background: rgba(246,166,35,0.28); }
   `]
 })
 export class TimelineComponent implements OnChanges {
@@ -520,9 +726,10 @@ export class TimelineComponent implements OnChanges {
   @Input() selectedDate:     Date = new Date();
   @Input() highlightedLogId: string | null = null;
   @Input() metricLogIds:     Set<string> | null = null;
-  @Output() selectionMade    = new EventEmitter<DragSelection>();
-  @Output() createLogClicked = new EventEmitter<DragSelection>();
-  @Output() logClicked       = new EventEmitter<LogEntry>();
+  @Output() selectionMade      = new EventEmitter<DragSelection>();
+  @Output() createLogClicked   = new EventEmitter<DragSelection>();
+  @Output() logClicked         = new EventEmitter<LogEntry>();
+  @Output() mergePointsSelected = new EventEmitter<DragSelection>();
 
   @ViewChild('track', { static: false })
   trackRef!: ElementRef<HTMLDivElement>;
@@ -573,6 +780,10 @@ export class TimelineComponent implements OnChanges {
   private pinchStartDist   = 0;
   private pinchStartHourH  = 26;
   private pinchFocalMinute = 0; // time (minutes) that stays fixed under pinch midpoint
+
+  /* ── Point-log merge state ──────────────────────── */
+  selectedPointLog: LogEntry | null = null; // first-click selection
+  mergeMode = false;                        // true after "+" is pressed
 
   /* ── Date / time state ──────────────────────────── */
   isToday            = false;
@@ -699,9 +910,17 @@ export class TimelineComponent implements OnChanges {
   }
 
   barHeight(log: LogEntry): number {
-    const diff = this.timeToMinutes(log.endAt) - this.timeToMinutes(log.startAt);
+    const diff = this.timeToMinutes(log.endAt ?? '00:00') - this.timeToMinutes(log.startAt);
     if (diff <= 0) return 0;
     return this.minutesToPixels(diff);
+  }
+
+  get rangeLogs(): LogEntry[] {
+    return this.logs.filter(l => l.entryType !== 'point');
+  }
+
+  get pointLogs(): LogEntry[] {
+    return this.logs.filter(l => l.entryType === 'point');
   }
 
   /**
@@ -730,8 +949,8 @@ export class TimelineComponent implements OnChanges {
   onPointerDown(event: PointerEvent): void {
     if (!this.trackRef) return;
 
-    // Let log-bar clicks pass through to their own (click) handler
-    if ((event.target as HTMLElement).closest('.log-bar')) return;
+    // Let log-bar and point-marker clicks pass through to their own (click) handlers
+    if ((event.target as HTMLElement).closest('.log-bar,.point-marker')) return;
 
     // Capture pointer and track for pinch detection
     this.trackRef.nativeElement.setPointerCapture(event.pointerId);
@@ -859,9 +1078,69 @@ export class TimelineComponent implements OnChanges {
     return false;
   }
 
+  /** Range-bar click → always opens edit form. */
   onBarClick(log: LogEntry, event: MouseEvent): void {
     event.stopPropagation();
+    this.cancelMerge(); // clear any merge state when editing a range log
     this.logClicked.emit(log);
+  }
+
+  /**
+   * Point-marker click:
+   *  - Merge mode ON  → pick this as the range endpoint and emit the pair
+   *  - Merge mode OFF, same log clicked again → open edit form
+   *  - Merge mode OFF, new log clicked → select it (show + button)
+   */
+  onPointMarkerClick(log: LogEntry, event: MouseEvent): void {
+    event.stopPropagation();
+
+    if (this.mergeMode) {
+      // Same anchor tapped → cancel
+      if (log.id === this.selectedPointLog?.id) {
+        this.cancelMerge();
+        return;
+      }
+
+      // Pair the two points into a time range
+      const t1 = this.timeToMinutes(this.selectedPointLog!.startAt);
+      const t2 = this.timeToMinutes(log.startAt);
+      const startMins = Math.min(t1, t2);
+      const endMins   = Math.max(t1, t2);
+
+      this.mergePointsSelected.emit({
+        startTime:      this.minutesToTime(startMins),
+        endTime:        this.minutesToTime(endMins),
+        startMinutes:   startMins,
+        endMinutes:     endMins,
+        mergeSourceIds: [this.selectedPointLog!.id, log.id],
+      });
+      this.cancelMerge();
+      return;
+    }
+
+    // Not in merge mode
+    if (this.selectedPointLog?.id === log.id) {
+      // Second tap on same log → open edit form
+      this.selectedPointLog = null;
+      this.logClicked.emit(log);
+    } else {
+      // First tap → select (show + button)
+      this.selectedPointLog = log;
+    }
+  }
+
+  /** Called when the "+" button on a selected point marker is clicked. */
+  enterMergeMode(event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.selectedPointLog) {
+      this.mergeMode = true;
+    }
+  }
+
+  /** Resets all merge state without touching any logs. */
+  cancelMerge(): void {
+    this.selectedPointLog = null;
+    this.mergeMode        = false;
   }
 
   /* ── Pinch-to-zoom helpers ──────────────────────────── */

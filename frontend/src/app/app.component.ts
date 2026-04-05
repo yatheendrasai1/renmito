@@ -11,6 +11,7 @@ import { AuthService } from './services/auth.service';
 import { LogTypeService } from './services/log-type.service';
 import { PreferenceService } from './services/preference.service';
 import { LogEntry, CreateLogEntry } from './models/log.model';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -220,6 +221,7 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
                     (selectionMade)="onSelectionChanged($event)"
                     (createLogClicked)="onCreateLogClicked($event)"
                     (logClicked)="editLog($event)"
+                    (mergePointsSelected)="onMergePointsSelected($event)"
                   ></app-timeline>
                 </div>
 
@@ -268,7 +270,14 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
                             [style.color]="log.logType?.color ?? '#9B9B9B'">
                         {{ log.logType?.name ?? '—' }}
                       </span>
-                      <span class="log-list-time">{{ log.startAt }} – {{ log.endAt }}</span>
+                      <span class="log-list-time">
+                        <ng-container *ngIf="log.entryType === 'point'">
+                          ⏱ {{ log.startAt }}
+                        </ng-container>
+                        <ng-container *ngIf="log.entryType !== 'point'">
+                          {{ log.startAt }} – {{ log.endAt }}
+                        </ng-container>
+                      </span>
                       <span class="log-list-duration">{{ getDuration(log) }}</span>
                     </div>
                   </div>
@@ -756,6 +765,9 @@ export class AppComponent implements OnInit {
   // ── 1.42: Palette / theme editor ─────────────────────────
   showThemeEditor = false;
 
+  // ── 1.45: Merge — IDs of the two point logs to delete after save ─
+  private mergeSourceIds: [string, string] | null = null;
+
   selectedDate: Date = new Date();
   logs:         LogEntry[] = [];
   isLoading     = false;
@@ -950,6 +962,7 @@ export class AppComponent implements OnInit {
   }
 
   getDuration(log: LogEntry): string {
+    if (log.entryType === 'point' || !log.endAt) return '';
     const diff = this.timeToMinutes(log.endAt) - this.timeToMinutes(log.startAt);
     if (diff <= 0) return '';
     const h = Math.floor(diff / 60), m = diff % 60;
@@ -974,7 +987,7 @@ export class AppComponent implements OnInit {
 
   editLog(log: LogEntry): void {
     this.formStartTime = log.startAt;
-    this.formEndTime   = log.endAt;
+    this.formEndTime   = log.endAt ?? '01:00';
     this.editingEntry  = log;
     this.showForm      = true;
   }
@@ -987,7 +1000,20 @@ export class AppComponent implements OnInit {
       targetDate.setHours(0, 0, 0, 0);
     }
     this.logService.createLog(targetDate, entry).subscribe({
-      next: () => { this.closeForm(); this.loadLogs(); },
+      next: () => {
+        const idsToDelete = this.mergeSourceIds;
+        this.mergeSourceIds = null;
+        this.closeForm();
+        if (idsToDelete) {
+          // Destructive merge: delete both source point logs then reload
+          forkJoin([
+            this.logService.deleteLog(this.selectedDate, idsToDelete[0]),
+            this.logService.deleteLog(this.selectedDate, idsToDelete[1])
+          ]).subscribe({ next: () => this.loadLogs(), error: () => this.loadLogs() });
+        } else {
+          this.loadLogs();
+        }
+      },
       error: () => alert('Failed to save log. Please try again.')
     });
   }
@@ -1019,7 +1045,7 @@ export class AppComponent implements OnInit {
     const rows    = this.logs.map(log => [
       dateStr,
       log.startAt,
-      log.endAt,
+      log.endAt ?? '',
       this.getDuration(log),
       log.logType?.name ?? '',
       `"${log.title.replace(/"/g, '""')}"`
@@ -1035,9 +1061,20 @@ export class AppComponent implements OnInit {
   }
 
   closeForm(): void {
-    this.showForm        = false;
-    this.editingEntry    = null;
+    this.showForm         = false;
+    this.editingEntry     = null;
     this.highlightedLogId = null;
+    // Always reset any in-progress merge state on the timeline
+    this.timelineRef?.cancelMerge();
+  }
+
+  /** Two point logs were paired — open the Create form pre-filled with the derived range. */
+  onMergePointsSelected(selection: DragSelection): void {
+    this.formStartTime   = selection.startTime;
+    this.formEndTime     = selection.endTime;
+    this.editingEntry    = null;
+    this.mergeSourceIds  = selection.mergeSourceIds ?? null;
+    this.showForm        = true;
   }
 
   private timeToMinutes(time: string): number {

@@ -15,6 +15,7 @@ const timeLogSchema = new mongoose.Schema(
     durationMins:    { type: Number, default: null },
     tags:            [{ type: String }],
     source:          { type: String, enum: ['manual', 'auto', 'imported'], default: 'manual' },
+    entryType:       { type: String, enum: ['range', 'point'], default: 'range' },
     lastHeartbeatAt: { type: Date, default: null }
   },
   { timestamps: true, collection: 'timelogs' }

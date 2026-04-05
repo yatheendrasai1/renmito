@@ -45,7 +45,8 @@ function toResponse(doc) {
       domain:   lt.domain  ?? '',
       category: lt.category ?? null
     } : null,
-    logTypeSource: doc.logTypeSource ?? null
+    logTypeSource: doc.logTypeSource ?? null,
+    entryType:     doc.entryType ?? 'range'
   };
 }
 
@@ -93,10 +94,17 @@ router.post('/:date', async (req, res) => {
     return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
   }
 
-  const { startTime, endTime, title, logTypeId } = req.body;
+  const { startTime, endTime, title, logTypeId, entryType, pointTime } = req.body;
+  const isPoint = entryType === 'point';
 
-  if (!startTime || !endTime || !title || !logTypeId) {
-    return res.status(400).json({ error: 'Missing required fields: startTime, endTime, title, logTypeId' });
+  if (isPoint) {
+    if (!pointTime || !title || !logTypeId) {
+      return res.status(400).json({ error: 'Missing required fields: pointTime, title, logTypeId' });
+    }
+  } else {
+    if (!startTime || !endTime || !title || !logTypeId) {
+      return res.status(400).json({ error: 'Missing required fields: startTime, endTime, title, logTypeId' });
+    }
   }
 
   const resolved = await validateLogTypeId(logTypeId);
@@ -104,9 +112,9 @@ router.post('/:date', async (req, res) => {
     return res.status(400).json({ error: 'Invalid logTypeId — log type not found.' });
   }
 
-  const startAt      = toDate(date, startTime);
-  const endAt        = toDate(date, endTime);
-  const durationMins = Math.round((endAt - startAt) / 60000);
+  const startAt      = isPoint ? toDate(date, pointTime) : toDate(date, startTime);
+  const endAt        = isPoint ? null                    : toDate(date, endTime);
+  const durationMins = isPoint ? null                    : Math.round((endAt - startAt) / 60000);
 
   const created = await TimeLog.create({
     userId:        req.user.userId,
@@ -116,6 +124,7 @@ router.post('/:date', async (req, res) => {
     startAt,
     endAt,
     durationMins,
+    entryType:     isPoint ? 'point' : 'range',
     status:        'completed',
     source:        'manual'
   });
@@ -131,12 +140,27 @@ router.put('/:date/:id', async (req, res) => {
     return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
   }
 
-  const { startTime, endTime, title, logTypeId } = req.body;
+  const { startTime, endTime, title, logTypeId, entryType, pointTime } = req.body;
+  const isPoint = entryType === 'point';
   const updates = {};
 
-  if (startTime !== undefined) updates.startAt = toDate(date, startTime);
-  if (endTime   !== undefined) updates.endAt   = toDate(date, endTime);
-  if (title     !== undefined) updates.title   = title;
+  if (entryType !== undefined)  updates.entryType = entryType;
+
+  if (isPoint) {
+    if (pointTime !== undefined) {
+      updates.startAt      = toDate(date, pointTime);
+      updates.endAt        = null;
+      updates.durationMins = null;
+    }
+  } else {
+    if (startTime !== undefined) updates.startAt = toDate(date, startTime);
+    if (endTime   !== undefined) updates.endAt   = toDate(date, endTime);
+    if (title     !== undefined) updates.title   = title;
+    if (updates.startAt && updates.endAt) {
+      updates.durationMins = Math.round((updates.endAt - updates.startAt) / 60000);
+    }
+  }
+  if (title !== undefined) updates.title = title;
 
   if (logTypeId !== undefined) {
     const resolved = await validateLogTypeId(logTypeId);
@@ -145,10 +169,6 @@ router.put('/:date/:id', async (req, res) => {
     }
     updates.logTypeId     = resolved.id;
     updates.logTypeSource = resolved.source;
-  }
-
-  if (updates.startAt && updates.endAt) {
-    updates.durationMins = Math.round((updates.endAt - updates.startAt) / 60000);
   }
 
   const doc = await TimeLog

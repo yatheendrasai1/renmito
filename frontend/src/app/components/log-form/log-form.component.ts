@@ -29,32 +29,80 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
           </button>
         </div>
 
-        <!-- Time range + Date -->
+        <!-- Entry type toggle -->
+        <div class="entry-type-toggle">
+          <button type="button"
+                  class="toggle-btn"
+                  [class.toggle-btn--active]="entryType === 'range'"
+                  (click)="entryType = 'range'">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="5" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/>
+              <circle cx="11" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/>
+            </svg>
+            Time Range
+          </button>
+          <button type="button"
+                  class="toggle-btn"
+                  [class.toggle-btn--active]="entryType === 'point'"
+                  (click)="entryType = 'point'">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/>
+              <line x1="8" y1="2" x2="8" y2="4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <line x1="8" y1="11.5" x2="8" y2="14" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <line x1="2" y1="8" x2="4.5" y2="8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <line x1="11.5" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            Point in Time
+          </button>
+        </div>
+
+        <!-- Time + Date card -->
         <div class="time-range-card">
 
-          <!-- Row 1: Time -->
-          <div class="time-range-row">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;color:var(--highlight-selected)">
-              <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
-              <path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <div class="time-field">
-              <span class="time-field-label">Start</span>
-              <input type="time" name="formStartTime" [(ngModel)]="formStartTime" class="time-input"/>
+          <!-- RANGE mode: start → end -->
+          <ng-container *ngIf="entryType === 'range'">
+            <div class="time-range-row">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;color:var(--highlight-selected)">
+                <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <div class="time-field">
+                <span class="time-field-label">Start</span>
+                <input type="time" name="formStartTime" [(ngModel)]="formStartTime" class="time-input"/>
+              </div>
+              <span class="time-arrow">→</span>
+              <div class="time-field">
+                <span class="time-field-label">End</span>
+                <input type="time" name="formEndTime" [(ngModel)]="formEndTime" class="time-input"/>
+              </div>
+              <span class="duration-label" *ngIf="durationLabel">{{ durationLabel }}</span>
+              <span class="duration-label duration-label--error" *ngIf="!durationLabel && formStartTime && formEndTime">end ≤ start</span>
             </div>
-            <span class="time-arrow">→</span>
-            <div class="time-field">
-              <span class="time-field-label">End</span>
-              <input type="time" name="formEndTime" [(ngModel)]="formEndTime" class="time-input"/>
+          </ng-container>
+
+          <!-- POINT mode: single time -->
+          <ng-container *ngIf="entryType === 'point'">
+            <div class="time-range-row">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;color:var(--highlight-selected)">
+                <circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="8" y1="1" x2="8" y2="4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                <line x1="8" y1="12" x2="8" y2="15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                <line x1="1" y1="8" x2="4" y2="8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                <line x1="12" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+              <div class="time-field">
+                <span class="time-field-label">Time</span>
+                <input type="time" name="formStartTime" [(ngModel)]="formStartTime" class="time-input"/>
+              </div>
+              <span class="point-hint">Exact moment — no duration</span>
             </div>
-            <span class="duration-label" *ngIf="durationLabel">{{ durationLabel }}</span>
-            <span class="duration-label duration-label--error" *ngIf="!durationLabel && formStartTime && formEndTime">end ≤ start</span>
-          </div>
+          </ng-container>
 
           <!-- Divider -->
           <div class="time-card-divider"></div>
 
-          <!-- Row 2: Date -->
+          <!-- Row 2: Date (always shown) -->
           <div class="date-row">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;color:var(--text-muted)">
               <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
@@ -431,6 +479,42 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .delete-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; justify-content: center; }
     .btn-delete { background: none; color: #e94560; font-size: 12px; padding: 6px 12px; border-radius: var(--radius-sm); }
     .btn-delete:hover { background: rgba(233,69,96,0.1); }
+
+    /* Entry type toggle */
+    .entry-type-toggle {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      padding: 4px;
+    }
+    .toggle-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border-radius: var(--radius-sm);
+      transition: background 0.15s, color 0.15s;
+    }
+    .toggle-btn:hover { color: var(--text-primary); }
+    .toggle-btn--active {
+      background: var(--bg-surface);
+      color: var(--highlight-selected);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+    }
+    .point-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-style: italic;
+      margin-top: 14px;
+    }
   `]
 })
 export class LogFormComponent implements OnInit, OnChanges {
@@ -461,6 +545,7 @@ export class LogFormComponent implements OnInit, OnChanges {
   // ── description ────────────────────────────────────────
   labelValue = '';
   editMode   = false;
+  entryType: 'range' | 'point' = 'point';
 
   // ── accordion state ────────────────────────────────────
   openAccordions = new Set<string>();
@@ -484,8 +569,9 @@ export class LogFormComponent implements OnInit, OnChanges {
   }
 
   get canSave(): boolean {
-    return !!this.selectedLogType &&
-           this.toMins(this.formEndTime) > this.toMins(this.formStartTime);
+    if (!this.selectedLogType) return false;
+    if (this.entryType === 'point') return true;
+    return this.toMins(this.formEndTime) > this.toMins(this.formStartTime);
   }
 
   isActive(lt: LogType): boolean {
@@ -560,7 +646,7 @@ export class LogFormComponent implements OnInit, OnChanges {
     if (this.editEntry) {
       this.editMode      = true;
       this.formStartTime = this.editEntry.startAt;
-      this.formEndTime   = this.editEntry.endAt;
+      this.formEndTime   = this.editEntry.endAt ?? '01:00';
       this.formDate      = this.editEntry.date;
       this.labelValue    = this.editEntry.title;
 
@@ -569,6 +655,14 @@ export class LogFormComponent implements OnInit, OnChanges {
         this.logTypes.find(lt => lt._id === this.editEntry!.logType?.id) ??
         this.logTypes.find(lt => lt.name.toLowerCase() === this.editEntry!.logType?.name?.toLowerCase()) ??
         null;
+
+      // Restore entry type
+      if (this.editEntry.entryType === 'point') {
+        this.entryType     = 'point';
+        this.formStartTime = this.editEntry.startAt; // reuse startAt as pointTime field
+      } else {
+        this.entryType = 'range';
+      }
     } else {
       this.editMode        = false;
       this.formStartTime   = this.startTime;
@@ -576,6 +670,11 @@ export class LogFormComponent implements OnInit, OnChanges {
       this.formDate        = this.currentDate;
       this.labelValue      = '';
       this.selectedLogType = this.logTypes.find(lt => lt.domain === 'work') ?? this.logTypes[0] ?? null;
+
+      // Default to point mode; auto-switch to range only if a pre-filled time range was dragged
+      this.entryType = (this.startTime && this.endTime && this.startTime !== this.endTime)
+        ? 'range'
+        : 'point';
     }
   }
 
@@ -583,6 +682,10 @@ export class LogFormComponent implements OnInit, OnChanges {
 
   selectLogType(lt: LogType): void {
     this.selectedLogType = lt;
+    // Auto-switch to point for food; otherwise leave whatever mode the user has chosen
+    if (lt.category === 'food') {
+      this.entryType = 'point';
+    }
   }
 
   // ── create new type ────────────────────────────────────
@@ -630,11 +733,13 @@ export class LogFormComponent implements OnInit, OnChanges {
     if (!this.canSave) return;
 
     const entry: CreateLogEntry = {
-      startTime: this.formStartTime,
-      endTime:   this.formEndTime,
-      title:     this.labelValue.trim() || 'default',
-      logTypeId: this.selectedLogType!._id,
-      date:      this.formDate || undefined
+      startTime:  this.formStartTime,
+      endTime:    this.formEndTime,
+      title:      this.labelValue.trim() || 'default',
+      logTypeId:  this.selectedLogType!._id,
+      date:       this.formDate || undefined,
+      entryType:  this.entryType,
+      pointTime:  this.entryType === 'point' ? this.formStartTime : undefined,
     };
 
     if (this.editMode && this.editEntry) {

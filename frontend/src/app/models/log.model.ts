@@ -9,18 +9,21 @@ export interface LogType {
 export interface LogEntry {
   id: string;
   date: string;              // YYYY-MM-DD
-  startAt: string;           // HH:MM — matches timelogs.startAt field name
-  endAt: string;             // HH:MM — matches timelogs.endAt field name
-  title: string;             // matches timelogs.title
+  startAt: string;           // HH:MM — for range: start; for point: the moment
+  endAt: string | null;      // HH:MM — null for point logs
+  title: string;
   durationMins: number | null;
-  logType: LogType | null;   // populated from logTypeId reference
+  logType: LogType | null;
   logTypeSource: 'DefaultLogType' | 'LogType' | null;
+  entryType: 'range' | 'point';
 }
 
 export interface CreateLogEntry {
-  startTime: string;   // HH:MM — form field name kept for POST body
-  endTime: string;     // HH:MM
-  title: string;       // matches timelogs.title
-  logTypeId: string;   // always required — every timelog must reference a LogType
-  date?: string;       // YYYY-MM-DD — overrides the selectedDate when set
+  startTime: string;    // HH:MM — used for range logs
+  endTime: string;      // HH:MM — used for range logs
+  title: string;
+  logTypeId: string;
+  date?: string;        // YYYY-MM-DD — overrides selectedDate when set
+  entryType?: 'range' | 'point';
+  pointTime?: string;   // HH:MM — used for point logs instead of startTime/endTime
 }
