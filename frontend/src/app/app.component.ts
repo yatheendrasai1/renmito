@@ -117,6 +117,37 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
             <div class="date-bar">
               <span class="date-bar-text">{{ dateShortLabel }}</span>
               <div class="date-bar-actions">
+
+                <!-- Previous day — 1.31 -->
+                <button class="date-bar-btn" (click)="prevDay()"
+                        title="Previous day" aria-label="Previous day">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                </button>
+
+                <!-- Next day — 1.31 -->
+                <button class="date-bar-btn" (click)="nextDay()"
+                        [disabled]="isToday"
+                        title="Next day" aria-label="Next day">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+
+                <!-- Today — 1.31 -->
+                <button class="date-bar-btn" (click)="goToToday()"
+                        [disabled]="isToday"
+                        title="Go to today" aria-label="Go to today">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"/>
+                    <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
+                  </svg>
+                </button>
+
                 <!-- Calendar icon -->
                 <button class="date-bar-btn" (click)="openCalendarPopup()"
                         title="Pick a date" aria-label="Open calendar">
@@ -707,6 +738,44 @@ export class AppComponent implements OnInit {
   toggleNav(): void {
     this.navCollapsed = !this.navCollapsed;
     localStorage.setItem('renmito-nav-collapsed', String(this.navCollapsed));
+  }
+
+  // ── 1.31: Day navigation ────────────────────────────────
+  get isToday(): boolean {
+    const t = new Date();
+    return this.selectedDate.getFullYear() === t.getFullYear() &&
+           this.selectedDate.getMonth()    === t.getMonth()    &&
+           this.selectedDate.getDate()     === t.getDate();
+  }
+
+  prevDay(): void {
+    const d = new Date(this.selectedDate);
+    d.setDate(d.getDate() - 1);
+    d.setHours(0, 0, 0, 0);
+    this.selectedDate     = d;
+    this.highlightedLogId = null;
+    this.metricLogIds     = null;
+    this.loadLogs();
+  }
+
+  nextDay(): void {
+    if (this.isToday) return;
+    const d = new Date(this.selectedDate);
+    d.setDate(d.getDate() + 1);
+    d.setHours(0, 0, 0, 0);
+    this.selectedDate     = d;
+    this.highlightedLogId = null;
+    this.metricLogIds     = null;
+    this.loadLogs();
+  }
+
+  goToToday(): void {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    this.selectedDate     = today;
+    this.highlightedLogId = null;
+    this.metricLogIds     = null;
+    this.loadLogs();
   }
 
   // ── 1.23 ────────────────────────────────────────────────

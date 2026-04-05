@@ -24,6 +24,25 @@
   },
   "enhancements": [
     {
+      "id": "1.31",
+      "version": "1.31",
+      "type": "trivial",
+      "title": "Date bar: previous day, next day, and today navigation buttons",
+      "description": "Added three quick-navigation buttons to the date bar, placed before the calendar icon. (1) Previous day (left chevron ‹): subtracts one day from selectedDate and reloads. (2) Next day (right chevron ›): adds one day — disabled when already on today, preventing navigation into the future. (3) Today (circle with filled centre dot): jumps directly to today; also disabled when already on today. All three methods reset highlightedLogId and metricLogIds. An isToday getter drives both disabled states. Button order: ‹ prev | › next | ● today | 📅 calendar | ⬇ download.",
+      "status": "implemented",
+      "implementedAt": "2026-04-05T00:00:00.000Z",
+      "tags": ["navigation", "date", "ux", "date-bar"],
+      "relatedTo": ["1.23"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "No next-day button added per requirement (only previous day + today were requested). Future navigation to a future or later-past date remains accessible via the calendar popup."
+    },
+    {
       "id": "1.30",
       "version": "1.30",
       "type": "major",
