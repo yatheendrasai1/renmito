@@ -24,7 +24,7 @@ import { AuthService } from '../services/auth.service';
           <!-- Brand -->
           <div class="login-brand">
             <h1 class="login-product-name">Renmito</h1>
-            <p class="login-tagline">Track your time. Own your day.</p>
+            <p class="login-tagline">Pin the time. Get the grip!</p>
           </div>
 
           <!-- Tab switcher -->
@@ -177,9 +177,9 @@ import { AuthService } from '../services/auth.service';
     }
 
     .login-product-name {
-      font-family: 'Archivo Black', sans-serif;
-      font-weight: 400;
-      font-size: 52px;
+      font-family: 'Google Sans Flex', sans-serif;
+      font-weight: 700;
+      font-size: 62px;
       color: #1a1a1a;
       letter-spacing: -1px;
       line-height: 1;

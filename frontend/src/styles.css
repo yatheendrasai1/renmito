@@ -118,7 +118,7 @@
 /* ─── Base ───────────────────────────────────────────── */
 html, body {
   height: 100%;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Google Sans Flex', 'Edu NSW ACT Hand Pre', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-size: 14px;

@@ -409,7 +409,7 @@ import { forkJoin } from 'rxjs';
     .hamburger-btn:hover { background: var(--header-icon-hover); color: #fff; }
 
     .header-logo { display: flex; align-items: center; gap: 10px; }
-    .app-title { font-size: 17px; font-weight: 700; color: var(--header-text); letter-spacing: -0.3px; }
+    .app-title { font-size: 20px; font-weight: 700; color: var(--header-text); letter-spacing: -0.3px; font-family: 'Google Sans Flex', sans-serif; }
 
     .header-actions { display: flex; align-items: center; gap: 14px; }
     .header-date { font-size: 12px; color: rgba(255,255,255,0.78); }
@@ -713,10 +713,11 @@ import { forkJoin } from 'rxjs';
     }
 
     .footer-logo-text {
-      font-size: 15px;
+      font-size: 18px;
       font-weight: 700;
       color: var(--nav-text);
       letter-spacing: -0.3px;
+      font-family: 'Google Sans Flex', sans-serif;
     }
 
     .footer-tagline {
