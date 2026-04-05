@@ -29,9 +29,14 @@ interface MetricCard {
 
       <!-- ── Section header ───────────────────────────── -->
       <div class="metrics-header">
-        <h2 class="metrics-title">Metrics</h2>
-        <div class="metrics-header-right">
-          <!-- Explicit clear button — visible on all devices when a card is active -->
+        <button class="metrics-toggle" (click)="toggleExpanded()" [attr.aria-expanded]="isExpanded">
+          <svg class="metrics-chevron" width="13" height="13" viewBox="0 0 12 12" fill="none">
+            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <h2 class="metrics-title">Metrics</h2>
+        </button>
+        <div class="metrics-header-right" *ngIf="isExpanded">
           <button class="metrics-clear-btn"
                   *ngIf="selectedCardIdx !== null"
                   (click)="clearSelection()"
@@ -51,8 +56,8 @@ interface MetricCard {
         </div>
       </div>
 
-      <!-- ── Cards row ────────────────────────────────── -->
-      <div class="metrics-cards">
+      <!-- ── Cards ────────────────────────────────────── -->
+      <div class="metrics-cards" *ngIf="isExpanded">
         <div class="metric-card"
              *ngFor="let card of activeCards; let i = index"
              [class.metric-card--selected]="selectedCardIdx === i"
@@ -73,10 +78,9 @@ interface MetricCard {
       background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 14px 16px;
+      padding: 0;
       display: flex;
       flex-direction: column;
-      gap: 12px;
     }
 
     /* ── Header ──────────────────────────────────────── */
@@ -85,6 +89,28 @@ interface MetricCard {
       align-items: center;
       justify-content: space-between;
       gap: 8px;
+      padding: 10px 14px;
+    }
+
+    .metrics-toggle {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0;
+    }
+    .metrics-toggle:hover .metrics-title { color: var(--text-primary); }
+
+    .metrics-chevron {
+      flex-shrink: 0;
+      color: var(--text-muted);
+      transform: rotate(-90deg);
+      transition: transform 0.2s ease;
+    }
+    .metrics-toggle[aria-expanded="true"] .metrics-chevron {
+      transform: rotate(0deg);
     }
 
     .metrics-title {
@@ -93,6 +119,7 @@ interface MetricCard {
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 1px;
+      transition: color 0.15s;
     }
 
     .metrics-header-right {
@@ -140,7 +167,7 @@ interface MetricCard {
       display: flex;
       gap: 10px;
       overflow-x: auto;
-      padding-bottom: 2px;
+      padding: 0 14px 14px;
     }
     .metrics-cards::-webkit-scrollbar { height: 4px; }
     .metrics-cards::-webkit-scrollbar-track { background: transparent; }
@@ -203,7 +230,16 @@ interface MetricCard {
     }
 
     @media (max-width: 700px) {
-      .metric-card { min-width: 140px; }
+      .metrics-cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        overflow-x: unset;
+        gap: 8px;
+      }
+      .metric-card {
+        min-width: unset;
+        white-space: normal;
+      }
     }
   `]
 })
@@ -215,6 +251,7 @@ export class MetricsComponent implements OnChanges {
   view: MetricView = 'professional';
   prevDayLogs: LogEntry[] = [];
   selectedCardIdx: number | null = null;
+  isExpanded = false;
 
   constructor(private logService: LogService) {}
 
@@ -237,6 +274,11 @@ export class MetricsComponent implements OnChanges {
   }
 
   /* ── View / card selection ───────────────────────── */
+
+  toggleExpanded(): void {
+    this.isExpanded = !this.isExpanded;
+    if (!this.isExpanded) this.clearSelection();
+  }
 
   onViewChange(v: MetricView): void {
     this.view = v;
