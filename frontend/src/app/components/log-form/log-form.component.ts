@@ -74,7 +74,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
 
             <!-- Loading skeleton -->
             <div class="type-loading" *ngIf="loadingTypes">
-              <span class="skeleton-chip" *ngFor="let i of [1,2,3,4,5]"></span>
+              <div class="skeleton-accordion" *ngFor="let i of [1,2,3]"></div>
             </div>
 
             <!-- Error -->
@@ -86,49 +86,59 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
               <button type="button" class="retry-btn" (click)="loadLogTypes()">Retry</button>
             </div>
 
-            <!-- Domain-grouped chips -->
-            <ng-container *ngIf="!loadingTypes && !typeLoadError">
-              <div *ngFor="let group of groupedTypes" class="domain-group">
-                <span class="domain-label">{{ domainLabel(group.domain) }}</span>
-                <div class="chip-row">
-                  <button
-                    type="button"
-                    class="activity-chip"
-                    *ngFor="let lt of group.types"
-                    [class.activity-chip--active]="isActive(lt)"
-                    [style.border-color]="lt.color"
-                    [style.background-color]="isActive(lt) ? lt.color + '28' : 'transparent'"
-                    [style.color]="isActive(lt) ? lt.color : ''"
-                    (click)="selectLogType(lt)"
-                  >
-                    <span class="chip-dot" [style.background]="lt.color"></span>
-                    {{ lt.name }}
-                    <span class="chip-source-badge" *ngIf="lt.source === 'user'" title="Your custom type">★</span>
-                  </button>
+            <!-- Accordion list -->
+            <div class="accordion-list" *ngIf="!loadingTypes && !typeLoadError">
+
+              <!-- Domain accordions -->
+              <div *ngFor="let group of groupedTypes" class="accordion-item">
+                <button type="button" class="accordion-header"
+                        [class.accordion-header--open]="isAccordionOpen(group.domain)"
+                        (click)="toggleAccordion(group.domain)">
+                  <svg class="accordion-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span class="accordion-label">{{ domainLabel(group.domain) }}</span>
+                  <span class="accordion-count">{{ group.types.length }}</span>
+                  <!-- Active type hint — shown when accordion is closed -->
+                  <span class="accordion-active-hint"
+                        *ngIf="hasActiveInGroup(group) && !isAccordionOpen(group.domain)">
+                    <span class="accordion-active-dot" [style.background]="activeColorInGroup(group)"></span>
+                    <span class="accordion-active-name">{{ activeNameInGroup(group) }}</span>
+                  </span>
+                </button>
+                <div class="accordion-body" *ngIf="isAccordionOpen(group.domain)">
+                  <div class="chip-row">
+                    <button
+                      type="button"
+                      class="activity-chip"
+                      *ngFor="let lt of group.types"
+                      [class.activity-chip--active]="isActive(lt)"
+                      [style.border-color]="lt.color"
+                      [style.background-color]="isActive(lt) ? lt.color + '28' : 'transparent'"
+                      [style.color]="isActive(lt) ? lt.color : ''"
+                      (click)="selectLogType(lt)"
+                    >
+                      <span class="chip-dot" [style.background]="lt.color"></span>
+                      {{ lt.name }}
+                      <span class="chip-source-badge" *ngIf="lt.source === 'user'" title="Your custom type">★</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <!-- ── Create New Log Type ───────────────────── -->
-              <div class="create-type-section">
-                <button
-                  type="button"
-                  class="create-type-toggle"
-                  (click)="toggleCreateForm()"
-                  [class.create-type-toggle--open]="showCreateForm"
-                >
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                    <line x1="8" y1="2" x2="8" y2="14"/>
-                    <line x1="2" y1="8" x2="14" y2="8"/>
+              <!-- New Log Type accordion -->
+              <div class="accordion-item accordion-item--new">
+                <button type="button" class="accordion-header accordion-header--new"
+                        [class.accordion-header--open]="isAccordionOpen('__new__')"
+                        (click)="toggleAccordion('__new__')">
+                  <svg class="accordion-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
-                  New log type
+                  <span class="accordion-label accordion-label--new">New Log Type</span>
                 </button>
+                <div class="accordion-body" *ngIf="isAccordionOpen('__new__')">
 
-                <!-- Inline create form -->
-                <div class="create-type-form" *ngIf="showCreateForm">
-
-                  <div class="create-type-error" *ngIf="createTypeError">
-                    {{ createTypeError }}
-                  </div>
+                  <div class="create-type-error" *ngIf="createTypeError">{{ createTypeError }}</div>
 
                   <div class="create-fields">
                     <div class="create-field create-field--name">
@@ -144,7 +154,6 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                         [disabled]="creatingType"
                       />
                     </div>
-
                     <div class="create-field create-field--domain">
                       <label class="create-label">Domain</label>
                       <select name="newTypeDomain" [(ngModel)]="newTypeDomain" [disabled]="creatingType" class="create-select">
@@ -153,7 +162,6 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                         <option value="family">Family</option>
                       </select>
                     </div>
-
                     <div class="create-field create-field--color">
                       <label class="create-label">Color</label>
                       <div class="color-wrap">
@@ -164,9 +172,6 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                   </div>
 
                   <div class="create-actions">
-                    <button type="button" class="btn-create-cancel" (click)="cancelCreateForm()" [disabled]="creatingType">
-                      Cancel
-                    </button>
                     <button
                       type="button"
                       class="btn-create-submit"
@@ -179,22 +184,24 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                   </div>
                 </div>
               </div>
-            </ng-container>
+
+            </div><!-- /accordion-list -->
           </div>
 
           <!-- ── Description ────────────────────────────────── -->
           <div class="form-group">
             <label for="labelInput">Description</label>
-            <input
-              type="text"
+            <textarea
               id="labelInput"
               name="labelInput"
               [(ngModel)]="labelValue"
               placeholder="What were you doing?"
               required
               maxlength="120"
+              rows="3"
               autocomplete="off"
-            />
+              class="description-textarea"
+            ></textarea>
           </div>
 
           <!-- ── Actions ─────────────────────────────────────── -->
@@ -230,9 +237,9 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
       background: var(--bg-surface);
       border: 1px solid var(--border-light);
       border-radius: var(--radius);
-      padding: 24px;
+      padding: 16px;
       width: 500px; max-width: 96vw;
-      max-height: 90vh; overflow-y: auto;
+      height: 82vh; overflow-y: auto;
       box-shadow: var(--shadow);
       animation: slideIn 0.2s ease;
     }
@@ -248,10 +255,10 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .close-btn:hover { background: var(--bg-card); color: var(--text-primary); }
 
     /* Time + Date card */
-    .time-range-card { background: var(--bg-card); border-radius: var(--radius-sm); margin-bottom: 20px; overflow: hidden; }
-    .time-range-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; flex-wrap: wrap; }
+    .time-range-card { background: var(--bg-card); border-radius: var(--radius-sm); margin-bottom: 14px; overflow: hidden; }
+    .time-range-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; flex-wrap: wrap; }
     .time-card-divider { height: 1px; background: var(--border-light); margin: 0 14px; }
-    .date-row { display: flex; align-items: center; gap: 8px; padding: 8px 14px; }
+    .date-row { display: flex; align-items: center; gap: 8px; padding: 6px 12px; }
     .date-input { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 12px; font-weight: 600; padding: 4px 8px; width: 150px; cursor: pointer; }
     .date-input:focus { border-color: var(--highlight-selected); outline: none; color: var(--highlight-selected); }
     .date-input::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: pointer; filter: invert(0.5); }
@@ -265,21 +272,78 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .duration-label--error { color: #e94560; font-weight: 600; }
 
     /* Form group */
-    .form-group { margin-bottom: 18px; }
-    .form-group > label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.7px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group > label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.7px; }
 
     /* Skeleton */
-    .type-loading { display: flex; flex-wrap: wrap; gap: 7px; }
-    .skeleton-chip { width: 80px; height: 28px; border-radius: 20px; background: linear-gradient(90deg, var(--bg-card) 25%, var(--accent-hover) 50%, var(--bg-card) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+    .type-loading { display: flex; flex-direction: column; gap: 6px; }
+    .skeleton-accordion { width: 100%; height: 38px; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg-card) 25%, var(--accent-hover) 50%, var(--bg-card) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
     @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
     /* Error */
     .type-error { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #ef5350; padding: 8px 10px; background: rgba(239,83,80,0.08); border-radius: var(--radius-sm); }
     .retry-btn { background: none; color: var(--highlight-selected); font-size: 12px; font-weight: 600; text-decoration: underline; margin-left: 4px; }
 
-    /* Domain groups */
-    .domain-group { margin-bottom: 12px; }
-    .domain-label { display: inline-block; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    /* ── Accordion ──────────────────────────────────────── */
+    .accordion-list { display: flex; flex-direction: column; gap: 4px; }
+
+    .accordion-item {
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .accordion-header {
+      width: 100%; display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; text-align: left;
+      transition: background 0.15s, color 0.15s;
+    }
+    .accordion-header:hover { background: var(--accent-hover); color: var(--text-primary); }
+    .accordion-header--open { background: var(--accent-hover); color: var(--text-primary); }
+
+    .accordion-chevron {
+      flex-shrink: 0;
+      color: var(--text-muted);
+      transform: rotate(-90deg);
+      transition: transform 0.2s ease;
+    }
+    .accordion-header--open .accordion-chevron { transform: rotate(0deg); }
+
+    .accordion-label { flex: 1; }
+    .accordion-label--new { color: var(--highlight-selected); }
+
+    .accordion-count {
+      font-size: 10px; font-weight: 700;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      padding: 1px 6px; border-radius: 8px;
+    }
+
+    .accordion-active-hint {
+      display: flex; align-items: center; gap: 5px;
+      margin-left: 4px;
+    }
+    .accordion-active-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .accordion-active-name {
+      font-size: 11px; color: var(--text-muted);
+      max-width: 90px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+      font-weight: 500;
+    }
+
+    .accordion-body {
+      padding: 8px 10px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-light);
+      animation: fadeIn 0.15s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+    .accordion-item--new .accordion-header--new svg path { stroke: var(--highlight-selected); }
 
     /* Chips */
     .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -289,42 +353,15 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .chip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .chip-source-badge { font-size: 9px; opacity: 0.7; margin-left: 1px; }
 
-    /* ── Create new log type ─────────────────────────────── */
-    .create-type-section { margin-top: 12px; }
-
-    .create-type-toggle {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-size: 12px; font-weight: 600;
-      color: var(--highlight-selected);
-      background: none;
-      padding: 5px 10px;
-      border-radius: var(--radius-sm);
-      border: 1.5px dashed rgba(74,144,226,0.4);
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .create-type-toggle:hover { background: rgba(74,144,226,0.08); border-color: var(--highlight-selected); }
-    .create-type-toggle--open { background: rgba(74,144,226,0.08); border-style: solid; }
-
-    .create-type-form {
-      margin-top: 10px;
-      padding: 14px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      display: flex; flex-direction: column; gap: 12px;
-      animation: fadeIn 0.15s ease;
-    }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-
+    /* ── Create new log type (inside accordion) ─────────── */
     .create-type-error {
       font-size: 12px; color: #ef5350;
-      padding: 7px 10px;
+      padding: 7px 10px; margin-bottom: 10px;
       background: rgba(239,83,80,0.1);
       border-radius: var(--radius-sm);
     }
 
-    .create-fields { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-
+    .create-fields { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 8px; }
     .create-field { display: flex; flex-direction: column; gap: 5px; }
     .create-field--name { flex: 1; min-width: 140px; }
     .create-field--domain { width: 110px; }
@@ -334,7 +371,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
 
     .create-input, .create-select {
       padding: 7px 10px;
-      background: var(--bg-surface);
+      background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text-primary);
@@ -349,15 +386,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .create-color:disabled { opacity: 0.5; cursor: not-allowed; }
     .color-hex { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
-    .create-actions { display: flex; gap: 8px; justify-content: flex-end; }
-
-    .btn-create-cancel {
-      padding: 7px 14px; font-size: 12px;
-      background: none; color: var(--text-muted);
-      border-radius: var(--radius-sm);
-    }
-    .btn-create-cancel:hover:not(:disabled) { color: var(--text-primary); background: var(--accent-hover); }
-    .btn-create-cancel:disabled { opacity: 0.4; }
+    .create-actions { display: flex; justify-content: flex-end; }
 
     .btn-create-submit {
       display: flex; align-items: center; gap: 6px;
@@ -372,11 +401,27 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .btn-spinner { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Input text */
-    input[type="text"] { width: 100%; }
+    /* ── Description textarea ───────────────────────────── */
+    .description-textarea {
+      width: 100%;
+      resize: none;
+      padding: 8px 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+      line-height: 1.5;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      box-sizing: border-box;
+    }
+    .description-textarea:focus { border-color: var(--highlight-selected); outline: none; }
+    .description-textarea::placeholder { color: var(--text-muted); }
 
     /* Actions */
-    .form-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .form-actions { display: flex; gap: 10px; margin-top: 12px; }
     .btn-cancel { flex: 1; padding: 10px; background: var(--bg-card); color: var(--text-secondary); }
     .btn-cancel:hover { background: var(--accent-hover); color: var(--text-primary); }
     .btn-save { flex: 2; padding: 10px; background: var(--highlight-selected); color: #fff; font-weight: 700; }
@@ -418,8 +463,10 @@ export class LogFormComponent implements OnInit, OnChanges {
   labelValue = '';
   editMode   = false;
 
+  // ── accordion state ────────────────────────────────────
+  openAccordions = new Set<string>();
+
   // ── create new type inline form ────────────────────────
-  showCreateForm  = false;
   newTypeName     = '';
   newTypeDomain:  'work' | 'personal' | 'family' = 'work';
   newTypeColor    = '#4A90E2';
@@ -451,6 +498,37 @@ export class LogFormComponent implements OnInit, OnChanges {
     return DOMAIN_LABELS[domain] ?? domain;
   }
 
+  isAccordionOpen(key: string): boolean {
+    return this.openAccordions.has(key);
+  }
+
+  toggleAccordion(key: string): void {
+    if (this.openAccordions.has(key)) {
+      this.openAccordions.delete(key);
+    } else {
+      this.openAccordions.clear();   // close any other open accordion
+      this.openAccordions.add(key);
+      if (key === '__new__') {
+        this.newTypeName     = '';
+        this.newTypeDomain   = 'work';
+        this.newTypeColor    = '#4A90E2';
+        this.createTypeError = '';
+      }
+    }
+  }
+
+  hasActiveInGroup(group: { domain: string; types: LogType[] }): boolean {
+    return group.types.some(lt => this.isActive(lt));
+  }
+
+  activeColorInGroup(group: { domain: string; types: LogType[] }): string {
+    return group.types.find(lt => this.isActive(lt))?.color ?? '';
+  }
+
+  activeNameInGroup(group: { domain: string; types: LogType[] }): string {
+    return group.types.find(lt => this.isActive(lt))?.name ?? '';
+  }
+
   // ── lifecycle ──────────────────────────────────────────
 
   ngOnInit(): void { this.loadLogTypes(); }
@@ -480,6 +558,7 @@ export class LogFormComponent implements OnInit, OnChanges {
   }
 
   initForm(): void {
+    this.openAccordions.clear();
     if (this.editEntry) {
       this.editMode      = true;
       this.formStartTime = this.editEntry.startAt;
@@ -506,25 +585,9 @@ export class LogFormComponent implements OnInit, OnChanges {
 
   selectLogType(lt: LogType): void {
     this.selectedLogType = lt;
-    this.showCreateForm  = false;   // close create form if open
   }
 
   // ── create new type ────────────────────────────────────
-
-  toggleCreateForm(): void {
-    this.showCreateForm  = !this.showCreateForm;
-    this.createTypeError = '';
-    if (this.showCreateForm) {
-      this.newTypeName  = '';
-      this.newTypeDomain = 'work';
-      this.newTypeColor  = '#4A90E2';
-    }
-  }
-
-  cancelCreateForm(): void {
-    this.showCreateForm  = false;
-    this.createTypeError = '';
-  }
 
   submitCreateType(): void {
     if (!this.newTypeName.trim() || this.creatingType) return;
@@ -538,15 +601,23 @@ export class LogFormComponent implements OnInit, OnChanges {
       color:  this.newTypeColor
     }).subscribe({
       next: (created) => {
-        this.creatingType   = false;
-        this.showCreateForm = false;
+        this.creatingType = false;
 
         // Add the new type to local list and rebuild groups
-        this.logTypes = [...this.logTypes, created];
+        this.logTypes     = [...this.logTypes, created];
         this.groupedTypes = this.buildGroups(this.logTypes);
 
         // Auto-select it
         this.selectedLogType = created;
+
+        // Close create accordion, open the domain accordion so user sees the new type
+        this.openAccordions.delete('__new__');
+        this.openAccordions.add(created.domain);
+
+        // Reset create form
+        this.newTypeName  = '';
+        this.newTypeColor = '#4A90E2';
+        this.newTypeDomain = 'work';
       },
       error: (err) => {
         this.creatingType    = false;
