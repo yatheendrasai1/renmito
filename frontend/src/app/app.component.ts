@@ -4,6 +4,7 @@ import { CalendarComponent } from './components/calendar/calendar.component';
 import { TimelineComponent, DragSelection } from './components/timeline/timeline.component';
 import { LogFormComponent } from './components/log-form/log-form.component';
 import { LoginComponent } from './auth/login.component';
+import { MetricsComponent } from './components/metrics/metrics.component';
 import { LogService } from './services/log.service';
 import { AuthService } from './services/auth.service';
 import { LogTypeService } from './services/log-type.service';
@@ -12,7 +13,7 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent],
+  imports: [CommonModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -142,6 +143,13 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
               </div>
             </div>
 
+            <!-- ── Metrics — 1.30 ─────────────────────────── -->
+            <app-metrics
+              [logs]="logs"
+              [selectedDate]="selectedDate"
+              (cardHighlight)="onCardHighlight($event)"
+            ></app-metrics>
+
             <!-- ── Split: Timeline (left) + Log list (right) — 1.24 -->
             <div class="logger-split">
 
@@ -160,6 +168,7 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
                     [logs]="logs"
                     [selectedDate]="selectedDate"
                     [highlightedLogId]="highlightedLogId"
+                    [metricLogIds]="metricLogIds"
                     (selectionMade)="onSelectionChanged($event)"
                     (createLogClicked)="onCreateLogClicked($event)"
                     (logClicked)="editLog($event)"
@@ -195,7 +204,9 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
                 <div
                   class="log-list-item"
                   *ngFor="let log of logs; let i = index"
-                  [class.log-list-item--active]="log.id === highlightedLogId"
+                  [class.log-list-item--active]="log.id === highlightedLogId && !metricLogIds"
+                  [class.log-list-item--metric-active]="metricLogIds?.has(log.id)"
+                  [class.log-list-item--dimmed]="metricLogIds && !metricLogIds.has(log.id)"
                   (click)="focusLog(log)"
                 >
                   <div class="log-list-index">{{ i + 1 }}</div>
@@ -518,6 +529,13 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
       border-color: rgba(74,144,226,0.5) !important;
       background: rgba(74,144,226,0.08) !important;
     }
+    .log-list-item--metric-active {
+      border-color: rgba(74,144,226,0.6) !important;
+      background: rgba(74,144,226,0.12) !important;
+    }
+    .log-list-item--dimmed {
+      opacity: 0.22;
+    }
 
     .log-list-index { font-size: 11px; font-weight: 600; color: var(--text-muted); width: 18px; text-align: center; flex-shrink: 0; }
     .log-list-color-bar { width: 4px; height: 36px; border-radius: 2px; flex-shrink: 0; }
@@ -622,6 +640,9 @@ export class AppComponent implements OnInit {
   // ── 1.23: Calendar popup ─────────────────────────────────
   showCalendarPopup = false;
   pendingDate: Date = new Date();
+
+  // ── 1.30: Metric card highlight ──────────────────────────
+  metricLogIds: Set<string> | null = null;
 
   constructor(
     private logService:     LogService,
@@ -747,6 +768,11 @@ export class AppComponent implements OnInit {
   }
 
   onSelectionChanged(_selection: DragSelection): void { /* no-op */ }
+
+  // ── 1.30 ────────────────────────────────────────────────
+  onCardHighlight(ids: string[] | null): void {
+    this.metricLogIds = ids ? new Set(ids) : null;
+  }
 
   onCreateLogClicked(selection: DragSelection): void {
     this.formStartTime = selection.startTime;

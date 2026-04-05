@@ -97,7 +97,8 @@ interface TickMark { pos: number; isHalf: boolean; }
           <div
             class="log-bar"
             *ngFor="let log of logs"
-            [class.log-bar--highlighted]="log.id === highlightedLogId"
+            [class.log-bar--highlighted]="isBarHighlighted(log)"
+            [class.log-bar--dimmed]="isBarDimmed(log)"
             [style.top.px]="timeToPixels(log.startAt)"
             [style.height.px]="barHeight(log)"
             [style.background]="log.logType?.color ?? '#9B9B9B'"
@@ -354,6 +355,12 @@ interface TickMark { pos: number; isHalf: boolean; }
       animation: bar-pulse 0.6s ease-out;
     }
 
+    .log-bar--dimmed {
+      opacity: 0.18;
+      filter: grayscale(0.5);
+      transition: opacity 0.2s, filter 0.2s;
+    }
+
     @keyframes bar-pulse {
       0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.6); }
       70%  { box-shadow: 0 0 0 8px rgba(255,255,255,0); }
@@ -469,9 +476,10 @@ interface TickMark { pos: number; isHalf: boolean; }
   `]
 })
 export class TimelineComponent implements OnChanges {
-  @Input() logs: LogEntry[] = [];
-  @Input() selectedDate: Date = new Date();
+  @Input() logs:             LogEntry[] = [];
+  @Input() selectedDate:     Date = new Date();
   @Input() highlightedLogId: string | null = null;
+  @Input() metricLogIds:     Set<string> | null = null;
   @Output() selectionMade    = new EventEmitter<DragSelection>();
   @Output() createLogClicked = new EventEmitter<DragSelection>();
   @Output() logClicked       = new EventEmitter<LogEntry>();
@@ -747,6 +755,18 @@ export class TimelineComponent implements OnChanges {
     }
 
     this.cdr.detectChanges();
+  }
+
+  /** When a metric card is active, highlighted = in the set; else fall back to single-log mode. */
+  isBarHighlighted(log: LogEntry): boolean {
+    if (this.metricLogIds !== null) return this.metricLogIds.has(log.id);
+    return log.id === this.highlightedLogId;
+  }
+
+  /** Dim bars that are NOT in the active metric set. */
+  isBarDimmed(log: LogEntry): boolean {
+    if (this.metricLogIds !== null) return !this.metricLogIds.has(log.id);
+    return false;
   }
 
   onBarClick(log: LogEntry, event: MouseEvent): void {

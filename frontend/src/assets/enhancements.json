@@ -24,6 +24,25 @@
   },
   "enhancements": [
     {
+      "id": "1.30",
+      "version": "1.30",
+      "type": "major",
+      "title": "Metrics section: Professional and Personal day-snapshot cards with log highlighting",
+      "description": "Added MetricsComponent (app/components/metrics/metrics.component.ts) between the date bar and timeline/log-list split. Dropdown toggles between Professional (5 cards) and Personal (2 cards) views. Professional: Total Work Hours, Coding Time (+ % of work), Meetings (+ %), Design (+ %), Transit (+ %). Personal: Main Sleep Time (cross-day window: prev day 19:00 → selected day 12:00, each log clipped to its half), Learning Time. Time values displayed as 'Xh Ymin' / 'Xh' / 'Ymin' for readability. No accent colours on cards — clean uniform style. Clicking a card highlights the contributing logs: the card gets a blue outline, matching log bars in the timeline are full-brightness while non-matching bars fade to 18% opacity + grayscale, matching log list rows get a blue tint while non-matching rows fade to 22% opacity. Clicking the same card again deselects and restores all colours. View switch or date change also clears the selection. MetricsComponent emits cardHighlight (string[] | null) output; AppComponent converts to Set<string> stored as metricLogIds and passes it to the timeline Input. Transit seed category corrected from 'outdoor' to 'transit'.",
+      "status": "implemented",
+      "implementedAt": "2026-04-05T00:00:00.000Z",
+      "tags": ["metrics", "dashboard", "analytics", "sleep", "work", "personal", "professional", "highlight", "interactive"],
+      "relatedTo": ["1.29", "1.24"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "Sleep window: prevDay logs clipped to [19:00, 24:00], selectedDay logs clipped to [00:00, 12:00] — Math.max/min overlap logic. Highlight flow: MetricsComponent.cardHighlight Output → AppComponent.onCardHighlight() → Set<string> metricLogIds → [metricLogIds] Input on TimelineComponent + class bindings on log list items. TimelineComponent.isBarHighlighted/isBarDimmed methods handle both metric mode (Set) and single-log focus mode. Transit: db.defaultlogtypes.updateOne({name:'Transit'},{$set:{category:'transit'}}) needed for existing Atlas envs."
+    },
+    {
       "id": "1.29",
       "version": "1.29",
       "type": "trivial",
