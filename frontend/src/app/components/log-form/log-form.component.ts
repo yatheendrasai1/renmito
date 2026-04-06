@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { LogTypeService } from '../../services/log-type.service';
 import { LogType } from '../../models/log-type.model';
 import { LogEntry, CreateLogEntry } from '../../models/log.model';
+import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.component';
 
 const DOMAIN_ORDER: Array<'work' | 'personal' | 'family'> = ['work', 'personal', 'family'];
 const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Personal', family: 'Family' };
@@ -14,7 +15,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
 @Component({
   selector: 'app-log-form',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ConfirmDialogComponent],
   template: `
     <div class="form-overlay" (click)="onOverlayClick($event)">
       <div class="form-panel" role="dialog" aria-modal="true" aria-label="Log entry form">
@@ -138,10 +139,11 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
             <div class="accordion-list" *ngIf="!loadingTypes && !typeLoadError">
 
               <!-- Domain accordions -->
-              <div *ngFor="let group of groupedTypes" class="accordion-item">
+              <div *ngFor="let group of groupedTypes" class="accordion-item"
+                   (click)="toggleAccordion(group.domain)">
                 <button type="button" class="accordion-header"
                         [class.accordion-header--open]="isAccordionOpen(group.domain)"
-                        (click)="toggleAccordion(group.domain)">
+                        tabindex="-1">
                   <svg class="accordion-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
                     <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
@@ -154,7 +156,8 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                     <span class="accordion-active-name">{{ activeNameInGroup(group) }}</span>
                   </span>
                 </button>
-                <div class="accordion-body" *ngIf="isAccordionOpen(group.domain)">
+                <div class="accordion-body" *ngIf="isAccordionOpen(group.domain)"
+                     (click)="$event.stopPropagation()">
                   <div class="chip-row">
                     <button
                       type="button"
@@ -175,16 +178,18 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
               </div>
 
               <!-- New Log Type accordion -->
-              <div class="accordion-item accordion-item--new">
+              <div class="accordion-item accordion-item--new"
+                   (click)="toggleAccordion('__new__')">
                 <button type="button" class="accordion-header accordion-header--new"
                         [class.accordion-header--open]="isAccordionOpen('__new__')"
-                        (click)="toggleAccordion('__new__')">
+                        tabindex="-1">
                   <svg class="accordion-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
                     <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                   <span class="accordion-label accordion-label--new">New Log Type</span>
                 </button>
-                <div class="accordion-body" *ngIf="isAccordionOpen('__new__')">
+                <div class="accordion-body" *ngIf="isAccordionOpen('__new__')"
+                     (click)="$event.stopPropagation()">
 
                   <div class="create-type-error" *ngIf="createTypeError">{{ createTypeError }}</div>
 
@@ -271,6 +276,16 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
         </div>
 
       </div>
+
+      <!-- Delete confirmation dialog -->
+      <app-confirm-dialog
+        [visible]="deleteConfirmVisible"
+        title="Delete Entry"
+        [message]="deleteConfirmMessage"
+        okLabel="Delete"
+        (confirmed)="onDeleteConfirmed()"
+        (cancelled)="onDeleteCancelled()"
+      ></app-confirm-dialog>
     </div>
   `,
   styles: [`
@@ -338,6 +353,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
       border: 1px solid var(--border-light);
       border-radius: var(--radius-sm);
       overflow: hidden;
+      cursor: pointer;
     }
 
     .accordion-header {
@@ -518,10 +534,11 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
   `]
 })
 export class LogFormComponent implements OnInit, OnChanges {
-  @Input() startTime   = '00:00';
-  @Input() endTime     = '01:00';
-  @Input() editEntry:   LogEntry | null = null;
-  @Input() currentDate = '';
+  @Input() startTime            = '00:00';
+  @Input() endTime              = '01:00';
+  @Input() editEntry:            LogEntry | null = null;
+  @Input() currentDate          = '';
+  @Input() preselectedLogTypeId: string | null = null;
 
   @Output() saved     = new EventEmitter<CreateLogEntry>();
   @Output() updated   = new EventEmitter<{ id: string; entry: Partial<CreateLogEntry>; newDate?: string }>();
@@ -669,7 +686,13 @@ export class LogFormComponent implements OnInit, OnChanges {
       this.formEndTime     = this.endTime;
       this.formDate        = this.currentDate;
       this.labelValue      = '';
-      this.selectedLogType = this.logTypes.find(lt => lt.domain === 'work') ?? this.logTypes[0] ?? null;
+      this.selectedLogType =
+        (this.preselectedLogTypeId
+          ? this.logTypes.find(lt => lt._id === this.preselectedLogTypeId)
+          : undefined)
+        ?? this.logTypes.find(lt => lt.domain === 'work')
+        ?? this.logTypes[0]
+        ?? null;
 
       // Default to point mode; auto-switch to range only if a pre-filled time range was dragged
       this.entryType = (this.startTime && this.endTime && this.startTime !== this.endTime)
@@ -735,7 +758,7 @@ export class LogFormComponent implements OnInit, OnChanges {
     const entry: CreateLogEntry = {
       startTime:  this.formStartTime,
       endTime:    this.formEndTime,
-      title:      this.labelValue.trim() || 'default',
+      title:      this.labelValue.trim() || this.selectedLogType?.name || '',
       logTypeId:  this.selectedLogType!._id,
       date:       this.formDate || undefined,
       entryType:  this.entryType,
@@ -755,8 +778,24 @@ export class LogFormComponent implements OnInit, OnChanges {
     }
   }
 
+  deleteConfirmVisible = false;
+
+  get deleteConfirmMessage(): string {
+    return `Delete "${this.editEntry?.title ?? ''}"? This cannot be undone.`;
+  }
+
   deleteEntry(): void {
+    if (!this.editEntry) return;
+    this.deleteConfirmVisible = true;
+  }
+
+  onDeleteConfirmed(): void {
+    this.deleteConfirmVisible = false;
     if (this.editEntry) this.deleted.emit(this.editEntry.id);
+  }
+
+  onDeleteCancelled(): void {
+    this.deleteConfirmVisible = false;
   }
 
   cancel(): void { this.cancelled.emit(); }

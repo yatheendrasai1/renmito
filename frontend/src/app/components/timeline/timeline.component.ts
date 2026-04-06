@@ -4,8 +4,10 @@ import {
   Output,
   EventEmitter,
   OnChanges,
+  AfterViewInit,
   SimpleChanges,
   ElementRef,
+  HostListener,
   ViewChild,
   ChangeDetectorRef
 } from '@angular/core';
@@ -20,6 +22,8 @@ export interface DragSelection {
   endMinutes: number;
   /** Set when two point logs are merged — IDs to delete after the range log is saved. */
   mergeSourceIds?: [string, string];
+  /** Log-type id of the earliest point log — pre-fills the Create form. */
+  mergeLogTypeId?: string;
 }
 
 /** A pre-computed 10-minute tick mark entry. */
@@ -260,7 +264,8 @@ interface TickMark { pos: number; isHalf: boolean; }
     .scroll-container {
       overflow-y: auto;
       overflow-x: hidden;
-      height: 520px;
+      height: calc(100vh - 210px);
+      min-height: 400px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
       background: var(--timeline-bg);
@@ -721,7 +726,7 @@ interface TickMark { pos: number; isHalf: boolean; }
     .btn-cancel-merge:hover { background: rgba(246,166,35,0.28); }
   `]
 })
-export class TimelineComponent implements OnChanges {
+export class TimelineComponent implements OnChanges, AfterViewInit {
   @Input() logs:             LogEntry[] = [];
   @Input() selectedDate:     Date = new Date();
   @Input() highlightedLogId: string | null = null;
@@ -744,8 +749,8 @@ export class TimelineComponent implements OnChanges {
    * drives the canvas height binding and all pixel↔minute conversions.
    * TOTAL_MINUTES stays fixed (minutes in a day never changes).
    * ──────────────────────────────────────────────────── */
-  hourHeight = 26;                   // mutable — changed by pinch-to-zoom
-  readonly MIN_HOUR_HEIGHT = 25;     // most compressed view
+  hourHeight = 26;                   // mutable — changed by pinch-to-zoom / init
+  readonly MIN_HOUR_HEIGHT = 20;     // most compressed view
   readonly MAX_HOUR_HEIGHT = 150;    // most zoomed-in view
   readonly TOTAL_MINUTES   = 1440;
 
@@ -790,7 +795,29 @@ export class TimelineComponent implements OnChanges {
   currentTimeMins    = 0;
   get currentTimePixels(): number { return this.minutesToPixels(this.currentTimeMins); }
 
-  constructor(private cdr: ChangeDetectorRef) {}
+  constructor(private cdr: ChangeDetectorRef, private el: ElementRef) {}
+
+  /** Fit all 24 hours into the visible scroll container on first render. */
+  ngAfterViewInit(): void {
+    const container = this.scrollContainerRef?.nativeElement;
+    if (container) {
+      const h = container.clientHeight;
+      if (h > 0) {
+        this.hourHeight = Math.max(this.MIN_HOUR_HEIGHT, Math.floor(h / 24));
+        this.initDefaultSelection();
+        this.cdr.detectChanges();
+      }
+    }
+  }
+
+  /** Clicking outside the timeline resets the time selection to present time. */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.el.nativeElement.contains(event.target as Node)) {
+      this.initDefaultSelection();
+      this.cdr.detectChanges();
+    }
+  }
 
   /* ── Computed getters ────────────────────────────── */
 
@@ -1107,12 +1134,16 @@ export class TimelineComponent implements OnChanges {
       const startMins = Math.min(t1, t2);
       const endMins   = Math.max(t1, t2);
 
+      // Log type from the earliest point log
+      const earlyLog = t1 <= t2 ? this.selectedPointLog! : log;
+
       this.mergePointsSelected.emit({
         startTime:      this.minutesToTime(startMins),
         endTime:        this.minutesToTime(endMins),
         startMinutes:   startMins,
         endMinutes:     endMins,
         mergeSourceIds: [this.selectedPointLog!.id, log.id],
+        mergeLogTypeId: earlyLog.logType?.id,
       });
       this.cancelMerge();
       return;

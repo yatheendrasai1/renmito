@@ -12,11 +12,12 @@ import { LogTypeService } from './services/log-type.service';
 import { PreferenceService } from './services/preference.service';
 import { LogEntry, CreateLogEntry } from './models/log.model';
 import { forkJoin } from 'rxjs';
+import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent],
+  imports: [CommonModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -53,16 +54,6 @@ import { forkJoin } from 'rxjs';
           <span class="header-date">{{ todayLabel }}</span>
           <span class="header-user" *ngIf="currentUser">{{ currentUser.userName }}</span>
 
-          <!-- Logout -->
-          <button class="header-icon-btn" (click)="logout()" title="Log out" aria-label="Log out">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-          </button>
-
           <!-- Palette editor toggle -->
           <button class="header-icon-btn"
                   (click)="showThemeEditor = !showThemeEditor"
@@ -78,25 +69,13 @@ import { forkJoin } from 'rxjs';
             </svg>
           </button>
 
-          <!-- Theme toggle -->
-          <button class="theme-toggle-btn" (click)="toggleTheme()"
-                  [title]="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-                  [attr.aria-label]="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
-            <svg *ngIf="theme === 'dark'" width="18" height="18" viewBox="0 0 24 24" fill="none"
+          <!-- Logout — far right -->
+          <button class="header-icon-btn" (click)="logout()" title="Log out" aria-label="Log out">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="5"/>
-              <line x1="12" y1="1"  x2="12" y2="3"/>
-              <line x1="12" y1="21" x2="12" y2="23"/>
-              <line x1="4.22" y1="4.22"  x2="5.64" y2="5.64"/>
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-              <line x1="1"  y1="12" x2="3"  y2="12"/>
-              <line x1="21" y1="12" x2="23" y2="12"/>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-            </svg>
-            <svg *ngIf="theme === 'light'" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
             </svg>
           </button>
         </div>
@@ -337,6 +316,7 @@ import { forkJoin } from 'rxjs';
       [endTime]="formEndTime"
       [editEntry]="editingEntry"
       [currentDate]="selectedDateStr"
+      [preselectedLogTypeId]="formLogTypeId"
       (saved)="onLogSaved($event)"
       (updated)="onLogUpdated($event)"
       (deleted)="onLogDeleted($event)"
@@ -363,6 +343,17 @@ import { forkJoin } from 'rxjs';
         </div>
       </div>
     </div>
+
+    <!-- Global confirmation dialog (logout + merge) -->
+    <app-confirm-dialog
+      [visible]="confirmDialog !== null"
+      [title]="confirmDialog?.title ?? ''"
+      [message]="confirmDialog?.message ?? ''"
+      [detail]="confirmDialog?.detail ?? ''"
+      [okLabel]="confirmDialog?.okLabel ?? 'Confirm'"
+      (confirmed)="onGlobalConfirm()"
+      (cancelled)="onGlobalCancel()"
+    ></app-confirm-dialog>
 
     </ng-container>
   `,
@@ -766,8 +757,13 @@ export class AppComponent implements OnInit {
   // ── 1.42: Palette / theme editor ─────────────────────────
   showThemeEditor = false;
 
-  // ── 1.45: Merge — IDs of the two point logs to delete after save ─
+  // ── 1.45/1.47: Merge state ─────────────────────────────────────
   private mergeSourceIds: [string, string] | null = null;
+  formLogTypeId: string | null = null;
+
+  // ── 1.47: Global confirm dialog ────────────────────────────────
+  confirmDialog: { title: string; message: string; detail?: string; okLabel?: string; onConfirm: () => void } | null = null;
+  private pendingMerge: DragSelection | null = null;
 
   selectedDate: Date = new Date();
   logs:         LogEntry[] = [];
@@ -856,11 +852,18 @@ export class AppComponent implements OnInit {
   }
 
   logout(): void {
-    this.authService.logout();
-    this.logTypeService.clearCache();
-    this.isAuthenticated = false;
-    this.currentUser     = null;
-    this.logs            = [];
+    this.confirmDialog = {
+      title: 'Log out',
+      message: 'Are you sure you want to log out of Renmito?',
+      okLabel: 'Log out',
+      onConfirm: () => {
+        this.authService.logout();
+        this.logTypeService.clearCache();
+        this.isAuthenticated = false;
+        this.currentUser     = null;
+        this.logs            = [];
+      }
+    };
   }
 
   toggleTheme(): void {
@@ -1065,17 +1068,48 @@ export class AppComponent implements OnInit {
     this.showForm         = false;
     this.editingEntry     = null;
     this.highlightedLogId = null;
+    this.formLogTypeId    = null;
     // Always reset any in-progress merge state on the timeline
     this.timelineRef?.cancelMerge();
   }
 
-  /** Two point logs were paired — open the Create form pre-filled with the derived range. */
+  /** Two point logs were paired — confirm then open the Create form pre-filled. */
   onMergePointsSelected(selection: DragSelection): void {
-    this.formStartTime   = selection.startTime;
-    this.formEndTime     = selection.endTime;
-    this.editingEntry    = null;
-    this.mergeSourceIds  = selection.mergeSourceIds ?? null;
-    this.showForm        = true;
+    const diff = selection.endMinutes - selection.startMinutes;
+    const h = Math.floor(diff / 60), m = diff % 60;
+    const durStr = h && m ? `${h}h ${m}m` : h ? `${h}h` : `${m}m`;
+
+    this.pendingMerge  = selection;
+    this.confirmDialog = {
+      title:   'Merge into time range?',
+      message: 'The two point logs will be deleted after the new entry is saved.',
+      detail:  `${selection.startTime} – ${selection.endTime}  (${durStr})`,
+      okLabel: 'Merge',
+      onConfirm: () => {
+        const s = this.pendingMerge!;
+        this.pendingMerge    = null;
+        this.formStartTime   = s.startTime;
+        this.formEndTime     = s.endTime;
+        this.editingEntry    = null;
+        this.mergeSourceIds  = s.mergeSourceIds ?? null;
+        this.formLogTypeId   = s.mergeLogTypeId ?? null;
+        this.showForm        = true;
+      }
+    };
+  }
+
+  onGlobalConfirm(): void {
+    const fn = this.confirmDialog?.onConfirm;
+    this.confirmDialog = null;
+    fn?.();
+  }
+
+  onGlobalCancel(): void {
+    if (this.pendingMerge) {
+      this.timelineRef?.cancelMerge();
+      this.pendingMerge = null;
+    }
+    this.confirmDialog = null;
   }
 
   private timeToMinutes(time: string): number {

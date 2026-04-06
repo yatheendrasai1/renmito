@@ -28,15 +28,15 @@ interface MetricCard {
     <div class="metrics-section">
 
       <!-- ── Section header ───────────────────────────── -->
-      <div class="metrics-header">
-        <button class="metrics-toggle" (click)="toggleExpanded()" [attr.aria-expanded]="isExpanded">
+      <div class="metrics-header" (click)="toggleExpanded()">
+        <button class="metrics-toggle" [attr.aria-expanded]="isExpanded" tabindex="-1">
           <svg class="metrics-chevron" width="13" height="13" viewBox="0 0 12 12" fill="none">
             <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8"
                   stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <h2 class="metrics-title">Metrics</h2>
         </button>
-        <div class="metrics-header-right" *ngIf="isExpanded">
+        <div class="metrics-header-right" *ngIf="isExpanded" (click)="$event.stopPropagation()">
           <button class="metrics-clear-btn"
                   *ngIf="selectedCardIdx !== null"
                   (click)="clearSelection()"
@@ -90,6 +90,7 @@ interface MetricCard {
       justify-content: space-between;
       gap: 8px;
       padding: 10px 14px;
+      cursor: pointer;
     }
 
     .metrics-toggle {
