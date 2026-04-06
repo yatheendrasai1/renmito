@@ -8,7 +8,8 @@ const config = {
   },
   auth: {
     jwtSecret:    process.env.JWT_SECRET,
-    jwtExpiresIn: '7d'
+    jwtExpiresIn: '7d',
+    masterKey:    process.env.MASTER_KEY || null
   },
   server: {
     port: parseInt(process.env.PORT || '5890', 10)

@@ -217,9 +217,15 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                     </div>
                     <div class="create-field create-field--color">
                       <label class="create-label">Color</label>
-                      <div class="color-wrap">
-                        <input type="color" name="newTypeColor" [(ngModel)]="newTypeColor" [disabled]="creatingType" class="create-color"/>
-                        <span class="color-hex">{{ newTypeColor }}</span>
+                      <div class="swatch-grid">
+                        <button *ngFor="let c of paletteColors" type="button"
+                          class="swatch-btn"
+                          [class.swatch-btn--active]="newTypeColor === c"
+                          [style.background]="c"
+                          [disabled]="creatingType"
+                          (click)="newTypeColor = c"
+                          [attr.aria-label]="c">
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -444,10 +450,19 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .create-input::placeholder { color: var(--text-muted); }
     .create-input:disabled, .create-select:disabled { opacity: 0.5; }
 
-    .color-wrap { display: flex; align-items: center; gap: 8px; }
-    .create-color { width: 36px; height: 32px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: none; }
-    .create-color:disabled { opacity: 0.5; cursor: not-allowed; }
-    .color-hex { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .swatch-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .swatch-btn {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      padding: 0;
+      transition: transform 0.1s, border-color 0.1s;
+      flex-shrink: 0;
+    }
+    .swatch-btn:hover { transform: scale(1.15); }
+    .swatch-btn--active { border-color: var(--text-primary); transform: scale(1.15); }
+    .swatch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .create-actions { display: flex; justify-content: flex-end; }
 
@@ -567,10 +582,17 @@ export class LogFormComponent implements OnInit, OnChanges {
   // ── accordion state ────────────────────────────────────
   openAccordions = new Set<string>();
 
+  // ── 15 pastel log-type colours (1.50) ─────────────────
+  readonly paletteColors = [
+    '#B5C9E8', '#B8D4B8', '#D4B8D4', '#E8C9B5', '#C9D4B8',
+    '#B8C9D4', '#D4C9B8', '#C9B8D4', '#B8D4C9', '#D4B8C9',
+    '#C4CAD6', '#D6C4C4', '#C4D6C4', '#D6D0C4', '#C9C9D6'
+  ];
+
   // ── create new type inline form ────────────────────────
   newTypeName     = '';
   newTypeDomain:  'work' | 'personal' | 'family' = 'work';
-  newTypeColor    = '#4A90E2';
+  newTypeColor    = '#B5C9E8';
   creatingType    = false;
   createTypeError = '';
 
@@ -612,7 +634,7 @@ export class LogFormComponent implements OnInit, OnChanges {
       if (key === '__new__') {
         this.newTypeName     = '';
         this.newTypeDomain   = 'work';
-        this.newTypeColor    = '#4A90E2';
+        this.newTypeColor    = '#B5C9E8';
         this.createTypeError = '';
       }
     }

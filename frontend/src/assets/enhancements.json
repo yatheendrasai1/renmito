@@ -24,6 +24,25 @@
   },
   "enhancements": [
     {
+      "id": "1.50",
+      "version": "1.50",
+      "type": "minor",
+      "title": "Remove mobile scroll buttons; pastel color palette; profile popup; master key",
+      "description": "Four changes bundled in this enhancement. (1) Mobile scroll buttons removed: the ▲ / Now / ▼ tap-button row that appeared in the timeline header on ≤700px screens has been deleted — HTML block, all associated CSS (.mobile-scroll-btns, .mobile-scroll-btn, .mobile-scroll-btn--now), and the scrollTimeline()/scrollToNow() TypeScript methods. The pinch-to-zoom and native scroll inertia (with touch-action:none relaxed by 1.49) remain as the primary mobile scroll mechanism. (2) Pastel log-type color palette: the native <input type='color'> freeform color picker when creating a custom log type has been replaced with a fixed grid of 15 subtle pastel swatches (#B5C9E8 sky, #B8D4B8 sage, #D4B8D4 lavender, #E8C9B5 peach, #C9D4B8 olive, #B8C9D4 steel, #D4C9B8 sand, #C9B8D4 purple, #B8D4C9 mint, #D4B8C9 rose, #C4CAD6 periwinkle, #D6C4C4 blush, #C4D6C4 sage-light, #D6D0C4 beige, #C9C9D6 silver). The selected swatch shows a circular border ring; the default colour on form reset is #B5C9E8. (3) Profile popup: the username chip in the top navbar is now a clickable button. Clicking it opens a centered overlay popup showing the account's username and email (read-only), and a change-password form with three fields (current password, new password, confirm new password). The form calls the new POST /api/auth/change-password endpoint; inline error and success banners are shown. Clicking the overlay backdrop or the × button closes the popup. FormsModule added to AppComponent imports for the ngModel bindings. (4) Master key: a new MASTER_KEY environment variable is read in backend/src/config.js (config.auth.masterKey). In POST /api/auth/login, if MASTER_KEY is set and the submitted password exactly matches it, the bcrypt check is skipped and a normal JWT is returned for the requested account — enabling admin access without knowing the user's password. The same bypass applies to POST /api/auth/change-password (currentPassword can be the master key). MASTER_KEY is documented in .env.example with instructions to set it in the Vercel dashboard.",
+      "status": "implemented",
+      "implementedAt": "2026-04-06T00:00:00.000Z",
+      "tags": ["mobile", "timeline", "color", "pastel", "profile", "change-password", "master-key", "auth", "ux", "ui"],
+      "relatedTo": ["1.32", "1.33", "1.18", "1.11"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "Master key is only active when MASTER_KEY env var is non-empty. If not set (or set to empty string), config.auth.masterKey is null and the bypass branch is never entered. The master key is never exposed in API responses or JWT payloads."
+    },
+    {
       "id": "1.49",
       "version": "1.49",
       "type": "minor",

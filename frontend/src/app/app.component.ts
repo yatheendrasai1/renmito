@@ -1,5 +1,6 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { CalendarComponent } from './components/calendar/calendar.component';
 import { TimelineComponent, DragSelection } from './components/timeline/timeline.component';
 import { LogFormComponent } from './components/log-form/log-form.component';
@@ -17,7 +18,7 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent],
+  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -52,7 +53,7 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
 
         <div class="header-actions">
           <span class="header-date">{{ todayLabel }}</span>
-          <span class="header-user" *ngIf="currentUser">{{ currentUser.userName }}</span>
+          <button class="header-user" *ngIf="currentUser" (click)="openProfile()" title="My profile">{{ currentUser.userName }}</button>
 
           <!-- Palette editor toggle -->
           <button class="header-icon-btn"
@@ -329,6 +330,55 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
       (close)="showThemeEditor = false"
     ></app-theme-editor>
 
+    <!-- ── Profile popup — 1.50 ─────────────────────── -->
+    <div class="profile-overlay" *ngIf="showProfile" (click)="onProfileOverlayClick($event)">
+      <div class="profile-popup">
+        <div class="profile-header">
+          <span class="profile-title">My Profile</span>
+          <button class="profile-close-btn" (click)="closeProfile()" aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div class="profile-info">
+          <div class="profile-info-row">
+            <span class="profile-label">Username</span>
+            <span class="profile-value">{{ currentUser?.userName }}</span>
+          </div>
+          <div class="profile-info-row">
+            <span class="profile-label">Email</span>
+            <span class="profile-value">{{ currentUser?.email }}</span>
+          </div>
+        </div>
+
+        <div class="profile-section-title">Change Password</div>
+
+        <div class="profile-field">
+          <label class="profile-field-label">Current password</label>
+          <input class="profile-input" type="password" [(ngModel)]="profilePass.current" placeholder="Current password" [disabled]="profileChanging"/>
+        </div>
+        <div class="profile-field">
+          <label class="profile-field-label">New password</label>
+          <input class="profile-input" type="password" [(ngModel)]="profilePass.next" placeholder="Min 8 characters" [disabled]="profileChanging"/>
+        </div>
+        <div class="profile-field">
+          <label class="profile-field-label">Confirm new password</label>
+          <input class="profile-input" type="password" [(ngModel)]="profilePass.confirm" placeholder="Repeat new password" [disabled]="profileChanging"/>
+        </div>
+
+        <div class="profile-error" *ngIf="profileError">{{ profileError }}</div>
+        <div class="profile-success" *ngIf="profileSuccess">{{ profileSuccess }}</div>
+
+        <div class="profile-actions">
+          <button class="btn-profile-save" (click)="submitChangePassword()"
+                  [disabled]="profileChanging || !profilePass.current || !profilePass.next || !profilePass.confirm">
+            <span class="btn-spinner" *ngIf="profileChanging"></span>
+            <span>{{ profileChanging ? 'Saving…' : 'Update password' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Calendar popup — 1.23 ─────────────────────── -->
     <div class="cal-overlay" *ngIf="showCalendarPopup"
          (click)="onCalOverlayClick($event)">
@@ -434,7 +484,10 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
       letter-spacing: 0.3px;
       max-width: 120px;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
     }
+    .header-user:hover { background: rgba(255,255,255,0.2); color: #fff; }
 
     /* ── Body ────────────────────────────────────────────── */
     .app-body { display: flex; flex: 1; overflow: hidden; }
@@ -728,6 +781,69 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
       white-space: nowrap;
     }
 
+    /* ── Profile popup — 1.50 ──────────────────────────── */
+    .profile-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 600;
+    }
+    .profile-popup {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      width: 360px; max-width: 94vw;
+      padding: 20px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .profile-header {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .profile-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+    .profile-close-btn {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .profile-close-btn:hover { background: var(--accent-hover); color: var(--text-primary); }
+    .profile-info {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .profile-info-row { display: flex; gap: 10px; align-items: baseline; }
+    .profile-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; width: 72px; flex-shrink: 0; }
+    .profile-value { font-size: 13px; color: var(--text-primary); font-weight: 500; word-break: break-all; }
+    .profile-section-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+    .profile-field { display: flex; flex-direction: column; gap: 5px; }
+    .profile-field-label { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+    .profile-input {
+      width: 100%; padding: 8px 10px; font-size: 13px;
+      background: var(--bg-card); color: var(--text-primary);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      box-sizing: border-box;
+    }
+    .profile-input:focus { outline: none; border-color: var(--highlight-selected); }
+    .profile-input:disabled { opacity: 0.5; }
+    .profile-error { font-size: 12px; color: #e05252; padding: 6px 10px; background: rgba(224,82,82,0.1); border-radius: var(--radius-sm); }
+    .profile-success { font-size: 12px; color: #4caf7d; padding: 6px 10px; background: rgba(76,175,125,0.1); border-radius: var(--radius-sm); }
+    .profile-actions { display: flex; justify-content: flex-end; }
+    .btn-profile-save {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 16px; font-size: 13px; font-weight: 600;
+      background: var(--highlight-selected); color: #fff;
+      border-radius: var(--radius-sm);
+      transition: opacity 0.15s;
+    }
+    .btn-profile-save:disabled { opacity: 0.45; cursor: not-allowed; }
+
     /* ── Responsive ─────────────────────────────────────── */
     /* Nav collapse is controlled solely by the hamburger toggle (navCollapsed).
        No media query auto-collapses it — the user's explicit toggle is the
@@ -757,6 +873,13 @@ export class AppComponent implements OnInit {
 
   // ── 1.42: Palette / theme editor ─────────────────────────
   showThemeEditor = false;
+
+  // ── 1.50: Profile popup ───────────────────────────────────
+  showProfile    = false;
+  profileChanging = false;
+  profileError   = '';
+  profileSuccess = '';
+  profilePass    = { current: '', next: '', confirm: '' };
 
   // ── 1.45/1.47: Merge state ─────────────────────────────────────
   private mergeSourceIds: [string, string] | null = null;
@@ -877,6 +1000,43 @@ export class AppComponent implements OnInit {
   toggleNav(): void {
     this.navCollapsed = !this.navCollapsed;
     localStorage.setItem('renmito-nav-collapsed', String(this.navCollapsed));
+  }
+
+  // ── 1.50: Profile popup ───────────────────────────────────
+  openProfile(): void {
+    this.profilePass    = { current: '', next: '', confirm: '' };
+    this.profileError   = '';
+    this.profileSuccess = '';
+    this.showProfile    = true;
+  }
+
+  closeProfile(): void { this.showProfile = false; }
+
+  onProfileOverlayClick(e: MouseEvent): void {
+    if ((e.target as HTMLElement).classList.contains('profile-overlay')) this.closeProfile();
+  }
+
+  submitChangePassword(): void {
+    this.profileError   = '';
+    this.profileSuccess = '';
+    if (this.profilePass.next !== this.profilePass.confirm) {
+      this.profileError = 'New passwords do not match.'; return;
+    }
+    if (this.profilePass.next.length < 8) {
+      this.profileError = 'New password must be at least 8 characters.'; return;
+    }
+    this.profileChanging = true;
+    this.authService.changePassword(this.profilePass.current, this.profilePass.next).subscribe({
+      next: () => {
+        this.profileChanging = false;
+        this.profileSuccess  = 'Password updated successfully.';
+        this.profilePass     = { current: '', next: '', confirm: '' };
+      },
+      error: (err) => {
+        this.profileChanging = false;
+        this.profileError    = err?.error?.error ?? 'Failed to update password.';
+      }
+    });
   }
 
   // ── 1.31: Day navigation ────────────────────────────────

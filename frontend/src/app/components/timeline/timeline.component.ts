@@ -83,13 +83,6 @@ interface TickMark { pos: number; isHalf: boolean; }
           <button class="btn-cancel-merge" (click)="cancelMerge()">Cancel</button>
         </div>
 
-        <!-- Mobile-only scroll controls -->
-        <div class="mobile-scroll-btns" (click)="$event.stopPropagation()">
-          <button class="mobile-scroll-btn" (click)="scrollTimeline(-180)" aria-label="Scroll up 3 hours">▲</button>
-          <button class="mobile-scroll-btn mobile-scroll-btn--now" (click)="scrollToNow()" aria-label="Jump to now">Now</button>
-          <button class="mobile-scroll-btn" (click)="scrollTimeline(180)" aria-label="Scroll down 3 hours">▼</button>
-        </div>
-
       </div>
 
       <!-- ── Scrollable timeline canvas ─────────────── -->
@@ -330,48 +323,11 @@ interface TickMark { pos: number; isHalf: boolean; }
       background: var(--text-muted);
     }
 
-    /* ── Mobile scroll buttons (only shown ≤ 700px) ──── */
-    .mobile-scroll-btns {
-      display: none;
-      align-items: center;
-      gap: 4px;
-      margin-left: auto;
-    }
-    @media (max-width: 700px) {
-      .mobile-scroll-btns { display: flex; }
-    }
-
-    .mobile-scroll-btn {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      color: var(--text-primary);
-      border-radius: var(--radius-sm);
-      padding: 5px 10px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      line-height: 1;
-      transition: background 0.15s, border-color 0.15s;
-      /* Ensure tap target is comfortably large on mobile */
-      min-width: 36px;
-      min-height: 32px;
-    }
-    .mobile-scroll-btn:hover,
-    .mobile-scroll-btn:active { background: var(--accent-hover); border-color: var(--border-light); }
-
-    .mobile-scroll-btn--now {
-      color: var(--highlight-selected);
-      border-color: var(--highlight-selected);
-      min-width: 44px;
-    }
-
     /* ── Timeline canvas ─────────────────────────────── */
     /*
      * touch-action: none is required on the canvas so the browser does NOT
      * intercept touch events as scroll gestures. Without it, the browser
      * cancels pointer events mid-drag and breaks time-range selection.
-     * Scrolling on mobile is handled instead by the ▲ / Now / ▼ tap buttons
-     * in the timeline header (only rendered on ≤ 700px screens).
      * Canvas height is driven by [style.height.px]="totalHeight" (hourHeight × 24)
      * so it stretches/shrinks automatically as the user pinch-zooms.
      */
@@ -1308,21 +1264,6 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
     container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
   }
 
-  /** Mobile scroll buttons: scroll by delta px (positive = down, negative = up). */
-  scrollTimeline(delta: number): void {
-    if (!this.scrollContainerRef) return;
-    this.scrollContainerRef.nativeElement.scrollBy({ top: delta, behavior: 'smooth' });
-  }
-
-  /** Mobile "Now" button: centre the scroll position on the current time (today only). */
-  scrollToNow(): void {
-    if (!this.scrollContainerRef) return;
-    const container = this.scrollContainerRef.nativeElement;
-    const now = new Date();
-    const mins = now.getHours() * 60 + now.getMinutes();
-    const px = this.minutesToPixels(mins);
-    container.scrollTo({ top: Math.max(0, px - container.clientHeight / 2), behavior: 'smooth' });
-  }
 
   clearSelection(): void {
     this.initDefaultSelection();
