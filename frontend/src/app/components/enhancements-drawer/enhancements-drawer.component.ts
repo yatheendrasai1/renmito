@@ -156,6 +156,7 @@ export interface Enhancement {
       right: 0;
       width: 400px;
       height: 100vh;
+      height: 100dvh;
       background: var(--bg-surface);
       border-left: 1px solid var(--border);
       box-shadow: -8px 0 32px rgba(0,0,0,0.25);

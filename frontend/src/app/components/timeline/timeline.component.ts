@@ -306,6 +306,7 @@ interface TickMark { pos: number; isHalf: boolean; }
       overflow-y: auto;
       overflow-x: hidden;
       height: calc(100vh - 210px);
+      height: calc(100dvh - 210px);
       min-height: 400px;
       border-radius: var(--radius);
       border: 1px solid var(--border);

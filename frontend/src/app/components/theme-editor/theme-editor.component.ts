@@ -332,6 +332,7 @@ export function loadSavedPalette(): ColorPalette | null {
       right: 16px;
       width: 340px;
       max-height: calc(100vh - 88px);
+      max-height: calc(100dvh - 88px);
       overflow-y: auto;
       background: #1E1E2E;
       border: 1px solid #3A3A55;

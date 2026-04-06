@@ -364,6 +364,7 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
       display: flex;
       flex-direction: column;
       height: 100vh;
+      height: 100dvh;
       overflow: hidden;
       background: var(--bg-primary);
     }
@@ -490,7 +491,7 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
     }
 
     /* ── View area ──────────────────────────────────────── */
-    .view-area { flex: 1; overflow-y: auto; padding: 20px 24px; min-width: 0; }
+    .view-area { flex: 1; overflow-y: auto; padding: 20px 24px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); min-width: 0; }
 
     /* ── Content area (full width now — no calendar panel) ─ */
     .content-area {

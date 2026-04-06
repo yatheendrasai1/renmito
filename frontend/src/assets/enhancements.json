@@ -24,6 +24,25 @@
   },
   "enhancements": [
     {
+      "id": "1.49",
+      "version": "1.49",
+      "type": "minor",
+      "title": "Mobile safe-area: fix content hidden behind system navigation bar",
+      "description": "On mobile devices with a bottom system navigation bar (Android gesture nav, iPhone home indicator), content at the bottom of the viewport was obscured and unclickable without zooming out. Root cause: the app shell used height:100vh which on many mobile browsers equals the full layout viewport including the area behind the system nav bar, clipping interactive elements. Fix applied across five locations: (1) index.html — added viewport-fit=cover to the meta viewport tag, enabling env(safe-area-inset-*) CSS environment variables to resolve correctly on iOS and Android. (2) app.component.ts .app-shell — added height:100dvh as a progressive-enhancement override after the existing height:100vh fallback. dvh (dynamic viewport height) tracks the visible viewport excluding all browser chrome, so the shell never overflows into the system nav zone. (3) app.component.ts .view-area — changed padding-bottom from 20px to calc(20px + env(safe-area-inset-bottom, 0px)), ensuring scrollable content has clearance above the device's bottom safe area even when dvh is not sufficient alone. (4) timeline.component.ts .scroll-container — added height:calc(100dvh - 210px) override after the existing 100vh fallback, keeping the timeline within the visible viewport. (5) log-form.component.ts .form-panel — added height:82dvh override after 82vh fallback. (6) theme-editor.component.ts .te-panel — added max-height:calc(100dvh - 88px) override after the 100vh fallback. (7) enhancements-drawer.component.ts .drawer — added height:100dvh override after 100vh fallback.",
+      "status": "implemented",
+      "implementedAt": "2026-04-06T00:00:00.000Z",
+      "tags": ["mobile", "safe-area", "viewport", "dvh", "css", "android", "ios", "navigation-bar", "ux"],
+      "relatedTo": ["1.32", "1.33", "1.25"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "dvh support: iOS 16+, Chrome 108+, Firefox 101+. The height:100vh line is kept as a fallback for older browsers — 100dvh only overrides on browsers that understand the unit. viewport-fit=cover is required for env(safe-area-inset-bottom) to return a non-zero value on iOS; on Android it is a no-op but harmless. The env() fallback of 0px means no extra padding is added on desktops or devices without a safe area."
+    },
+    {
       "id": "1.35",
       "version": "1.35",
       "type": "minor",

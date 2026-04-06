@@ -301,7 +301,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
       border-radius: var(--radius);
       padding: 16px;
       width: 500px; max-width: 96vw;
-      height: 82vh; overflow-y: auto;
+      height: 82vh; height: 82dvh; overflow-y: auto;
       box-shadow: var(--shadow);
       animation: slideIn 0.2s ease;
     }
