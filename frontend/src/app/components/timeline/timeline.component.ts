@@ -37,10 +37,22 @@ interface TickMark { pos: number; isHalf: boolean; }
     <div class="timeline-wrapper">
 
       <!-- ── Header: selection/create bar ─────────────── -->
-      <div class="timeline-header">
+      <div class="timeline-header" (click)="isCollapsed = !isCollapsed">
 
-        <!-- Normal mode: drag-selection badge -->
-        <div class="selection-badge" *ngIf="!mergeMode">
+        <!-- Collapse toggle (visual only — click handled by parent div) -->
+        <button class="timeline-collapse-btn" tabindex="-1"
+                [title]="isCollapsed ? 'Expand timeline' : 'Collapse timeline'"
+                [attr.aria-expanded]="!isCollapsed">
+          <svg class="collapse-chevron" [class.collapse-chevron--open]="!isCollapsed"
+               width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="collapse-label">Timeline</span>
+        </button>
+
+        <!-- Normal mode: drag-selection badge — stopPropagation so clicks here don't toggle -->
+        <div class="selection-badge" *ngIf="!mergeMode" (click)="$event.stopPropagation()">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
                style="flex-shrink:0;color:var(--highlight-selected)">
             <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
@@ -60,7 +72,7 @@ interface TickMark { pos: number; isHalf: boolean; }
         </div>
 
         <!-- Merge mode: pick-second-point banner -->
-        <div class="merge-banner" *ngIf="mergeMode">
+        <div class="merge-banner" *ngIf="mergeMode" (click)="$event.stopPropagation()">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
                style="flex-shrink:0;color:#F6A623">
             <circle cx="4" cy="8" r="2.5" stroke="currentColor" stroke-width="1.4"/>
@@ -71,8 +83,8 @@ interface TickMark { pos: number; isHalf: boolean; }
           <button class="btn-cancel-merge" (click)="cancelMerge()">Cancel</button>
         </div>
 
-        <!-- Mobile-only scroll controls (touch-action:none on canvas blocks swipe scroll) -->
-        <div class="mobile-scroll-btns">
+        <!-- Mobile-only scroll controls -->
+        <div class="mobile-scroll-btns" (click)="$event.stopPropagation()">
           <button class="mobile-scroll-btn" (click)="scrollTimeline(-180)" aria-label="Scroll up 3 hours">▲</button>
           <button class="mobile-scroll-btn mobile-scroll-btn--now" (click)="scrollToNow()" aria-label="Jump to now">Now</button>
           <button class="mobile-scroll-btn" (click)="scrollTimeline(180)" aria-label="Scroll down 3 hours">▼</button>
@@ -81,7 +93,7 @@ interface TickMark { pos: number; isHalf: boolean; }
       </div>
 
       <!-- ── Scrollable timeline canvas ─────────────── -->
-      <div class="scroll-container" #scrollContainer>
+      <div class="scroll-container" #scrollContainer *ngIf="!isCollapsed">
         <div
           class="timeline-canvas"
           #track
@@ -212,10 +224,39 @@ interface TickMark { pos: number; isHalf: boolean; }
     .timeline-header {
       display: flex;
       align-items: center;
-      justify-content: flex-end;
+      justify-content: space-between;
       flex-wrap: wrap;
       gap: 8px;
       min-height: 38px;
+      cursor: pointer;
+    }
+
+    /* ── Collapse toggle ─────────────────────────────── */
+    .timeline-collapse-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: none;
+      color: var(--text-muted);
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+    }
+    .timeline-collapse-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+
+    .collapse-chevron {
+      flex-shrink: 0;
+      transform: rotate(-90deg);
+      transition: transform 0.2s ease;
+    }
+    .collapse-chevron--open { transform: rotate(0deg); }
+
+    .collapse-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     /* ── Selection / create badge ────────────────────── */
@@ -785,6 +826,24 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
   private pinchStartDist   = 0;
   private pinchStartHourH  = 26;
   private pinchFocalMinute = 0; // time (minutes) that stays fixed under pinch midpoint
+
+  /* ── Collapse state ─────────────────────────────── */
+  private _isCollapsed = true;
+  get isCollapsed(): boolean { return this._isCollapsed; }
+  set isCollapsed(val: boolean) {
+    this._isCollapsed = val;
+    if (!val) {
+      // Fit 24h on first expand (scroll container wasn't in DOM before)
+      setTimeout(() => {
+        const container = this.scrollContainerRef?.nativeElement;
+        if (container && container.clientHeight > 0) {
+          this.hourHeight = Math.max(this.MIN_HOUR_HEIGHT, Math.floor(container.clientHeight / 24));
+          this.initDefaultSelection();
+          this.cdr.detectChanges();
+        }
+      }, 0);
+    }
+  }
 
   /* ── Point-log merge state ──────────────────────── */
   selectedPointLog: LogEntry | null = null; // first-click selection
