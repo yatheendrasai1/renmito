@@ -3,7 +3,7 @@
     "domain": "work",
     "category": "codetime",
     "name": "Code Time",
-    "color": "#4A90E2",
+    "color": "#B5C9E8",
     "icon": "laptop",
     "isBuiltIn": true,
     "isActive": true
@@ -12,7 +12,7 @@
     "domain": "work",
     "category": "meeting",
     "name": "Meeting",
-    "color": "#5C6BC0",
+    "color": "#C4CAD6",
     "icon": "users",
     "isBuiltIn": true,
     "isActive": true
@@ -21,7 +21,7 @@
     "domain": "work",
     "category": "design",
     "name": "Design",
-    "color": "#42A5F5",
+    "color": "#D4B8D4",
     "icon": "calendar",
     "isBuiltIn": true,
     "isActive": true
@@ -30,7 +30,7 @@
     "domain": "work",
     "category": "documentation",
     "name": "Documentation",
-    "color": "#26A69A",
+    "color": "#D6D0C4",
     "icon": "file-text",
     "isBuiltIn": true,
     "isActive": true
@@ -39,7 +39,7 @@
     "domain": "personal",
     "category": "food",
     "name": "Breakfast",
-    "color": "#FF7043",
+    "color": "#E8C9B5",
     "icon": "home",
     "isBuiltIn": true,
     "isActive": true
@@ -48,7 +48,7 @@
     "domain": "personal",
     "category": "food",
     "name": "Lunch",
-    "color": "#FF7043",
+    "color": "#C9D4B8",
     "icon": "home",
     "isBuiltIn": true,
     "isActive": true
@@ -57,7 +57,7 @@
     "domain": "personal",
     "category": "food",
     "name": "Dinner",
-    "color": "#FF7043",
+    "color": "#D4C9B8",
     "icon": "home",
     "isBuiltIn": true,
     "isActive": true
@@ -66,7 +66,7 @@
     "domain": "personal",
     "category": "food",
     "name": "Food Intake",
-    "color": "#FF7043",
+    "color": "#D6C4C4",
     "icon": "home",
     "isBuiltIn": true,
     "isActive": true
@@ -75,7 +75,7 @@
     "domain": "work",
     "category": "transit",
     "name": "Transit",
-    "color": "#EC407A",
+    "color": "#B8C9D4",
     "icon": "shopping-cart",
     "isBuiltIn": true,
     "isActive": true
@@ -84,7 +84,7 @@
     "domain": "personal",
     "category": "wellbeing",
     "name": "WellBeing",
-    "color": "#66BB6A",
+    "color": "#B8D4C9",
     "icon": "activity",
     "isBuiltIn": true,
     "isActive": true
@@ -93,7 +93,7 @@
     "domain": "personal",
     "category": "sleep",
     "name": "Zleep",
-    "color": "#7E57C2",
+    "color": "#C9C9D6",
     "icon": "moon",
     "isBuiltIn": true,
     "isActive": true
@@ -102,7 +102,7 @@
     "domain": "personal",
     "category": "learning",
     "name": "Learning",
-    "color": "#29B6F6",
+    "color": "#C9B8D4",
     "icon": "book-open",
     "isBuiltIn": true,
     "isActive": true
@@ -111,7 +111,7 @@
     "domain": "family",
     "category": "familytime",
     "name": "Family Time",
-    "color": "#FFA726",
+    "color": "#C4D6C4",
     "icon": "users",
     "isBuiltIn": true,
     "isActive": true
@@ -120,7 +120,7 @@
     "domain": "personal",
     "category": "entertainment",
     "name": "Entertainment",
-    "color": "#EF5350",
+    "color": "#D4B8C9",
     "icon": "film",
     "isBuiltIn": true,
     "isActive": true
@@ -129,7 +129,7 @@
     "domain": "personal",
     "category": "sports",
     "name": "Sports",
-    "color": "#9CCC65",
+    "color": "#B8D4B8",
     "icon": "dumbbell",
     "isBuiltIn": true,
     "isActive": true
