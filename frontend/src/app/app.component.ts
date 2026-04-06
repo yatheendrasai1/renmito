@@ -179,113 +179,19 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
               (cardHighlight)="onCardHighlight($event)"
             ></app-metrics>
 
-            <!-- ── Split: Timeline (left) + Log list (right) — 1.24 -->
-            <div class="logger-split">
-
-              <!-- Left column: Timeline -->
-              <div class="split-timeline">
-                <div class="content-header">
-                  <h2 class="section-title">Timeline</h2>
-                  <div class="loading-indicator" *ngIf="isLoading">
-                    <span class="spinner"></span> Loading…
-                  </div>
-                </div>
-
-                <div class="timeline-container">
-                  <app-timeline
-                    #timelineRef
-                    [logs]="logs"
-                    [selectedDate]="selectedDate"
-                    [highlightedLogId]="highlightedLogId"
-                    [metricLogIds]="metricLogIds"
-                    (selectionMade)="onSelectionChanged($event)"
-                    (createLogClicked)="onCreateLogClicked($event)"
-                    (logClicked)="editLog($event)"
-                    (mergePointsSelected)="onMergePointsSelected($event)"
-                  ></app-timeline>
-                </div>
-
-                <div class="timeline-hint" *ngIf="!isLoading">
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
-                       style="vertical-align:middle;margin-right:4px;">
-                    <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/>
-                    <path d="M8 5v4M8 11v1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                  </svg>
-                  Drag the time strip to select a range, then click "+ Create Log". Click a bar to edit.
-                </div>
-              </div>
-
-              <!-- Right column: Log List -->
-              <div class="split-logs">
-                <div class="content-header">
-                  <h2 class="section-title">Logs for the day</h2>
-                  <span class="log-count" *ngIf="logs.length > 0">
-                    {{ logs.length }} entr{{ logs.length === 1 ? 'y' : 'ies' }}
-                  </span>
-                </div>
-
-            <div class="log-list-section">
-
-              <div class="log-list-skeleton" *ngIf="isLoading">
-                <div class="skeleton-row" *ngFor="let i of [1,2,3]"></div>
-              </div>
-
-              <div class="log-list" *ngIf="!isLoading && logs.length > 0">
-                <div
-                  class="log-list-item"
-                  *ngFor="let log of logs; let i = index"
-                  [class.log-list-item--active]="log.id === highlightedLogId && !metricLogIds"
-                  [class.log-list-item--metric-active]="metricLogIds?.has(log.id)"
-                  [class.log-list-item--dimmed]="metricLogIds && !metricLogIds.has(log.id)"
-                  (click)="focusLog(log)"
-                >
-                  <div class="log-list-index">{{ i + 1 }}</div>
-                  <div class="log-list-color-bar"
-                       [style.background]="log.logType?.color ?? '#9B9B9B'"></div>
-                  <div class="log-list-body">
-                    <div class="log-list-label">{{ log.title }}</div>
-                    <div class="log-list-meta">
-                      <span class="log-list-type-badge"
-                            [style.background]="(log.logType?.color ?? '#9B9B9B') + '22'"
-                            [style.color]="log.logType?.color ?? '#9B9B9B'">
-                        {{ log.logType?.name ?? '—' }}
-                      </span>
-                      <span class="log-list-time">
-                        <ng-container *ngIf="log.entryType === 'point'">
-                          ⏱ {{ log.startAt }}
-                        </ng-container>
-                        <ng-container *ngIf="log.entryType !== 'point'">
-                          {{ log.startAt }} – {{ log.endAt }}
-                        </ng-container>
-                      </span>
-                      <span class="log-list-duration">{{ getDuration(log) }}</span>
-                    </div>
-                  </div>
-                  <button class="log-list-edit-btn"
-                          (click)="editLog(log); $event.stopPropagation()"
-                          aria-label="Edit">
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                      <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
-                            stroke-width="1.5" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <div class="log-list-empty" *ngIf="!isLoading && logs.length === 0">
-                <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-                  <circle cx="18" cy="18" r="15" stroke="var(--text-muted)"
-                          stroke-width="1.5" stroke-dasharray="4 3"/>
-                  <path d="M18 11v7l4 3" stroke="var(--text-muted)"
-                        stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <p>No logs recorded for this day.</p>
-                <span>Drag on the timeline above to get started.</span>
-              </div>
-            </div><!-- /log-list-section -->
-              </div><!-- /split-logs -->
-
-            </div><!-- /logger-split -->
+            <!-- ── Timeline (full-width spine view — 1.51) ──── -->
+            <div class="timeline-container">
+              <app-timeline
+                #timelineRef
+                [logs]="logs"
+                [selectedDate]="selectedDate"
+                [highlightedLogId]="highlightedLogId"
+                [metricLogIds]="metricLogIds"
+                [isLoading]="isLoading"
+                (createLogClicked)="onCreateLogClicked($event)"
+                (logClicked)="editLog($event)"
+              ></app-timeline>
+            </div>
 
           </div><!-- /content-area -->
 
@@ -578,125 +484,8 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
     .date-bar-btn:hover:not(:disabled) { background: var(--accent-hover); color: var(--text-primary); }
     .date-bar-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-    /* ── Split layout — 1.24 ───────────────────────────────
-     * Desktop: timeline left | log list right (50/50)
-     * Mobile:  timeline full-width, log list below         */
-    .logger-split {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      align-items: start;
-    }
-
-    .split-timeline {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      min-width: 0;
-    }
-
-    /* Log list column scrolls independently at the same height
-       as the timeline column (~header + container + hint).    */
-    .split-logs {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      min-width: 0;
-      position: sticky;
-      top: 0;
-    }
-    .split-logs .log-list-section {
-      max-height: 638px;
-      overflow-y: auto;
-    }
-
-    /* ── Content header ─────────────────────────────────── */
-    .content-header { display: flex; align-items: center; justify-content: space-between; }
-    .section-title {
-      font-size: 11px; font-weight: 600; color: var(--text-muted);
-      text-transform: uppercase; letter-spacing: 1px;
-    }
-    .loading-indicator { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
-    .spinner {
-      width: 13px; height: 13px;
-      border: 2px solid var(--border);
-      border-top-color: var(--highlight-selected);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      display: inline-block;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Timeline container ─────────────────────────────── */
-    .timeline-container { background: var(--bg-surface); border-radius: var(--radius); padding: 16px; min-width: 0; }
-    .timeline-hint { font-size: 11px; color: var(--text-muted); text-align: center; padding: 4px; }
-
-    /* ── Log List section ───────────────────────────────── */
-    .log-list-section {
-      display: flex; flex-direction: column; gap: 12px;
-      background: var(--bg-surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 16px;
-    }
-    .log-count {
-      font-size: 11px; color: var(--text-muted);
-      background: var(--bg-card); padding: 2px 8px; border-radius: 10px;
-    }
-
-    .log-list-skeleton { display: flex; flex-direction: column; gap: 8px; }
-    .skeleton-row {
-      height: 52px; border-radius: var(--radius-sm);
-      background: linear-gradient(90deg, var(--bg-card) 25%, var(--accent-hover) 50%, var(--bg-card) 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.4s infinite;
-    }
-    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
-    .log-list { display: flex; flex-direction: column; gap: 6px; }
-    .log-list-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 10px 12px; border-radius: var(--radius-sm);
-      border: 1px solid transparent; cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
-      background: var(--bg-card);
-    }
-    .log-list-item:hover { background: var(--accent-hover); border-color: var(--border); }
-    .log-list-item--active {
-      border-color: rgba(74,144,226,0.5) !important;
-      background: rgba(74,144,226,0.08) !important;
-    }
-    .log-list-item--metric-active {
-      border-color: rgba(74,144,226,0.6) !important;
-      background: rgba(74,144,226,0.12) !important;
-    }
-    .log-list-item--dimmed {
-      opacity: 0.38;
-      /* Visually de-emphasised but still tappable — do NOT add pointer-events:none */
-    }
-
-    .log-list-index { font-size: 11px; font-weight: 600; color: var(--text-muted); width: 18px; text-align: center; flex-shrink: 0; }
-    .log-list-color-bar { width: 4px; height: 36px; border-radius: 2px; flex-shrink: 0; }
-    .log-list-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-    .log-list-label { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .log-list-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .log-list-type-badge { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.4px; }
-    .log-list-time { font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-    .log-list-duration { font-size: 11px; color: var(--text-muted); background: var(--bg-surface); padding: 1px 6px; border-radius: 6px; }
-
-    .log-list-edit-btn {
-      background: none; color: var(--text-muted);
-      padding: 5px; border-radius: var(--radius-sm);
-      display: flex; align-items: center; justify-content: center;
-      opacity: 0; transition: opacity 0.15s; flex-shrink: 0;
-    }
-    .log-list-item:hover .log-list-edit-btn { opacity: 1; }
-    .log-list-edit-btn:hover { background: var(--accent-hover); color: var(--text-primary); }
-
-    .log-list-empty {
-      display: flex; flex-direction: column; align-items: center;
-      gap: 8px; padding: 28px 16px; text-align: center; opacity: 0.5;
-    }
-    .log-list-empty p { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin: 0; }
-    .log-list-empty span { font-size: 11px; color: var(--text-muted); }
+    /* ── Timeline container — 1.51 full-width spine ───────── */
+    .timeline-container { min-width: 0; }
 
     /* ── Calendar popup — 1.23 ──────────────────────────── */
     .cal-overlay {
@@ -849,12 +638,8 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
        No media query auto-collapses it — the user's explicit toggle is the
        single source of truth for open vs. closed state.                      */
 
-    /* Mobile: stack timeline above log list, both full-width */
     @media (max-width: 700px) {
       .header-date { display: none; }
-      .logger-split { grid-template-columns: 1fr; }
-      .split-logs { position: static; }
-      .split-logs .log-list-section { max-height: none; overflow-y: visible; }
     }
   `]
 })
@@ -1119,11 +904,6 @@ export class AppComponent implements OnInit {
         this.isLoading = false;
       }
     });
-  }
-
-  focusLog(log: LogEntry): void {
-    this.highlightedLogId = log.id;
-    this.timelineRef?.scrollToLog(log);
   }
 
   getDuration(log: LogEntry): string {
