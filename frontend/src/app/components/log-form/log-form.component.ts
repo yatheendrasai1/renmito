@@ -584,15 +584,15 @@ export class LogFormComponent implements OnInit, OnChanges {
 
   // ── 15 pastel log-type colours (1.50) ─────────────────
   readonly paletteColors = [
-    '#B5C9E8', '#B8D4B8', '#D4B8D4', '#E8C9B5', '#C9D4B8',
-    '#B8C9D4', '#D4C9B8', '#C9B8D4', '#B8D4C9', '#D4B8C9',
-    '#C4CAD6', '#D6C4C4', '#C4D6C4', '#D6D0C4', '#C9C9D6'
+    '#F2A65A', '#D97D55', '#C4844A', '#9E3B3B', '#703B3B',
+    '#6F8F72', '#4D7A60', '#5A9CB5', '#3E6480', '#213C51',
+    '#7898A8', '#574964', '#7A5A74', '#BFC6C4', '#8C8C8C'
   ];
 
   // ── create new type inline form ────────────────────────
   newTypeName     = '';
   newTypeDomain:  'work' | 'personal' | 'family' = 'work';
-  newTypeColor    = '#B5C9E8';
+  newTypeColor    = '#F2A65A';
   creatingType    = false;
   createTypeError = '';
 
@@ -634,7 +634,7 @@ export class LogFormComponent implements OnInit, OnChanges {
       if (key === '__new__') {
         this.newTypeName     = '';
         this.newTypeDomain   = 'work';
-        this.newTypeColor    = '#B5C9E8';
+        this.newTypeColor    = '#F2A65A';
         this.createTypeError = '';
       }
     }
