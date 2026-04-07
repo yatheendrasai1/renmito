@@ -24,6 +24,25 @@
   },
   "enhancements": [
     {
+      "id": "1.52",
+      "version": "1.52",
+      "type": "major",
+      "title": "Fix theme bleed: isolate palette and dark/light preference per user session",
+      "description": "Security fix for a session-isolation breach. localStorage keys 'renmito-palette' and 'renmito-theme' were not namespaced by user, causing one user's custom theme and dark/light preference to persist in the browser and be applied to the next user who logged in on the same device. Three targeted changes: (1) On logout, clearPaletteFromDOM() is called (clears both the 41 CSS variables on :root and the 'renmito-palette' localStorage entry) and 'renmito-theme' is removed from localStorage; the UI also snaps back to default dark mode immediately so there is no visible bleed before the login screen appears. (2) In syncPaletteFromDB(), when the newly logged-in user has no saved palette in the DB (204 response / null palette), clearPaletteFromDOM() is now called to evict any stale palette that was speculatively loaded from localStorage during the zero-flicker fast path before the user's identity was resolved. (3) clearPaletteFromDOM is added to the import from theme-editor.component.",
+      "status": "implemented",
+      "implementedAt": "2026-04-07T00:00:00.000Z",
+      "tags": ["security", "theme", "localStorage", "session-isolation", "privacy", "bug-fix"],
+      "relatedTo": ["1.50", "1.42"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "The zero-flicker fast path (loading cached palette before login) is intentionally kept for returning users who open the app while already logged in. The fix only affects the cross-user scenario: when user A logs out and user B logs in, user B will now always start with the default dark theme and have their own palette loaded from DB after authentication."
+    },
+    {
       "id": "1.50",
       "version": "1.50",
       "type": "minor",

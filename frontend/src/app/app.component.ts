@@ -6,7 +6,7 @@ import { TimelineComponent, DragSelection } from './components/timeline/timeline
 import { LogFormComponent } from './components/log-form/log-form.component';
 import { LoginComponent } from './auth/login.component';
 import { MetricsComponent } from './components/metrics/metrics.component';
-import { ThemeEditorComponent, applyPaletteToDOM, loadSavedPalette } from './components/theme-editor/theme-editor.component';
+import { ThemeEditorComponent, applyPaletteToDOM, loadSavedPalette, clearPaletteFromDOM } from './components/theme-editor/theme-editor.component';
 import { LogService } from './services/log.service';
 import { AuthService } from './services/auth.service';
 import { LogTypeService } from './services/log-type.service';
@@ -965,12 +965,18 @@ export class AppComponent implements OnInit {
     this.syncPaletteFromDB();
   }
 
-  /** Fetch preferences from DB, apply active palette and update localStorage cache. */
+  /** Fetch preferences from DB, apply active palette and update localStorage cache.
+   *  1.52: If the user has no saved palette in DB, wipe any stale cache that may
+   *  have been loaded from localStorage before we knew which user was logging in —
+   *  this prevents one user's theme from bleeding into another user's session. */
   private syncPaletteFromDB(): void {
     this.prefService.getPreferences().subscribe(prefs => {
       if (prefs?.palette) {
         applyPaletteToDOM(prefs.palette);
         localStorage.setItem('renmito-palette', JSON.stringify(prefs.palette));
+      } else {
+        // No palette saved for this user — evict any previous user's cached palette
+        clearPaletteFromDOM();
       }
     });
   }
@@ -983,6 +989,12 @@ export class AppComponent implements OnInit {
       onConfirm: () => {
         this.authService.logout();
         this.logTypeService.clearCache();
+        // 1.52: Wipe theme cache on logout so the next user on this browser
+        // cannot see a previous user's palette or dark/light preference
+        clearPaletteFromDOM();
+        localStorage.removeItem('renmito-theme');
+        this.theme = 'dark';
+        document.documentElement.setAttribute('data-theme', 'dark');
         this.isAuthenticated = false;
         this.currentUser     = null;
         this.logs            = [];
