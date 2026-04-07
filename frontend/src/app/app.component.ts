@@ -289,25 +289,25 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
 
           </div><!-- /content-area -->
 
-          <!-- ── Footer — 1.35 ─────────────────────────────── -->
-          <footer class="app-footer">
-            <div class="footer-brand">
-              <svg width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-                <circle cx="14" cy="14" r="12" stroke="rgba(241,233,233,0.85)" stroke-width="1.8"/>
-                <path d="M14 8v6l4 3" stroke="rgba(241,233,233,0.85)" stroke-width="1.8"
-                      stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="14" cy="14" r="2" fill="rgba(241,233,233,0.6)"/>
-              </svg>
-              <span class="footer-logo-text">Renmito</span>
-            </div>
-            <p class="footer-tagline">
-              Your personal time chronicle — log your day, reflect on your patterns, and make every hour count.
-            </p>
-            <span class="footer-copy">© {{ currentYear }} Renmito</span>
-          </footer>
-
         </div><!-- /view-area -->
       </div><!-- /app-body -->
+
+      <!-- ── Footer — 1.35 / fixed full-width 1.52 ─────── -->
+      <footer class="app-footer">
+        <div class="footer-brand">
+          <svg width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <circle cx="14" cy="14" r="12" stroke="rgba(241,233,233,0.85)" stroke-width="1.8"/>
+            <path d="M14 8v6l4 3" stroke="rgba(241,233,233,0.85)" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="14" cy="14" r="2" fill="rgba(241,233,233,0.6)"/>
+          </svg>
+          <span class="footer-logo-text">Renmito</span>
+        </div>
+        <p class="footer-tagline">
+          Your personal time chronicle — log your day, reflect on your patterns, and make every hour count.
+        </p>
+        <span class="footer-copy">© {{ currentYear }} Renmito</span>
+      </footer>
     </div><!-- /app-shell -->
 
     <!-- ── Log Form Modal ─────────────────────────────── -->
@@ -544,7 +544,8 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
     }
 
     /* ── View area ──────────────────────────────────────── */
-    .view-area { flex: 1; overflow-y: auto; padding: 20px 24px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); min-width: 0; }
+    /* 1.52: extra bottom padding so content clears the fixed footer (~60px) */
+    .view-area { flex: 1; overflow-y: auto; padding: 20px 24px; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); min-width: 0; }
 
     /* ── Content area (full width now — no calendar panel) ─ */
     .content-area {
@@ -738,12 +739,17 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
     }
     .btn-cal-apply:hover { opacity: 0.88; }
 
-    /* ── Footer — 1.35 ─────────────────────────────────── */
+    /* ── Footer — 1.35 / fixed full-width — 1.52 ────────── */
     .app-footer {
-      margin-top: 20px;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 90;
       background: var(--nav-bg);
-      border-radius: var(--radius);
-      padding: 18px 24px;
+      border-top: 1px solid var(--border);
+      padding: 14px 24px;
+      padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
       display: flex;
       align-items: center;
       gap: 20px;
