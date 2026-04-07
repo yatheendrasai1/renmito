@@ -24,6 +24,25 @@
   },
   "enhancements": [
     {
+      "id": "1.54",
+      "version": "1.54",
+      "type": "minor",
+      "title": "Extend description limit to 300; inline log editing; quick-add log button",
+      "description": "Three changes: (1) Description character limit raised from 120 to 300 — the maxlength attribute on the textarea in log-form.component.ts is updated. (2) Inline editing in the Logs for the day list — clicking any log entry now enters an inline edit mode for that row. The title becomes a text input (maxlength 300), the log type becomes a select dropdown populated from the log type catalog, and the start/end time (or single point time) become time inputs. Save (Enter key or ✓ Save button) PUTs the changes to the backend; Cancel (Escape or ✕ Cancel) reverts. A small pencil icon in the inline form opens the full modal editor for cases that need more control (entry type change, date change). The color bar dynamically updates to reflect the currently selected log type while editing. (3) + Add log button — a dashed button is appended as the last item in the Logs for the day section. Clicking it opens a small pop-up menu with two options: (a) '30-min placeholder' — immediately creates a 30-minute Meeting-type block starting from the last log's end time (or current time if no logs); (b) 'Create log' — opens the full Create Log modal pre-filled with the next free time slot.",
+      "status": "implemented",
+      "implementedAt": "2026-04-07T00:00:00.000Z",
+      "tags": ["ux", "inline-edit", "log-list", "quick-add", "character-limit", "form"],
+      "relatedTo": ["1.50", "1.36"],
+      "requestedBy": "owner",
+      "breaking": false,
+      "timeSpentMins": null,
+      "pullRequest": null,
+      "branch": null,
+      "screenshot": null,
+      "changelog": "",
+      "notes": "Log types for the inline select and quick-add are loaded lazily via logTypeService.getLogTypes() (cached per session). The 30-min placeholder sets title to the matching log type's name ('Meeting'). If no 'Meeting' type is found in the catalog, the first available type is used as a fallback."
+    },
+    {
       "id": "1.52",
       "version": "1.52",
       "type": "major",

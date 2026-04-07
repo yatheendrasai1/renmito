@@ -222,9 +222,50 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
                   <span class="log-count" *ngIf="logs.length > 0">
                     {{ logs.length }} entr{{ logs.length === 1 ? 'y' : 'ies' }}
                   </span>
+                  <button type="button" class="btn-sort"
+                          *ngIf="!isLoading && logs.length > 1"
+                          (click)="toggleLogSort()"
+                          [title]="logSortOrder === 'asc' ? 'Earliest first — click for latest first' : 'Latest first — click for earliest first'">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M4 2v12M4 14l-2.5-3M4 14l2.5-3" stroke="currentColor"
+                            stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
+                            [attr.opacity]="logSortOrder === 'desc' ? '1' : '0.35'"/>
+                      <path d="M12 14V2M12 2l-2.5 3M12 2l2.5 3" stroke="currentColor"
+                            stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
+                            [attr.opacity]="logSortOrder === 'asc' ? '1' : '0.35'"/>
+                    </svg>
+                    <span>{{ logSortOrder === 'asc' ? 'Earliest' : 'Latest' }}</span>
+                  </button>
                 </div>
 
             <div class="log-list-section">
+
+              <!-- ── Add log row — 1.54 (top of list) ──────── -->
+              <div class="add-log-backdrop" *ngIf="showAddLogMenu" (click)="showAddLogMenu = false"></div>
+              <div class="log-list-add-row" *ngIf="!isLoading">
+                <button class="btn-add-log" (click)="toggleAddLogMenu(); $event.stopPropagation()">
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                  Add log
+                </button>
+                <div class="add-log-menu" *ngIf="showAddLogMenu" (click)="$event.stopPropagation()">
+                  <button class="add-log-option" (click)="quickAddMeeting()">
+                    <span class="add-log-option-icon">⚡</span>
+                    <span class="add-log-option-text">
+                      <strong>30-min placeholder</strong>
+                      <span>Meeting block from last entry</span>
+                    </span>
+                  </button>
+                  <button class="add-log-option" (click)="openAddLogForm()">
+                    <span class="add-log-option-icon">✚</span>
+                    <span class="add-log-option-text">
+                      <strong>Create log</strong>
+                      <span>Open full create form</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
 
               <div class="log-list-skeleton" *ngIf="isLoading">
                 <div class="skeleton-row" *ngFor="let i of [1,2,3]"></div>
@@ -233,42 +274,90 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
               <div class="log-list" *ngIf="!isLoading && logs.length > 0">
                 <div
                   class="log-list-item"
-                  *ngFor="let log of logs; let i = index"
-                  [class.log-list-item--active]="log.id === highlightedLogId && !metricLogIds"
-                  [class.log-list-item--metric-active]="metricLogIds?.has(log.id)"
-                  [class.log-list-item--dimmed]="metricLogIds && !metricLogIds.has(log.id)"
-                  (click)="focusLog(log)"
+                  *ngFor="let log of sortedLogs; let i = index"
+                  [class.log-list-item--active]="log.id === highlightedLogId && !metricLogIds && inlineEditId !== log.id"
+                  [class.log-list-item--metric-active]="metricLogIds?.has(log.id) && inlineEditId !== log.id"
+                  [class.log-list-item--dimmed]="metricLogIds && !metricLogIds.has(log.id) && inlineEditId !== log.id"
+                  [class.log-list-item--editing]="inlineEditId === log.id"
+                  (click)="onLogItemClick(log, $event)"
                 >
                   <div class="log-list-index">{{ i + 1 }}</div>
                   <div class="log-list-color-bar"
-                       [style.background]="log.logType?.color ?? '#9B9B9B'"></div>
-                  <div class="log-list-body">
-                    <div class="log-list-label">{{ log.title }}</div>
-                    <div class="log-list-meta">
-                      <span class="log-list-type-badge"
-                            [style.background]="(log.logType?.color ?? '#9B9B9B') + '22'"
-                            [style.color]="log.logType?.color ?? '#9B9B9B'">
-                        {{ log.logType?.name ?? '—' }}
-                      </span>
-                      <span class="log-list-time">
-                        <ng-container *ngIf="log.entryType === 'point'">
-                          ⏱ {{ log.startAt }}
-                        </ng-container>
-                        <ng-container *ngIf="log.entryType !== 'point'">
-                          {{ log.startAt }} – {{ log.endAt }}
-                        </ng-container>
-                      </span>
-                      <span class="log-list-duration">{{ getDuration(log) }}</span>
+                       [style.background]="inlineEditId === log.id ? (inlineCurrentColor ?? log.logType?.color ?? '#9B9B9B') : (log.logType?.color ?? '#9B9B9B')"></div>
+
+                  <!-- ── View mode ── -->
+                  <ng-container *ngIf="inlineEditId !== log.id">
+                    <div class="log-list-body">
+                      <div class="log-list-label">{{ log.title }}</div>
+                      <div class="log-list-meta">
+                        <span class="log-list-type-badge"
+                              [style.background]="(log.logType?.color ?? '#9B9B9B') + '22'"
+                              [style.color]="log.logType?.color ?? '#9B9B9B'">
+                          {{ log.logType?.name ?? '—' }}
+                        </span>
+                        <span class="log-list-time">
+                          <ng-container *ngIf="log.entryType === 'point'">⏱ {{ log.startAt }}</ng-container>
+                          <ng-container *ngIf="log.entryType !== 'point'">{{ log.startAt }} – {{ log.endAt }}</ng-container>
+                        </span>
+                        <span class="log-list-duration">{{ getDuration(log) }}</span>
+                      </div>
+                    </div>
+                    <button type="button" class="log-list-edit-btn"
+                            (click)="editLog(log); $event.stopPropagation()"
+                            aria-label="Edit">
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                        <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
+                              stroke-width="1.5" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                    <button type="button" class="log-list-delete-btn"
+                            (click)="confirmDeleteLog(log); $event.stopPropagation()"
+                            aria-label="Delete">
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                        <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"
+                              stroke="currentColor" stroke-width="1.4"
+                              stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                  </ng-container>
+
+                  <!-- ── Inline edit mode — 1.54 ── -->
+                  <div class="log-list-inline" *ngIf="inlineEditId === log.id"
+                       (click)="$event.stopPropagation()">
+                    <input class="inline-title-input" type="text"
+                           [(ngModel)]="inlineEdit.title"
+                           maxlength="300"
+                           placeholder="Activity description"
+                           (keydown)="onInlineKeydown($event, log)">
+                    <div class="inline-meta-row">
+                      <select class="inline-type-select" [(ngModel)]="inlineEdit.logTypeId">
+                        <option *ngIf="!inlineLogTypes.length" value="">Loading…</option>
+                        <option *ngFor="let t of inlineLogTypes" [value]="t._id">{{ t.name }}</option>
+                      </select>
+                      <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.startAt">
+                      <ng-container *ngIf="log.entryType !== 'point'">
+                        <span class="inline-time-sep">–</span>
+                        <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.endAt">
+                      </ng-container>
+                    </div>
+                    <div class="inline-action-row">
+                      <button type="button" class="btn-inline-save"
+                              (click)="saveInlineEdit(log); $event.stopPropagation()"
+                              [disabled]="inlineSaving">
+                        {{ inlineSaving ? '…' : '✓ Save' }}
+                      </button>
+                      <button type="button" class="btn-inline-cancel"
+                              (click)="cancelInlineEdit(); $event.stopPropagation()">✕ Cancel</button>
+                      <button type="button" class="btn-inline-fullform"
+                              (click)="editLog(log); cancelInlineEdit(); $event.stopPropagation()"
+                              title="Open full edit form">
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                          <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
+                                stroke-width="1.5" stroke-linejoin="round"/>
+                        </svg>
+                      </button>
                     </div>
                   </div>
-                  <button class="log-list-edit-btn"
-                          (click)="editLog(log); $event.stopPropagation()"
-                          aria-label="Edit">
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                      <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
-                            stroke-width="1.5" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
                 </div>
               </div>
 
@@ -282,6 +371,7 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
                 <p>No logs recorded for this day.</p>
                 <span>Drag on the timeline above to get started.</span>
               </div>
+
             </div><!-- /log-list-section -->
               </div><!-- /split-logs -->
 
@@ -646,6 +736,15 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
       font-size: 11px; color: var(--text-muted);
       background: var(--bg-card); padding: 2px 8px; border-radius: 10px;
     }
+    .btn-sort {
+      display: flex; align-items: center; gap: 4px;
+      background: transparent; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-muted);
+      font-size: 11px; padding: 3px 8px; cursor: pointer;
+      margin-left: auto;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .btn-sort:hover { background: var(--accent-hover); color: var(--text-primary); border-color: var(--accent); }
 
     .log-list-skeleton { display: flex; flex-direction: column; gap: 8px; }
     .skeleton-row {
@@ -687,14 +786,113 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
     .log-list-time { font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
     .log-list-duration { font-size: 11px; color: var(--text-muted); background: var(--bg-surface); padding: 1px 6px; border-radius: 6px; }
 
+    /* Always visible at low opacity (accessible on touch/mobile);
+       brighten to full on desktop hover */
     .log-list-edit-btn {
-      background: none; color: var(--text-muted);
-      padding: 5px; border-radius: var(--radius-sm);
+      background: none; color: var(--text-muted); border: none;
+      padding: 5px; border-radius: var(--radius-sm); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      opacity: 0; transition: opacity 0.15s; flex-shrink: 0;
+      opacity: 0.45; transition: opacity 0.15s, background 0.15s, color 0.15s; flex-shrink: 0;
     }
     .log-list-item:hover .log-list-edit-btn { opacity: 1; }
     .log-list-edit-btn:hover { background: var(--accent-hover); color: var(--text-primary); }
+    .log-list-delete-btn {
+      background: none; color: var(--text-muted); border: none;
+      padding: 5px; border-radius: var(--radius-sm); cursor: pointer;
+      opacity: 0.45; transition: opacity 0.15s, background 0.15s, color 0.15s; flex-shrink: 0;
+    }
+    .log-list-item:hover .log-list-delete-btn { opacity: 1; }
+    .log-list-delete-btn:hover { background: rgba(158,59,59,0.14); color: #9E3B3B; }
+
+    /* ── Inline edit mode — 1.54 ──────────────────────────── */
+    .log-list-item--editing {
+      align-items: flex-start;
+      border-color: var(--accent) !important;
+      background: var(--bg-card) !important;
+      cursor: default;
+    }
+    .log-list-inline {
+      flex: 1; min-width: 0;
+      display: flex; flex-direction: column; gap: 7px;
+      padding: 2px 0;
+    }
+    .inline-title-input {
+      width: 100%; box-sizing: border-box;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-size: 13px; font-weight: 600; padding: 5px 8px;
+      font-family: inherit; outline: none;
+    }
+    .inline-title-input:focus { border-color: var(--accent); }
+    .inline-meta-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .inline-type-select {
+      flex: 1; min-width: 90px;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-size: 11px; padding: 4px 6px; outline: none; cursor: pointer;
+    }
+    .inline-type-select:focus { border-color: var(--accent); }
+    .inline-time-input {
+      width: 88px;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-size: 11px; padding: 4px 6px; font-variant-numeric: tabular-nums; outline: none;
+    }
+    .inline-time-input:focus { border-color: var(--accent); }
+    .inline-time-sep { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+    .inline-action-row { display: flex; align-items: center; gap: 6px; }
+    .btn-inline-save {
+      background: var(--accent); color: #fff; border: none;
+      border-radius: var(--radius-sm); padding: 4px 12px;
+      font-size: 11px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+    }
+    .btn-inline-save:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-inline-save:hover:not(:disabled) { opacity: 0.85; }
+    .btn-inline-cancel {
+      background: transparent; color: var(--text-muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 4px 10px; font-size: 11px; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-inline-cancel:hover { background: var(--accent-hover); }
+    .btn-inline-fullform {
+      background: transparent; color: var(--text-muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 4px 7px; cursor: pointer; display: flex; align-items: center;
+      margin-left: auto; transition: background 0.15s, color 0.15s;
+    }
+    .btn-inline-fullform:hover { background: var(--accent-hover); color: var(--text-primary); }
+
+    /* ── Add log row — 1.54 ────────────────────────────────── */
+    .log-list-add-row { position: relative; padding-top: 4px; }
+    .btn-add-log {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      width: 100%; background: transparent;
+      border: 1px dashed var(--border); border-radius: var(--radius-sm);
+      color: var(--text-muted); font-size: 12px; padding: 7px 16px;
+      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .btn-add-log:hover { background: var(--accent-hover); color: var(--text-primary); border-color: var(--accent); }
+    .add-log-backdrop { position: fixed; inset: 0; z-index: 49; }
+    .add-log-menu {
+      position: absolute; top: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%); min-width: 240px;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      z-index: 50; overflow: hidden; animation: popIn 0.12s ease;
+    }
+    .add-log-option {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; width: 100%; background: transparent;
+      border: none; border-bottom: 1px solid var(--border);
+      color: var(--text-primary); cursor: pointer; text-align: left;
+      transition: background 0.15s;
+    }
+    .add-log-option:last-child { border-bottom: none; }
+    .add-log-option:hover { background: var(--accent-hover); }
+    .add-log-option-icon { font-size: 16px; flex-shrink: 0; width: 24px; text-align: center; }
+    .add-log-option-text { display: flex; flex-direction: column; gap: 2px; }
+    .add-log-option-text strong { font-size: 12px; font-weight: 600; }
+    .add-log-option-text span { font-size: 11px; color: var(--text-muted); }
 
     .log-list-empty {
       display: flex; flex-direction: column; align-items: center;
@@ -915,6 +1113,14 @@ export class AppComponent implements OnInit {
 
   // ── 1.30: Metric card highlight ──────────────────────────
   metricLogIds: Set<string> | null = null;
+
+  // ── 1.54: Inline edit + quick-add + sort ─────────────────
+  inlineEditId: string | null = null;
+  inlineEdit = { title: '', startAt: '', endAt: '', logTypeId: '' };
+  inlineSaving = false;
+  inlineLogTypes: any[] = [];
+  showAddLogMenu = false;
+  logSortOrder: 'asc' | 'desc' = 'asc';
 
   constructor(
     private logService:     LogService,
@@ -1146,6 +1352,125 @@ export class AppComponent implements OnInit {
   focusLog(log: LogEntry): void {
     this.highlightedLogId = log.id;
     this.timelineRef?.scrollToLog(log);
+  }
+
+  // ── 1.54: Inline list editing ────────────────────────────
+  get inlineCurrentColor(): string | null {
+    const t = this.inlineLogTypes.find((t: any) => t._id === this.inlineEdit.logTypeId);
+    return t?.color ?? null;
+  }
+
+  get sortedLogs(): LogEntry[] {
+    return this.logSortOrder === 'asc' ? this.logs : [...this.logs].reverse();
+  }
+
+  toggleLogSort(): void {
+    this.logSortOrder = this.logSortOrder === 'asc' ? 'desc' : 'asc';
+  }
+
+  onLogItemClick(log: LogEntry, event: MouseEvent): void {
+    event.stopPropagation();
+    this.showAddLogMenu = false;
+    if (this.inlineEditId === log.id) return;
+    this.inlineEditId = log.id;
+    this.inlineEdit = {
+      title:     log.title,
+      startAt:   log.startAt,
+      endAt:     log.endAt ?? '',
+      logTypeId: log.logType?.id ?? ''
+    };
+    this.highlightedLogId = log.id;
+    this.timelineRef?.scrollToLog(log);
+    if (!this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((types: any[]) => this.inlineLogTypes = types);
+    }
+  }
+
+  cancelInlineEdit(): void { this.inlineEditId = null; }
+
+  confirmDeleteLog(log: LogEntry): void {
+    this.cancelInlineEdit();
+    const label = log.title || log.logType?.name || 'this log';
+    this.confirmDialog = {
+      title:   'Delete log',
+      message: `Delete "${label}"?`,
+      detail:  'This action cannot be undone.',
+      okLabel: 'Delete',
+      onConfirm: () => this.onLogDeleted(log.id)
+    };
+  }
+
+  saveInlineEdit(log: LogEntry): void {
+    if (this.inlineSaving) return;
+    this.inlineSaving = true;
+    const payload: Partial<CreateLogEntry> = log.entryType === 'point'
+      ? { title: this.inlineEdit.title, logTypeId: this.inlineEdit.logTypeId,
+          entryType: 'point', pointTime: this.inlineEdit.startAt }
+      : { title: this.inlineEdit.title, logTypeId: this.inlineEdit.logTypeId,
+          startTime: this.inlineEdit.startAt, endTime: this.inlineEdit.endAt };
+    this.logService.updateLog(this.selectedDate, log.id, payload).subscribe({
+      next:  () => { this.inlineSaving = false; this.inlineEditId = null; this.loadLogs(); },
+      error: () => { this.inlineSaving = false; alert('Failed to save changes.'); }
+    });
+  }
+
+  onInlineKeydown(event: KeyboardEvent, log: LogEntry): void {
+    if (event.key === 'Enter')  { event.preventDefault(); this.saveInlineEdit(log); }
+    if (event.key === 'Escape') { this.cancelInlineEdit(); }
+  }
+
+  // ── 1.54: Quick-add log ──────────────────────────────────
+  toggleAddLogMenu(): void {
+    this.showAddLogMenu = !this.showAddLogMenu;
+    if (this.showAddLogMenu && !this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((types: any[]) => this.inlineLogTypes = types);
+    }
+  }
+
+  quickAddMeeting(): void {
+    this.showAddLogMenu = false;
+    const run = () => {
+      const meeting = this.inlineLogTypes.find((t: any) =>
+        t.name.toLowerCase() === 'meeting') ?? this.inlineLogTypes[0];
+      if (!meeting) return;
+      const lastLog   = this.logs[this.logs.length - 1];
+      const rawStart  = lastLog
+        ? this.timeToMinutes(lastLog.endAt ?? lastLog.startAt)
+        : this.timeToMinutes(this.currentTimeStr());
+      const startMins = Math.min(rawStart, 23 * 60 - 30);
+      const endMins   = Math.min(startMins + 30, 23 * 60 + 59);
+      this.logService.createLog(this.selectedDate, {
+        title:     meeting.name,
+        logTypeId: meeting._id,
+        startTime: this.minsToTimeStr(startMins),
+        endTime:   this.minsToTimeStr(endMins)
+      }).subscribe({ next: () => this.loadLogs(),
+                     error: () => alert('Failed to create placeholder.') });
+    };
+    if (this.inlineLogTypes.length) { run(); }
+    else { this.logTypeService.getLogTypes().subscribe((t: any[]) => { this.inlineLogTypes = t; run(); }); }
+  }
+
+  openAddLogForm(): void {
+    this.showAddLogMenu = false;
+    const lastLog   = this.logs[this.logs.length - 1];
+    const rawStart  = lastLog
+      ? this.timeToMinutes(lastLog.endAt ?? lastLog.startAt)
+      : this.timeToMinutes('09:00');
+    const startMins = Math.min(rawStart, 22 * 60 + 30);
+    this.formStartTime = this.minsToTimeStr(startMins);
+    this.formEndTime   = this.minsToTimeStr(Math.min(startMins + 60, 23 * 60 + 59));
+    this.editingEntry  = null;
+    this.showForm      = true;
+  }
+
+  private minsToTimeStr(mins: number): string {
+    return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+  }
+
+  private currentTimeStr(): string {
+    const n = new Date();
+    return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
   }
 
   getDuration(log: LogEntry): string {
