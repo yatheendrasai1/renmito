@@ -15,6 +15,8 @@ import { LogEntry, CreateLogEntry } from './models/log.model';
 import { forkJoin } from 'rxjs';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 
+interface QuickLogItem { label: string; name: string; category: string; color: string; }
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -178,6 +180,43 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
               [selectedDate]="selectedDate"
               (cardHighlight)="onCardHighlight($event)"
             ></app-metrics>
+
+            <!-- ── Quick Logs — 1.55 ──────────────────────────── -->
+            <div class="quick-logs-section">
+
+              <!-- Header / accordion toggle -->
+              <div class="quick-logs-header" (click)="toggleQuickLogs()">
+                <button class="quick-logs-toggle"
+                        [attr.aria-expanded]="quickLogsExpanded"
+                        tabindex="-1">
+                  <svg class="quick-logs-chevron" width="13" height="13"
+                       viewBox="0 0 12 12" fill="none">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
+                          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span class="quick-logs-title">Quick Logs</span>
+                </button>
+              </div>
+
+              <!-- Body — visible when expanded -->
+              <div class="quick-logs-body" *ngIf="quickLogsExpanded">
+
+                <!-- 4-col desktop / 2-col mobile grid -->
+                <div class="quick-log-grid">
+                  <button class="quick-log-card"
+                          *ngFor="let item of quickLogItems"
+                          [class.quick-log-card--active]="quickLogActiveItem?.label === item.label"
+                          (click)="selectQuickLogItem(item, $event)">
+                    <span class="quick-log-card-accent"
+                          [style.background]="item.color"></span>
+                    <span class="quick-log-card-dot"
+                          [style.background]="item.color"></span>
+                    <span class="quick-log-card-label">{{ item.label }}</span>
+                  </button>
+                </div>
+
+              </div>
+            </div>
 
             <!-- ── Split: Timeline (left) + Log list (right) — 1.24 -->
             <div class="logger-split">
@@ -482,6 +521,103 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
           <button class="btn-cal-apply"  (click)="applyPendingDate()">Apply</button>
         </div>
       </div>
+    </div>
+
+    <!-- ── Quick Logs duration picker — 1.55 ──────────────── -->
+    <!-- Invisible backdrop: captures outside clicks, zero visual effect -->
+    <div class="ql-backdrop" *ngIf="quickLogActiveItem"
+         (click)="closeQuickLogPopup()"></div>
+
+    <!-- Card-anchored popover: positioned via JS beside the clicked card -->
+    <div class="ql-popup"
+         *ngIf="quickLogActiveItem && quickLogPopupPos"
+         [style.top.px]="quickLogPopupPos.top"
+         [style.left.px]="quickLogPopupPos.left"
+         (click)="$event.stopPropagation()">
+
+      <!-- Up-pointing arrow toward the card -->
+      <div class="ql-popup-arrow"></div>
+
+      <!-- Header: color dot + name + close -->
+      <div class="ql-popup-header"
+           [style.border-bottom-color]="quickLogActiveItem.color">
+        <span class="ql-popup-dot"
+              [style.background]="quickLogActiveItem.color"></span>
+        <span class="ql-popup-name">{{ quickLogActiveItem.label }}</span>
+        <button class="ql-popup-close" (click)="closeQuickLogPopup()"
+                aria-label="Close">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+            <path d="M9 3L3 9M3 3l6 6" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- ── Time selector ─────────────────────────────────── -->
+
+      <!-- Desktop: native time input -->
+      <div class="ql-time-desktop">
+        <span class="ql-time-label">Start</span>
+        <input class="ql-time-input" type="time"
+               [ngModel]="quickSelectedTime"
+               (ngModelChange)="quickSelectedTime = $event">
+      </div>
+
+      <!-- Mobile: drum / wheel picker -->
+      <div class="ql-time-mobile">
+        <div class="ql-drum-group">
+
+          <!-- Hours 0–23 -->
+          <div class="ql-drum-col">
+            <div class="ql-drum-wrapper">
+              <div class="ql-drum-center-band"></div>
+              <div class="ql-drum ql-drum-hours"
+                   (scroll)="onQuickHourScroll($event)">
+                <div class="ql-drum-spacer"></div>
+                <div class="ql-drum-item"
+                     *ngFor="let h of quickHours"
+                     [class.ql-drum-item--sel]="h === quickSelectedHour">
+                  {{ h | number:'2.0-0' }}
+                </div>
+                <div class="ql-drum-spacer"></div>
+              </div>
+            </div>
+            <span class="ql-drum-unit">h</span>
+          </div>
+
+          <div class="ql-drum-colon">:</div>
+
+          <!-- Minutes 0–59 -->
+          <div class="ql-drum-col">
+            <div class="ql-drum-wrapper">
+              <div class="ql-drum-center-band"></div>
+              <div class="ql-drum ql-drum-mins"
+                   (scroll)="onQuickMinuteScroll($event)">
+                <div class="ql-drum-spacer"></div>
+                <div class="ql-drum-item"
+                     *ngFor="let m of quickMinutes"
+                     [class.ql-drum-item--sel]="m === quickSelectedMinute">
+                  {{ m | number:'2.0-0' }}
+                </div>
+                <div class="ql-drum-spacer"></div>
+              </div>
+            </div>
+            <span class="ql-drum-unit">m</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── Duration buttons ───────────────────────────────── -->
+      <div class="ql-durations">
+        <button class="ql-dur-btn"
+                *ngFor="let dur of quickDurations"
+                [disabled]="quickLogSaving"
+                (click)="createQuickLog(dur.mins)">
+          {{ dur.label }}
+        </button>
+      </div>
+
     </div>
 
     <!-- Global confirmation dialog (logout + merge) -->
@@ -1052,6 +1188,376 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
     }
     .btn-profile-save:disabled { opacity: 0.45; cursor: not-allowed; }
 
+    /* ── Quick Logs — 1.55 ──────────────────────────────── */
+    .quick-logs-section {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .quick-logs-header {
+      display: flex;
+      align-items: center;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .quick-logs-toggle {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0;
+    }
+    .quick-logs-toggle:hover .quick-logs-title { color: var(--text-primary); }
+    .quick-logs-chevron {
+      flex-shrink: 0;
+      color: var(--text-muted);
+      transform: rotate(-90deg);
+      transition: transform 0.2s ease;
+    }
+    .quick-logs-toggle[aria-expanded="true"] .quick-logs-chevron {
+      transform: rotate(0deg);
+    }
+    .quick-logs-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: color 0.15s;
+    }
+
+    .quick-logs-body {
+      padding: 0 14px 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* 4-column on desktop, 2-column on mobile */
+    .quick-log-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      padding-top: 12px;
+    }
+
+    .quick-log-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 9px;
+      padding: 16px 10px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      overflow: hidden;
+      text-align: center;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .quick-log-card:hover {
+      background: var(--accent-hover);
+      border-color: var(--border-light);
+    }
+    .quick-log-card--active {
+      background: var(--accent-hover) !important;
+    }
+
+    /* Thin colored top-accent stripe */
+    .quick-log-card-accent {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+
+    .quick-log-card-dot {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: block;
+    }
+    .quick-log-card-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      line-height: 1.3;
+    }
+    .quick-log-card--active .quick-log-card-label { color: var(--text-primary); }
+
+    /* ── Quick Logs card-anchored popover ────────────────── */
+
+    /* Invisible backdrop — no blur, no dim; just captures outside clicks */
+    .ql-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 199;
+    }
+
+    /* Popover panel: fixed-positioned via JS, centered on the clicked card */
+    .ql-popup {
+      position: fixed;
+      z-index: 200;
+      transform: translateX(-50%);      /* horizontally centers on card midpoint */
+      width: 236px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      overflow: visible;                /* lets the arrow poke out above */
+      box-shadow: 0 6px 24px rgba(0,0,0,0.32), 0 1px 4px rgba(0,0,0,0.14);
+      animation: qlPop 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes qlPop {
+      from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    /* Up-pointing triangle arrow toward the card above */
+    .ql-popup-arrow {
+      position: absolute;
+      top: -7px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+    }
+    .ql-popup-arrow::before,
+    .ql-popup-arrow::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-style: solid;
+    }
+    /* border triangle (outline) */
+    .ql-popup-arrow::before {
+      top: 0;
+      border-width: 0 7px 7px;
+      border-color: transparent transparent var(--border-light);
+    }
+    /* fill triangle (background) */
+    .ql-popup-arrow::after {
+      top: 1px;
+      border-width: 0 6px 6px;
+      border-color: transparent transparent var(--bg-surface);
+    }
+
+    .ql-popup-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      overflow: hidden;
+      /* bottom border colored to match item — set via inline style */
+      border-bottom: 2px solid var(--border);
+    }
+    .ql-popup-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: block;
+    }
+    .ql-popup-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+      flex: 1;
+    }
+    .ql-popup-hint {
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .ql-popup-close {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+    .ql-popup-close:hover { background: var(--accent-hover); color: var(--text-primary); }
+
+    /* ── Desktop time input ──────────────────────────────── */
+    .ql-time-desktop {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+    .ql-time-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      flex-shrink: 0;
+    }
+    .ql-time-input {
+      flex: 1;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 5px 8px;
+      font-family: inherit;
+      font-variant-numeric: tabular-nums;
+      outline: none;
+      cursor: pointer;
+    }
+    .ql-time-input:focus { border-color: var(--highlight-selected); }
+
+    /* ── Mobile drum/wheel picker (hidden on desktop) ─────── */
+    .ql-time-mobile {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 12px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+    .ql-drum-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ql-drum-colon {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1;
+      align-self: center;
+      padding-bottom: 18px; /* aligns visually with drum center */
+      flex-shrink: 0;
+    }
+    .ql-drum-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .ql-drum-wrapper {
+      position: relative;
+      width: 66px;
+      height: 132px;   /* exactly 3 items × 44 px */
+      overflow: hidden;
+    }
+    /* Top and bottom fade masks */
+    .ql-drum-wrapper::before,
+    .ql-drum-wrapper::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 50px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .ql-drum-wrapper::before {
+      top: 0;
+      background: linear-gradient(to bottom, var(--bg-card) 10%, transparent);
+    }
+    .ql-drum-wrapper::after {
+      bottom: 0;
+      background: linear-gradient(to top, var(--bg-card) 10%, transparent);
+    }
+    /* Center selection band (thin lines bracketing the middle item) */
+    .ql-drum-center-band {
+      position: absolute;
+      top: 50%; left: 4px; right: 4px;
+      height: 44px;
+      transform: translateY(-50%);
+      border-top: 1px solid var(--border-light);
+      border-bottom: 1px solid var(--border-light);
+      background: rgba(74, 144, 226, 0.06);
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .ql-drum {
+      position: relative;
+      z-index: 3;
+      width: 100%;
+      height: 100%;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .ql-drum::-webkit-scrollbar { display: none; }
+    .ql-drum-spacer {
+      height: 44px;
+      flex-shrink: 0;
+      display: block;
+    }
+    .ql-drum-item {
+      height: 44px;
+      scroll-snap-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+      transition: color 0.12s, font-size 0.12s, font-weight 0.12s;
+      letter-spacing: 0.5px;
+    }
+    .ql-drum-item--sel {
+      color: var(--text-primary);
+      font-size: 25px;
+      font-weight: 700;
+    }
+    .ql-drum-unit {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+    }
+
+    /* Duration buttons — horizontal row (desktop), vertical column (mobile) */
+    .ql-durations {
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    .ql-dur-btn {
+      flex: 1;
+      padding: 14px 6px;
+      background: var(--bg-card);
+      border: none;
+      border-right: 1px solid var(--border);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      text-align: center;
+    }
+    .ql-dur-btn:last-child { border-right: none; }
+    .ql-dur-btn:hover:not(:disabled) {
+      background: var(--accent-hover);
+      color: var(--highlight-selected);
+    }
+    .ql-dur-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
     /* ── Responsive ─────────────────────────────────────── */
     /* Nav collapse is controlled solely by the hamburger toggle (navCollapsed).
        No media query auto-collapses it — the user's explicit toggle is the
@@ -1063,6 +1569,24 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
       .logger-split { grid-template-columns: 1fr; }
       .split-logs { position: static; }
       .split-logs .log-list-section { max-height: none; overflow-y: visible; }
+
+      /* Quick Logs — mobile overrides */
+      .quick-log-grid { grid-template-columns: repeat(2, 1fr); }
+      /* Popover spans most of the viewport width on mobile */
+      .ql-popup { width: calc(100vw - 32px); }
+      /* Show drum picker, hide desktop input */
+      .ql-time-desktop { display: none; }
+      .ql-time-mobile  { display: flex; }
+      /* Duration buttons stack vertically on mobile */
+      .ql-durations { flex-direction: column; }
+      .ql-dur-btn {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 15px 18px;
+        text-align: left;
+        font-size: 15px;
+      }
+      .ql-dur-btn:last-child { border-bottom: none; }
     }
   `]
 })
@@ -1121,6 +1645,31 @@ export class AppComponent implements OnInit {
   inlineLogTypes: any[] = [];
   showAddLogMenu = false;
   logSortOrder: 'asc' | 'desc' = 'asc';
+
+  // ── 1.55: Quick Logs ──────────────────────────────────────
+  quickLogsExpanded   = false;
+  quickLogActiveItem: QuickLogItem | null = null;
+  quickLogPopupPos:   { top: number; left: number } | null = null;
+  quickLogSaving      = false;
+  readonly quickLogItems: QuickLogItem[] = [
+    { label: 'Meeting',   name: 'Meeting',   category: 'meeting',  color: '#7898A8' },
+    { label: 'Transit',   name: 'Transit',   category: 'transit',  color: '#3E6480' },
+    { label: 'Code Time', name: 'Code Time', category: 'codetime', color: '#5A9CB5' },
+    { label: 'Sleep',     name: 'Zleep',     category: 'sleep',    color: '#213C51' },
+    { label: 'Design',    name: 'Design',    category: 'design',   color: '#7A5A74' },
+    { label: 'Breakfast', name: 'Breakfast', category: 'food',     color: '#F2A65A' },
+    { label: 'Lunch',     name: 'Lunch',     category: 'food',     color: '#6F8F72' },
+    { label: 'Dinner',    name: 'Dinner',    category: 'food',     color: '#D97D55' },
+  ];
+  readonly quickDurations = [
+    { label: '15m', mins: 15  },
+    { label: '30m', mins: 30  },
+    { label: '1h',  mins: 60  },
+    { label: '2h',  mins: 120 },
+  ];
+  quickSelectedTime = '09:00';                                     // HH:MM — user-editable start
+  readonly quickHours   = Array.from({ length: 24 }, (_, i) => i); // 0–23
+  readonly quickMinutes = Array.from({ length: 60 }, (_, i) => i); // 0–59
 
   constructor(
     private logService:     LogService,
@@ -1462,6 +2011,113 @@ export class AppComponent implements OnInit {
     this.formEndTime   = this.minsToTimeStr(Math.min(startMins + 60, 23 * 60 + 59));
     this.editingEntry  = null;
     this.showForm      = true;
+  }
+
+  // ── 1.55: Quick Logs ────────────────────────────────────
+
+  /** Derived from selected time — used by drum picker to mark the active item. */
+  get quickSelectedHour(): number   { return +this.quickSelectedTime.split(':')[0]; }
+  get quickSelectedMinute(): number { return +this.quickSelectedTime.split(':')[1]; }
+
+  /** Default start time: end of last log for the day, or current clock time. */
+  private get quickDefaultStart(): string {
+    const last = this.logs[this.logs.length - 1];
+    return last ? (last.endAt ?? last.startAt) : this.currentTimeStr();
+  }
+
+  toggleQuickLogs(): void {
+    this.quickLogsExpanded = !this.quickLogsExpanded;
+    this.closeQuickLogPopup();
+    if (this.quickLogsExpanded && !this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((t: any[]) => this.inlineLogTypes = t);
+    }
+  }
+
+  closeQuickLogPopup(): void {
+    this.quickLogActiveItem = null;
+    this.quickLogPopupPos   = null;
+  }
+
+  selectQuickLogItem(item: QuickLogItem, event: MouseEvent): void {
+    event.stopPropagation();
+
+    if (this.quickLogActiveItem?.label === item.label) {
+      this.closeQuickLogPopup(); return;
+    }
+
+    // Anchor popover below the clicked card, clamped within viewport
+    const card    = event.currentTarget as HTMLElement;
+    const rect    = card.getBoundingClientRect();
+    const popupW  = window.innerWidth <= 700 ? window.innerWidth - 32 : 236;
+    const rawLeft = rect.left + rect.width / 2;
+    const left    = Math.max(popupW / 2 + 8, Math.min(rawLeft, window.innerWidth - popupW / 2 - 8));
+
+    // Seed selected time from last log end (or now)
+    this.quickSelectedTime  = this.quickDefaultStart;
+    this.quickLogActiveItem = item;
+    this.quickLogPopupPos   = { top: rect.bottom + 8, left };
+
+    // Scroll drum wheels to match initial time (after *ngIf renders on next tick)
+    setTimeout(() => this.scrollDrumsToTime(), 40);
+
+    if (!this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((t: any[]) => this.inlineLogTypes = t);
+    }
+  }
+
+  /** Programmatically scroll hour/minute drums to match quickSelectedTime. */
+  private scrollDrumsToTime(): void {
+    const item = 44; // px per drum row
+    const hEl  = document.querySelector('.ql-drum-hours') as HTMLElement | null;
+    const mEl  = document.querySelector('.ql-drum-mins')  as HTMLElement | null;
+    if (hEl) hEl.scrollTop = this.quickSelectedHour   * item;
+    if (mEl) mEl.scrollTop = this.quickSelectedMinute * item;
+  }
+
+  onQuickHourScroll(event: Event): void {
+    const el  = event.target as HTMLElement;
+    const h   = Math.max(0, Math.min(23, Math.round(el.scrollTop / 44)));
+    if (h === this.quickSelectedHour) return;
+    const m   = this.quickSelectedTime.split(':')[1];
+    this.quickSelectedTime = `${String(h).padStart(2, '0')}:${m}`;
+  }
+
+  onQuickMinuteScroll(event: Event): void {
+    const el  = event.target as HTMLElement;
+    const m   = Math.max(0, Math.min(59, Math.round(el.scrollTop / 44)));
+    if (m === this.quickSelectedMinute) return;
+    const h   = this.quickSelectedTime.split(':')[0];
+    this.quickSelectedTime = `${h}:${String(m).padStart(2, '0')}`;
+  }
+
+  createQuickLog(durationMins: number): void {
+    if (this.quickLogSaving || !this.quickLogActiveItem) return;
+    const item      = this.quickLogActiveItem;
+    const startTime = this.quickSelectedTime;
+
+    const run = () => {
+      const matched = this.inlineLogTypes.find((t: any) =>
+        t.name.toLowerCase() === item.name.toLowerCase() || t.category === item.category
+      );
+      if (!matched) { alert('Log type not found. Please try again.'); return; }
+
+      const startMins = this.timeToMinutes(startTime);
+      const endMins   = Math.min(startMins + durationMins, 23 * 60 + 59);
+
+      this.quickLogSaving = true;
+      this.logService.createLog(this.selectedDate, {
+        title:     item.label,
+        logTypeId: matched._id,
+        startTime,
+        endTime:   this.minsToTimeStr(endMins),
+      }).subscribe({
+        next:  () => { this.quickLogSaving = false; this.closeQuickLogPopup(); this.loadLogs(); },
+        error: () => { this.quickLogSaving = false; alert('Failed to create log. Please try again.'); }
+      });
+    };
+
+    if (this.inlineLogTypes.length) { run(); }
+    else { this.logTypeService.getLogTypes().subscribe((t: any[]) => { this.inlineLogTypes = t; run(); }); }
   }
 
   private minsToTimeStr(mins: number): string {
