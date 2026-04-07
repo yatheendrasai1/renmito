@@ -24,25 +24,6 @@
   },
   "enhancements": [
     {
-      "id": "1.51",
-      "version": "1.51",
-      "type": "major",
-      "title": "Spine/pill timeline — replace canvas view with vertical card layout",
-      "description": "The previous canvas-based dual-pane timeline (split-timeline + split-logs) has been replaced with a clean spine/pill layout. A single vertical axis line runs down the left side; colored pill cards hang off it to the right, one per log entry. Key details: (1) Timeline component fully rewritten — DragSelection and merge-related interfaces kept for backward compatibility but never emitted. New SpineEntry interface tracks each log with its preceding gap in minutes. ngOnChanges sorts logs and recomputes the entries array. (2) Gap rows: gaps of ≥60 min between entries show a grey dashed gap row with a human-readable label (e.g. '1h 30m gap'). (3) Pill cards: left border color matches the log-type color, background is a 13%-opacity tint of the same color. Each pill shows the log name, time range, and duration. Metric highlight / dim states are preserved. (4) Add Log button in the spine header computes the next free slot (last entry's end time, defaulting to now, capped to 23:00) and emits createLogClicked. (5) Collapse toggle lets users hide/show the entire track. (6) Loading skeleton shows 4 shimmer pills while data loads. (7) app.component.ts updated: split two-column layout removed, replaced with a single full-width <app-timeline> bound to [isLoading]; focusLog() method removed; stale split/logger media query rules removed.",
-      "status": "implemented",
-      "implementedAt": "2026-04-07T00:00:00.000Z",
-      "tags": ["timeline", "ui", "ux", "major-rewrite", "mobile", "spine", "pill", "layout"],
-      "relatedTo": ["1.50", "1.49", "1.32"],
-      "requestedBy": "owner",
-      "breaking": false,
-      "timeSpentMins": null,
-      "pullRequest": null,
-      "branch": null,
-      "screenshot": null,
-      "changelog": "",
-      "notes": "The old canvas scroll / drag-selection / merge-log-points workflow is no longer exposed in the UI. The TypeScript interfaces (DragSelection, selectionMade, mergePointsSelected outputs) are retained so downstream code that may reference them does not break, but they are never triggered. The spine layout is fully responsive and works on mobile without any JavaScript scroll logic."
-    },
-    {
       "id": "1.50",
       "version": "1.50",
       "type": "minor",
