@@ -545,7 +545,9 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
 
     /* ── View area ──────────────────────────────────────── */
     /* 1.52: extra bottom padding so content clears the fixed footer (~60px) */
-    .view-area { flex: 1; overflow-y: auto; padding: 20px 24px; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); min-width: 0; }
+    /* 1.53: scrollbar-gutter:stable reserves scrollbar lane so it never
+             causes a layout shift when it appears / disappears            */
+    .view-area { flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: 20px 24px; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); min-width: 0; }
 
     /* ── Content area (full width now — no calendar panel) ─ */
     .content-area {
@@ -606,8 +608,10 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
       position: sticky;
       top: 0;
     }
+    /* 1.53: viewport-relative max-height, matching the timeline scroll
+             container (100dvh - 210px timeline chrome - 60px footer)  */
     .split-logs .log-list-section {
-      max-height: 638px;
+      max-height: calc(100dvh - 270px);
       overflow-y: auto;
     }
 

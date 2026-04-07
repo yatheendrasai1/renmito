@@ -298,8 +298,10 @@ interface TickMark { pos: number; isHalf: boolean; }
     .scroll-container {
       overflow-y: auto;
       overflow-x: hidden;
-      height: calc(100vh - 210px);
-      height: calc(100dvh - 210px);
+      /* 1.53: subtract ~60px for the fixed footer so last entries
+               don't slip behind it (210px = header + timeline chrome) */
+      height: calc(100vh - 270px);
+      height: calc(100dvh - 270px);
       min-height: 400px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
