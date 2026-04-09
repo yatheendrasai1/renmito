@@ -46,4 +46,36 @@ router.post('/', async (req, res) => {
   res.status(201).json({ ...logType.toObject(), source: 'user' });
 });
 
+// ─── PUT /api/logtypes/:id ────────────────────────────────────────────────────
+// Rename a user-owned log type (name only).
+router.put('/:id', async (req, res) => {
+  const { name } = req.body;
+  if (!name?.trim()) {
+    return res.status(400).json({ error: 'name is required.' });
+  }
+
+  const logType = await LogType.findOneAndUpdate(
+    { _id: req.params.id, userId: req.user.userId },
+    { $set: { name: name.trim() } },
+    { new: true }
+  );
+
+  if (!logType) return res.status(404).json({ error: 'Log type not found.' });
+
+  res.json({ ...logType.toObject(), source: 'user' });
+});
+
+// ─── DELETE /api/logtypes/:id ─────────────────────────────────────────────────
+// Soft-deletes a user-owned log type (preserves _id so existing log refs stay valid).
+router.delete('/:id', async (req, res) => {
+  const logType = await LogType.findOneAndUpdate(
+    { _id: req.params.id, userId: req.user.userId },
+    { $set: { isActive: false } }
+  );
+
+  if (!logType) return res.status(404).json({ error: 'Log type not found.' });
+
+  res.json({ message: 'Log type deleted.' });
+});
+
 module.exports = router;

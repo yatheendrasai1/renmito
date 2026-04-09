@@ -223,12 +223,6 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
 
               <!-- Left column: Timeline -->
               <div class="split-timeline">
-                <div class="content-header">
-                  <h2 class="section-title">Timeline</h2>
-                  <div class="loading-indicator" *ngIf="isLoading">
-                    <span class="spinner"></span> Loading…
-                  </div>
-                </div>
 
                 <div class="timeline-container">
                   <app-timeline
@@ -244,14 +238,6 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
                   ></app-timeline>
                 </div>
 
-                <div class="timeline-hint" *ngIf="!isLoading">
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
-                       style="vertical-align:middle;margin-right:4px;">
-                    <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/>
-                    <path d="M8 5v4M8 11v1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                  </svg>
-                  Drag the time strip to select a range, then click "+ Create Log". Click a bar to edit.
-                </div>
               </div>
 
               <!-- Right column: Log List -->
@@ -360,7 +346,7 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
                     </button>
                   </ng-container>
 
-                  <!-- ── Inline edit mode — 1.54 ── -->
+                  <!-- ── Inline edit mode — 1.54 / 1.57 mobile-friendly ── -->
                   <div class="log-list-inline" *ngIf="inlineEditId === log.id"
                        (click)="$event.stopPropagation()">
                     <input class="inline-title-input" type="text"
@@ -368,16 +354,25 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
                            maxlength="300"
                            placeholder="Activity description"
                            (keydown)="onInlineKeydown($event, log)">
-                    <div class="inline-meta-row">
-                      <select class="inline-type-select" [(ngModel)]="inlineEdit.logTypeId">
-                        <option *ngIf="!inlineLogTypes.length" value="">Loading…</option>
-                        <option *ngFor="let t of inlineLogTypes" [value]="t._id">{{ t.name }}</option>
-                      </select>
+                    <select class="inline-type-select" [(ngModel)]="inlineEdit.logTypeId">
+                      <option *ngIf="!inlineLogTypes.length" value="">Loading…</option>
+                      <option *ngFor="let t of inlineLogTypes" [value]="t._id">{{ t.name }}</option>
+                    </select>
+                    <div class="inline-time-row">
+                      <span class="inline-time-label">Start</span>
+                      <button type="button" class="btn-time-step"
+                              (click)="adjustTime('startAt', -10); $event.stopPropagation()">−10m</button>
                       <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.startAt">
-                      <ng-container *ngIf="log.entryType !== 'point'">
-                        <span class="inline-time-sep">–</span>
-                        <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.endAt">
-                      </ng-container>
+                      <button type="button" class="btn-time-step"
+                              (click)="adjustTime('startAt', 10); $event.stopPropagation()">+10m</button>
+                    </div>
+                    <div class="inline-time-row" *ngIf="log.entryType !== 'point'">
+                      <span class="inline-time-label">End</span>
+                      <button type="button" class="btn-time-step"
+                              (click)="adjustTime('endAt', -10); $event.stopPropagation()">−10m</button>
+                      <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.endAt">
+                      <button type="button" class="btn-time-step"
+                              (click)="adjustTime('endAt', 10); $event.stopPropagation()">+10m</button>
                     </div>
                     <div class="inline-action-row">
                       <button type="button" class="btn-inline-save"
@@ -433,7 +428,7 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
           <span class="footer-logo-text">Renmito</span>
         </div>
         <p class="footer-tagline">
-          Your personal time chronicle — log your day, reflect on your patterns, and make every hour count.
+          log.reflect.patterns.observe
         </p>
         <span class="footer-copy">© {{ currentYear }} Renmito</span>
       </footer>
@@ -770,10 +765,9 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
     }
 
     /* ── View area ──────────────────────────────────────── */
-    /* 1.52: extra bottom padding so content clears the fixed footer (~60px) */
     /* 1.53: scrollbar-gutter:stable reserves scrollbar lane so it never
              causes a layout shift when it appears / disappears            */
-    .view-area { flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: 20px 24px; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); min-width: 0; }
+    .view-area { flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: 20px 24px; min-width: 0; }
 
     /* ── Content area (full width now — no calendar panel) ─ */
     .content-area {
@@ -834,8 +828,7 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
       position: sticky;
       top: 0;
     }
-    /* 1.53: viewport-relative max-height, matching the timeline scroll
-             container (100dvh - 210px timeline chrome - 60px footer)  */
+    /* 1.53: viewport-relative max-height matching the timeline scroll container */
     .split-logs .log-list-section {
       max-height: calc(100dvh - 270px);
       overflow-y: auto;
@@ -940,61 +933,84 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
     .log-list-item:hover .log-list-delete-btn { opacity: 1; }
     .log-list-delete-btn:hover { background: rgba(158,59,59,0.14); color: #9E3B3B; }
 
-    /* ── Inline edit mode — 1.54 ──────────────────────────── */
+    /* ── Inline edit mode — 1.54 / 1.57 mobile-friendly ──── */
     .log-list-item--editing {
       align-items: flex-start;
-      border-color: var(--accent) !important;
+      border-color: var(--border-light) !important;
       background: var(--bg-card) !important;
       cursor: default;
     }
+    .log-list-item--editing .log-list-color-bar {
+      align-self: stretch; height: auto;
+    }
     .log-list-inline {
       flex: 1; min-width: 0;
-      display: flex; flex-direction: column; gap: 7px;
+      display: flex; flex-direction: column; gap: 8px;
       padding: 2px 0;
     }
     .inline-title-input {
       width: 100%; box-sizing: border-box;
       background: var(--bg-surface); border: 1px solid var(--border);
       border-radius: var(--radius-sm); color: var(--text-primary);
-      font-size: 13px; font-weight: 600; padding: 5px 8px;
+      font-size: 13px; font-weight: 600; padding: 7px 8px;
       font-family: inherit; outline: none;
     }
-    .inline-title-input:focus { border-color: var(--accent); }
-    .inline-meta-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .inline-title-input:focus { border-color: var(--border-light); }
     .inline-type-select {
-      flex: 1; min-width: 90px;
+      width: 100%; box-sizing: border-box;
       background: var(--bg-surface); border: 1px solid var(--border);
       border-radius: var(--radius-sm); color: var(--text-primary);
-      font-size: 11px; padding: 4px 6px; outline: none; cursor: pointer;
+      font-size: 12px; padding: 7px 6px; outline: none; cursor: pointer;
     }
-    .inline-type-select:focus { border-color: var(--accent); }
+    .inline-type-select:focus { border-color: var(--border-light); }
+    /* ── Time stepper row — 1.57 ── */
+    .inline-time-row {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .inline-time-label {
+      font-size: 10px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.6px;
+      width: 30px; flex-shrink: 0;
+    }
+    .btn-time-step {
+      flex-shrink: 0;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-secondary);
+      font-size: 11px; font-weight: 600;
+      padding: 0 10px; height: 34px;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .btn-time-step:hover { background: var(--accent-hover); color: var(--text-primary); }
     .inline-time-input {
-      width: 88px;
+      flex: 1; min-width: 0;
       background: var(--bg-surface); border: 1px solid var(--border);
       border-radius: var(--radius-sm); color: var(--text-primary);
-      font-size: 11px; padding: 4px 6px; font-variant-numeric: tabular-nums; outline: none;
+      font-size: 13px; padding: 6px 8px; font-variant-numeric: tabular-nums;
+      outline: none; text-align: center;
     }
-    .inline-time-input:focus { border-color: var(--accent); }
-    .inline-time-sep { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
-    .inline-action-row { display: flex; align-items: center; gap: 6px; }
+    .inline-time-input:focus { border-color: var(--border-light); }
+    .inline-action-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
     .btn-inline-save {
-      background: var(--accent); color: #fff; border: none;
-      border-radius: var(--radius-sm); padding: 4px 12px;
-      font-size: 11px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+      flex: 1;
+      background: var(--highlight-selected); color: #fff; border: none;
+      border-radius: var(--radius-sm); padding: 8px 12px;
+      font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
     }
     .btn-inline-save:disabled { opacity: 0.55; cursor: not-allowed; }
     .btn-inline-save:hover:not(:disabled) { opacity: 0.85; }
     .btn-inline-cancel {
+      flex: 1;
       background: transparent; color: var(--text-muted);
       border: 1px solid var(--border); border-radius: var(--radius-sm);
-      padding: 4px 10px; font-size: 11px; cursor: pointer; transition: background 0.15s;
+      padding: 8px 10px; font-size: 12px; cursor: pointer; transition: background 0.15s;
     }
     .btn-inline-cancel:hover { background: var(--accent-hover); }
     .btn-inline-fullform {
       background: transparent; color: var(--text-muted);
       border: 1px solid var(--border); border-radius: var(--radius-sm);
-      padding: 4px 7px; cursor: pointer; display: flex; align-items: center;
-      margin-left: auto; transition: background 0.15s, color 0.15s;
+      padding: 0 10px; height: 36px; cursor: pointer; display: flex; align-items: center;
+      transition: background 0.15s, color 0.15s; flex-shrink: 0;
     }
     .btn-inline-fullform:hover { background: var(--accent-hover); color: var(--text-primary); }
 
@@ -1077,21 +1093,16 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
     }
     .btn-cal-apply:hover { opacity: 0.88; }
 
-    /* ── Footer — 1.35 / fixed full-width — 1.52 ────────── */
+    /* ── Footer — 1.35 / 1.56: in-flow (not fixed) so it never overlays content */
     .app-footer {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 90;
+      flex-shrink: 0;
       background: var(--nav-bg);
       border-top: 1px solid var(--border);
-      padding: 14px 24px;
-      padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+      padding: 12px 24px;
+      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
       display: flex;
       align-items: center;
       gap: 20px;
-      flex-wrap: wrap;
     }
 
     .footer-brand {
@@ -1966,6 +1977,15 @@ export class AppComponent implements OnInit {
   onInlineKeydown(event: KeyboardEvent, log: LogEntry): void {
     if (event.key === 'Enter')  { event.preventDefault(); this.saveInlineEdit(log); }
     if (event.key === 'Escape') { this.cancelInlineEdit(); }
+  }
+
+  /** Shift a time field by deltaMins (±10), clamped to 00:00–23:59. */
+  adjustTime(field: 'startAt' | 'endAt', deltaMins: number): void {
+    const val = this.inlineEdit[field];
+    if (!val) return;
+    const [h, m] = val.split(':').map(Number);
+    const clamped = Math.max(0, Math.min(1439, h * 60 + m + deltaMins));
+    this.inlineEdit[field] = `${String(Math.floor(clamped / 60)).padStart(2, '0')}:${String(clamped % 60).padStart(2, '0')}`;
   }
 
   // ── 1.54: Quick-add log ──────────────────────────────────

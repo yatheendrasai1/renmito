@@ -36,6 +36,51 @@
     "isActive": true
   },
   {
+    "domain": "work",
+    "category": "codetime",
+    "name": "Debugging",
+    "color": "#C4704A",
+    "icon": "terminal",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "work",
+    "category": "codetime",
+    "name": "PR",
+    "color": "#4A8FA0",
+    "icon": "git-pull-request",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "work",
+    "category": "break",
+    "name": "Break",
+    "color": "#7A9C7A",
+    "icon": "coffee",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "work",
+    "category": "meeting",
+    "name": "KT",
+    "color": "#7A6490",
+    "icon": "book-open",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "work",
+    "category": "transit",
+    "name": "Transit",
+    "color": "#3E6480",
+    "icon": "shopping-cart",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
     "domain": "personal",
     "category": "food",
     "name": "Breakfast",
@@ -72,15 +117,6 @@
     "isActive": true
   },
   {
-    "domain": "work",
-    "category": "transit",
-    "name": "Transit",
-    "color": "#3E6480",
-    "icon": "shopping-cart",
-    "isBuiltIn": true,
-    "isActive": true
-  },
-  {
     "domain": "personal",
     "category": "wellbeing",
     "name": "WellBeing",
@@ -92,7 +128,7 @@
   {
     "domain": "personal",
     "category": "sleep",
-    "name": "Zleep",
+    "name": "Sleep",
     "color": "#213C51",
     "icon": "moon",
     "isBuiltIn": true,
@@ -108,7 +144,7 @@
     "isActive": true
   },
   {
-    "domain": "family",
+    "domain": "personal",
     "category": "familytime",
     "name": "Family Time",
     "color": "#8C8C8C",
@@ -131,6 +167,15 @@
     "name": "Sports",
     "color": "#703B3B",
     "icon": "dumbbell",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "personal",
+    "category": "health",
+    "name": "Medical",
+    "color": "#5A9A85",
+    "icon": "activity",
     "isBuiltIn": true,
     "isActive": true
   }

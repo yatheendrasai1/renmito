@@ -7,6 +7,7 @@ import {
   ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { LogService } from '../../services/log.service';
 
 interface CalendarDay {
   date: Date | null;
@@ -14,6 +15,7 @@ interface CalendarDay {
   isToday: boolean;
   isSelected: boolean;
   isCurrentMonth: boolean;
+  workMins: number | null;
 }
 
 @Component({
@@ -48,7 +50,10 @@ interface CalendarDay {
           [class.other-month]="!day.isCurrentMonth && day.date"
           (click)="day.date && selectDate(day.date)"
         >
-          <span *ngIf="day.date">{{ day.dayNumber }}</span>
+          <ng-container *ngIf="day.date">
+            <span class="day-num">{{ day.dayNumber }}</span>
+            <span class="work-label" *ngIf="day.isCurrentMonth && day.workMins">{{ formatWorkMins(day.workMins) }}</span>
+          </ng-container>
         </div>
       </div>
 
@@ -114,16 +119,18 @@ interface CalendarDay {
 
     .day-cell {
       text-align: center;
-      padding: 6px 0;
+      padding: 4px 0;
       font-size: 13px;
       color: var(--text-secondary);
       border-radius: var(--radius-sm);
       cursor: pointer;
       transition: all 0.15s ease;
-      min-height: 30px;
+      min-height: 46px;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 2px;
     }
 
     .day-cell:not(.empty):hover {
@@ -140,33 +147,39 @@ interface CalendarDay {
       opacity: 0.5;
     }
 
-    .day-cell.today span {
+    .day-num {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+    }
+
+    .day-cell.today .day-num {
       background: var(--highlight-today);
       color: white;
       border-radius: 50%;
-      width: 26px;
-      height: 26px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       font-weight: 600;
     }
 
-    .day-cell.selected span {
+    .day-cell.selected .day-num {
       background: var(--highlight-selected);
       color: white;
       border-radius: 50%;
-      width: 26px;
-      height: 26px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       font-weight: 600;
     }
 
-    .day-cell.today.selected span {
+    .day-cell.today.selected .day-num {
       background: var(--highlight-selected);
       box-shadow: 0 0 0 2px var(--highlight-today);
+    }
+
+    .work-label {
+      font-size: 9px;
+      font-weight: 600;
+      color: #5BAD6F;
+      line-height: 1;
+      letter-spacing: 0.2px;
     }
 
     .today-btn {
@@ -194,6 +207,9 @@ export class CalendarComponent implements OnInit {
   viewYear: number = 0;
   viewMonth: number = 0;
   today: Date = new Date();
+  workMinsByDate: Record<string, number> = {};
+
+  constructor(private logService: LogService) {}
 
   get monthLabel(): string {
     const d = new Date(this.viewYear, this.viewMonth, 1);
@@ -206,6 +222,15 @@ export class CalendarComponent implements OnInit {
     this.viewYear = this.selectedDate.getFullYear();
     this.viewMonth = this.selectedDate.getMonth();
     this.buildCalendar();
+    this.loadMonthSummary();
+  }
+
+  private loadMonthSummary(): void {
+    this.logService.getMonthWorkSummary(this.viewYear, this.viewMonth + 1)
+      .subscribe(summary => {
+        this.workMinsByDate = summary;
+        this.buildCalendar();
+      });
   }
 
   buildCalendar(): void {
@@ -215,12 +240,11 @@ export class CalendarComponent implements OnInit {
 
     // Day of week: 0=Sun,1=Mon...6=Sat → convert to Mon-first (0=Mon...6=Sun)
     let startDow = firstDay.getDay(); // 0=Sun
-    // Convert: Mon=0, Tue=1, ..., Sun=6
     startDow = startDow === 0 ? 6 : startDow - 1;
 
     // Fill leading empty cells
     for (let i = 0; i < startDow; i++) {
-      days.push({ date: null, dayNumber: null, isToday: false, isSelected: false, isCurrentMonth: false });
+      days.push({ date: null, dayNumber: null, isToday: false, isSelected: false, isCurrentMonth: false, workMins: null });
     }
 
     // Fill days of month
@@ -231,12 +255,15 @@ export class CalendarComponent implements OnInit {
       const selDate = new Date(this.selectedDate);
       selDate.setHours(0, 0, 0, 0);
       const isSelected = date.getTime() === selDate.getTime();
+      const dateStr = `${this.viewYear}-${String(this.viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const workMins = this.workMinsByDate[dateStr] ?? null;
       days.push({
         date,
         dayNumber: d,
         isToday,
         isSelected,
-        isCurrentMonth: true
+        isCurrentMonth: true,
+        workMins
       });
     }
 
@@ -244,11 +271,17 @@ export class CalendarComponent implements OnInit {
     const remaining = days.length % 7;
     if (remaining !== 0) {
       for (let i = 0; i < 7 - remaining; i++) {
-        days.push({ date: null, dayNumber: null, isToday: false, isSelected: false, isCurrentMonth: false });
+        days.push({ date: null, dayNumber: null, isToday: false, isSelected: false, isCurrentMonth: false, workMins: null });
       }
     }
 
     this.calendarDays = days;
+  }
+
+  formatWorkMins(mins: number): string {
+    if (mins < 60) return `${mins}m`;
+    const h = mins / 60;
+    return Number.isInteger(h) ? `${h}h` : `${h.toFixed(1)}h`;
   }
 
   selectDate(date: Date): void {
@@ -265,6 +298,7 @@ export class CalendarComponent implements OnInit {
       this.viewMonth--;
     }
     this.buildCalendar();
+    this.loadMonthSummary();
   }
 
   nextMonth(): void {
@@ -275,6 +309,7 @@ export class CalendarComponent implements OnInit {
       this.viewMonth++;
     }
     this.buildCalendar();
+    this.loadMonthSummary();
   }
 
   goToToday(): void {
@@ -283,5 +318,6 @@ export class CalendarComponent implements OnInit {
     this.viewYear = now.getFullYear();
     this.viewMonth = now.getMonth();
     this.selectDate(now);
+    this.loadMonthSummary();
   }
 }

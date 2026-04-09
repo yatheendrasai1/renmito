@@ -44,4 +44,11 @@ export class LogService {
     const dateStr = this.formatDate(date);
     return this.http.delete<{ message: string }>(`${this.apiBase}/${dateStr}/${id}`);
   }
+
+  /** Returns { "YYYY-MM-DD": workMinutes } for the given month (transit excluded). */
+  getMonthWorkSummary(year: number, month: number): Observable<Record<string, number>> {
+    return this.http.get<Record<string, number>>(`${this.apiBase}/month/${year}/${month}`).pipe(
+      catchError(() => of({}))
+    );
+  }
 }

@@ -36,6 +36,20 @@ export class LogTypeService {
     );
   }
 
+  /** Renames a user-owned log type and invalidates the cache. */
+  updateLogTypeName(id: string, name: string): Observable<LogType> {
+    return this.http.put<LogType>(`${this.apiBase}/${id}`, { name }).pipe(
+      tap(() => this.clearCache())
+    );
+  }
+
+  /** Soft-deletes a user-owned log type and invalidates the cache. */
+  deleteLogType(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiBase}/${id}`).pipe(
+      tap(() => this.clearCache())
+    );
+  }
+
   /** Call after logout or after creating a new type to force a fresh fetch. */
   clearCache(): void {
     this.cache$ = null;

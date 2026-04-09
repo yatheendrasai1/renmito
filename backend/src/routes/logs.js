@@ -69,6 +69,40 @@ async function validateLogTypeId(logTypeId) {
 
 // ─── routes ──────────────────────────────────────────────────────────────────
 
+// GET /api/logs/month/:year/:month
+// Returns { "YYYY-MM-DD": totalWorkMins } for the month (domain=work, category!=transit).
+router.get('/month/:year/:month', async (req, res) => {
+  const y = parseInt(req.params.year,  10);
+  const m = parseInt(req.params.month, 10); // 1-based
+
+  if (isNaN(y) || isNaN(m) || m < 1 || m > 12) {
+    return res.status(400).json({ error: 'Invalid year or month' });
+  }
+
+  const monthStart = new Date(Date.UTC(y, m - 1, 1));
+  const monthEnd   = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+
+  const docs = await TimeLog
+    .find({
+      userId:      req.user.userId,
+      startAt:     { $gte: monthStart, $lte: monthEnd },
+      entryType:   'range',
+      durationMins: { $gt: 0 }
+    })
+    .populate(POPULATE_LOGTYPE)
+    .lean();
+
+  const summary = {};
+  for (const doc of docs) {
+    const lt = doc.logTypeId && typeof doc.logTypeId === 'object' ? doc.logTypeId : null;
+    if (!lt || lt.domain !== 'work' || lt.category === 'transit') continue;
+    const dateStr = toDateStr(doc.startAt);
+    summary[dateStr] = (summary[dateStr] || 0) + (doc.durationMins || 0);
+  }
+
+  res.json(summary);
+});
+
 // GET /api/logs/:date
 router.get('/:date', async (req, res) => {
   const { date } = req.params;

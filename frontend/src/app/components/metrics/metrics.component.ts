@@ -317,10 +317,14 @@ export class MetricsComponent implements OnChanges {
     const design  = this.hoursWhere(l => this.isWork(l, 'design'));
     const transit = this.hoursWhere(l => this.isWork(l, 'transit'));
     const dayTotal = 24; // transit % shown as fraction of full day
+    const workDayPct = Math.round((work / 8) * 100); // % of 8h standard workday
+    const workLogIds = this.logIdsWhere(l => l.logType?.domain === 'work' && l.logType?.category !== 'transit');
 
     return [
-      { label: 'Total Work Hours', main: this.fmtH(work),    side: null,
-        logIds: this.logIdsWhere(l => l.logType?.domain === 'work' && l.logType?.category !== 'transit') },
+      { label: 'Total Work Hours', main: this.fmtH(work),           side: null,
+        logIds: workLogIds },
+      { label: 'Work Log %',       main: workDayPct + '%',           side: this.fmtH(work),
+        logIds: workLogIds },
       { label: 'Coding Time',      main: this.fmtH(code),    side: this.pct(code, work),
         logIds: this.logIdsWhere(l => this.isWork(l, 'codetime')) },
       { label: 'Meetings',         main: this.fmtH(meet),    side: this.pct(meet, work),

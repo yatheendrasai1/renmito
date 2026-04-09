@@ -167,11 +167,15 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                       [style.border-color]="lt.color"
                       [style.background-color]="isActive(lt) ? lt.color + '28' : 'transparent'"
                       [style.color]="isActive(lt) ? lt.color : ''"
-                      (click)="selectLogType(lt)"
+                      (click)="onChipClick(lt)"
+                      (pointerdown)="onChipPointerDown($event, lt)"
+                      (pointerup)="onChipPointerUp()"
+                      (pointermove)="onChipPointerMove()"
+                      (contextmenu)="onChipContextMenu($event, lt)"
                     >
                       <span class="chip-dot" [style.background]="lt.color"></span>
                       {{ lt.name }}
-                      <span class="chip-source-badge" *ngIf="lt.source === 'user'" title="Your custom type">★</span>
+                      <span class="chip-source-badge" *ngIf="lt.source === 'user'" title="Long-press or right-click to edit">★</span>
                     </button>
                   </div>
                 </div>
@@ -194,26 +198,27 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                   <div class="create-type-error" *ngIf="createTypeError">{{ createTypeError }}</div>
 
                   <div class="create-fields">
-                    <div class="create-field create-field--name">
-                      <label class="create-label">Name</label>
-                      <input
-                        type="text"
-                        name="newTypeName"
-                        [(ngModel)]="newTypeName"
-                        placeholder="e.g. Deep Work, Therapy…"
-                        maxlength="40"
-                        autocomplete="off"
-                        class="create-input"
-                        [disabled]="creatingType"
-                      />
-                    </div>
-                    <div class="create-field create-field--domain">
-                      <label class="create-label">Domain</label>
-                      <select name="newTypeDomain" [(ngModel)]="newTypeDomain" [disabled]="creatingType" class="create-select">
-                        <option value="work">Work</option>
-                        <option value="personal">Personal</option>
-                        <option value="family">Family</option>
-                      </select>
+                    <div class="create-top-row">
+                      <div class="create-field create-field--name">
+                        <label class="create-label">Name</label>
+                        <input
+                          type="text"
+                          name="newTypeName"
+                          [(ngModel)]="newTypeName"
+                          placeholder="e.g. Deep Work, Therapy…"
+                          maxlength="40"
+                          autocomplete="off"
+                          class="create-input"
+                          [disabled]="creatingType"
+                        />
+                      </div>
+                      <div class="create-field create-field--domain">
+                        <label class="create-label">Domain</label>
+                        <select name="newTypeDomain" [(ngModel)]="newTypeDomain" [disabled]="creatingType" class="create-select">
+                          <option value="work">Work</option>
+                          <option value="personal">Personal</option>
+                        </select>
+                      </div>
                     </div>
                     <div class="create-field create-field--color">
                       <label class="create-label">Color</label>
@@ -283,7 +288,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
 
       </div>
 
-      <!-- Delete confirmation dialog -->
+      <!-- Delete entry confirmation dialog -->
       <app-confirm-dialog
         [visible]="deleteConfirmVisible"
         title="Delete Entry"
@@ -292,7 +297,66 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
         (confirmed)="onDeleteConfirmed()"
         (cancelled)="onDeleteCancelled()"
       ></app-confirm-dialog>
+
+    </div><!-- /form-panel -->
+
+    <!-- ── Custom log type context menu (right-click / long-press) ── -->
+    <div class="chip-ctx-backdrop" *ngIf="ctxMenu.visible" (click)="closeCtxMenu()"></div>
+    <div class="chip-ctx-menu" *ngIf="ctxMenu.visible"
+         [style.left.px]="ctxMenu.x" [style.top.px]="ctxMenu.y"
+         (click)="$event.stopPropagation()">
+      <button type="button" class="ctx-item" (click)="startEditType()">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+        Rename
+      </button>
+      <div class="ctx-divider"></div>
+      <button type="button" class="ctx-item ctx-item--danger" (click)="startDeleteType()">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Delete
+      </button>
     </div>
+
+    <!-- ── Rename log type overlay ── -->
+    <div class="edit-type-overlay" *ngIf="editTypeId !== null" (click)="cancelEditType()">
+      <div class="edit-type-panel" (click)="$event.stopPropagation()">
+        <p class="edit-type-title">Rename Log Type</p>
+        <input
+          class="edit-type-input"
+          type="text"
+          name="editTypeName"
+          [(ngModel)]="editTypeName"
+          maxlength="40"
+          autocomplete="off"
+          placeholder="New name"
+          (keydown)="onEditTypeKeydown($event)"
+        />
+        <div class="edit-type-error" *ngIf="editTypeError">{{ editTypeError }}</div>
+        <div class="edit-type-actions">
+          <button type="button" class="btn-edit-cancel" (click)="cancelEditType()">Cancel</button>
+          <button type="button" class="btn-edit-save"
+                  (click)="saveEditType()"
+                  [disabled]="editTypeSaving || !editTypeName.trim()">
+            {{ editTypeSaving ? 'Saving…' : 'Save' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Delete log type confirmation ── -->
+    <app-confirm-dialog
+      [visible]="deleteConfirmType !== null"
+      title="Delete Log Type"
+      [message]="deleteTypeConfirmMessage"
+      detail="Existing logs using this type are not affected."
+      okLabel="Delete"
+      (confirmed)="onDeleteTypeConfirmed()"
+      (cancelled)="deleteConfirmType = null"
+    ></app-confirm-dialog>
+
   `,
   styles: [`
     .form-overlay {
@@ -430,11 +494,12 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
       border-radius: var(--radius-sm);
     }
 
-    .create-fields { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 8px; }
+    .create-fields { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+    .create-top-row { display: flex; gap: 8px; align-items: flex-end; }
     .create-field { display: flex; flex-direction: column; gap: 5px; }
-    .create-field--name { flex: 1; min-width: 140px; }
-    .create-field--domain { width: 110px; }
-    .create-field--color { width: 90px; }
+    .create-field--name { flex: 1; min-width: 0; }
+    .create-field--domain { width: 110px; flex-shrink: 0; }
+    .create-field--color { /* full width below name+domain row */ }
 
     .create-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
 
@@ -478,6 +543,86 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
 
     .btn-spinner { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Custom log type context menu ───────────────────── */
+    .chip-ctx-backdrop {
+      position: fixed; inset: 0; z-index: 1199;
+    }
+    .chip-ctx-menu {
+      position: fixed; z-index: 1200;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 4px 0;
+      min-width: 130px;
+      animation: fadeIn 0.1s ease;
+    }
+    .ctx-item {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 9px 14px;
+      background: none; color: var(--text-secondary);
+      font-size: 13px; font-weight: 500;
+      text-align: left; cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+    }
+    .ctx-item:hover { background: var(--accent-hover); color: var(--text-primary); }
+    .ctx-item--danger { color: #e94560; }
+    .ctx-item--danger:hover { background: rgba(233,69,96,0.1); color: #e94560; }
+    .ctx-divider { height: 1px; background: var(--border); margin: 3px 0; }
+
+    /* ── Rename log type overlay ─────────────────────────── */
+    .edit-type-overlay {
+      position: fixed; inset: 0; z-index: 1200;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(3px);
+      display: flex; align-items: center; justify-content: center;
+      animation: fadeIn 0.15s ease;
+    }
+    .edit-type-panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 22px 22px 18px;
+      width: 320px; max-width: 92vw;
+      box-shadow: var(--shadow);
+      animation: slideUp 0.18s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(10px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .edit-type-title {
+      font-size: 14px; font-weight: 700; color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+    .edit-type-input {
+      width: 100%; box-sizing: border-box;
+      padding: 9px 11px;
+      background: var(--bg-card); border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-size: 14px; font-family: inherit; outline: none;
+    }
+    .edit-type-input:focus { border-color: var(--highlight-selected); }
+    .edit-type-error {
+      font-size: 12px; color: #ef5350; margin-top: 6px;
+    }
+    .edit-type-actions {
+      display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px;
+    }
+    .btn-edit-cancel {
+      padding: 7px 16px; font-size: 13px; font-weight: 600;
+      background: var(--bg-card); color: var(--text-secondary);
+      border: 1px solid var(--border-light); border-radius: var(--radius-sm);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-edit-cancel:hover { background: var(--accent-hover); color: var(--text-primary); }
+    .btn-edit-save {
+      padding: 7px 16px; font-size: 13px; font-weight: 600;
+      background: var(--highlight-selected); color: #fff; border: none;
+      border-radius: var(--radius-sm); cursor: pointer; transition: opacity 0.15s;
+    }
+    .btn-edit-save:hover:not(:disabled) { opacity: 0.85; }
+    .btn-edit-save:disabled { opacity: 0.45; cursor: not-allowed; }
 
     /* ── Description textarea ───────────────────────────── */
     .description-textarea {
@@ -591,10 +736,29 @@ export class LogFormComponent implements OnInit, OnChanges {
 
   // ── create new type inline form ────────────────────────
   newTypeName     = '';
-  newTypeDomain:  'work' | 'personal' | 'family' = 'work';
+  newTypeDomain:  'work' | 'personal' = 'work';
   newTypeColor    = '#F2A65A';
   creatingType    = false;
   createTypeError = '';
+
+  // ── context menu (right-click / long-press on user chips) ─
+  ctxMenu: { visible: boolean; x: number; y: number; logType: LogType | null } =
+    { visible: false, x: 0, y: 0, logType: null };
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private longPressActivated = false;
+
+  // ── rename log type ────────────────────────────────────
+  editTypeId:    string | null = null;
+  editTypeName:  string = '';
+  editTypeSaving = false;
+  editTypeError  = '';
+
+  // ── delete log type ────────────────────────────────────
+  deleteConfirmType: LogType | null = null;
+
+  get deleteTypeConfirmMessage(): string {
+    return `Delete "${this.deleteConfirmType?.name ?? ''}"?`;
+  }
 
   constructor(private logTypeService: LogTypeService) {}
 
@@ -712,6 +876,7 @@ export class LogFormComponent implements OnInit, OnChanges {
         (this.preselectedLogTypeId
           ? this.logTypes.find(lt => lt._id === this.preselectedLogTypeId)
           : undefined)
+        ?? this.logTypes.find(lt => lt.name === 'Meeting')
         ?? this.logTypes.find(lt => lt.domain === 'work')
         ?? this.logTypes[0]
         ?? null;
@@ -727,10 +892,112 @@ export class LogFormComponent implements OnInit, OnChanges {
 
   selectLogType(lt: LogType): void {
     this.selectedLogType = lt;
-    // Auto-switch to point for food; otherwise leave whatever mode the user has chosen
-    if (lt.category === 'food') {
-      this.entryType = 'point';
-    }
+    if (lt.category === 'food') { this.entryType = 'point'; }
+  }
+
+  onChipClick(lt: LogType): void {
+    if (this.longPressActivated) { this.longPressActivated = false; return; }
+    this.selectLogType(lt);
+  }
+
+  // ── context menu (long-press / right-click) ────────────
+
+  onChipPointerDown(event: PointerEvent, lt: LogType): void {
+    if (lt.source !== 'user' || event.button !== 0) return;
+    this.longPressActivated = false;
+    this.longPressTimer = setTimeout(() => {
+      this.longPressActivated = true;
+      this.openCtxMenu(event.clientX, event.clientY, lt);
+    }, 500);
+  }
+
+  onChipPointerUp(): void {
+    if (this.longPressTimer) { clearTimeout(this.longPressTimer); this.longPressTimer = null; }
+  }
+
+  onChipPointerMove(): void {
+    if (this.longPressTimer) { clearTimeout(this.longPressTimer); this.longPressTimer = null; }
+  }
+
+  onChipContextMenu(event: MouseEvent, lt: LogType): void {
+    if (lt.source !== 'user') return;
+    event.preventDefault();
+    this.openCtxMenu(event.clientX, event.clientY, lt);
+  }
+
+  private openCtxMenu(x: number, y: number, lt: LogType): void {
+    const cx = Math.min(x, window.innerWidth  - 145);
+    const cy = Math.min(y, window.innerHeight - 90);
+    this.ctxMenu = { visible: true, x: cx, y: cy, logType: lt };
+  }
+
+  closeCtxMenu(): void {
+    this.ctxMenu = { visible: false, x: 0, y: 0, logType: null };
+  }
+
+  // ── rename log type ────────────────────────────────────
+
+  startEditType(): void {
+    if (!this.ctxMenu.logType) return;
+    this.editTypeId    = this.ctxMenu.logType._id;
+    this.editTypeName  = this.ctxMenu.logType.name;
+    this.editTypeError = '';
+    this.closeCtxMenu();
+  }
+
+  cancelEditType(): void {
+    this.editTypeId = null; this.editTypeName = ''; this.editTypeError = '';
+  }
+
+  onEditTypeKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter')  { event.preventDefault(); this.saveEditType(); }
+    if (event.key === 'Escape') { this.cancelEditType(); }
+  }
+
+  saveEditType(): void {
+    if (!this.editTypeId || !this.editTypeName.trim() || this.editTypeSaving) return;
+    this.editTypeSaving = true;
+    this.editTypeError  = '';
+    this.logTypeService.updateLogTypeName(this.editTypeId, this.editTypeName.trim()).subscribe({
+      next: (updated) => {
+        this.editTypeSaving = false;
+        this.logTypes     = this.logTypes.map(lt => lt._id === updated._id ? updated : lt);
+        this.groupedTypes = this.buildGroups(this.logTypes);
+        if (this.selectedLogType?._id === updated._id) this.selectedLogType = updated;
+        this.cancelEditType();
+      },
+      error: (err) => {
+        this.editTypeSaving = false;
+        this.editTypeError  = err?.error?.error ?? 'Failed to rename. Try again.';
+      }
+    });
+  }
+
+  // ── delete log type ────────────────────────────────────
+
+  startDeleteType(): void {
+    if (!this.ctxMenu.logType) return;
+    this.deleteConfirmType = this.ctxMenu.logType;
+    this.closeCtxMenu();
+  }
+
+  onDeleteTypeConfirmed(): void {
+    if (!this.deleteConfirmType) return;
+    const id = this.deleteConfirmType._id;
+    this.deleteConfirmType = null;
+    this.logTypeService.deleteLogType(id).subscribe({
+      next: () => {
+        this.logTypes     = this.logTypes.filter(lt => lt._id !== id);
+        this.groupedTypes = this.buildGroups(this.logTypes);
+        if (this.selectedLogType?._id === id) {
+          this.selectedLogType =
+            this.logTypes.find(lt => lt.name === 'Meeting') ??
+            this.logTypes.find(lt => lt.domain === 'work')  ??
+            this.logTypes[0] ?? null;
+        }
+      },
+      error: () => {}
+    });
   }
 
   // ── create new type ────────────────────────────────────
