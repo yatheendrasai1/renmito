@@ -11,11 +11,10 @@ const defaultLogTypes = require('../data/defaultLogTypes.json');
  */
 async function seedDefaultLogTypes() {
   // ── 1.59 migrations ──────────────────────────────────────────────
-  // Rename "Zleep" → "Sleep" in-place (preserves _id; fixes typo)
-  await DefaultLogType.updateOne(
-    { name: 'Zleep', category: 'sleep' },
-    { $set: { name: 'Sleep' } }
-  );
+  // Remove the old "Zleep" typo doc so the upsert loop can insert
+  // "Sleep" cleanly. Using deleteOne avoids a unique-index collision
+  // if "Sleep" was already inserted by a previous seed run.
+  await DefaultLogType.deleteOne({ name: 'Zleep', category: 'sleep' });
   // Merge "Family Time" from domain 'family' → 'personal' in-place
   await DefaultLogType.updateOne(
     { name: 'Family Time', domain: 'family' },
