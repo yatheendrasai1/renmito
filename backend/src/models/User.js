@@ -12,7 +12,4 @@ const userSchema = new mongoose.Schema(
   { timestamps: true, collection: 'users' }
 );
 
-userSchema.index({ email:    1 }, { unique: true });
-userSchema.index({ userName: 1 }, { unique: true });
-
 module.exports = mongoose.model('User', userSchema);
