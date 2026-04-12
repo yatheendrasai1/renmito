@@ -74,4 +74,43 @@ async function removePreset(req, res) {
   }
 }
 
-module.exports = { getPreferences, upsertPalette, clearPalette, addPreset, removePreset };
+// ─── PUT /api/preferences/active-log ─────────────────────────────────────────
+async function startActiveLog(req, res) {
+  try {
+    const { logTypeId, title, plannedMins } = req.body;
+    if (!logTypeId) {
+      return res.status(400).json({ error: 'logTypeId is required.' });
+    }
+    const result = await preferencesService.startActiveLog(req.user.userId, {
+      logTypeId,
+      title:       title       ?? '',
+      plannedMins: plannedMins ?? null,
+    });
+    res.json(result.data);
+  } catch (err) {
+    console.error('PUT /preferences/active-log error:', err.message);
+    res.status(500).json({ error: 'Failed to start active log.' });
+  }
+}
+
+// ─── DELETE /api/preferences/active-log ──────────────────────────────────────
+async function stopActiveLog(req, res) {
+  try {
+    const result = await preferencesService.stopActiveLog(req.user.userId);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+    res.status(204).end();
+  } catch (err) {
+    console.error('DELETE /preferences/active-log error:', err.message);
+    res.status(500).json({ error: 'Failed to stop active log.' });
+  }
+}
+
+module.exports = {
+  getPreferences,
+  upsertPalette,
+  clearPalette,
+  addPreset,
+  removePreset,
+  startActiveLog,
+  stopActiveLog,
+};

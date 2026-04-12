@@ -3,14 +3,15 @@ const UserPreference = require('../models/UserPreference');
 const MAX_PRESETS = 10;
 
 /**
- * Returns the user's stored preferences, or null if none exist yet.
+ * Returns the user's stored preferences (palette, presets, activeLog), or null if none exist.
  */
 async function getPreferences(userId) {
   const pref = await UserPreference.findOne({ userId });
   if (!pref) return null;
   return {
     palette:       pref.palette       ?? null,
-    customPresets: pref.customPresets ?? []
+    customPresets: pref.customPresets ?? [],
+    activeLog:     pref.activeLog     ?? null,
   };
 }
 
@@ -75,10 +76,48 @@ async function removePreset(userId, name) {
   return { data: { customPresets: pref.customPresets } };
 }
 
+/**
+ * 1.71 — Starts a live running log.
+ * Uses server time for startedAt to avoid cross-device clock skew.
+ */
+async function startActiveLog(userId, { logTypeId, title, plannedMins }) {
+  const startedAt = new Date();
+  const pref = await UserPreference.findOneAndUpdate(
+    { userId },
+    {
+      $set: {
+        activeLog: {
+          logTypeId,
+          title:       title || '',
+          startedAt,
+          plannedMins: plannedMins || null,
+        }
+      }
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  return { data: { activeLog: pref.activeLog } };
+}
+
+/**
+ * 1.71 — Clears the running log (called after the log entry has been saved).
+ */
+async function stopActiveLog(userId) {
+  const pref = await UserPreference.findOneAndUpdate(
+    { userId },
+    { $unset: { activeLog: '' } },
+    { new: true }
+  );
+  if (!pref) return { error: 'No preferences found.', status: 404 };
+  return { data: null };
+}
+
 module.exports = {
   getPreferences,
   upsertPalette,
   clearPalette,
   addPreset,
-  removePreset
+  removePreset,
+  startActiveLog,
+  stopActiveLog,
 };

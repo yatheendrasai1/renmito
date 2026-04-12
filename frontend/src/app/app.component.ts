@@ -10,7 +10,7 @@ import { ThemeEditorComponent, applyPaletteToDOM, loadSavedPalette, clearPalette
 import { LogService } from './services/log.service';
 import { AuthService } from './services/auth.service';
 import { LogTypeService } from './services/log-type.service';
-import { PreferenceService } from './services/preference.service';
+import { PreferenceService, ActiveLog } from './services/preference.service';
 import { LogEntry, CreateLogEntry } from './models/log.model';
 import { forkJoin } from 'rxjs';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
@@ -181,6 +181,37 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
               (cardHighlight)="onCardHighlight($event)"
             ></app-metrics>
 
+            <!-- ── 1.71: Running Log Banner ───────────────────────── -->
+            <div class="running-log-banner" *ngIf="activeLog">
+              <div class="running-log-left">
+                <span class="running-log-dot"
+                      [style.background]="activeLogTypeColor"
+                      [class.running-log-dot--pulse]="true"></span>
+                <div class="running-log-info">
+                  <span class="running-log-name">{{ activeLog.title || activeLogTypeName }}</span>
+                  <span class="running-log-sub">{{ activeLogTypeName }}</span>
+                </div>
+              </div>
+              <div class="running-log-center">
+                <span class="running-log-clock">{{ activeLogElapsedStr }}</span>
+                <!-- 1.72: Planned duration progress bar -->
+                <div class="running-log-progress" *ngIf="activeLog.plannedMins">
+                  <div class="running-log-progress-fill"
+                       [style.width.%]="activeLogPlannedPct"
+                       [class.running-log-progress-fill--done]="activeLogPlannedPct >= 100"></div>
+                </div>
+                <span class="running-log-planned" *ngIf="activeLog.plannedMins">
+                  {{ activeLogPlannedPct >= 100 ? '✓ Done' : 'of ' + activeLog.plannedMins + 'm planned' }}
+                </span>
+              </div>
+              <button class="running-log-stop-btn" (click)="stopRunningLog()" title="Stop and save log">
+                <svg width="11" height="11" viewBox="0 0 14 14" fill="currentColor">
+                  <rect x="2" y="2" width="10" height="10" rx="2"/>
+                </svg>
+                Stop
+              </button>
+            </div>
+
             <!-- ── Quick Shortcuts — 1.62 ──────────────────────── -->
             <div class="shortcuts-bar" *ngIf="isAuthenticated && shortcutDisplayTypes.length > 0">
               <span class="shortcuts-label">Quick</span>
@@ -315,6 +346,14 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
                     <span class="add-log-option-text">
                       <strong>Create log</strong>
                       <span>Open full create form</span>
+                    </span>
+                  </button>
+                  <button class="add-log-option" (click)="openStartLog(); showAddLogMenu = false"
+                          [disabled]="!!activeLog">
+                    <span class="add-log-option-icon">⏱</span>
+                    <span class="add-log-option-text">
+                      <strong>Start timer</strong>
+                      <span>{{ activeLog ? 'Timer already running' : 'Log from now, stop when done' }}</span>
                     </span>
                   </button>
                 </div>
@@ -467,15 +506,25 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
         <button class="shortcut-toast-undo" (click)="undoShortcut()">Undo</button>
       </div>
 
-      <!-- ── 1.61: Log Now FAB ──────────────────────────────── -->
+      <!-- ── 1.61/1.73: FAB — context-switches based on running log state ── -->
+      <!-- No active log → Log Now (retrospective) -->
       <button class="log-now-fab"
-              *ngIf="isAuthenticated"
+              *ngIf="isAuthenticated && !activeLog"
               (click)="openLogNow()"
-              title="Log Now — tap to record what you're doing">
+              title="Log Now — tap to record what you just did">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
           <line x1="12" y1="5" x2="12" y2="19"/>
           <line x1="5"  y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+      <!-- Active log → pulsing Stop FAB (1.73) -->
+      <button class="log-now-fab log-now-fab--stop"
+              *ngIf="isAuthenticated && activeLog"
+              (click)="stopRunningLog()"
+              title="Stop timer and save log">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="5" y="5" width="14" height="14" rx="2"/>
         </svg>
       </button>
 
@@ -517,6 +566,54 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
                   (click)="saveLogNow()"
                   [disabled]="logNowSaving || !logNowTypeId">
             {{ logNowSaving ? 'Saving…' : 'Save Log' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- ── 1.71: Start Timer sheet + backdrop ───────────────── -->
+      <div class="log-now-backdrop" *ngIf="startLogOpen" (click)="closeStartLog()"></div>
+      <div class="log-now-sheet" *ngIf="startLogOpen">
+        <div class="log-now-header">
+          <span class="log-now-title">Start Timer</span>
+          <button class="log-now-close" (click)="closeStartLog()" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6"  x2="6"  y2="18"/>
+              <line x1="6"  y1="6"  x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="log-now-fields">
+          <select class="log-now-select" [(ngModel)]="startLogTypeId">
+            <option *ngFor="let lt of inlineLogTypes" [value]="lt._id">{{ lt.name }}</option>
+          </select>
+          <input class="log-now-input" type="text"
+                 placeholder="Title (optional — defaults to type name)"
+                 [(ngModel)]="startLogTitle"/>
+          <!-- 1.72: Planned duration chips -->
+          <div class="start-log-planned-row">
+            <span class="start-log-planned-label">Plan for:</span>
+            <div class="start-log-planned-chips">
+              <button *ngFor="let opt of [{v:'',l:'None'},{v:'15',l:'15m'},{v:'30',l:'30m'},{v:'60',l:'1h'},{v:'90',l:'1.5h'},{v:'120',l:'2h'}]"
+                      class="start-log-chip"
+                      [class.start-log-chip--active]="startLogPlanned === opt.v"
+                      (click)="startLogPlanned = opt.v">
+                {{ opt.l }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="log-now-actions">
+          <button class="log-now-cancel" (click)="closeStartLog()">Cancel</button>
+          <button class="log-now-save log-now-save--start"
+                  (click)="saveStartLog()"
+                  [disabled]="startLogSaving || !startLogTypeId">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            {{ startLogSaving ? 'Starting…' : 'Start Timer' }}
           </button>
         </div>
       </div>
@@ -2030,6 +2127,162 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
       margin-left: 2px;
     }
 
+    /* ── 1.71/1.72/1.73: Running Log Banner ──────────────────── */
+    .running-log-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: color-mix(in srgb, var(--accent) 8%, var(--bg-surface));
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      animation: toastSlideUp 0.25s ease;
+    }
+
+    .running-log-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .running-log-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .running-log-dot--pulse {
+      animation: runningPulse 1.6s ease-in-out infinite;
+    }
+    @keyframes runningPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.45; transform: scale(1.4); }
+    }
+
+    .running-log-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .running-log-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .running-log-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .running-log-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .running-log-clock {
+      font-size: 20px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-primary);
+      letter-spacing: 0.5px;
+      line-height: 1;
+    }
+    .running-log-planned {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .running-log-progress {
+      width: 80px;
+      height: 4px;
+      background: var(--border-light);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .running-log-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 1s linear;
+    }
+    .running-log-progress-fill--done { background: #5BAD6F; }
+
+    .running-log-stop-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 14px;
+      background: #e05c5c;
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+    .running-log-stop-btn:hover { opacity: 0.85; }
+
+    /* ── 1.73: Pulsing Stop FAB ─────────────────────────────── */
+    .log-now-fab--stop {
+      background: #e05c5c !important;
+      animation: fabPulse 1.6s ease-in-out infinite;
+    }
+    @keyframes fabPulse {
+      0%, 100% { box-shadow: 0 4px 20px rgba(224,92,92,0.5), 0 0 0 0 rgba(224,92,92,0.35); }
+      50%       { box-shadow: 0 4px 20px rgba(224,92,92,0.5), 0 0 0 10px rgba(224,92,92,0); }
+    }
+
+    /* ── 1.71: Start Timer sheet extras ─────────────────────── */
+    .start-log-planned-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .start-log-planned-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .start-log-planned-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .start-log-chip {
+      padding: 5px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+    .start-log-chip:hover { border-color: var(--accent); color: var(--text-primary); }
+    .start-log-chip--active {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 15%, var(--bg-card));
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .log-now-save--start {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     /* ── 1.68: Wrap-Up Banner ────────────────────────────────── */
     .wrapup-banner {
       display: flex;
@@ -2231,6 +2484,18 @@ export class AppComponent implements OnInit {
   // ── 1.63: Continue Last Log ───────────────────────────────────
   // (reuses shortcutSaving / shortcutToast / toastTimer)
 
+  // ── 1.71/1.72/1.73: Running Log ──────────────────────────────
+  activeLog:     ActiveLog | null = null;
+  activeLogTick  = 0;            // seconds elapsed since startedAt
+  private activeLogTimerRef: any = null;
+
+  // Start-timer sheet state
+  startLogOpen    = false;
+  startLogTypeId  = '';
+  startLogTitle   = '';
+  startLogPlanned = '';           // '' | '15' | '30' | '60' | '90' | '120'
+  startLogSaving  = false;
+
   // ── 1.68: End-of-Day Wrap-Up ──────────────────────────────────
   wrapUpOpen    = false;
   wrapUpGaps:   Array<{ start: string; end: string; mins: number }> = [];
@@ -2301,18 +2566,27 @@ export class AppComponent implements OnInit {
     this.syncPaletteFromDB();
   }
 
-  /** Fetch preferences from DB, apply active palette and update localStorage cache.
+  /** Fetch preferences from DB — apply palette + restore any running log.
    *  1.52: If the user has no saved palette in DB, wipe any stale cache that may
    *  have been loaded from localStorage before we knew which user was logging in —
-   *  this prevents one user's theme from bleeding into another user's session. */
+   *  this prevents one user's theme from bleeding into another user's session.
+   *  1.71: activeLog is restored here so the ticking timer resumes even after a
+   *  page reload or when the user opens the app on a different device. */
   private syncPaletteFromDB(): void {
     this.prefService.getPreferences().subscribe(prefs => {
       if (prefs?.palette) {
         applyPaletteToDOM(prefs.palette);
         localStorage.setItem('renmito-palette', JSON.stringify(prefs.palette));
       } else {
-        // No palette saved for this user — evict any previous user's cached palette
         clearPaletteFromDOM();
+      }
+      // 1.71: Resume running log ticker if one was already active
+      if (prefs?.activeLog) {
+        this.activeLog = prefs.activeLog;
+        this.startActiveLogTimer();
+      } else {
+        this.stopActiveLogTimer();
+        this.activeLog = null;
       }
     });
   }
@@ -2331,6 +2605,8 @@ export class AppComponent implements OnInit {
         localStorage.removeItem('renmito-theme');
         this.theme = 'dark';
         document.documentElement.setAttribute('data-theme', 'dark');
+        this.stopActiveLogTimer();
+        this.activeLog       = null;
         this.isAuthenticated = false;
         this.currentUser     = null;
         this.logs            = [];
@@ -2755,6 +3031,158 @@ export class AppComponent implements OnInit {
     this.logService.deleteLog(this.selectedDate, id).subscribe({
       next:  () => this.loadLogs(),
       error: () => {}
+    });
+  }
+
+  // ── 1.71/1.72/1.73: Running Log ──────────────────────────────
+
+  /** MM:SS or H:MM:SS elapsed since the running log was started. */
+  get activeLogElapsedStr(): string {
+    const s   = this.activeLogTick;
+    const h   = Math.floor(s / 3600);
+    const m   = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h > 0) {
+      return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  }
+
+  /** 0–100 progress through the planned duration. 0 if no plan set. */
+  get activeLogPlannedPct(): number {
+    if (!this.activeLog?.plannedMins) return 0;
+    return Math.min(100, (this.activeLogTick / (this.activeLog.plannedMins * 60)) * 100);
+  }
+
+  /** Display name for the running log type. */
+  get activeLogTypeName(): string {
+    if (!this.activeLog) return '';
+    const lt = this.inlineLogTypes.find((t: any) => t._id === this.activeLog!.logTypeId);
+    return lt?.name ?? 'Running Log';
+  }
+
+  /** Color for the running log dot. */
+  get activeLogTypeColor(): string {
+    if (!this.activeLog) return '#9B9B9B';
+    const lt = this.inlineLogTypes.find((t: any) => t._id === this.activeLog!.logTypeId);
+    return lt?.color ?? '#9B9B9B';
+  }
+
+  private startActiveLogTimer(): void {
+    this.stopActiveLogTimer();
+    if (!this.activeLog) return;
+    const update = () => {
+      const elapsed = Date.now() - new Date(this.activeLog!.startedAt).getTime();
+      this.activeLogTick = Math.max(0, Math.floor(elapsed / 1000));
+    };
+    update();
+    this.activeLogTimerRef = setInterval(update, 1000);
+  }
+
+  private stopActiveLogTimer(): void {
+    if (this.activeLogTimerRef) {
+      clearInterval(this.activeLogTimerRef);
+      this.activeLogTimerRef = null;
+    }
+  }
+
+  /** Opens the "Start Timer" sheet. Pre-loads log types if needed. */
+  openStartLog(): void {
+    if (!this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((t: any[]) => {
+        this.inlineLogTypes = t;
+        this._openStartLogSheet();
+      });
+    } else {
+      this._openStartLogSheet();
+    }
+  }
+
+  private _openStartLogSheet(): void {
+    const lastTypeId = this.logs.length
+      ? (this.logs[this.logs.length - 1].logType?.id ?? null)
+      : null;
+    const defaultLt  = lastTypeId
+      ? (this.inlineLogTypes.find((t: any) => t._id === lastTypeId) ?? this.inlineLogTypes[0])
+      : this.inlineLogTypes[0];
+    this.startLogTypeId  = defaultLt?._id ?? '';
+    this.startLogTitle   = '';
+    this.startLogPlanned = '';
+    this.startLogOpen    = true;
+  }
+
+  closeStartLog(): void { this.startLogOpen = false; }
+
+  /** Sends PUT /preferences/active-log — server records startedAt. */
+  saveStartLog(): void {
+    if (this.startLogSaving || !this.startLogTypeId) return;
+    const lt          = this.inlineLogTypes.find((t: any) => t._id === this.startLogTypeId);
+    const title       = this.startLogTitle.trim() || (lt?.name ?? 'Log');
+    const plannedMins = this.startLogPlanned ? parseInt(this.startLogPlanned, 10) : null;
+
+    this.startLogSaving = true;
+    this.prefService.startActiveLog({ logTypeId: this.startLogTypeId, title, plannedMins })
+      .subscribe({
+        next: (activeLog) => {
+          this.startLogSaving = false;
+          this.startLogOpen   = false;
+          if (activeLog) {
+            this.activeLog = activeLog;
+            this.startActiveLogTimer();
+          }
+        },
+        error: () => { this.startLogSaving = false; }
+      });
+  }
+
+  /**
+   * 1.71 — Stops the running log: creates the log entry then clears activeLog from DB.
+   * If the log started before today, start time is clamped to 00:00 of today.
+   */
+  stopRunningLog(): void {
+    if (!this.activeLog) return;
+
+    const startedAt     = new Date(this.activeLog.startedAt);
+    const now           = new Date();
+    const todayMidnight = new Date(now);
+    todayMidnight.setHours(0, 0, 0, 0);
+
+    const effectiveStart = startedAt < todayMidnight ? todayMidnight : startedAt;
+    const startAt = `${String(effectiveStart.getHours()).padStart(2, '0')}:${String(effectiveStart.getMinutes()).padStart(2, '0')}`;
+    const endAt   = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const lt    = this.inlineLogTypes.find((t: any) => t._id === this.activeLog!.logTypeId);
+    const title = this.activeLog.title || (lt?.name ?? 'Log');
+
+    // Optimistically clear local state for instant UI feedback
+    this.stopActiveLogTimer();
+    const savedLog = { ...this.activeLog };
+    this.activeLog = null;
+
+    this.logService.createLog(this.selectedDate, {
+      title,
+      logTypeId: savedLog.logTypeId,
+      startTime: startAt,
+      endTime:   endAt,
+    }).subscribe({
+      next: () => {
+        this.prefService.stopActiveLog().subscribe();
+        this.loadLogs();
+        const diff = this.timeToMinutes(endAt) - this.timeToMinutes(startAt);
+        if (diff > 0) {
+          const h = Math.floor(diff / 60), m = diff % 60;
+          const dur = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+          this.shortcutToast = { message: `${lt?.name ?? 'Log'} · ${dur}`, logId: '' };
+          clearTimeout(this.toastTimer);
+          this.toastTimer = setTimeout(() => this.shortcutToast = null, 3500);
+        }
+      },
+      error: () => {
+        // Restore if save failed
+        this.activeLog = savedLog;
+        this.startActiveLogTimer();
+        alert('Failed to save the running log. Timer has been resumed.');
+      }
     });
   }
 

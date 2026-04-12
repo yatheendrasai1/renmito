@@ -15,6 +15,21 @@ const paletteSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/**
+ * 1.71 — Stores the currently-running live log (started but not yet stopped).
+ * Persisted in DB so the timer state is consistent across devices.
+ * startedAt is set by the server to avoid cross-device clock skew.
+ */
+const activeLogSchema = new mongoose.Schema(
+  {
+    logTypeId:   { type: mongoose.Schema.Types.ObjectId, ref: 'LogType', required: true },
+    title:       { type: String, default: '' },
+    startedAt:   { type: Date, required: true },      // server-side UTC timestamp
+    plannedMins: { type: Number, default: null },      // optional planned duration (1.72)
+  },
+  { _id: false }
+);
+
 const userPreferenceSchema = new mongoose.Schema(
   {
     userId: {
@@ -38,6 +53,9 @@ const userPreferenceSchema = new mongoose.Schema(
         message:   'Maximum of 10 custom presets allowed per account.'
       }
     },
+
+    /** Currently-running live log, or null when no timer is active. */
+    activeLog: { type: activeLogSchema, default: null },
   },
   { timestamps: true, collection: 'userPreferences' }
 );

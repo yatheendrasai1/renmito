@@ -5,9 +5,18 @@ import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { ColorPalette } from '../components/theme-editor/theme-editor.component';
 
+/** 1.71 — A live running log stored in the backend so it syncs across devices. */
+export interface ActiveLog {
+  logTypeId:   string;
+  title:       string;
+  startedAt:   string;        // ISO date string — written by the server (avoids clock skew)
+  plannedMins: number | null; // 1.72 — optional planned duration
+}
+
 export interface UserPreferences {
   palette:       ColorPalette | null;
   customPresets: ColorPalette[];
+  activeLog:     ActiveLog | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -16,7 +25,7 @@ export class PreferenceService {
 
   constructor(private http: HttpClient) {}
 
-  /** Returns active palette + all custom presets. Null on 204 / error. */
+  /** Returns active palette + all custom presets + running log. Null on 204 / error. */
   getPreferences(): Observable<UserPreferences | null> {
     return this.http
       .get<UserPreferences>(this.apiBase)
@@ -78,6 +87,39 @@ export class PreferenceService {
         catchError(err => {
           console.warn('Could not delete preset:', err?.message);
           return of(null);
+        })
+      );
+  }
+
+  /**
+   * 1.71 — Starts a live running log.
+   * The server writes startedAt to avoid cross-device clock skew.
+   * Returns the saved activeLog record (with server timestamp).
+   */
+  startActiveLog(payload: {
+    logTypeId:   string;
+    title:       string;
+    plannedMins: number | null;
+  }): Observable<ActiveLog | null> {
+    return this.http
+      .put<{ activeLog: ActiveLog }>(`${this.apiBase}/active-log`, payload)
+      .pipe(
+        map(res => res?.activeLog ?? null),
+        catchError(err => {
+          console.warn('Could not start active log:', err?.message);
+          return of(null);
+        })
+      );
+  }
+
+  /** 1.71 — Clears the running log from the DB after the log entry has been saved. */
+  stopActiveLog(): Observable<void> {
+    return this.http
+      .delete<void>(`${this.apiBase}/active-log`)
+      .pipe(
+        catchError(err => {
+          console.warn('Could not stop active log:', err?.message);
+          return of(undefined);
         })
       );
   }
