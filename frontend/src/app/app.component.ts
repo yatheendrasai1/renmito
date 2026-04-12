@@ -194,6 +194,21 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
               </button>
             </div>
 
+            <!-- ── 1.68: End-of-Day Wrap-Up Banner ───────────── -->
+            <div class="wrapup-banner" *ngIf="showWrapUpBanner">
+              <svg class="wrapup-banner-icon" width="14" height="14" viewBox="0 0 24 24"
+                   fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+              <span class="wrapup-banner-text">
+                <strong>{{ todayGaps.length }} gap{{ todayGaps.length > 1 ? 's' : '' }}</strong>
+                &nbsp;· {{ totalGapLabel }} unlogged today
+              </span>
+              <button class="wrapup-start-btn" (click)="openWrapUp()">Wrap Up</button>
+              <button class="wrapup-dismiss-btn" (click)="dismissWrapUp()" aria-label="Dismiss">✕</button>
+            </div>
+
             <!-- ── Quick Logs — 1.55 ──────────────────────────── -->
             <div class="quick-logs-section">
 
@@ -419,6 +434,23 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
                 <span>Drag on the timeline above to get started.</span>
               </div>
 
+              <!-- ── 1.63: Continue Last Log ─────────────────── -->
+              <div class="continue-log-row"
+                   *ngIf="isToday && lastRangeLog && !inlineEditId">
+                <button class="continue-log-btn"
+                        [disabled]="shortcutSaving"
+                        (click)="continueLastLog()">
+                  <span class="continue-dot"
+                        [style.background]="lastRangeLog.logType?.color ?? '#9B9B9B'"></span>
+                  <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor">
+                    <path d="M2 1.5l6 3.5-6 3.5V1.5z"/>
+                  </svg>
+                  Continue
+                  <strong>{{ lastRangeLog.logType?.name ?? 'last log' }}</strong>
+                  <span class="continue-since">since {{ lastRangeLog.endAt }}</span>
+                </button>
+              </div>
+
             </div><!-- /log-list-section -->
               </div><!-- /split-logs -->
 
@@ -485,6 +517,56 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
                   (click)="saveLogNow()"
                   [disabled]="logNowSaving || !logNowTypeId">
             {{ logNowSaving ? 'Saving…' : 'Save Log' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- ── 1.68: Wrap-Up sheet + backdrop ───────────────────── -->
+      <div class="log-now-backdrop" *ngIf="wrapUpOpen" (click)="closeWrapUp()"></div>
+      <div class="log-now-sheet wrapup-sheet" *ngIf="wrapUpOpen">
+        <div class="log-now-header">
+          <div class="wrapup-header-left">
+            <span class="log-now-title">Fill Gap {{ wrapUpIdx + 1 }} / {{ wrapUpGaps.length }}</span>
+            <div class="wrapup-step-dots">
+              <span *ngFor="let g of wrapUpGaps; let i = index"
+                    class="wrapup-step-dot"
+                    [class.wrapup-step-dot--done]="i < wrapUpIdx"
+                    [class.wrapup-step-dot--active]="i === wrapUpIdx"></span>
+            </div>
+          </div>
+          <button class="log-now-close" (click)="closeWrapUp()" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6"  x2="6"  y2="18"/>
+              <line x1="6"  y1="6"  x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Gap time display -->
+        <div class="wrapup-gap-time" *ngIf="wrapUpCurrentGap">
+          <span class="wrapup-time">{{ wrapUpCurrentGap.start }}</span>
+          <span class="wrapup-time-arrow">→</span>
+          <span class="wrapup-time">{{ wrapUpCurrentGap.end }}</span>
+          <span class="wrapup-duration-badge">{{ formatGapMins(wrapUpCurrentGap.mins) }}</span>
+        </div>
+
+        <div class="log-now-fields">
+          <select class="log-now-select" [(ngModel)]="wrapUpTypeId">
+            <option value="" disabled>Select type…</option>
+            <option *ngFor="let lt of inlineLogTypes" [value]="lt._id">{{ lt.name }}</option>
+          </select>
+          <input class="log-now-input" type="text"
+                 placeholder="Title (optional — defaults to type name)"
+                 [(ngModel)]="wrapUpTitle"/>
+        </div>
+
+        <div class="log-now-actions">
+          <button class="log-now-cancel" (click)="wrapUpSkip()">Skip</button>
+          <button class="log-now-save"
+                  (click)="wrapUpSave()"
+                  [disabled]="wrapUpSaving || !wrapUpTypeId">
+            {{ wrapUpSaving ? 'Saving…' : (wrapUpIdx === wrapUpGaps.length - 1 ? 'Save & Finish' : 'Save & Next →') }}
           </button>
         </div>
       </div>
@@ -1906,6 +1988,150 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
       cursor: pointer;
     }
     .log-now-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── 1.63: Continue Last Log ─────────────────────────────── */
+    .continue-log-row {
+      padding: 6px 12px 10px;
+      display: flex;
+    }
+
+    .continue-log-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: var(--bg-card);
+      border: 1px dashed var(--border-light);
+      color: var(--text-muted);
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      width: 100%;
+      justify-content: center;
+    }
+    .continue-log-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--text-primary);
+      background: var(--nav-item-hover);
+    }
+    .continue-log-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .continue-log-btn strong { color: var(--text-primary); font-weight: 600; }
+
+    .continue-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .continue-since {
+      color: var(--text-muted);
+      font-size: 11px;
+      margin-left: 2px;
+    }
+
+    /* ── 1.68: Wrap-Up Banner ────────────────────────────────── */
+    .wrapup-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      background: color-mix(in srgb, var(--accent) 12%, var(--bg-surface));
+      border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+      border-radius: var(--radius);
+      animation: toastSlideUp 0.2s ease;
+    }
+
+    .wrapup-banner-icon {
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .wrapup-banner-text {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .wrapup-banner-text strong { color: var(--text-primary); }
+
+    .wrapup-start-btn {
+      padding: 5px 14px;
+      background: var(--accent);
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .wrapup-start-btn:hover { opacity: 0.88; }
+
+    .wrapup-dismiss-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      cursor: pointer;
+      padding: 2px 4px;
+      flex-shrink: 0;
+    }
+    .wrapup-dismiss-btn:hover { color: var(--text-primary); }
+
+    /* Wrap-Up Sheet extras (builds on .log-now-sheet) */
+    .wrapup-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .wrapup-step-dots {
+      display: flex;
+      gap: 5px;
+    }
+
+    .wrapup-step-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--border-light);
+      transition: background 0.2s;
+    }
+    .wrapup-step-dot--done   { background: var(--accent); opacity: 0.45; }
+    .wrapup-step-dot--active { background: var(--accent); }
+
+    .wrapup-gap-time {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 0 14px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 14px;
+    }
+
+    .wrapup-time {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .wrapup-time-arrow {
+      color: var(--text-muted);
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .wrapup-duration-badge {
+      margin-left: auto;
+      padding: 3px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
   `]
 })
 export class AppComponent implements OnInit {
@@ -2001,6 +2227,18 @@ export class AppComponent implements OnInit {
   logNowStart  = '09:00';
   logNowEnd    = '09:00';
   logNowSaving = false;
+
+  // ── 1.63: Continue Last Log ───────────────────────────────────
+  // (reuses shortcutSaving / shortcutToast / toastTimer)
+
+  // ── 1.68: End-of-Day Wrap-Up ──────────────────────────────────
+  wrapUpOpen    = false;
+  wrapUpGaps:   Array<{ start: string; end: string; mins: number }> = [];
+  wrapUpIdx     = 0;
+  wrapUpTypeId  = '';
+  wrapUpTitle   = '';
+  wrapUpSaving  = false;
+  private wrapUpDismissedDate = '';
 
   constructor(
     private logService:     LogService,
@@ -2575,6 +2813,128 @@ export class AppComponent implements OnInit {
       next:  () => { this.logNowSaving = false; this.logNowOpen = false; this.loadLogs(); },
       error: () => { this.logNowSaving = false; }
     });
+  }
+
+  // ── 1.63: Continue Last Log ──────────────────────────────────
+
+  /** Last range log that has an end time — used by the Continue chip. */
+  get lastRangeLog(): LogEntry | null {
+    const range = this.logs.filter(l => l.entryType === 'range' && !!l.endAt);
+    return range.length ? range[range.length - 1] : null;
+  }
+
+  continueLastLog(): void {
+    const last = this.lastRangeLog;
+    if (!last || this.shortcutSaving) return;
+    const now       = this.currentTimeStr();
+    const startStr  = last.endAt!;
+    const startMins = this.timeToMinutes(startStr);
+    const endMins   = this.timeToMinutes(now);
+    if (endMins <= startMins) return;
+
+    this.shortcutSaving = true;
+    this.logService.createLog(this.selectedDate, {
+      title:     last.title || (last.logType?.name ?? 'Log'),
+      logTypeId: last.logType?.id ?? '',
+      startTime: startStr,
+      endTime:   now,
+    }).subscribe({
+      next: (created) => {
+        this.shortcutSaving = false;
+        this.loadLogs();
+        const diff = endMins - startMins;
+        const h = Math.floor(diff / 60), m = diff % 60;
+        const dur = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+        const name = last.logType?.name ?? 'Log';
+        this.shortcutToast = { message: `${name} continued · ${dur}`, logId: created.id };
+        clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => this.shortcutToast = null, 3000);
+      },
+      error: () => { this.shortcutSaving = false; }
+    });
+  }
+
+  // ── 1.68: End-of-Day Wrap-Up ─────────────────────────────────
+
+  private localDateKey(d: Date): string {
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  /** Unlogged gaps ≥15 min between consecutive range logs for the selected day. */
+  get todayGaps(): Array<{ start: string; end: string; mins: number }> {
+    const sorted = this.logs
+      .filter(l => l.entryType === 'range' && l.startAt && l.endAt)
+      .sort((a, b) => this.timeToMinutes(a.startAt) - this.timeToMinutes(b.startAt));
+    const gaps: Array<{ start: string; end: string; mins: number }> = [];
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const gapStart = sorted[i].endAt!;
+      const gapEnd   = sorted[i + 1].startAt;
+      const gapMins  = this.timeToMinutes(gapEnd) - this.timeToMinutes(gapStart);
+      if (gapMins >= 15) gaps.push({ start: gapStart, end: gapEnd, mins: gapMins });
+    }
+    return gaps;
+  }
+
+  /** Show the wrap-up banner after 5 PM on today's date when gaps exist. */
+  get showWrapUpBanner(): boolean {
+    return this.isToday
+      && !this.wrapUpOpen
+      && new Date().getHours() >= 17
+      && this.wrapUpDismissedDate !== this.localDateKey(new Date())
+      && this.todayGaps.length > 0;
+  }
+
+  get totalGapLabel(): string { return this.formatGapMins(this.todayGaps.reduce((s, g) => s + g.mins, 0)); }
+  get wrapUpCurrentGap() { return this.wrapUpGaps[this.wrapUpIdx] ?? null; }
+
+  formatGapMins(mins: number): string {
+    const h = Math.floor(mins / 60), m = mins % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  }
+
+  openWrapUp(): void {
+    this.wrapUpGaps    = [...this.todayGaps];
+    this.wrapUpIdx     = 0;
+    this.wrapUpTypeId  = this.inlineLogTypes[0]?._id ?? '';
+    this.wrapUpTitle   = '';
+    this.wrapUpOpen    = true;
+  }
+
+  closeWrapUp(): void { this.wrapUpOpen = false; }
+
+  dismissWrapUp(): void { this.wrapUpDismissedDate = this.localDateKey(new Date()); }
+
+  wrapUpSkip(): void { this.advanceWrapUp(); }
+
+  wrapUpSave(): void {
+    const gap = this.wrapUpCurrentGap;
+    if (!gap || this.wrapUpSaving || !this.wrapUpTypeId) return;
+    const lt    = this.inlineLogTypes.find((t: any) => t._id === this.wrapUpTypeId);
+    const title = this.wrapUpTitle.trim() || (lt?.name ?? 'Log');
+    this.wrapUpSaving = true;
+    this.logService.createLog(this.selectedDate, {
+      title,
+      logTypeId: this.wrapUpTypeId,
+      startTime: gap.start,
+      endTime:   gap.end,
+    }).subscribe({
+      next:  () => { this.wrapUpSaving = false; this.loadLogs(); this.advanceWrapUp(); },
+      error: () => { this.wrapUpSaving = false; }
+    });
+  }
+
+  private advanceWrapUp(): void {
+    if (this.wrapUpIdx < this.wrapUpGaps.length - 1) {
+      this.wrapUpIdx++;
+      this.wrapUpTypeId = this.inlineLogTypes[0]?._id ?? '';
+      this.wrapUpTitle  = '';
+    } else {
+      this.wrapUpOpen          = false;
+      this.wrapUpDismissedDate = this.localDateKey(new Date());
+    }
   }
 
   private minsToTimeStr(mins: number): string {
