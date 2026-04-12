@@ -181,6 +181,19 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
               (cardHighlight)="onCardHighlight($event)"
             ></app-metrics>
 
+            <!-- ── Quick Shortcuts — 1.62 ──────────────────────── -->
+            <div class="shortcuts-bar" *ngIf="isAuthenticated && shortcutDisplayTypes.length > 0">
+              <span class="shortcuts-label">Quick</span>
+              <button class="shortcut-chip"
+                      *ngFor="let lt of shortcutDisplayTypes"
+                      [disabled]="shortcutSaving"
+                      (click)="onShortcutTap(lt)"
+                      [title]="'Log ' + lt.name + ' from now'">
+                <span class="shortcut-dot" [style.background]="lt.color"></span>
+                {{ lt.name }}
+              </button>
+            </div>
+
             <!-- ── Quick Logs — 1.55 ──────────────────────────── -->
             <div class="quick-logs-section">
 
@@ -415,6 +428,66 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
 
         </div><!-- /view-area -->
       </div><!-- /app-body -->
+
+      <!-- ── 1.62: Undo toast ──────────────────────────────── -->
+      <div class="shortcut-toast" *ngIf="shortcutToast">
+        <span class="shortcut-toast-msg">✓ {{ shortcutToast.message }}</span>
+        <button class="shortcut-toast-undo" (click)="undoShortcut()">Undo</button>
+      </div>
+
+      <!-- ── 1.61: Log Now FAB ──────────────────────────────── -->
+      <button class="log-now-fab"
+              *ngIf="isAuthenticated"
+              (click)="openLogNow()"
+              title="Log Now — tap to record what you're doing">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5"  y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+
+      <!-- ── 1.61: Log Now sheet + backdrop ─────────────────── -->
+      <div class="log-now-backdrop" *ngIf="logNowOpen" (click)="closeLogNow()"></div>
+      <div class="log-now-sheet" *ngIf="logNowOpen">
+        <div class="log-now-header">
+          <span class="log-now-title">Log Now</span>
+          <button class="log-now-close" (click)="closeLogNow()" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6"  x2="6"  y2="18"/>
+              <line x1="6"  y1="6"  x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="log-now-fields">
+          <select class="log-now-select"
+                  [(ngModel)]="logNowTypeId"
+                  (ngModelChange)="onLogNowTypeChange()">
+            <option *ngFor="let lt of inlineLogTypes" [value]="lt._id">
+              {{ lt.name }}
+            </option>
+          </select>
+          <input class="log-now-input" type="text"
+                 placeholder="Title (optional — defaults to type name)"
+                 [(ngModel)]="logNowTitle"/>
+          <div class="log-now-times">
+            <label class="log-now-time-label">Start</label>
+            <input class="log-now-time" type="time" [(ngModel)]="logNowStart"/>
+            <span class="log-now-arrow">→</span>
+            <label class="log-now-time-label">End</label>
+            <input class="log-now-time" type="time" [(ngModel)]="logNowEnd"/>
+          </div>
+        </div>
+        <div class="log-now-actions">
+          <button class="log-now-cancel" (click)="closeLogNow()">Cancel</button>
+          <button class="log-now-save"
+                  (click)="saveLogNow()"
+                  [disabled]="logNowSaving || !logNowTypeId">
+            {{ logNowSaving ? 'Saving…' : 'Save Log' }}
+          </button>
+        </div>
+      </div>
 
       <!-- ── Footer — 1.35 / fixed full-width 1.52 ─────── -->
       <footer class="app-footer">
@@ -1599,6 +1672,240 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
       }
       .ql-dur-btn:last-child { border-bottom: none; }
     }
+
+    /* ── 1.62: Quick Shortcuts Bar ──────────────────────────── */
+    .shortcuts-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      overflow-x: auto;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      scrollbar-width: none;
+    }
+    .shortcuts-bar::-webkit-scrollbar { display: none; }
+
+    .shortcuts-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+      padding-right: 2px;
+    }
+
+    .shortcut-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .shortcut-chip:hover:not(:disabled) {
+      background: var(--nav-item-hover);
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+    .shortcut-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .shortcut-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Toast */
+    .shortcut-toast {
+      position: fixed;
+      bottom: 84px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 400;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 8px 8px 8px 16px;
+      box-shadow: var(--shadow);
+      white-space: nowrap;
+      animation: toastSlideUp 0.2s ease;
+    }
+    .shortcut-toast-msg {
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+    .shortcut-toast-undo {
+      background: none;
+      border: 1px solid var(--border-light);
+      border-radius: 14px;
+      padding: 4px 12px;
+      font-size: 11px;
+      color: var(--accent);
+      cursor: pointer;
+    }
+    .shortcut-toast-undo:hover { background: var(--bg-card); }
+
+    @keyframes toastSlideUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    /* ── 1.61: Log Now FAB ───────────────────────────────────── */
+    .log-now-fab {
+      position: fixed;
+      bottom: 72px;
+      right: 20px;
+      z-index: 250;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.45);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .log-now-fab:hover {
+      transform: scale(1.06);
+      box-shadow: 0 6px 22px rgba(0,0,0,0.55);
+    }
+
+    /* Log Now Sheet */
+    .log-now-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      background: rgba(0,0,0,0.45);
+    }
+
+    .log-now-sheet {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 301;
+      width: 100%;
+      max-width: 480px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      border-radius: 16px 16px 0 0;
+      padding: 20px 20px 36px;
+      animation: slideUp 0.22s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateX(-50%) translateY(100%); }
+      to   { transform: translateX(-50%) translateY(0); }
+    }
+
+    .log-now-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .log-now-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .log-now-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+    }
+
+    .log-now-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .log-now-select, .log-now-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .log-now-times {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .log-now-time-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+    }
+    .log-now-time {
+      flex: 1;
+      padding: 10px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+    }
+    .log-now-arrow {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+
+    .log-now-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .log-now-cancel {
+      flex: 1;
+      padding: 11px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .log-now-save {
+      flex: 2;
+      padding: 11px;
+      background: var(--highlight-selected);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .log-now-save:disabled { opacity: 0.5; cursor: not-allowed; }
   `]
 })
 export class AppComponent implements OnInit {
@@ -1682,6 +1989,19 @@ export class AppComponent implements OnInit {
   readonly quickHours   = Array.from({ length: 24 }, (_, i) => i); // 0–23
   readonly quickMinutes = Array.from({ length: 60 }, (_, i) => i); // 0–59
 
+  // ── 1.62: Quick Shortcuts Bar ─────────────────────────────────
+  shortcutToast: { message: string; logId: string } | null = null;
+  shortcutSaving = false;
+  private toastTimer: any = null;
+
+  // ── 1.61: Log Now FAB ─────────────────────────────────────────
+  logNowOpen   = false;
+  logNowTypeId = '';
+  logNowTitle  = '';
+  logNowStart  = '09:00';
+  logNowEnd    = '09:00';
+  logNowSaving = false;
+
   constructor(
     private logService:     LogService,
     private authService:    AuthService,
@@ -1725,6 +2045,8 @@ export class AppComponent implements OnInit {
       today.setHours(0, 0, 0, 0);
       this.selectedDate = today;
       this.loadLogs();
+      // Pre-load log types for shortcuts bar and Log Now FAB
+      this.logTypeService.getLogTypes().subscribe((t: any[]) => this.inlineLogTypes = t);
       // Sync palette from DB (may differ if the user changed it on another device)
       this.syncPaletteFromDB();
     }
@@ -2138,6 +2460,121 @@ export class AppComponent implements OnInit {
 
     if (this.inlineLogTypes.length) { run(); }
     else { this.logTypeService.getLogTypes().subscribe((t: any[]) => { this.inlineLogTypes = t; run(); }); }
+  }
+
+  // ── 1.62: Quick Shortcuts ─────────────────────────────────────
+
+  /** Top 5 log types for the shortcuts bar — types used today first, then work domain. */
+  get shortcutDisplayTypes(): any[] {
+    if (!this.inlineLogTypes.length) return [];
+    const usedIds = new Set(this.logs.map(l => l.logType?.id).filter(Boolean));
+    return [...this.inlineLogTypes]
+      .sort((a, b) => {
+        const aUsed = usedIds.has(a._id) ? 0 : 1;
+        const bUsed = usedIds.has(b._id) ? 0 : 1;
+        if (aUsed !== bUsed) return aUsed - bUsed;
+        if (a.domain === 'work' && b.domain !== 'work') return -1;
+        if (a.domain !== 'work' && b.domain === 'work') return 1;
+        return 0;
+      })
+      .slice(0, 6);
+  }
+
+  onShortcutTap(lt: any): void {
+    if (this.shortcutSaving) return;
+    const now       = this.currentTimeStr();
+    const startStr  = this.smartDefaultStart;
+    const startMins = this.timeToMinutes(startStr);
+    const endMins   = this.timeToMinutes(now);
+    if (endMins <= startMins) return;
+
+    this.shortcutSaving = true;
+    this.logService.createLog(this.selectedDate, {
+      title:     lt.name,
+      logTypeId: lt._id,
+      startTime: startStr,
+      endTime:   now,
+    }).subscribe({
+      next: (created) => {
+        this.shortcutSaving = false;
+        this.loadLogs();
+        const diff = endMins - startMins;
+        const h = Math.floor(diff / 60), m = diff % 60;
+        const dur = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+        this.shortcutToast = { message: `${lt.name} · ${dur}`, logId: created.id };
+        clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => this.shortcutToast = null, 3000);
+      },
+      error: () => { this.shortcutSaving = false; }
+    });
+  }
+
+  undoShortcut(): void {
+    if (!this.shortcutToast) return;
+    const id = this.shortcutToast.logId;
+    this.shortcutToast = null;
+    clearTimeout(this.toastTimer);
+    this.logService.deleteLog(this.selectedDate, id).subscribe({
+      next:  () => this.loadLogs(),
+      error: () => {}
+    });
+  }
+
+  // ── 1.61: Log Now FAB ─────────────────────────────────────────
+
+  /**
+   * Smart default start: end of last log, capped to now - 30 min if
+   * the last log ended more than 30 min ago.
+   */
+  private get smartDefaultStart(): string {
+    const last    = this.logs[this.logs.length - 1];
+    const nowMins = this.timeToMinutes(this.currentTimeStr());
+    if (!last) return this.minsToTimeStr(Math.max(0, nowMins - 30));
+    const lastEndMins = this.timeToMinutes(last.endAt ?? last.startAt);
+    return this.minsToTimeStr(
+      nowMins - lastEndMins > 30 ? Math.max(0, nowMins - 30) : lastEndMins
+    );
+  }
+
+  openLogNow(): void {
+    const now      = this.currentTimeStr();
+    const startStr = this.smartDefaultStart;
+    this.logNowStart = startStr;
+    this.logNowEnd   = now;
+    // Default to last-used type today, or first type
+    const lastTypeId = this.logs.length ? (this.logs[this.logs.length - 1].logType?.id ?? null) : null;
+    const defaultLt  = lastTypeId
+      ? (this.inlineLogTypes.find((t: any) => t._id === lastTypeId) ?? this.inlineLogTypes[0])
+      : this.inlineLogTypes[0];
+    this.logNowTypeId = defaultLt?._id ?? '';
+    this.logNowTitle  = '';
+    this.logNowOpen   = true;
+  }
+
+  closeLogNow(): void { this.logNowOpen = false; }
+
+  onLogNowTypeChange(): void {
+    // Auto-fill title only if user hasn't typed anything yet
+    if (!this.logNowTitle) {
+      const lt = this.inlineLogTypes.find((t: any) => t._id === this.logNowTypeId);
+      if (lt) this.logNowTitle = lt.name;
+    }
+  }
+
+  saveLogNow(): void {
+    if (this.logNowSaving || !this.logNowTypeId) return;
+    const lt    = this.inlineLogTypes.find((t: any) => t._id === this.logNowTypeId);
+    const title = this.logNowTitle.trim() || (lt?.name ?? 'Log');
+    this.logNowSaving = true;
+    this.logService.createLog(this.selectedDate, {
+      title,
+      logTypeId: this.logNowTypeId,
+      startTime: this.logNowStart,
+      endTime:   this.logNowEnd,
+    }).subscribe({
+      next:  () => { this.logNowSaving = false; this.logNowOpen = false; this.loadLogs(); },
+      error: () => { this.logNowSaving = false; }
+    });
   }
 
   private minsToTimeStr(mins: number): string {

@@ -27,6 +27,35 @@ interface MetricCard {
   template: `
     <div class="metrics-section">
 
+      <!-- ── 1.65: Coverage ring — always visible ─────── -->
+      <div class="coverage-row">
+        <div class="coverage-ring-wrap">
+          <svg viewBox="0 0 56 56" class="coverage-svg" aria-hidden="true">
+            <!-- Track -->
+            <circle cx="28" cy="28" r="20" fill="none"
+              stroke="var(--border-light)" stroke-width="5"/>
+            <!-- Filled arc — green at 100%, accent otherwise -->
+            <circle cx="28" cy="28" r="20" fill="none"
+              [attr.stroke]="coveragePct >= 100 ? '#5BAD6F' : 'var(--accent)'"
+              stroke-width="5" stroke-linecap="round"
+              [attr.stroke-dasharray]="coverageDash"
+              transform="rotate(-90 28 28)"/>
+          </svg>
+          <span class="coverage-center-text">{{ coveragePct }}%</span>
+        </div>
+        <div class="coverage-stats">
+          <span class="coverage-big">{{ coveredHoursLabel }}</span>
+          <span class="coverage-of">of 8h today</span>
+        </div>
+        <div class="streak-block">
+          <span class="streak-fire">🔥</span>
+          <div class="streak-text-col">
+            <span class="streak-count">{{ streak }}</span>
+            <span class="streak-label">{{ streak === 1 ? 'day' : 'days' }} streak</span>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Section header ───────────────────────────── -->
       <div class="metrics-header" (click)="toggleExpanded()">
         <button class="metrics-toggle" [attr.aria-expanded]="isExpanded" tabindex="-1">
@@ -242,6 +271,81 @@ interface MetricCard {
         white-space: normal;
       }
     }
+
+    /* ── 1.65: Coverage ring ─────────────────────────── */
+    .coverage-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .coverage-ring-wrap {
+      position: relative;
+      flex-shrink: 0;
+      width: 56px;
+      height: 56px;
+    }
+
+    .coverage-svg { width: 56px; height: 56px; }
+
+    .coverage-center-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .coverage-stats {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .coverage-big {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .coverage-of {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .streak-block {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .streak-fire { font-size: 22px; }
+
+    .streak-text-col {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .streak-count {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .streak-label {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
   `]
 })
 export class MetricsComponent implements OnChanges {
@@ -250,9 +354,11 @@ export class MetricsComponent implements OnChanges {
   @Output() cardHighlight = new EventEmitter<string[] | null>();
 
   view: MetricView = 'professional';
-  prevDayLogs: LogEntry[] = [];
-  selectedCardIdx: number | null = null;
-  isExpanded = false;
+  prevDayLogs:          LogEntry[] = [];
+  selectedCardIdx:      number | null = null;
+  isExpanded            = false;
+  monthWorkSummary:     Record<string, number> = {};
+  prevMonthWorkSummary: Record<string, number> = {};
 
   constructor(private logService: LogService) {}
 
@@ -261,6 +367,7 @@ export class MetricsComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['selectedDate'] && this.selectedDate) {
       this.fetchPrevDayLogs();
+      this.fetchMonthSummary();
       this.clearSelection();
     }
   }
@@ -271,6 +378,23 @@ export class MetricsComponent implements OnChanges {
     this.logService.getLogsForDate(prev).subscribe({
       next:  logs => this.prevDayLogs = logs,
       error: ()   => this.prevDayLogs = []
+    });
+  }
+
+  private fetchMonthSummary(): void {
+    const y = this.selectedDate.getFullYear();
+    const m = this.selectedDate.getMonth() + 1;
+    this.logService.getMonthWorkSummary(y, m).subscribe({
+      next:  data => this.monthWorkSummary = data,
+      error: ()   => {}
+    });
+    // Fetch previous month for streak calculation across month boundaries
+    const prev = new Date(this.selectedDate);
+    prev.setDate(1);
+    prev.setMonth(prev.getMonth() - 1);
+    this.logService.getMonthWorkSummary(prev.getFullYear(), prev.getMonth() + 1).subscribe({
+      next:  data => this.prevMonthWorkSummary = data,
+      error: ()   => {}
     });
   }
 
@@ -352,6 +476,61 @@ export class MetricsComponent implements OnChanges {
           l => l.logType?.domain === 'personal' && l.logType?.category === 'learning'
         ) }
     ];
+  }
+
+  /* ── 1.65: Coverage ring + streak ───────────────── */
+
+  /** % of 8h standard workday covered by today's work logs (0–100). */
+  get coveragePct(): number {
+    return Math.min(100, Math.round((this.totalWorkHours / 8) * 100));
+  }
+
+  /** SVG stroke-dasharray value for the coverage ring (r = 20, circ ≈ 125.66). */
+  get coverageDash(): string {
+    const circ    = 2 * Math.PI * 20;
+    const covered = Math.min(this.coveragePct / 100, 1) * circ;
+    return `${covered.toFixed(1)} ${circ.toFixed(1)}`;
+  }
+
+  /** Human-readable label of logged work hours (e.g. "4h 20m", "45m"). */
+  get coveredHoursLabel(): string {
+    const h    = this.totalWorkHours;
+    const hInt = Math.floor(h);
+    const mInt = Math.round((h - hInt) * 60);
+    if (hInt === 0) return `${mInt}m`;
+    if (mInt === 0) return `${hInt}h`;
+    return `${hInt}h ${mInt}m`;
+  }
+
+  /**
+   * Consecutive-day logging streak ending on selectedDate.
+   * A day counts if it has ≥30 min work logged (1 min threshold for today,
+   * since the day may still be in progress).
+   */
+  get streak(): number {
+    const combined  = { ...this.prevMonthWorkSummary, ...this.monthWorkSummary };
+    const todayKey  = this.localDateKey(this.selectedDate);
+    // Override today's slot with live data so partial days count
+    combined[todayKey] = Math.round(this.totalWorkHours * 60);
+
+    let count = 0;
+    const d   = new Date(this.selectedDate);
+    for (let i = 0; i < 62; i++) {
+      const key       = this.localDateKey(d);
+      const threshold = i === 0 ? 1 : 30; // today: any work; past: ≥30 min
+      if ((combined[key] ?? 0) >= threshold) {
+        count++;
+      } else {
+        break;
+      }
+      d.setDate(d.getDate() - 1);
+    }
+    return count;
+  }
+
+  private localDateKey(d: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
   /* ── Metric computation ──────────────────────────── */
