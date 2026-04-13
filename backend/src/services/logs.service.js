@@ -43,7 +43,8 @@ function toResponse(doc) {
       category: lt.category ?? null
     } : null,
     logTypeSource: doc.logTypeSource ?? null,
-    entryType:     doc.entryType     ?? 'range'
+    entryType:     doc.entryType     ?? 'range',
+    updatedAt:     doc.updatedAt     ?? doc.createdAt ?? null,
   };
 }
 

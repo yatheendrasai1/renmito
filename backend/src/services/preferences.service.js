@@ -9,10 +9,11 @@ async function getPreferences(userId) {
   const pref = await UserPreference.findOne({ userId });
   if (!pref) return null;
   return {
-    palette:        pref.palette       ?? null,
-    customPresets:  pref.customPresets ?? [],
-    activeLog:      pref.activeLog     ?? null,
+    palette:        pref.palette        ?? null,
+    customPresets:  pref.customPresets  ?? [],
+    activeLog:      pref.activeLog      ?? null,
     quickShortcuts: pref.quickShortcuts ?? [],
+    daySettings:    pref.daySettings    ?? {},
   };
 }
 
@@ -125,6 +126,27 @@ async function updateQuickShortcuts(userId, shortcuts) {
   return { data: { quickShortcuts: pref.quickShortcuts } };
 }
 
+/**
+ * 1.83 — Saves day-level schedule preference defaults.
+ */
+async function updateDaySettings(userId, settings) {
+  const allowed = [
+    'workStart', 'workEnd', 'officeReach', 'officeLeave',
+    'breakfastTarget', 'lunchTarget', 'dinnerTarget',
+    'bedtimeTarget', 'wakeTarget',
+  ];
+  const update = {};
+  for (const key of allowed) {
+    if (settings[key] !== undefined) update[`daySettings.${key}`] = settings[key];
+  }
+  const pref = await UserPreference.findOneAndUpdate(
+    { userId },
+    { $set: update },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  return { data: { daySettings: pref.daySettings } };
+}
+
 module.exports = {
   getPreferences,
   upsertPalette,
@@ -134,4 +156,5 @@ module.exports = {
   startActiveLog,
   stopActiveLog,
   updateQuickShortcuts,
+  updateDaySettings,
 };

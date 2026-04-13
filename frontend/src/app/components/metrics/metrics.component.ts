@@ -10,6 +10,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LogEntry } from '../../models/log.model';
 import { LogService } from '../../services/log.service';
+import { DayLevelService } from '../../services/day-level.service';
 
 type MetricView = 'professional' | 'personal';
 
@@ -359,8 +360,14 @@ export class MetricsComponent implements OnChanges {
   isExpanded            = false;
   monthWorkSummary:     Record<string, number> = {};
   prevMonthWorkSummary: Record<string, number> = {};
+  /** 1.83 — day type map for current and previous month (for leave-day streak skipping). */
+  monthDayTypes:     Record<string, string> = {};
+  prevMonthDayTypes: Record<string, string> = {};
 
-  constructor(private logService: LogService) {}
+  constructor(
+    private logService:      LogService,
+    private dayLevelService: DayLevelService,
+  ) {}
 
   /* ── Lifecycle ───────────────────────────────────── */
 
@@ -388,12 +395,20 @@ export class MetricsComponent implements OnChanges {
       next:  data => this.monthWorkSummary = data,
       error: ()   => {}
     });
+    this.dayLevelService.getMonthDayTypes(y, m).subscribe({
+      next:  data => this.monthDayTypes = data,
+      error: ()   => {}
+    });
     // Fetch previous month for streak calculation across month boundaries
     const prev = new Date(this.selectedDate);
     prev.setDate(1);
     prev.setMonth(prev.getMonth() - 1);
     this.logService.getMonthWorkSummary(prev.getFullYear(), prev.getMonth() + 1).subscribe({
       next:  data => this.prevMonthWorkSummary = data,
+      error: ()   => {}
+    });
+    this.dayLevelService.getMonthDayTypes(prev.getFullYear(), prev.getMonth() + 1).subscribe({
+      next:  data => this.prevMonthDayTypes = data,
       error: ()   => {}
     });
   }
@@ -503,22 +518,45 @@ export class MetricsComponent implements OnChanges {
   }
 
   /**
-   * Consecutive-day logging streak ending on selectedDate.
-   * A day counts if it has ≥30 min work logged (1 min threshold for today,
-   * since the day may still be in progress).
+   * Consecutive working-day logging streak ending on selectedDate.
+   * Weekends (Sat/Sun) are holidays and are skipped — they neither
+   * add to nor break the streak.
+   * A weekday counts if it has ≥30 min work logged (1 min threshold
+   * for today, since the day may still be in progress).
    */
   get streak(): number {
     const combined  = { ...this.prevMonthWorkSummary, ...this.monthWorkSummary };
+    const dayTypes  = { ...this.prevMonthDayTypes, ...this.monthDayTypes };
     const todayKey  = this.localDateKey(this.selectedDate);
-    // Override today's slot with live data so partial days count
     combined[todayKey] = Math.round(this.totalWorkHours * 60);
 
-    let count = 0;
-    const d   = new Date(this.selectedDate);
-    for (let i = 0; i < 62; i++) {
-      const key       = this.localDateKey(d);
-      const threshold = i === 0 ? 1 : 30; // today: any work; past: ≥30 min
-      if ((combined[key] ?? 0) >= threshold) {
+    let count        = 0;
+    let workdaysSeen = 0;
+    const d          = new Date(this.selectedDate);
+
+    for (let i = 0; i < 90; i++) { // look back up to 90 calendar days
+      const dow     = d.getDay(); // 0=Sun, 6=Sat
+      const key     = this.localDateKey(d);
+      const dayType = dayTypes[key] ?? null;
+      const workMins = combined[key] ?? 0;
+
+      // Weekends always skip
+      if (dow === 0 || dow === 6) {
+        d.setDate(d.getDate() - 1);
+        continue;
+      }
+
+      // Paid / sick leave with no work: skip (don't break streak)
+      if ((dayType === 'paid_leave' || dayType === 'sick_leave') && workMins === 0) {
+        d.setDate(d.getDate() - 1);
+        continue;
+      }
+
+      // First non-skipped day: use lenient threshold (today may still be in progress)
+      const threshold = workdaysSeen === 0 ? 1 : 30;
+      workdaysSeen++;
+
+      if (workMins >= threshold) {
         count++;
       } else {
         break;

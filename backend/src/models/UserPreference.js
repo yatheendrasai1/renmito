@@ -38,6 +38,25 @@ const quickShortcutSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/**
+ * 1.83 — Day-level preference defaults stored per user.
+ * All times are HH:MM strings in local time.
+ */
+const daySettingsSchema = new mongoose.Schema(
+  {
+    workStart:       { type: String, default: '09:00' },
+    workEnd:         { type: String, default: '18:00' },
+    officeReach:     { type: String, default: '09:00' },
+    officeLeave:     { type: String, default: '18:00' },
+    breakfastTarget: { type: String, default: '08:00' },
+    lunchTarget:     { type: String, default: '13:00' },
+    dinnerTarget:    { type: String, default: '20:00' },
+    bedtimeTarget:   { type: String, default: '23:00' },
+    wakeTarget:      { type: String, default: '06:30' },
+  },
+  { _id: false }
+);
+
 const userPreferenceSchema = new mongoose.Schema(
   {
     userId: {
@@ -67,6 +86,9 @@ const userPreferenceSchema = new mongoose.Schema(
 
     /** 1.82 — User-configured quick shortcuts list. Empty = use smart defaults. */
     quickShortcuts: { type: [quickShortcutSchema], default: [] },
+
+    /** 1.83 — Day-level schedule preferences (target times). */
+    daySettings: { type: daySettingsSchema, default: () => ({}) },
   },
   { timestamps: true, collection: 'userPreferences' }
 );

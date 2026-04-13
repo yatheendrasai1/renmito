@@ -16,6 +16,7 @@ export interface LogEntry {
   logType: LogType | null;
   logTypeSource: 'DefaultLogType' | 'LogType' | null;
   entryType: 'range' | 'point';
+  updatedAt: string | null;  // ISO — used for Important Logs stale detection (1.83)
 }
 
 export interface CreateLogEntry {

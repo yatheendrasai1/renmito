@@ -120,6 +120,17 @@ async function updateQuickShortcuts(req, res) {
   }
 }
 
+// ─── PUT /api/preferences/day-settings ───────────────────────────────────────
+async function updateDaySettings(req, res) {
+  try {
+    const result = await preferencesService.updateDaySettings(req.user.userId, req.body);
+    res.json(result.data);
+  } catch (err) {
+    console.error('PUT /preferences/day-settings error:', err.message);
+    res.status(500).json({ error: 'Failed to save day settings.' });
+  }
+}
+
 module.exports = {
   getPreferences,
   upsertPalette,
@@ -129,4 +140,5 @@ module.exports = {
   startActiveLog,
   stopActiveLog,
   updateQuickShortcuts,
+  updateDaySettings,
 };

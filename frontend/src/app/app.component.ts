@@ -11,15 +11,17 @@ import { LogService } from './services/log.service';
 import { AuthService } from './services/auth.service';
 import { LogTypeService } from './services/log-type.service';
 import { PreferenceService, ActiveLog } from './services/preference.service';
+import { DayLevelService, DayMetadata, DayType } from './services/day-level.service';
 import { LogEntry, CreateLogEntry } from './models/log.model';
 import { forkJoin } from 'rxjs';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { LogTypeSelectComponent } from './components/log-type-select/log-type-select.component';
+import { ImportantLogsComponent } from './components/important-logs/important-logs.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent, LogTypeSelectComponent],
+  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -187,8 +189,44 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
                     <line x1="12" y1="15" x2="12" y2="3"/>
                   </svg>
                 </button>
+
+                <!-- 1.83: Important Logs button -->
+                <button class="date-bar-btn"
+                        (click)="openImportantLogs()"
+                        title="Important Logs"
+                        aria-label="Important Logs">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <circle cx="12" cy="16" r="0.5" fill="currentColor" stroke="currentColor" stroke-width="1"/>
+                  </svg>
+                </button>
               </div>
             </div>
+
+            <!-- 1.83: Day type selector dropdown -->
+            <div class="day-type-bar" *ngIf="dayMetadata">
+              <div class="dt-select" [class.dt-select--open]="dayTypeDropdownOpen">
+                <button class="dt-trigger"
+                        (click)="dayTypeDropdownOpen = !dayTypeDropdownOpen; $event.stopPropagation()">
+                  <span class="dt-trigger-label">{{ selectedDayTypeLabel }}</span>
+                  <svg class="dt-chevron" width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
+                          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+                <div class="dt-panel" *ngIf="dayTypeDropdownOpen" (click)="$event.stopPropagation()">
+                  <button *ngFor="let opt of dayTypeOptions"
+                          class="dt-option"
+                          [class.dt-option--active]="dayMetadata!.dayType === opt.value"
+                          (click)="setDayType(opt.value); dayTypeDropdownOpen = false">
+                    {{ opt.label }}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="dt-backdrop" *ngIf="dayTypeDropdownOpen" (click)="dayTypeDropdownOpen = false"></div>
 
             <!-- ── Metrics — 1.30 ─────────────────────────── -->
             <app-metrics
@@ -298,7 +336,7 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
               <!-- ── Add log row — 1.80: three action buttons ──────── -->
               <div class="log-list-add-row" *ngIf="!isLoading">
                 <div class="add-log-btn-group">
-                  <button class="btn-add-entry" (click)="openAddLogForm()">
+                  <button class="btn-add-entry" (click)="openLogNow()">
                     <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                       <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                     </svg>
@@ -501,8 +539,42 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
                     <line x1="3"  y1="10" x2="21" y2="10"/>
                   </svg>
                 </button>
+                <!-- 1.83: Important Logs button -->
+                <button class="date-bar-btn"
+                        (click)="openImportantLogs()"
+                        title="Important Logs"
+                        aria-label="Important Logs">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <circle cx="12" cy="16" r="0.5" fill="currentColor" stroke="currentColor" stroke-width="1"/>
+                  </svg>
+                </button>
               </div>
             </div>
+            <!-- 1.83: Day type selector dropdown -->
+            <div class="day-type-bar" *ngIf="dayMetadata">
+              <div class="dt-select" [class.dt-select--open]="dayTypeDropdownOpen">
+                <button class="dt-trigger"
+                        (click)="dayTypeDropdownOpen = !dayTypeDropdownOpen; $event.stopPropagation()">
+                  <span class="dt-trigger-label">{{ selectedDayTypeLabel }}</span>
+                  <svg class="dt-chevron" width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
+                          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+                <div class="dt-panel" *ngIf="dayTypeDropdownOpen" (click)="$event.stopPropagation()">
+                  <button *ngFor="let opt of dayTypeOptions"
+                          class="dt-option"
+                          [class.dt-option--active]="dayMetadata!.dayType === opt.value"
+                          (click)="setDayType(opt.value); dayTypeDropdownOpen = false">
+                    {{ opt.label }}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="dt-backdrop" *ngIf="dayTypeDropdownOpen" (click)="dayTypeDropdownOpen = false"></div>
 
             <!-- Full-width timeline (no accordion) -->
             <div class="timeline-view-container">
@@ -543,291 +615,242 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
         </svg>
       </button>
 
-      <!-- ── 1.61: Log Now sheet + backdrop ─────────────────── -->
-      <div class="log-now-backdrop" *ngIf="logNowOpen" (click)="closeLogNow()"></div>
-      <div class="log-now-sheet" *ngIf="logNowOpen">
-        <div class="log-now-header">
-          <span class="log-now-title">Log Now</span>
-          <button class="log-now-close" (click)="closeLogNow()" aria-label="Close">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <line x1="18" y1="6"  x2="6"  y2="18"/>
-              <line x1="6"  y1="6"  x2="18" y2="18"/>
-            </svg>
-          </button>
+      <!-- ── 1.83: Unified log-creation sheet (Add log / Add point / Start timer) ── -->
+      <div class="log-now-backdrop" *ngIf="unifiedSheetOpen" (click)="closeUnifiedSheet()"></div>
+      <div class="log-now-sheet uni-sheet" *ngIf="unifiedSheetOpen"
+           (touchstart)="onUnifiedSwipeStart($event)"
+           (touchend)="onUnifiedSwipeEnd($event)">
+
+        <!-- Tab pill header -->
+        <div class="uni-tabs">
+          <button class="uni-tab" [class.uni-tab--active]="unifiedSheetTab === 0"
+                  (click)="switchTab(0)">Add log</button>
+          <button class="uni-tab" [class.uni-tab--active]="unifiedSheetTab === 1"
+                  (click)="switchTab(1)">Add point</button>
+          <button class="uni-tab" [class.uni-tab--active]="unifiedSheetTab === 2"
+                  (click)="switchTab(2)">Start timer</button>
         </div>
-        <div class="log-now-fields">
-          <!-- 1.81: Work / Personal domain tabs -->
-          <div class="ln-domain-tabs">
-            <button class="ln-domain-tab"
-                    [class.ln-domain-tab--active]="logNowDomain === 'work'"
-                    (click)="setLogNowDomain('work')">Work</button>
-            <button class="ln-domain-tab"
-                    [class.ln-domain-tab--active]="logNowDomain === 'personal'"
-                    (click)="setLogNowDomain('personal')">Personal</button>
-          </div>
-          <!-- 1.81: Log type drum picker -->
-          <div class="ln-type-drum-wrap">
-            <div class="ln-drum-center-band"></div>
-            <div class="ln-drum ln-drum-ln-types" (scroll)="onLogNowTypeScroll($event)">
-              <div class="ln-drum-spacer"></div>
-              <div class="ln-type-drum-item"
-                   *ngFor="let lt of logNowFilteredTypes; let i = index"
-                   [class.ln-type-drum-item--sel]="i === logNowTypeIndex">
-                <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
-                {{ lt.name }}
-              </div>
-              <div class="ln-drum-spacer"></div>
+
+        <!-- ── Tab 0: Add log ── -->
+        <ng-container *ngIf="unifiedSheetTab === 0">
+          <div class="log-now-fields">
+            <!-- 1.81: Work / Personal domain tabs -->
+            <div class="ln-domain-tabs">
+              <button class="ln-domain-tab"
+                      [class.ln-domain-tab--active]="logNowDomain === 'work'"
+                      (click)="setLogNowDomain('work')">Work</button>
+              <button class="ln-domain-tab"
+                      [class.ln-domain-tab--active]="logNowDomain === 'personal'"
+                      (click)="setLogNowDomain('personal')">Personal</button>
             </div>
-          </div>
-          <input class="log-now-input" type="text"
-                 placeholder="Title (optional — defaults to type name)"
-                 [(ngModel)]="logNowTitle"/>
-          <!-- 1.78: Drum time pickers for Start and End -->
-          <div class="ln-time-pickers">
-            <div class="ln-time-block">
-              <span class="ln-time-block-label">Start</span>
-              <div class="ln-drum-group">
-                <div class="ln-drum-col">
-                  <div class="ln-drum-wrapper">
-                    <div class="ln-drum-center-band"></div>
-                    <div class="ln-drum ln-drum-start-h" (scroll)="onLogNowStartHourScroll($event)">
-                      <div class="ln-drum-spacer"></div>
-                      <div class="ln-drum-item"
-                           *ngFor="let h of logNowHours"
-                           [class.ln-drum-item--sel]="h === logNowStartHour">
-                        {{ h | number:'2.0-0' }}
-                      </div>
-                      <div class="ln-drum-spacer"></div>
-                    </div>
-                  </div>
-                  <span class="ln-drum-unit">h</span>
+            <!-- 1.81: Log type drum picker -->
+            <div class="ln-type-drum-wrap">
+              <div class="ln-drum-center-band"></div>
+              <div class="ln-drum ln-drum-ln-types" (scroll)="onLogNowTypeScroll($event)">
+                <div class="ln-drum-spacer"></div>
+                <div class="ln-type-drum-item"
+                     *ngFor="let lt of logNowFilteredTypes; let i = index"
+                     [class.ln-type-drum-item--sel]="i === logNowTypeIndex">
+                  <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
+                  {{ lt.name }}
                 </div>
-                <div class="ln-drum-colon">:</div>
-                <div class="ln-drum-col">
-                  <div class="ln-drum-wrapper">
-                    <div class="ln-drum-center-band"></div>
-                    <div class="ln-drum ln-drum-start-m" (scroll)="onLogNowStartMinuteScroll($event)">
-                      <div class="ln-drum-spacer"></div>
-                      <div class="ln-drum-item"
-                           *ngFor="let m of logNowMinutes"
-                           [class.ln-drum-item--sel]="m === logNowStartMinute">
-                        {{ m | number:'2.0-0' }}
-                      </div>
-                      <div class="ln-drum-spacer"></div>
-                    </div>
-                  </div>
-                  <span class="ln-drum-unit">m</span>
-                </div>
+                <div class="ln-drum-spacer"></div>
               </div>
             </div>
-
-            <div class="ln-time-arrow">→</div>
-
-            <div class="ln-time-block">
-              <span class="ln-time-block-label">End</span>
-              <div class="ln-drum-group">
-                <div class="ln-drum-col">
-                  <div class="ln-drum-wrapper">
-                    <div class="ln-drum-center-band"></div>
-                    <div class="ln-drum ln-drum-end-h" (scroll)="onLogNowEndHourScroll($event)">
-                      <div class="ln-drum-spacer"></div>
-                      <div class="ln-drum-item"
-                           *ngFor="let h of logNowHours"
-                           [class.ln-drum-item--sel]="h === logNowEndHour">
-                        {{ h | number:'2.0-0' }}
+            <input class="log-now-input" type="text"
+                   placeholder="Title (optional — defaults to type name)"
+                   [(ngModel)]="logNowTitle"/>
+            <!-- 1.78: Drum time pickers for Start and End -->
+            <div class="ln-time-pickers">
+              <div class="ln-time-block">
+                <span class="ln-time-block-label">Start</span>
+                <div class="ln-drum-group">
+                  <div class="ln-drum-col">
+                    <div class="ln-drum-wrapper">
+                      <div class="ln-drum-center-band"></div>
+                      <div class="ln-drum ln-drum-start-h" (scroll)="onLogNowStartHourScroll($event)">
+                        <div class="ln-drum-spacer"></div>
+                        <div class="ln-drum-item"
+                             *ngFor="let h of logNowHours"
+                             [class.ln-drum-item--sel]="h === logNowStartHour">
+                          {{ h | number:'2.0-0' }}
+                        </div>
+                        <div class="ln-drum-spacer"></div>
                       </div>
-                      <div class="ln-drum-spacer"></div>
                     </div>
+                    <span class="ln-drum-unit">h</span>
                   </div>
-                  <span class="ln-drum-unit">h</span>
+                  <div class="ln-drum-colon">:</div>
+                  <div class="ln-drum-col">
+                    <div class="ln-drum-wrapper">
+                      <div class="ln-drum-center-band"></div>
+                      <div class="ln-drum ln-drum-start-m" (scroll)="onLogNowStartMinuteScroll($event)">
+                        <div class="ln-drum-spacer"></div>
+                        <div class="ln-drum-item"
+                             *ngFor="let m of logNowMinutes"
+                             [class.ln-drum-item--sel]="m === logNowStartMinute">
+                          {{ m | number:'2.0-0' }}
+                        </div>
+                        <div class="ln-drum-spacer"></div>
+                      </div>
+                    </div>
+                    <span class="ln-drum-unit">m</span>
+                  </div>
                 </div>
-                <div class="ln-drum-colon">:</div>
-                <div class="ln-drum-col">
-                  <div class="ln-drum-wrapper">
-                    <div class="ln-drum-center-band"></div>
-                    <div class="ln-drum ln-drum-end-m" (scroll)="onLogNowEndMinuteScroll($event)">
-                      <div class="ln-drum-spacer"></div>
-                      <div class="ln-drum-item"
-                           *ngFor="let m of logNowMinutes"
-                           [class.ln-drum-item--sel]="m === logNowEndMinute">
-                        {{ m | number:'2.0-0' }}
+              </div>
+
+              <div class="ln-time-arrow">→</div>
+
+              <div class="ln-time-block">
+                <span class="ln-time-block-label">End</span>
+                <div class="ln-drum-group">
+                  <div class="ln-drum-col">
+                    <div class="ln-drum-wrapper">
+                      <div class="ln-drum-center-band"></div>
+                      <div class="ln-drum ln-drum-end-h" (scroll)="onLogNowEndHourScroll($event)">
+                        <div class="ln-drum-spacer"></div>
+                        <div class="ln-drum-item"
+                             *ngFor="let h of logNowHours"
+                             [class.ln-drum-item--sel]="h === logNowEndHour">
+                          {{ h | number:'2.0-0' }}
+                        </div>
+                        <div class="ln-drum-spacer"></div>
                       </div>
-                      <div class="ln-drum-spacer"></div>
                     </div>
+                    <span class="ln-drum-unit">h</span>
                   </div>
-                  <span class="ln-drum-unit">m</span>
+                  <div class="ln-drum-colon">:</div>
+                  <div class="ln-drum-col">
+                    <div class="ln-drum-wrapper">
+                      <div class="ln-drum-center-band"></div>
+                      <div class="ln-drum ln-drum-end-m" (scroll)="onLogNowEndMinuteScroll($event)">
+                        <div class="ln-drum-spacer"></div>
+                        <div class="ln-drum-item"
+                             *ngFor="let m of logNowMinutes"
+                             [class.ln-drum-item--sel]="m === logNowEndMinute">
+                          {{ m | number:'2.0-0' }}
+                        </div>
+                        <div class="ln-drum-spacer"></div>
+                      </div>
+                    </div>
+                    <span class="ln-drum-unit">m</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-        <div class="log-now-actions">
-          <button class="log-now-cancel" (click)="closeLogNow()">Cancel</button>
-          <button class="log-now-save"
-                  (click)="saveLogNow()"
-                  [disabled]="logNowSaving || !logNowTypeId">
-            {{ logNowSaving ? 'Saving…' : 'Save Log' }}
-          </button>
-        </div>
-      </div>
+          <div class="log-now-actions">
+            <button class="log-now-cancel" (click)="closeUnifiedSheet()">Cancel</button>
+            <button class="log-now-save"
+                    (click)="saveLogNow()"
+                    [disabled]="logNowSaving || !logNowTypeId">
+              {{ logNowSaving ? 'Saving…' : 'Save Log' }}
+            </button>
+          </div>
+        </ng-container>
 
-      <!-- ── 1.71: Start Timer sheet + backdrop ───────────────── -->
-      <div class="log-now-backdrop" *ngIf="startLogOpen" (click)="closeStartLog()"></div>
-      <div class="log-now-sheet" *ngIf="startLogOpen">
-        <div class="log-now-header">
-          <span class="log-now-title">Start Timer</span>
-          <button class="log-now-close" (click)="closeStartLog()" aria-label="Close">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <line x1="18" y1="6"  x2="6"  y2="18"/>
-              <line x1="6"  y1="6"  x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-        <div class="log-now-fields">
-          <app-log-type-select
-            [logTypes]="inlineLogTypes"
-            [selectedId]="startLogTypeId"
-            (selectedIdChange)="startLogTypeId = $event">
-          </app-log-type-select>
-          <input class="log-now-input" type="text"
-                 placeholder="Title (optional — defaults to type name)"
-                 [(ngModel)]="startLogTitle"/>
-          <!-- 1.72: Planned duration chips -->
-          <div class="start-log-planned-row">
-            <span class="start-log-planned-label">Plan for:</span>
-            <div class="start-log-planned-chips">
-              <button *ngFor="let opt of [{v:'',l:'None'},{v:'15',l:'15m'},{v:'30',l:'30m'},{v:'60',l:'1h'},{v:'90',l:'1.5h'},{v:'120',l:'2h'}]"
-                      class="start-log-chip"
-                      [class.start-log-chip--active]="startLogPlanned === opt.v"
-                      (click)="startLogPlanned = opt.v">
-                {{ opt.l }}
-              </button>
+        <!-- ── Tab 1: Add point ── -->
+        <ng-container *ngIf="unifiedSheetTab === 1">
+          <div class="log-now-fields">
+            <!-- Domain tabs -->
+            <div class="ln-domain-tabs">
+              <button class="ln-domain-tab"
+                      [class.ln-domain-tab--active]="addPointDomain === 'work'"
+                      (click)="setAddPointDomain('work')">Work</button>
+              <button class="ln-domain-tab"
+                      [class.ln-domain-tab--active]="addPointDomain === 'personal'"
+                      (click)="setAddPointDomain('personal')">Personal</button>
             </div>
-          </div>
-        </div>
-        <div class="log-now-actions">
-          <button class="log-now-cancel" (click)="closeStartLog()">Cancel</button>
-          <button class="log-now-save log-now-save--start"
-                  (click)="saveStartLog()"
-                  [disabled]="startLogSaving || !startLogTypeId">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
-            </svg>
-            {{ startLogSaving ? 'Starting…' : 'Start Timer' }}
-          </button>
-        </div>
-      </div>
-
-      <!-- ── 1.68: Wrap-Up sheet + backdrop ───────────────────── -->
-      <div class="log-now-backdrop" *ngIf="wrapUpOpen" (click)="closeWrapUp()"></div>
-      <div class="log-now-sheet wrapup-sheet" *ngIf="wrapUpOpen">
-        <div class="log-now-header">
-          <div class="wrapup-header-left">
-            <span class="log-now-title">Fill Gap {{ wrapUpIdx + 1 }} / {{ wrapUpGaps.length }}</span>
-            <div class="wrapup-step-dots">
-              <span *ngFor="let g of wrapUpGaps; let i = index"
-                    class="wrapup-step-dot"
-                    [class.wrapup-step-dot--done]="i < wrapUpIdx"
-                    [class.wrapup-step-dot--active]="i === wrapUpIdx"></span>
-            </div>
-          </div>
-          <button class="log-now-close" (click)="closeWrapUp()" aria-label="Close">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <line x1="18" y1="6"  x2="6"  y2="18"/>
-              <line x1="6"  y1="6"  x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-
-        <!-- Gap time display -->
-        <div class="wrapup-gap-time" *ngIf="wrapUpCurrentGap">
-          <span class="wrapup-time">{{ wrapUpCurrentGap.start }}</span>
-          <span class="wrapup-time-arrow">→</span>
-          <span class="wrapup-time">{{ wrapUpCurrentGap.end }}</span>
-          <span class="wrapup-duration-badge">{{ formatGapMins(wrapUpCurrentGap.mins) }}</span>
-        </div>
-
-        <div class="log-now-fields">
-          <app-log-type-select
-            [logTypes]="inlineLogTypes"
-            [selectedId]="wrapUpTypeId"
-            placeholder="Select type…"
-            (selectedIdChange)="wrapUpTypeId = $event">
-          </app-log-type-select>
-          <input class="log-now-input" type="text"
-                 placeholder="Title (optional — defaults to type name)"
-                 [(ngModel)]="wrapUpTitle"/>
-        </div>
-
-        <div class="log-now-actions">
-          <button class="log-now-cancel" (click)="wrapUpSkip()">Skip</button>
-          <button class="log-now-save"
-                  (click)="wrapUpSave()"
-                  [disabled]="wrapUpSaving || !wrapUpTypeId">
-            {{ wrapUpSaving ? 'Saving…' : (wrapUpIdx === wrapUpGaps.length - 1 ? 'Save & Finish' : 'Save & Next →') }}
-          </button>
-        </div>
-      </div>
-
-      <!-- ── 1.80: Add Point sheet + backdrop ─────────────────── -->
-      <div class="log-now-backdrop" *ngIf="addPointOpen" (click)="closeAddPoint()"></div>
-      <div class="log-now-sheet" *ngIf="addPointOpen">
-        <div class="log-now-header">
-          <span class="log-now-title">Add Point</span>
-          <button class="log-now-close" (click)="closeAddPoint()" aria-label="Close">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <line x1="18" y1="6"  x2="6"  y2="18"/>
-              <line x1="6"  y1="6"  x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-        <div class="log-now-fields">
-          <!-- Domain tabs -->
-          <div class="ln-domain-tabs">
-            <button class="ln-domain-tab"
-                    [class.ln-domain-tab--active]="addPointDomain === 'work'"
-                    (click)="setAddPointDomain('work')">Work</button>
-            <button class="ln-domain-tab"
-                    [class.ln-domain-tab--active]="addPointDomain === 'personal'"
-                    (click)="setAddPointDomain('personal')">Personal</button>
-          </div>
-          <!-- Log type drum -->
-          <div class="ln-type-drum-wrap">
-            <div class="ln-drum-center-band"></div>
-            <div class="ln-drum ln-drum-ap-types" (scroll)="onAddPointTypeScroll($event)">
-              <div class="ln-drum-spacer"></div>
-              <div class="ln-type-drum-item"
-                   *ngFor="let lt of addPointFilteredTypes; let i = index"
-                   [class.ln-type-drum-item--sel]="i === addPointTypeIndex">
-                <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
-                {{ lt.name }}
+            <!-- Log type drum -->
+            <div class="ln-type-drum-wrap">
+              <div class="ln-drum-center-band"></div>
+              <div class="ln-drum ln-drum-ap-types" (scroll)="onAddPointTypeScroll($event)">
+                <div class="ln-drum-spacer"></div>
+                <div class="ln-type-drum-item"
+                     *ngFor="let lt of addPointFilteredTypes; let i = index"
+                     [class.ln-type-drum-item--sel]="i === addPointTypeIndex">
+                  <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
+                  {{ lt.name }}
+                </div>
+                <div class="ln-drum-spacer"></div>
               </div>
-              <div class="ln-drum-spacer"></div>
+            </div>
+            <input class="log-now-input" type="text"
+                   placeholder="Title (optional)"
+                   [(ngModel)]="addPointTitle"/>
+            <!-- Point time: native time input -->
+            <div class="ln-point-time-row">
+              <span class="ln-point-time-label">Time</span>
+              <input class="ln-point-time-input" type="time" [(ngModel)]="addPointTime"/>
             </div>
           </div>
-          <input class="log-now-input" type="text"
-                 placeholder="Title (optional)"
-                 [(ngModel)]="addPointTitle"/>
-          <!-- Point time: native time input -->
-          <div class="ln-point-time-row">
-            <span class="ln-point-time-label">Time</span>
-            <input class="ln-point-time-input" type="time" [(ngModel)]="addPointTime"/>
+          <div class="log-now-actions">
+            <button class="log-now-cancel" (click)="closeUnifiedSheet()">Cancel</button>
+            <button class="log-now-save"
+                    (click)="saveAddPoint()"
+                    [disabled]="addPointSaving || !addPointTypeId">
+              {{ addPointSaving ? 'Saving…' : 'Add Point' }}
+            </button>
           </div>
-        </div>
-        <div class="log-now-actions">
-          <button class="log-now-cancel" (click)="closeAddPoint()">Cancel</button>
-          <button class="log-now-save"
-                  (click)="saveAddPoint()"
-                  [disabled]="addPointSaving || !addPointTypeId">
-            {{ addPointSaving ? 'Saving…' : 'Add Point' }}
-          </button>
-        </div>
+        </ng-container>
+
+        <!-- ── Tab 2: Start timer ── -->
+        <ng-container *ngIf="unifiedSheetTab === 2">
+          <div class="log-now-fields">
+            <!-- Domain tabs -->
+            <div class="ln-domain-tabs">
+              <button class="ln-domain-tab"
+                      [class.ln-domain-tab--active]="startLogDomain === 'work'"
+                      (click)="setStartLogDomain('work')">Work</button>
+              <button class="ln-domain-tab"
+                      [class.ln-domain-tab--active]="startLogDomain === 'personal'"
+                      (click)="setStartLogDomain('personal')">Personal</button>
+            </div>
+            <!-- Log type drum -->
+            <div class="ln-type-drum-wrap">
+              <div class="ln-drum-center-band"></div>
+              <div class="ln-drum ln-drum-sl-types" (scroll)="onStartLogTypeScroll($event)">
+                <div class="ln-drum-spacer"></div>
+                <div class="ln-type-drum-item"
+                     *ngFor="let lt of startLogFilteredTypes; let i = index"
+                     [class.ln-type-drum-item--sel]="i === startLogTypeIndex">
+                  <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
+                  {{ lt.name }}
+                </div>
+                <div class="ln-drum-spacer"></div>
+              </div>
+            </div>
+            <input class="log-now-input" type="text"
+                   placeholder="Title (optional — defaults to type name)"
+                   [(ngModel)]="startLogTitle"/>
+            <!-- 1.72: Planned duration chips -->
+            <div class="start-log-planned-row">
+              <span class="start-log-planned-label">Plan for:</span>
+              <div class="start-log-planned-chips">
+                <button *ngFor="let opt of [{v:'',l:'no time bound'},{v:'15',l:'15m'},{v:'30',l:'30m'},{v:'60',l:'1h'},{v:'90',l:'1.5h'},{v:'120',l:'2h'}]"
+                        class="start-log-chip"
+                        [class.start-log-chip--active]="startLogPlanned === opt.v"
+                        (click)="startLogPlanned = opt.v">
+                  {{ opt.l }}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="log-now-actions">
+            <button class="log-now-cancel" (click)="closeUnifiedSheet()">Cancel</button>
+            <button class="log-now-save log-now-save--start"
+                    (click)="saveStartLog()"
+                    [disabled]="startLogSaving || !startLogTypeId">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              {{ startLogSaving ? 'Starting…' : 'Start Timer' }}
+            </button>
+          </div>
+        </ng-container>
+
       </div>
 
       <!-- ── Footer — 1.35 / fixed full-width 1.52 ─────── -->
@@ -999,6 +1022,17 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
         </button>
       </div>
     </div>
+
+    <!-- ── 1.83: Important Logs popup ─────────────────────── -->
+    <app-important-logs
+      *ngIf="showImportantLogs"
+      [selectedDate]="selectedDate"
+      [logs]="logs"
+      [metadata]="dayMetadata"
+      (close)="showImportantLogs = false"
+      (metadataChanged)="dayMetadata = $event"
+      (logsChanged)="loadLogs()"
+    ></app-important-logs>
 
     <!-- Global confirmation dialog (logout + merge) -->
     <app-confirm-dialog
@@ -1185,6 +1219,57 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
     }
     .date-bar-btn:hover:not(:disabled) { background: var(--accent-hover); color: var(--text-primary); }
     .date-bar-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── 1.83: Day type dropdown ────────────────────────────── */
+    .day-type-bar { padding: 8px 4px 2px; position: relative; }
+    .dt-backdrop {
+      position: fixed; inset: 0; z-index: 49; background: transparent;
+    }
+    .dt-select { position: relative; display: inline-block; }
+    .dt-trigger {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 12px; font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .dt-select--open .dt-trigger,
+    .dt-trigger:hover { border-color: var(--highlight-selected); color: var(--text-primary); }
+    .dt-chevron {
+      color: var(--text-muted);
+      transition: transform 0.15s;
+      flex-shrink: 0;
+    }
+    .dt-select--open .dt-chevron { transform: rotate(180deg); }
+    .dt-panel {
+      position: absolute;
+      top: calc(100% + 4px); left: 0;
+      z-index: 50;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 4px 0;
+      min-width: 140px;
+    }
+    .dt-option {
+      display: block; width: 100%;
+      padding: 8px 14px;
+      background: none; color: var(--text-primary);
+      font-size: 12px; font-weight: 500;
+      text-align: left; cursor: pointer;
+      transition: background 0.12s;
+    }
+    .dt-option:hover { background: var(--accent-hover); }
+    .dt-option--active {
+      color: var(--highlight-selected);
+      background: color-mix(in srgb, var(--highlight-selected) 8%, var(--bg-card));
+      font-weight: 700;
+    }
 
     /* ── Logger layout — 1.76: full-width log list ─────── */
     .logger-split {
@@ -1667,8 +1752,8 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
       width: 52px;
       height: 52px;
       border-radius: 50%;
-      background: var(--accent);
-      color: #fff;
+      background: var(--nav-bg);
+      color: var(--nav-text);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1704,9 +1789,54 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
       padding: 20px 20px 36px;
       animation: slideUp 0.22s ease;
     }
+    /* Unified sheet: fixed height, scrollable body */
+    .uni-sheet {
+      display: flex;
+      flex-direction: column;
+      height: 520px;
+      max-height: 80dvh;
+      padding: 12px 20px 36px;
+      overflow: hidden;
+    }
+    .uni-sheet .uni-tabs { flex-shrink: 0; }
+    .uni-sheet ng-container { display: contents; }
+    .uni-sheet .log-now-fields {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-top: 8px;
+      min-height: 0;
+    }
+    .uni-sheet .log-now-actions { flex-shrink: 0; padding-top: 12px; }
     @keyframes slideUp {
       from { transform: translateX(-50%) translateY(100%); }
       to   { transform: translateX(-50%) translateY(0); }
+    }
+
+    /* ── 1.83: Unified sheet tab pills ── */
+    .uni-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 0 0 14px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+    .uni-tab {
+      flex: 1;
+      padding: 7px 6px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .uni-tab--active {
+      background: var(--nav-bg);
+      color: var(--nav-text);
+      border-color: var(--nav-bg);
     }
 
     .log-now-header {
@@ -1783,11 +1913,11 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
       gap: 4px;
     }
     .ln-drum-colon {
-      font-size: 22px;
+      font-size: 18px;
       font-weight: 700;
       color: var(--text-primary);
       line-height: 1;
-      padding-bottom: 14px;
+      padding-bottom: 10px;
       flex-shrink: 0;
     }
     .ln-drum-col {
@@ -1799,7 +1929,7 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
     .ln-drum-wrapper {
       position: relative;
       width: 56px;
-      height: 132px;
+      height: 108px;
       overflow: hidden;
     }
     .ln-drum-wrapper::before,
@@ -1807,7 +1937,7 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
       content: '';
       position: absolute;
       left: 0; right: 0;
-      height: 46px;
+      height: 36px;
       z-index: 2;
       pointer-events: none;
     }
@@ -1822,7 +1952,7 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
     .ln-drum-center-band {
       position: absolute;
       top: 50%; left: 3px; right: 3px;
-      height: 44px;
+      height: 36px;
       transform: translateY(-50%);
       border-top: 1px solid var(--border-light);
       border-bottom: 1px solid var(--border-light);
@@ -1842,14 +1972,14 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
       -webkit-overflow-scrolling: touch;
     }
     .ln-drum::-webkit-scrollbar { display: none; }
-    .ln-drum-spacer { height: 44px; flex-shrink: 0; display: block; }
+    .ln-drum-spacer { height: 36px; flex-shrink: 0; display: block; }
     .ln-drum-item {
-      height: 44px;
+      height: 36px;
       scroll-snap-align: center;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 500;
       color: var(--text-muted);
       font-variant-numeric: tabular-nums;
@@ -1858,7 +1988,7 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
     }
     .ln-drum-item--sel {
       color: var(--text-primary);
-      font-size: 23px;
+      font-size: 20px;
       font-weight: 700;
     }
     .ln-drum-unit {
@@ -2264,7 +2394,7 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
     .ln-type-drum-wrap {
       position: relative;
       width: 100%;
-      height: 132px;
+      height: 108px;
       overflow: hidden;
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -2275,7 +2405,7 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
       content: '';
       position: absolute;
       left: 0; right: 0;
-      height: 44px;
+      height: 36px;
       z-index: 2;
       pointer-events: none;
     }
@@ -2288,7 +2418,7 @@ import { LogTypeSelectComponent } from './components/log-type-select/log-type-se
       background: linear-gradient(to top, var(--bg-card) 10%, transparent);
     }
     .ln-type-drum-item {
-      height: 44px;
+      height: 36px;
       scroll-snap-align: center;
       display: flex;
       align-items: center;
@@ -2597,11 +2727,29 @@ export class AppComponent implements OnInit {
   addPointTime      = '09:00';
   addPointSaving    = false;
 
+  // ── 1.83: Unified log-creation sheet (replaces 3 separate sheets) ──
+  unifiedSheetOpen = false;
+  unifiedSheetTab: 0 | 1 | 2 = 0; // 0=Add log, 1=Add point, 2=Start timer
+  private uniTouchStartX = 0;
+
   // ── 1.82: Quick Prefs ─────────────────────────────────────────
   quickPrefsOpen    = false;
   quickPrefsSaving  = false;
   quickPrefsItems:  { logTypeId: string; defaultMins: number }[] = [];
   quickPrefsEdit    = new Set<string>();
+
+  // ── 1.83: Day-level metadata ──────────────────────────────────
+  dayMetadata:       DayMetadata | null = null;
+  showImportantLogs  = false;
+
+  readonly dayTypeOptions: { value: DayType; label: string }[] = [
+    { value: 'working',    label: 'Working Day' },
+    { value: 'wfh',        label: 'WFH'         },
+    { value: 'holiday',    label: 'Holiday'      },
+    { value: 'paid_leave', label: 'Paid Leave'   },
+    { value: 'sick_leave', label: 'Sick Leave'   },
+  ];
+  dayTypeDropdownOpen = false;
 
   // ── 1.63: Continue Last Log ───────────────────────────────────
   // (reuses shortcutSaving / shortcutToast / toastTimer)
@@ -2612,11 +2760,13 @@ export class AppComponent implements OnInit {
   private activeLogTimerRef: any = null;
 
   // Start-timer sheet state
-  startLogOpen    = false;
-  startLogTypeId  = '';
-  startLogTitle   = '';
-  startLogPlanned = '';           // '' | '15' | '30' | '60' | '90' | '120'
-  startLogSaving  = false;
+  startLogOpen      = false;
+  startLogDomain: 'work' | 'personal' = 'work';
+  startLogTypeIndex = 0;
+  startLogTypeId    = '';
+  startLogTitle     = '';
+  startLogPlanned   = '';           // '' | '15' | '30' | '60' | '90' | '120'
+  startLogSaving    = false;
 
   // ── 1.68: End-of-Day Wrap-Up ──────────────────────────────────
   wrapUpOpen    = false;
@@ -2628,10 +2778,11 @@ export class AppComponent implements OnInit {
   private wrapUpDismissedDate = '';
 
   constructor(
-    private logService:     LogService,
-    private authService:    AuthService,
-    private logTypeService: LogTypeService,
-    private prefService:    PreferenceService
+    private logService:      LogService,
+    private authService:     AuthService,
+    private logTypeService:  LogTypeService,
+    private prefService:     PreferenceService,
+    private dayLevelService: DayLevelService,
   ) {}
 
   get todayLabel(): string {
@@ -2867,6 +3018,33 @@ export class AppComponent implements OnInit {
         this.isLoading = false;
       }
     });
+    this.loadDayMetadata();
+  }
+
+  // ── 1.83: Day metadata ────────────────────────────────────
+  private loadDayMetadata(): void {
+    this.dayLevelService.getMetadata(this.selectedDateStr).subscribe({
+      next:  meta => { this.dayMetadata = meta; },
+      error: ()   => { this.dayMetadata = null; }
+    });
+  }
+
+  openImportantLogs(): void {
+    this.showImportantLogs = true;
+  }
+
+  get selectedDayTypeLabel(): string {
+    return this.dayTypeOptions.find(o => o.value === this.dayMetadata?.dayType)?.label ?? 'Day Type';
+  }
+
+  setDayType(dayType: DayType): void {
+    if (!this.dayMetadata) return;
+    // Optimistic update
+    this.dayMetadata = { ...this.dayMetadata, dayType };
+    this.dayLevelService.setDayType(this.selectedDateStr, dayType).subscribe({
+      next:  meta  => { if (meta) this.dayMetadata = meta; },
+      error: ()    => { this.loadDayMetadata(); } // revert on error
+    });
   }
 
   focusLog(log: LogEntry): void {
@@ -3074,32 +3252,63 @@ export class AppComponent implements OnInit {
     }
   }
 
-  /** Opens the "Start Timer" sheet. Pre-loads log types if needed. */
+  /** Opens the unified sheet on the "Start Timer" tab. */
   openStartLog(): void {
+    this._prepStartLog();
+    this.unifiedSheetTab  = 2;
+    this.unifiedSheetOpen = true;
+  }
+
+  private _prepStartLog(): void {
+    this.startLogDomain = 'work';
     if (!this.inlineLogTypes.length) {
       this.logTypeService.getLogTypes().subscribe((t: any[]) => {
         this.inlineLogTypes = t;
-        this._openStartLogSheet();
+        this._initStartLog();
       });
     } else {
-      this._openStartLogSheet();
+      this._initStartLog();
     }
   }
 
-  private _openStartLogSheet(): void {
+  private _initStartLog(): void {
     const lastTypeId = this.logs.length
       ? (this.logs[this.logs.length - 1].logType?.id ?? null)
       : null;
-    const defaultLt  = lastTypeId
-      ? (this.inlineLogTypes.find((t: any) => t._id === lastTypeId) ?? this.inlineLogTypes[0])
-      : this.inlineLogTypes[0];
-    this.startLogTypeId  = defaultLt?._id ?? '';
-    this.startLogTitle   = '';
-    this.startLogPlanned = '';
-    this.startLogOpen    = true;
+    const filtered = this.startLogFilteredTypes;
+    const idx = lastTypeId ? filtered.findIndex((t: any) => t._id === lastTypeId) : -1;
+    this.startLogTypeIndex = idx >= 0 ? idx : 0;
+    this.startLogTypeId    = filtered[this.startLogTypeIndex]?._id ?? this.inlineLogTypes[0]?._id ?? '';
+    this.startLogTitle     = '';
+    this.startLogPlanned   = '';
+    setTimeout(() => this.scrollStartLogTypeDrum(), 40);
   }
 
-  closeStartLog(): void { this.startLogOpen = false; }
+  closeStartLog(): void { this.unifiedSheetOpen = false; }
+
+  get startLogFilteredTypes(): any[] {
+    return this.inlineLogTypes.filter((lt: any) => lt.domain === this.startLogDomain);
+  }
+
+  setStartLogDomain(domain: 'work' | 'personal'): void {
+    this.startLogDomain    = domain;
+    this.startLogTypeIndex = 0;
+    this.startLogTypeId    = this.startLogFilteredTypes[0]?._id ?? '';
+    setTimeout(() => this.scrollStartLogTypeDrum(), 20);
+  }
+
+  onStartLogTypeScroll(event: Event): void {
+    const el  = event.target as HTMLElement;
+    const idx = Math.max(0, Math.min(this.startLogFilteredTypes.length - 1, Math.round(el.scrollTop / 36)));
+    if (idx === this.startLogTypeIndex) return;
+    this.startLogTypeIndex = idx;
+    this.startLogTypeId    = this.startLogFilteredTypes[idx]?._id ?? '';
+  }
+
+  private scrollStartLogTypeDrum(): void {
+    const el = document.querySelector('.ln-drum-sl-types') as HTMLElement | null;
+    if (el) el.scrollTop = this.startLogTypeIndex * 36;
+  }
 
   /** Sends PUT /preferences/active-log — server records startedAt. */
   saveStartLog(): void {
@@ -3112,8 +3321,8 @@ export class AppComponent implements OnInit {
     this.prefService.startActiveLog({ logTypeId: this.startLogTypeId, title, plannedMins })
       .subscribe({
         next: (activeLog) => {
-          this.startLogSaving = false;
-          this.startLogOpen   = false;
+          this.startLogSaving   = false;
+          this.unifiedSheetOpen = false;
           if (activeLog) {
             this.activeLog = activeLog;
             this.startActiveLogTimer();
@@ -3206,7 +3415,7 @@ export class AppComponent implements OnInit {
 
   /** Scroll all four Log Now drums to match the current start/end times. */
   private scrollLogNowDrums(): void {
-    const item = 44; // px per drum row
+    const item = 36; // px per drum row
     const sh = document.querySelector('.ln-drum-start-h') as HTMLElement | null;
     const sm = document.querySelector('.ln-drum-start-m') as HTMLElement | null;
     const eh = document.querySelector('.ln-drum-end-h')   as HTMLElement | null;
@@ -3219,26 +3428,26 @@ export class AppComponent implements OnInit {
 
   onLogNowStartHourScroll(event: Event): void {
     const el = event.target as HTMLElement;
-    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 44)));
+    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 36)));
     if (h === this.logNowStartHour) return;
     this.logNowStart = `${String(h).padStart(2, '0')}:${this.logNowStart.split(':')[1]}`;
   }
   onLogNowStartMinuteScroll(event: Event): void {
     const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.logNowMinutes.length - 1, Math.round(el.scrollTop / 44)));
+    const idx = Math.max(0, Math.min(this.logNowMinutes.length - 1, Math.round(el.scrollTop / 36)));
     const m   = this.logNowMinutes[idx];
     if (m === this.logNowStartMinute) return;
     this.logNowStart = `${this.logNowStart.split(':')[0]}:${String(m).padStart(2, '0')}`;
   }
   onLogNowEndHourScroll(event: Event): void {
     const el = event.target as HTMLElement;
-    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 44)));
+    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 36)));
     if (h === this.logNowEndHour) return;
     this.logNowEnd = `${String(h).padStart(2, '0')}:${this.logNowEnd.split(':')[1]}`;
   }
   onLogNowEndMinuteScroll(event: Event): void {
     const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.logNowMinutes.length - 1, Math.round(el.scrollTop / 44)));
+    const idx = Math.max(0, Math.min(this.logNowMinutes.length - 1, Math.round(el.scrollTop / 36)));
     const m   = this.logNowMinutes[idx];
     if (m === this.logNowEndMinute) return;
     this.logNowEnd = `${this.logNowEnd.split(':')[0]}:${String(m).padStart(2, '0')}`;
@@ -3256,6 +3465,13 @@ export class AppComponent implements OnInit {
   }
 
   openLogNow(): void {
+    this._prepLogNow();
+    this.unifiedSheetTab  = 0;
+    this.unifiedSheetOpen = true;
+    setTimeout(() => { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }, 40);
+  }
+
+  private _prepLogNow(): void {
     const now      = this.snapToQuarter(this.currentTimeStr());
     const startStr = this.snapToQuarter(this.smartDefaultStart);
     this.logNowStart     = startStr;
@@ -3263,18 +3479,14 @@ export class AppComponent implements OnInit {
     this.logNowDomain    = 'work';
     this.logNowTypeIndex = 0;
     this.logNowTitle     = '';
-
     if (!this.inlineLogTypes.length) {
       this.logTypeService.getLogTypes().subscribe((t: any[]) => {
         this.inlineLogTypes = t;
         this._initLogNowType();
-        this.logNowOpen = true;
         setTimeout(() => { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }, 40);
       });
     } else {
       this._initLogNowType();
-      this.logNowOpen = true;
-      setTimeout(() => { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }, 40);
     }
   }
 
@@ -3285,7 +3497,34 @@ export class AppComponent implements OnInit {
     this.logNowDomain    = 'work';
   }
 
-  closeLogNow(): void { this.logNowOpen = false; }
+  closeLogNow(): void { this.unifiedSheetOpen = false; }
+  closeUnifiedSheet(): void { this.unifiedSheetOpen = false; }
+
+  onUnifiedSwipeStart(e: TouchEvent): void {
+    this.uniTouchStartX = e.changedTouches[0].clientX;
+  }
+  onUnifiedSwipeEnd(e: TouchEvent): void {
+    const dx = e.changedTouches[0].clientX - this.uniTouchStartX;
+    if (dx > 60 && this.unifiedSheetTab > 0) {
+      this.unifiedSheetTab = (this.unifiedSheetTab - 1) as 0|1|2;
+      this._onTabSwitch();
+    } else if (dx < -60 && this.unifiedSheetTab < 2) {
+      this.unifiedSheetTab = (this.unifiedSheetTab + 1) as 0|1|2;
+      this._onTabSwitch();
+    }
+  }
+  switchTab(tab: 0|1|2): void {
+    this.unifiedSheetTab = tab;
+    this._onTabSwitch();
+  }
+  private _onTabSwitch(): void {
+    // Re-init scroll drums for the newly visible tab
+    setTimeout(() => {
+      if (this.unifiedSheetTab === 0) { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }
+      if (this.unifiedSheetTab === 1) { this.scrollAddPointTypeDrum(); }
+      if (this.unifiedSheetTab === 2) { this.scrollStartLogTypeDrum(); }
+    }, 40);
+  }
 
   get logNowFilteredTypes(): any[] {
     return this.inlineLogTypes.filter((lt: any) => lt.domain === this.logNowDomain);
@@ -3300,7 +3539,7 @@ export class AppComponent implements OnInit {
 
   onLogNowTypeScroll(event: Event): void {
     const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.logNowFilteredTypes.length - 1, Math.round(el.scrollTop / 44)));
+    const idx = Math.max(0, Math.min(this.logNowFilteredTypes.length - 1, Math.round(el.scrollTop / 36)));
     if (idx === this.logNowTypeIndex) return;
     this.logNowTypeIndex = idx;
     this.logNowTypeId    = this.logNowFilteredTypes[idx]?._id ?? '';
@@ -3308,7 +3547,7 @@ export class AppComponent implements OnInit {
 
   private scrollLogNowTypeDrum(): void {
     const el = document.querySelector('.ln-drum-ln-types') as HTMLElement | null;
-    if (el) el.scrollTop = this.logNowTypeIndex * 44;
+    if (el) el.scrollTop = this.logNowTypeIndex * 36;
   }
 
   saveLogNow(): void {
@@ -3322,7 +3561,7 @@ export class AppComponent implements OnInit {
       startTime: this.logNowStart,
       endTime:   this.logNowEnd,
     }).subscribe({
-      next:  () => { this.logNowSaving = false; this.logNowOpen = false; this.loadLogs(); },
+      next:  () => { this.logNowSaving = false; this.unifiedSheetOpen = false; this.loadLogs(); },
       error: () => { this.logNowSaving = false; }
     });
   }
@@ -3333,22 +3572,27 @@ export class AppComponent implements OnInit {
   }
 
   openAddPoint(): void {
+    this._prepAddPoint();
+    this.unifiedSheetTab  = 1;
+    this.unifiedSheetOpen = true;
+    setTimeout(() => this.scrollAddPointTypeDrum(), 40);
+  }
+
+  private _prepAddPoint(): void {
     this.addPointDomain    = 'work';
     this.addPointTypeIndex = 0;
     this.addPointTitle     = '';
-    // Default to current time rounded to nearest minute
     const n = new Date();
     this.addPointTime = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
     if (!this.inlineLogTypes.length) {
       this.logTypeService.getLogTypes().subscribe((t: any[]) => {
         this.inlineLogTypes = t;
         this._initAddPoint();
+        setTimeout(() => this.scrollAddPointTypeDrum(), 40);
       });
     } else {
       this._initAddPoint();
     }
-    this.addPointOpen = true;
-    setTimeout(() => this.scrollAddPointTypeDrum(), 40);
   }
 
   private _initAddPoint(): void {
@@ -3357,7 +3601,7 @@ export class AppComponent implements OnInit {
     this.addPointTypeIndex = 0;
   }
 
-  closeAddPoint(): void { this.addPointOpen = false; }
+  closeAddPoint(): void { this.unifiedSheetOpen = false; }
 
   setAddPointDomain(domain: 'work' | 'personal'): void {
     this.addPointDomain    = domain;
@@ -3368,7 +3612,7 @@ export class AppComponent implements OnInit {
 
   onAddPointTypeScroll(event: Event): void {
     const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.addPointFilteredTypes.length - 1, Math.round(el.scrollTop / 44)));
+    const idx = Math.max(0, Math.min(this.addPointFilteredTypes.length - 1, Math.round(el.scrollTop / 36)));
     if (idx === this.addPointTypeIndex) return;
     this.addPointTypeIndex = idx;
     this.addPointTypeId    = this.addPointFilteredTypes[idx]?._id ?? '';
@@ -3376,7 +3620,7 @@ export class AppComponent implements OnInit {
 
   private scrollAddPointTypeDrum(): void {
     const el = document.querySelector('.ln-drum-ap-types') as HTMLElement | null;
-    if (el) el.scrollTop = this.addPointTypeIndex * 44;
+    if (el) el.scrollTop = this.addPointTypeIndex * 36;
   }
 
   saveAddPoint(): void {
@@ -3392,7 +3636,7 @@ export class AppComponent implements OnInit {
       startTime: this.addPointTime,
       endTime:   this.addPointTime,
     }).subscribe({
-      next:  () => { this.addPointSaving = false; this.addPointOpen = false; this.loadLogs(); },
+      next:  () => { this.addPointSaving = false; this.unifiedSheetOpen = false; this.loadLogs(); },
       error: () => { this.addPointSaving = false; }
     });
   }

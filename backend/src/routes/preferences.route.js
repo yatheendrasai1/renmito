@@ -12,4 +12,7 @@ router.delete('/active-log',       preferencesController.stopActiveLog);
 
 router.put('/quick-shortcuts', preferencesController.updateQuickShortcuts);
 
+// 1.83 — Day-level schedule preferences
+router.put('/day-settings', preferencesController.updateDaySettings);
+
 module.exports = router;
