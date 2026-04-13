@@ -30,6 +30,14 @@ const activeLogSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const quickShortcutSchema = new mongoose.Schema(
+  {
+    logTypeId:   { type: mongoose.Schema.Types.ObjectId, required: true },
+    defaultMins: { type: Number, default: 30 },
+  },
+  { _id: false }
+);
+
 const userPreferenceSchema = new mongoose.Schema(
   {
     userId: {
@@ -56,6 +64,9 @@ const userPreferenceSchema = new mongoose.Schema(
 
     /** Currently-running live log, or null when no timer is active. */
     activeLog: { type: activeLogSchema, default: null },
+
+    /** 1.82 — User-configured quick shortcuts list. Empty = use smart defaults. */
+    quickShortcuts: { type: [quickShortcutSchema], default: [] },
   },
   { timestamps: true, collection: 'userPreferences' }
 );

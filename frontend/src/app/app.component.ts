@@ -16,8 +16,6 @@ import { forkJoin } from 'rxjs';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { LogTypeSelectComponent } from './components/log-type-select/log-type-select.component';
 
-interface QuickLogItem { label: string; name: string; category: string; color: string; }
-
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -104,6 +102,23 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
                 <polyline points="12 6 12 12 16 14"/>
               </svg>
               <span>Logger</span>
+            </button>
+            <button
+              class="left-nav-item"
+              [class.left-nav-item--active]="activeView === 'timeline'"
+              [title]="navCollapsed ? 'Time Line' : ''"
+              (click)="activeView = 'timeline'"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+                <circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/>
+                <circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/>
+                <circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/>
+              </svg>
+              <span>Time Line</span>
             </button>
           </div>
         </nav>
@@ -213,9 +228,20 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
               </button>
             </div>
 
-            <!-- ── Quick Shortcuts — 1.62 ──────────────────────── -->
+            <!-- ── Quick Shortcuts — 1.62 / 1.82 ──────────────── -->
             <div class="shortcuts-bar" *ngIf="isAuthenticated && shortcutDisplayTypes.length > 0">
-              <span class="shortcuts-label">Quick</span>
+              <span class="shortcuts-label">
+                Quick
+                <button class="shortcuts-edit-btn"
+                        (click)="openQuickPrefs($event)"
+                        title="Configure quick shortcuts"
+                        aria-label="Configure quick bar">
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                    <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
+                          stroke-width="1.5" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </span>
               <button class="shortcut-chip"
                       *ngFor="let lt of shortcutDisplayTypes"
                       [disabled]="shortcutSaving"
@@ -241,67 +267,11 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
               <button class="wrapup-dismiss-btn" (click)="dismissWrapUp()" aria-label="Dismiss">✕</button>
             </div>
 
-            <!-- ── Quick Logs — 1.55 ──────────────────────────── -->
-            <div class="quick-logs-section">
-
-              <!-- Header / accordion toggle -->
-              <div class="quick-logs-header" (click)="toggleQuickLogs()">
-                <button class="quick-logs-toggle"
-                        [attr.aria-expanded]="quickLogsExpanded"
-                        tabindex="-1">
-                  <svg class="quick-logs-chevron" width="13" height="13"
-                       viewBox="0 0 12 12" fill="none">
-                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
-                          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                  <span class="quick-logs-title">Quick Logs</span>
-                </button>
-              </div>
-
-              <!-- Body — visible when expanded -->
-              <div class="quick-logs-body" *ngIf="quickLogsExpanded">
-
-                <!-- 4-col desktop / 2-col mobile grid -->
-                <div class="quick-log-grid">
-                  <button class="quick-log-card"
-                          *ngFor="let item of quickLogItems"
-                          [class.quick-log-card--active]="quickLogActiveItem?.label === item.label"
-                          (click)="selectQuickLogItem(item, $event)">
-                    <span class="quick-log-card-accent"
-                          [style.background]="item.color"></span>
-                    <span class="quick-log-card-dot"
-                          [style.background]="item.color"></span>
-                    <span class="quick-log-card-label">{{ item.label }}</span>
-                  </button>
-                </div>
-
-              </div>
-            </div>
-
-            <!-- ── Split: Timeline (left) + Log list (right) — 1.24 -->
+            <!-- ── Log List (full width in logger view) ── -->
             <div class="logger-split">
 
-              <!-- Left column: Timeline -->
-              <div class="split-timeline">
-
-                <div class="timeline-container">
-                  <app-timeline
-                    #timelineRef
-                    [logs]="logs"
-                    [selectedDate]="selectedDate"
-                    [highlightedLogId]="highlightedLogId"
-                    [metricLogIds]="metricLogIds"
-                    (selectionMade)="onSelectionChanged($event)"
-                    (createLogClicked)="onCreateLogClicked($event)"
-                    (logClicked)="editLog($event)"
-                    (mergePointsSelected)="onMergePointsSelected($event)"
-                  ></app-timeline>
-                </div>
-
-              </div>
-
-              <!-- Right column: Log List -->
-              <div class="split-logs">
+              <!-- Log List -->
+              <div class="split-logs split-logs--full">
                 <div class="content-header">
                   <h2 class="section-title">Logs for the day</h2>
                   <span class="log-count" *ngIf="logs.length > 0">
@@ -325,39 +295,47 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
 
             <div class="log-list-section">
 
-              <!-- ── Add log row — 1.54 (top of list) ──────── -->
-              <div class="add-log-backdrop" *ngIf="showAddLogMenu" (click)="showAddLogMenu = false"></div>
+              <!-- ── Add log row — 1.80: three action buttons ──────── -->
               <div class="log-list-add-row" *ngIf="!isLoading">
-                <button class="btn-add-log" (click)="toggleAddLogMenu(); $event.stopPropagation()">
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                    <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                  </svg>
-                  Add log
-                </button>
-                <div class="add-log-menu" *ngIf="showAddLogMenu" (click)="$event.stopPropagation()">
-                  <button class="add-log-option" (click)="quickAddMeeting()">
-                    <span class="add-log-option-icon">⚡</span>
-                    <span class="add-log-option-text">
-                      <strong>30-min placeholder</strong>
-                      <span>Meeting block from last entry</span>
-                    </span>
+                <div class="add-log-btn-group">
+                  <button class="btn-add-entry" (click)="openAddLogForm()">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                      <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    Add log
                   </button>
-                  <button class="add-log-option" (click)="openAddLogForm()">
-                    <span class="add-log-option-icon">✚</span>
-                    <span class="add-log-option-text">
-                      <strong>Create log</strong>
-                      <span>Open full create form</span>
-                    </span>
+                  <button class="btn-add-entry" (click)="openAddPoint()">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                      <circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.6"/>
+                      <circle cx="6" cy="6" r="1.5" fill="currentColor"/>
+                    </svg>
+                    Add point
                   </button>
-                  <button class="add-log-option" (click)="openStartLog(); showAddLogMenu = false"
-                          [disabled]="!!activeLog">
-                    <span class="add-log-option-icon">⏱</span>
-                    <span class="add-log-option-text">
-                      <strong>Start timer</strong>
-                      <span>{{ activeLog ? 'Timer already running' : 'Log from now, stop when done' }}</span>
-                    </span>
+                  <button class="btn-add-entry btn-add-entry--activity" (click)="openStartLog()">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                      <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+                      <path d="M4.5 3.5l5 2.5-5 2.5V3.5z" fill="currentColor"/>
+                    </svg>
+                    Start activity
                   </button>
                 </div>
+              </div>
+
+              <!-- ── 1.80: Continue Last Log ── -->
+              <div class="continue-log-row"
+                   *ngIf="isToday && lastRangeLog && !inlineEditId">
+                <button class="continue-log-btn"
+                        [disabled]="shortcutSaving"
+                        (click)="continueLastLog()">
+                  <span class="continue-dot"
+                        [style.background]="lastRangeLog.logType?.color ?? '#9B9B9B'"></span>
+                  <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor">
+                    <path d="M2 1.5l6 3.5-6 3.5V1.5z"/>
+                  </svg>
+                  Continue
+                  <strong>{{ lastRangeLog.logType?.name ?? 'last log' }}</strong>
+                  <span class="continue-since">since {{ lastRangeLog.endAt }}</span>
+                </button>
               </div>
 
               <div class="log-list-skeleton" *ngIf="isLoading">
@@ -472,32 +450,77 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
                 <p>No logs recorded for this day.</p>
-                <span>Drag on the timeline above to get started.</span>
-              </div>
-
-              <!-- ── 1.63: Continue Last Log ─────────────────── -->
-              <div class="continue-log-row"
-                   *ngIf="isToday && lastRangeLog && !inlineEditId">
-                <button class="continue-log-btn"
-                        [disabled]="shortcutSaving"
-                        (click)="continueLastLog()">
-                  <span class="continue-dot"
-                        [style.background]="lastRangeLog.logType?.color ?? '#9B9B9B'"></span>
-                  <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor">
-                    <path d="M2 1.5l6 3.5-6 3.5V1.5z"/>
-                  </svg>
-                  Continue
-                  <strong>{{ lastRangeLog.logType?.name ?? 'last log' }}</strong>
-                  <span class="continue-since">since {{ lastRangeLog.endAt }}</span>
-                </button>
+                <span>Use the Time Line view or Log Now to get started.</span>
               </div>
 
             </div><!-- /log-list-section -->
-              </div><!-- /split-logs -->
+            </div><!-- /split-logs -->
 
             </div><!-- /logger-split -->
 
-          </div><!-- /content-area -->
+          </div><!-- /content-area (logger) -->
+
+          <!-- ── Time Line view — 1.76 ─────────────────────── -->
+          <div class="content-area timeline-view" *ngIf="activeView === 'timeline'">
+
+            <!-- Date bar (same as logger) -->
+            <div class="date-bar">
+              <span class="date-bar-text">{{ dateShortLabel }}</span>
+              <div class="date-bar-actions">
+                <button class="date-bar-btn" (click)="prevDay()"
+                        title="Previous day" aria-label="Previous day">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                </button>
+                <button class="date-bar-btn" (click)="nextDay()"
+                        [disabled]="isToday"
+                        title="Next day" aria-label="Next day">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+                <button class="date-bar-btn" (click)="goToToday()"
+                        [disabled]="isToday"
+                        title="Go to today" aria-label="Go to today">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"/>
+                    <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
+                  </svg>
+                </button>
+                <button class="date-bar-btn" (click)="openCalendarPopup()"
+                        title="Pick a date" aria-label="Open calendar">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8"  y1="2" x2="8"  y2="6"/>
+                    <line x1="3"  y1="10" x2="21" y2="10"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Full-width timeline (no accordion) -->
+            <div class="timeline-view-container">
+              <app-timeline
+                #timelineRef
+                [logs]="logs"
+                [selectedDate]="selectedDate"
+                [highlightedLogId]="highlightedLogId"
+                [metricLogIds]="metricLogIds"
+                [collapsible]="false"
+                (selectionMade)="onSelectionChanged($event)"
+                (createLogClicked)="onCreateLogClicked($event)"
+                (logClicked)="editLog($event)"
+                (mergePointsSelected)="onMergePointsSelected($event)"
+              ></app-timeline>
+            </div>
+
+          </div><!-- /content-area (timeline) -->
 
         </div><!-- /view-area -->
       </div><!-- /app-body -->
@@ -508,25 +531,15 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
         <button class="shortcut-toast-undo" (click)="undoShortcut()">Undo</button>
       </div>
 
-      <!-- ── 1.61/1.73: FAB — context-switches based on running log state ── -->
-      <!-- No active log → Log Now (retrospective) -->
+      <!-- ── 1.61: Log Now FAB (always shows + icon) ── -->
       <button class="log-now-fab"
-              *ngIf="isAuthenticated && !activeLog"
+              *ngIf="isAuthenticated"
               (click)="openLogNow()"
               title="Log Now — tap to record what you just did">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
           <line x1="12" y1="5" x2="12" y2="19"/>
           <line x1="5"  y1="12" x2="19" y2="12"/>
-        </svg>
-      </button>
-      <!-- Active log → pulsing Stop FAB (1.73) -->
-      <button class="log-now-fab log-now-fab--stop"
-              *ngIf="isAuthenticated && activeLog"
-              (click)="stopRunningLog()"
-              title="Stop timer and save log">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <rect x="5" y="5" width="14" height="14" rx="2"/>
         </svg>
       </button>
 
@@ -544,20 +557,109 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
           </button>
         </div>
         <div class="log-now-fields">
-          <app-log-type-select
-            [logTypes]="inlineLogTypes"
-            [selectedId]="logNowTypeId"
-            (selectedIdChange)="logNowTypeId = $event; onLogNowTypeChange()">
-          </app-log-type-select>
+          <!-- 1.81: Work / Personal domain tabs -->
+          <div class="ln-domain-tabs">
+            <button class="ln-domain-tab"
+                    [class.ln-domain-tab--active]="logNowDomain === 'work'"
+                    (click)="setLogNowDomain('work')">Work</button>
+            <button class="ln-domain-tab"
+                    [class.ln-domain-tab--active]="logNowDomain === 'personal'"
+                    (click)="setLogNowDomain('personal')">Personal</button>
+          </div>
+          <!-- 1.81: Log type drum picker -->
+          <div class="ln-type-drum-wrap">
+            <div class="ln-drum-center-band"></div>
+            <div class="ln-drum ln-drum-ln-types" (scroll)="onLogNowTypeScroll($event)">
+              <div class="ln-drum-spacer"></div>
+              <div class="ln-type-drum-item"
+                   *ngFor="let lt of logNowFilteredTypes; let i = index"
+                   [class.ln-type-drum-item--sel]="i === logNowTypeIndex">
+                <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
+                {{ lt.name }}
+              </div>
+              <div class="ln-drum-spacer"></div>
+            </div>
+          </div>
           <input class="log-now-input" type="text"
                  placeholder="Title (optional — defaults to type name)"
                  [(ngModel)]="logNowTitle"/>
-          <div class="log-now-times">
-            <label class="log-now-time-label">Start</label>
-            <input class="log-now-time" type="time" [(ngModel)]="logNowStart"/>
-            <span class="log-now-arrow">→</span>
-            <label class="log-now-time-label">End</label>
-            <input class="log-now-time" type="time" [(ngModel)]="logNowEnd"/>
+          <!-- 1.78: Drum time pickers for Start and End -->
+          <div class="ln-time-pickers">
+            <div class="ln-time-block">
+              <span class="ln-time-block-label">Start</span>
+              <div class="ln-drum-group">
+                <div class="ln-drum-col">
+                  <div class="ln-drum-wrapper">
+                    <div class="ln-drum-center-band"></div>
+                    <div class="ln-drum ln-drum-start-h" (scroll)="onLogNowStartHourScroll($event)">
+                      <div class="ln-drum-spacer"></div>
+                      <div class="ln-drum-item"
+                           *ngFor="let h of logNowHours"
+                           [class.ln-drum-item--sel]="h === logNowStartHour">
+                        {{ h | number:'2.0-0' }}
+                      </div>
+                      <div class="ln-drum-spacer"></div>
+                    </div>
+                  </div>
+                  <span class="ln-drum-unit">h</span>
+                </div>
+                <div class="ln-drum-colon">:</div>
+                <div class="ln-drum-col">
+                  <div class="ln-drum-wrapper">
+                    <div class="ln-drum-center-band"></div>
+                    <div class="ln-drum ln-drum-start-m" (scroll)="onLogNowStartMinuteScroll($event)">
+                      <div class="ln-drum-spacer"></div>
+                      <div class="ln-drum-item"
+                           *ngFor="let m of logNowMinutes"
+                           [class.ln-drum-item--sel]="m === logNowStartMinute">
+                        {{ m | number:'2.0-0' }}
+                      </div>
+                      <div class="ln-drum-spacer"></div>
+                    </div>
+                  </div>
+                  <span class="ln-drum-unit">m</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="ln-time-arrow">→</div>
+
+            <div class="ln-time-block">
+              <span class="ln-time-block-label">End</span>
+              <div class="ln-drum-group">
+                <div class="ln-drum-col">
+                  <div class="ln-drum-wrapper">
+                    <div class="ln-drum-center-band"></div>
+                    <div class="ln-drum ln-drum-end-h" (scroll)="onLogNowEndHourScroll($event)">
+                      <div class="ln-drum-spacer"></div>
+                      <div class="ln-drum-item"
+                           *ngFor="let h of logNowHours"
+                           [class.ln-drum-item--sel]="h === logNowEndHour">
+                        {{ h | number:'2.0-0' }}
+                      </div>
+                      <div class="ln-drum-spacer"></div>
+                    </div>
+                  </div>
+                  <span class="ln-drum-unit">h</span>
+                </div>
+                <div class="ln-drum-colon">:</div>
+                <div class="ln-drum-col">
+                  <div class="ln-drum-wrapper">
+                    <div class="ln-drum-center-band"></div>
+                    <div class="ln-drum ln-drum-end-m" (scroll)="onLogNowEndMinuteScroll($event)">
+                      <div class="ln-drum-spacer"></div>
+                      <div class="ln-drum-item"
+                           *ngFor="let m of logNowMinutes"
+                           [class.ln-drum-item--sel]="m === logNowEndMinute">
+                        {{ m | number:'2.0-0' }}
+                      </div>
+                      <div class="ln-drum-spacer"></div>
+                    </div>
+                  </div>
+                  <span class="ln-drum-unit">m</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="log-now-actions">
@@ -672,6 +774,62 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
         </div>
       </div>
 
+      <!-- ── 1.80: Add Point sheet + backdrop ─────────────────── -->
+      <div class="log-now-backdrop" *ngIf="addPointOpen" (click)="closeAddPoint()"></div>
+      <div class="log-now-sheet" *ngIf="addPointOpen">
+        <div class="log-now-header">
+          <span class="log-now-title">Add Point</span>
+          <button class="log-now-close" (click)="closeAddPoint()" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6"  x2="6"  y2="18"/>
+              <line x1="6"  y1="6"  x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="log-now-fields">
+          <!-- Domain tabs -->
+          <div class="ln-domain-tabs">
+            <button class="ln-domain-tab"
+                    [class.ln-domain-tab--active]="addPointDomain === 'work'"
+                    (click)="setAddPointDomain('work')">Work</button>
+            <button class="ln-domain-tab"
+                    [class.ln-domain-tab--active]="addPointDomain === 'personal'"
+                    (click)="setAddPointDomain('personal')">Personal</button>
+          </div>
+          <!-- Log type drum -->
+          <div class="ln-type-drum-wrap">
+            <div class="ln-drum-center-band"></div>
+            <div class="ln-drum ln-drum-ap-types" (scroll)="onAddPointTypeScroll($event)">
+              <div class="ln-drum-spacer"></div>
+              <div class="ln-type-drum-item"
+                   *ngFor="let lt of addPointFilteredTypes; let i = index"
+                   [class.ln-type-drum-item--sel]="i === addPointTypeIndex">
+                <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
+                {{ lt.name }}
+              </div>
+              <div class="ln-drum-spacer"></div>
+            </div>
+          </div>
+          <input class="log-now-input" type="text"
+                 placeholder="Title (optional)"
+                 [(ngModel)]="addPointTitle"/>
+          <!-- Point time: native time input -->
+          <div class="ln-point-time-row">
+            <span class="ln-point-time-label">Time</span>
+            <input class="ln-point-time-input" type="time" [(ngModel)]="addPointTime"/>
+          </div>
+        </div>
+        <div class="log-now-actions">
+          <button class="log-now-cancel" (click)="closeAddPoint()">Cancel</button>
+          <button class="log-now-save"
+                  (click)="saveAddPoint()"
+                  [disabled]="addPointSaving || !addPointTypeId">
+            {{ addPointSaving ? 'Saving…' : 'Add Point' }}
+          </button>
+        </div>
+      </div>
+
       <!-- ── Footer — 1.35 / fixed full-width 1.52 ─────── -->
       <footer class="app-footer">
         <div class="footer-brand">
@@ -774,101 +932,72 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
       </div>
     </div>
 
-    <!-- ── Quick Logs duration picker — 1.55 ──────────────── -->
-    <!-- Invisible backdrop: captures outside clicks, zero visual effect -->
-    <div class="ql-backdrop" *ngIf="quickLogActiveItem"
-         (click)="closeQuickLogPopup()"></div>
-
-    <!-- Card-anchored popover: positioned via JS beside the clicked card -->
-    <div class="ql-popup"
-         *ngIf="quickLogActiveItem && quickLogPopupPos"
-         [style.top.px]="quickLogPopupPos.top"
-         [style.left.px]="quickLogPopupPos.left"
+    <!-- ── 1.82: Quick Prefs popup ──────────────────────────── -->
+    <div class="quick-prefs-overlay" *ngIf="quickPrefsOpen"
+         (click)="closeQuickPrefs()"></div>
+    <div class="quick-prefs-popup" *ngIf="quickPrefsOpen"
          (click)="$event.stopPropagation()">
-
-      <!-- Up-pointing arrow toward the card -->
-      <div class="ql-popup-arrow"></div>
-
-      <!-- Header: color dot + name + close -->
-      <div class="ql-popup-header"
-           [style.border-bottom-color]="quickLogActiveItem.color">
-        <span class="ql-popup-dot"
-              [style.background]="quickLogActiveItem.color"></span>
-        <span class="ql-popup-name">{{ quickLogActiveItem.label }}</span>
-        <button class="ql-popup-close" (click)="closeQuickLogPopup()"
-                aria-label="Close">
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-            <path d="M9 3L3 9M3 3l6 6" stroke="currentColor"
-                  stroke-width="1.8" stroke-linecap="round"/>
+      <div class="quick-prefs-header">
+        <div class="quick-prefs-title-row">
+          <span class="quick-prefs-title">Quick Bar</span>
+          <span class="quick-prefs-sub">Select log types to pin in the quick bar</span>
+        </div>
+        <button class="quick-prefs-close" (click)="closeQuickPrefs()" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6"  x2="6"  y2="18"/>
+            <line x1="6"  y1="6"  x2="18" y2="18"/>
           </svg>
         </button>
       </div>
-
-      <!-- ── Time selector ─────────────────────────────────── -->
-
-      <!-- Desktop: native time input -->
-      <div class="ql-time-desktop">
-        <span class="ql-time-label">Start</span>
-        <input class="ql-time-input" type="time"
-               [ngModel]="quickSelectedTime"
-               (ngModelChange)="quickSelectedTime = $event">
-      </div>
-
-      <!-- Mobile: drum / wheel picker -->
-      <div class="ql-time-mobile">
-        <div class="ql-drum-group">
-
-          <!-- Hours 0–23 -->
-          <div class="ql-drum-col">
-            <div class="ql-drum-wrapper">
-              <div class="ql-drum-center-band"></div>
-              <div class="ql-drum ql-drum-hours"
-                   (scroll)="onQuickHourScroll($event)">
-                <div class="ql-drum-spacer"></div>
-                <div class="ql-drum-item"
-                     *ngFor="let h of quickHours"
-                     [class.ql-drum-item--sel]="h === quickSelectedHour">
-                  {{ h | number:'2.0-0' }}
-                </div>
-                <div class="ql-drum-spacer"></div>
-              </div>
-            </div>
-            <span class="ql-drum-unit">h</span>
+      <div class="quick-prefs-body">
+        <!-- Work types -->
+        <div class="quick-prefs-domain-label">Work</div>
+        <ng-container *ngFor="let lt of quickPrefsWorkTypes">
+          <div class="quick-pref-item"
+               [class.quick-pref-item--on]="isInQuickPrefs(lt._id)"
+               (click)="toggleQuickPref(lt._id)">
+            <span class="quick-pref-dot" [style.background]="lt.color"></span>
+            <span class="quick-pref-name">{{ lt.name }}</span>
+            <span class="quick-pref-badge" *ngIf="isInQuickPrefs(lt._id)">30m</span>
+            <span class="quick-pref-toggle-icon">
+              <svg *ngIf="isInQuickPrefs(lt._id)" width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M2 7l4 4 6-6" stroke="#4A90E2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <svg *ngIf="!isInQuickPrefs(lt._id)" width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M7 3v8M3 7h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </span>
           </div>
-
-          <div class="ql-drum-colon">:</div>
-
-          <!-- Minutes 0–59 -->
-          <div class="ql-drum-col">
-            <div class="ql-drum-wrapper">
-              <div class="ql-drum-center-band"></div>
-              <div class="ql-drum ql-drum-mins"
-                   (scroll)="onQuickMinuteScroll($event)">
-                <div class="ql-drum-spacer"></div>
-                <div class="ql-drum-item"
-                     *ngFor="let m of quickMinutes"
-                     [class.ql-drum-item--sel]="m === quickSelectedMinute">
-                  {{ m | number:'2.0-0' }}
-                </div>
-                <div class="ql-drum-spacer"></div>
-              </div>
-            </div>
-            <span class="ql-drum-unit">m</span>
+        </ng-container>
+        <!-- Personal types -->
+        <div class="quick-prefs-domain-label" style="margin-top:10px">Personal</div>
+        <ng-container *ngFor="let lt of quickPrefsPersonalTypes">
+          <div class="quick-pref-item"
+               [class.quick-pref-item--on]="isInQuickPrefs(lt._id)"
+               (click)="toggleQuickPref(lt._id)">
+            <span class="quick-pref-dot" [style.background]="lt.color"></span>
+            <span class="quick-pref-name">{{ lt.name }}</span>
+            <span class="quick-pref-badge" *ngIf="isInQuickPrefs(lt._id)">30m</span>
+            <span class="quick-pref-toggle-icon">
+              <svg *ngIf="isInQuickPrefs(lt._id)" width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M2 7l4 4 6-6" stroke="#4A90E2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <svg *ngIf="!isInQuickPrefs(lt._id)" width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M7 3v8M3 7h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </span>
           </div>
-
-        </div>
+        </ng-container>
       </div>
-
-      <!-- ── Duration buttons ───────────────────────────────── -->
-      <div class="ql-durations">
-        <button class="ql-dur-btn"
-                *ngFor="let dur of quickDurations"
-                [disabled]="quickLogSaving"
-                (click)="createQuickLog(dur.mins)">
-          {{ dur.label }}
+      <div class="quick-prefs-footer">
+        <button class="quick-prefs-reset" (click)="resetQuickPrefs()"
+                title="Reset to smart defaults">Reset</button>
+        <button class="quick-prefs-save" (click)="saveQuickPrefs()"
+                [disabled]="quickPrefsSaving">
+          {{ quickPrefsSaving ? 'Saving…' : 'Save' }}
         </button>
       </div>
-
     </div>
 
     <!-- Global confirmation dialog (logout + merge) -->
@@ -1057,37 +1186,34 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
     .date-bar-btn:hover:not(:disabled) { background: var(--accent-hover); color: var(--text-primary); }
     .date-bar-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-    /* ── Split layout — 1.24 ───────────────────────────────
-     * Desktop: timeline left | log list right (50/50)
-     * Mobile:  timeline full-width, log list below         */
+    /* ── Logger layout — 1.76: full-width log list ─────── */
     .logger-split {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      align-items: start;
-    }
-
-    .split-timeline {
       display: flex;
       flex-direction: column;
       gap: 14px;
-      min-width: 0;
     }
 
-    /* Log list column scrolls independently at the same height
-       as the timeline column (~header + container + hint).    */
+    /* Log list — full width */
     .split-logs {
       display: flex;
       flex-direction: column;
       gap: 14px;
       min-width: 0;
-      position: sticky;
-      top: 0;
     }
-    /* 1.53: viewport-relative max-height matching the timeline scroll container */
-    .split-logs .log-list-section {
-      max-height: calc(100dvh - 270px);
-      overflow-y: auto;
+    .split-logs--full .log-list-section {
+      max-height: none;
+      overflow-y: visible;
+    }
+
+    /* ── Time Line view — 1.76 ─────────────────────────── */
+    .timeline-view { }
+    .timeline-view-container {
+      background: var(--bg-surface);
+      border-radius: var(--radius);
+      padding: 16px;
+      min-width: 0;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     /* ── Content header ─────────────────────────────────── */
@@ -1270,37 +1396,8 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
     }
     .btn-inline-fullform:hover { background: var(--accent-hover); color: var(--text-primary); }
 
-    /* ── Add log row — 1.54 ────────────────────────────────── */
+    /* ── Add log row — 1.54 / 1.80 ────────────────────────────────── */
     .log-list-add-row { position: relative; padding-top: 4px; }
-    .btn-add-log {
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      width: 100%; background: transparent;
-      border: 1px dashed var(--border); border-radius: var(--radius-sm);
-      color: var(--text-muted); font-size: 12px; padding: 7px 16px;
-      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
-    }
-    .btn-add-log:hover { background: var(--accent-hover); color: var(--text-primary); border-color: var(--accent); }
-    .add-log-backdrop { position: fixed; inset: 0; z-index: 49; }
-    .add-log-menu {
-      position: absolute; top: calc(100% + 6px); left: 50%;
-      transform: translateX(-50%); min-width: 240px;
-      background: var(--bg-surface); border: 1px solid var(--border);
-      border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-      z-index: 50; overflow: hidden; animation: popIn 0.12s ease;
-    }
-    .add-log-option {
-      display: flex; align-items: center; gap: 12px;
-      padding: 12px 16px; width: 100%; background: transparent;
-      border: none; border-bottom: 1px solid var(--border);
-      color: var(--text-primary); cursor: pointer; text-align: left;
-      transition: background 0.15s;
-    }
-    .add-log-option:last-child { border-bottom: none; }
-    .add-log-option:hover { background: var(--accent-hover); }
-    .add-log-option-icon { font-size: 16px; flex-shrink: 0; width: 24px; text-align: center; }
-    .add-log-option-text { display: flex; flex-direction: column; gap: 2px; }
-    .add-log-option-text strong { font-size: 12px; font-weight: 600; }
-    .add-log-option-text span { font-size: 11px; color: var(--text-muted); }
 
     .log-list-empty {
       display: flex; flex-direction: column; align-items: center;
@@ -1455,405 +1552,15 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
     }
     .btn-profile-save:disabled { opacity: 0.45; cursor: not-allowed; }
 
-    /* ── Quick Logs — 1.55 ──────────────────────────────── */
-    .quick-logs-section {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .quick-logs-header {
-      display: flex;
-      align-items: center;
-      padding: 10px 14px;
-      cursor: pointer;
-      user-select: none;
-    }
-    .quick-logs-toggle {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      padding: 0;
-    }
-    .quick-logs-toggle:hover .quick-logs-title { color: var(--text-primary); }
-    .quick-logs-chevron {
-      flex-shrink: 0;
-      color: var(--text-muted);
-      transform: rotate(-90deg);
-      transition: transform 0.2s ease;
-    }
-    .quick-logs-toggle[aria-expanded="true"] .quick-logs-chevron {
-      transform: rotate(0deg);
-    }
-    .quick-logs-title {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      transition: color 0.15s;
-    }
-
-    .quick-logs-body {
-      padding: 0 14px 14px;
-      border-top: 1px solid var(--border);
-    }
-
-    /* 4-column on desktop, 2-column on mobile */
-    .quick-log-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      padding-top: 12px;
-    }
-
-    .quick-log-card {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 9px;
-      padding: 16px 10px 14px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      cursor: pointer;
-      overflow: hidden;
-      text-align: center;
-      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
-    }
-    .quick-log-card:hover {
-      background: var(--accent-hover);
-      border-color: var(--border-light);
-    }
-    .quick-log-card--active {
-      background: var(--accent-hover) !important;
-    }
-
-    /* Thin colored top-accent stripe */
-    .quick-log-card-accent {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-      border-radius: var(--radius) var(--radius) 0 0;
-    }
-
-    .quick-log-card-dot {
-      width: 22px; height: 22px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      display: block;
-    }
-    .quick-log-card-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      line-height: 1.3;
-    }
-    .quick-log-card--active .quick-log-card-label { color: var(--text-primary); }
-
-    /* ── Quick Logs card-anchored popover ────────────────── */
-
-    /* Invisible backdrop — no blur, no dim; just captures outside clicks */
-    .ql-backdrop {
-      position: fixed;
-      inset: 0;
-      z-index: 199;
-    }
-
-    /* Popover panel: fixed-positioned via JS, centered on the clicked card */
-    .ql-popup {
-      position: fixed;
-      z-index: 200;
-      transform: translateX(-50%);      /* horizontally centers on card midpoint */
-      width: 236px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius);
-      overflow: visible;                /* lets the arrow poke out above */
-      box-shadow: 0 6px 24px rgba(0,0,0,0.32), 0 1px 4px rgba(0,0,0,0.14);
-      animation: qlPop 0.15s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    @keyframes qlPop {
-      from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
-      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-    }
-
-    /* Up-pointing triangle arrow toward the card above */
-    .ql-popup-arrow {
-      position: absolute;
-      top: -7px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 0; height: 0;
-    }
-    .ql-popup-arrow::before,
-    .ql-popup-arrow::after {
-      content: '';
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 0; height: 0;
-      border-style: solid;
-    }
-    /* border triangle (outline) */
-    .ql-popup-arrow::before {
-      top: 0;
-      border-width: 0 7px 7px;
-      border-color: transparent transparent var(--border-light);
-    }
-    /* fill triangle (background) */
-    .ql-popup-arrow::after {
-      top: 1px;
-      border-width: 0 6px 6px;
-      border-color: transparent transparent var(--bg-surface);
-    }
-
-    .ql-popup-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
-      border-radius: var(--radius) var(--radius) 0 0;
-      overflow: hidden;
-      /* bottom border colored to match item — set via inline style */
-      border-bottom: 2px solid var(--border);
-    }
-    .ql-popup-dot {
-      width: 9px; height: 9px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      display: block;
-    }
-    .ql-popup-name {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-primary);
-      flex: 1;
-    }
-    .ql-popup-hint {
-      font-size: 10px;
-      color: var(--text-muted);
-      white-space: nowrap;
-    }
-    .ql-popup-close {
-      width: 22px; height: 22px;
-      border-radius: 50%;
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: background 0.15s, color 0.15s;
-    }
-    .ql-popup-close:hover { background: var(--accent-hover); color: var(--text-primary); }
-
-    /* ── Desktop time input ──────────────────────────────── */
-    .ql-time-desktop {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg-card);
-    }
-    .ql-time-label {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      flex-shrink: 0;
-    }
-    .ql-time-input {
-      flex: 1;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text-primary);
-      font-size: 14px;
-      font-weight: 600;
-      padding: 5px 8px;
-      font-family: inherit;
-      font-variant-numeric: tabular-nums;
-      outline: none;
-      cursor: pointer;
-    }
-    .ql-time-input:focus { border-color: var(--highlight-selected); }
-
-    /* ── Mobile drum/wheel picker (hidden on desktop) ─────── */
-    .ql-time-mobile {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 10px 12px 12px;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg-card);
-    }
-    .ql-drum-group {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .ql-drum-colon {
-      font-size: 26px;
-      font-weight: 700;
-      color: var(--text-primary);
-      line-height: 1;
-      align-self: center;
-      padding-bottom: 18px; /* aligns visually with drum center */
-      flex-shrink: 0;
-    }
-    .ql-drum-col {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-    }
-    .ql-drum-wrapper {
-      position: relative;
-      width: 66px;
-      height: 132px;   /* exactly 3 items × 44 px */
-      overflow: hidden;
-    }
-    /* Top and bottom fade masks */
-    .ql-drum-wrapper::before,
-    .ql-drum-wrapper::after {
-      content: '';
-      position: absolute;
-      left: 0; right: 0;
-      height: 50px;
-      z-index: 2;
-      pointer-events: none;
-    }
-    .ql-drum-wrapper::before {
-      top: 0;
-      background: linear-gradient(to bottom, var(--bg-card) 10%, transparent);
-    }
-    .ql-drum-wrapper::after {
-      bottom: 0;
-      background: linear-gradient(to top, var(--bg-card) 10%, transparent);
-    }
-    /* Center selection band (thin lines bracketing the middle item) */
-    .ql-drum-center-band {
-      position: absolute;
-      top: 50%; left: 4px; right: 4px;
-      height: 44px;
-      transform: translateY(-50%);
-      border-top: 1px solid var(--border-light);
-      border-bottom: 1px solid var(--border-light);
-      background: rgba(74, 144, 226, 0.06);
-      border-radius: 4px;
-      pointer-events: none;
-      z-index: 1;
-    }
-    .ql-drum {
-      position: relative;
-      z-index: 3;
-      width: 100%;
-      height: 100%;
-      overflow-y: scroll;
-      scroll-snap-type: y mandatory;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-    }
-    .ql-drum::-webkit-scrollbar { display: none; }
-    .ql-drum-spacer {
-      height: 44px;
-      flex-shrink: 0;
-      display: block;
-    }
-    .ql-drum-item {
-      height: 44px;
-      scroll-snap-align: center;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      font-weight: 500;
-      color: var(--text-muted);
-      font-variant-numeric: tabular-nums;
-      user-select: none;
-      transition: color 0.12s, font-size 0.12s, font-weight 0.12s;
-      letter-spacing: 0.5px;
-    }
-    .ql-drum-item--sel {
-      color: var(--text-primary);
-      font-size: 25px;
-      font-weight: 700;
-    }
-    .ql-drum-unit {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.7px;
-    }
-
-    /* Duration buttons — horizontal row (desktop), vertical column (mobile) */
-    .ql-durations {
-      display: flex;
-      flex-direction: row;
-      overflow: hidden;
-      border-radius: 0 0 var(--radius) var(--radius);
-    }
-    .ql-dur-btn {
-      flex: 1;
-      padding: 14px 6px;
-      background: var(--bg-card);
-      border: none;
-      border-right: 1px solid var(--border);
-      color: var(--text-primary);
-      font-size: 14px;
-      font-weight: 700;
-      font-family: inherit;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-      text-align: center;
-    }
-    .ql-dur-btn:last-child { border-right: none; }
-    .ql-dur-btn:hover:not(:disabled) {
-      background: var(--accent-hover);
-      color: var(--highlight-selected);
-    }
-    .ql-dur-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
     /* ── Responsive ─────────────────────────────────────── */
     /* Nav collapse is controlled solely by the hamburger toggle (navCollapsed).
        No media query auto-collapses it — the user's explicit toggle is the
        single source of truth for open vs. closed state.                      */
 
-    /* Mobile: stack timeline above log list, both full-width */
+    /* Mobile overrides */
     @media (max-width: 700px) {
       .header-date { display: none; }
-      .logger-split { grid-template-columns: 1fr; }
-      .split-logs { position: static; }
-      .split-logs .log-list-section { max-height: none; overflow-y: visible; }
-
-      /* Quick Logs — mobile overrides */
-      .quick-log-grid { grid-template-columns: repeat(2, 1fr); }
-      /* Popover spans most of the viewport width on mobile */
-      .ql-popup { width: calc(100vw - 32px); }
-      /* Show drum picker, hide desktop input */
-      .ql-time-desktop { display: none; }
-      .ql-time-mobile  { display: flex; }
-      /* Duration buttons stack vertically on mobile */
-      .ql-durations { flex-direction: column; }
-      .ql-dur-btn {
-        border-right: none;
-        border-bottom: 1px solid var(--border);
-        padding: 15px 18px;
-        text-align: left;
-        font-size: 15px;
-      }
-      .ql-dur-btn:last-child { border-bottom: none; }
+      .timeline-view-container { padding: 10px; }
     }
 
     /* ── 1.62: Quick Shortcuts Bar ──────────────────────────── */
@@ -1878,6 +1585,9 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
       letter-spacing: 0.05em;
       flex-shrink: 0;
       padding-right: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .shortcut-chip {
@@ -2036,31 +1746,127 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
       font-size: 14px;
       box-sizing: border-box;
     }
-    .log-now-times {
+    /* ── 1.78: Log Now drum time pickers ────────────────── */
+    .ln-time-pickers {
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
-    .log-now-time-label {
-      font-size: 10px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      flex-shrink: 0;
-    }
-    .log-now-time {
-      flex: 1;
-      padding: 10px 10px;
+      justify-content: center;
+      gap: 10px;
       background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text-primary);
-      font-size: 14px;
+      border-radius: 10px;
+      padding: 10px 8px;
     }
-    .log-now-arrow {
+    .ln-time-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+    .ln-time-block-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .ln-time-arrow {
+      font-size: 18px;
       color: var(--text-muted);
       flex-shrink: 0;
-      font-size: 14px;
+      padding-top: 20px;
+    }
+    .ln-drum-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .ln-drum-colon {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1;
+      padding-bottom: 14px;
+      flex-shrink: 0;
+    }
+    .ln-drum-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    .ln-drum-wrapper {
+      position: relative;
+      width: 56px;
+      height: 132px;
+      overflow: hidden;
+    }
+    .ln-drum-wrapper::before,
+    .ln-drum-wrapper::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 46px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .ln-drum-wrapper::before {
+      top: 0;
+      background: linear-gradient(to bottom, var(--bg-card) 10%, transparent);
+    }
+    .ln-drum-wrapper::after {
+      bottom: 0;
+      background: linear-gradient(to top, var(--bg-card) 10%, transparent);
+    }
+    .ln-drum-center-band {
+      position: absolute;
+      top: 50%; left: 3px; right: 3px;
+      height: 44px;
+      transform: translateY(-50%);
+      border-top: 1px solid var(--border-light);
+      border-bottom: 1px solid var(--border-light);
+      background: rgba(74, 144, 226, 0.06);
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .ln-drum {
+      position: relative;
+      z-index: 3;
+      width: 100%;
+      height: 100%;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .ln-drum::-webkit-scrollbar { display: none; }
+    .ln-drum-spacer { height: 44px; flex-shrink: 0; display: block; }
+    .ln-drum-item {
+      height: 44px;
+      scroll-snap-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      font-weight: 500;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+      transition: color 0.1s, font-size 0.1s, font-weight 0.1s;
+    }
+    .ln-drum-item--sel {
+      color: var(--text-primary);
+      font-size: 23px;
+      font-weight: 700;
+    }
+    .ln-drum-unit {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
     }
 
     .log-now-actions {
@@ -2389,6 +2195,323 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
       color: var(--text-secondary);
       font-weight: 600;
     }
+
+    /* ── 1.80: Three-button Add Log group ────────────────── */
+    .add-log-btn-group {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-add-entry {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 6px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .btn-add-entry:hover {
+      background: var(--accent-hover);
+      color: var(--text-primary);
+      border-color: var(--accent);
+    }
+    .btn-add-entry--activity {
+      background: var(--highlight-selected);
+      border-color: transparent;
+      color: #fff;
+    }
+    .btn-add-entry--activity:hover {
+      opacity: 0.88;
+      background: var(--highlight-selected);
+      color: #fff;
+      border-color: transparent;
+    }
+
+    /* ── 1.81 / 1.80: Domain tabs ───────────────────────── */
+    .ln-domain-tabs {
+      display: flex;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .ln-domain-tab {
+      flex: 1;
+      padding: 8px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .ln-domain-tab--active {
+      background: var(--highlight-selected);
+      color: #fff;
+    }
+
+    /* ── Log type drum (used in Log Now and Add Point) ─── */
+    .ln-type-drum-wrap {
+      position: relative;
+      width: 100%;
+      height: 132px;
+      overflow: hidden;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .ln-type-drum-wrap::before,
+    .ln-type-drum-wrap::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 44px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .ln-type-drum-wrap::before {
+      top: 0;
+      background: linear-gradient(to bottom, var(--bg-card) 10%, transparent);
+    }
+    .ln-type-drum-wrap::after {
+      bottom: 0;
+      background: linear-gradient(to top, var(--bg-card) 10%, transparent);
+    }
+    .ln-type-drum-item {
+      height: 44px;
+      scroll-snap-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      user-select: none;
+      transition: color 0.12s, font-size 0.12s, font-weight 0.12s;
+    }
+    .ln-type-drum-item--sel {
+      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .ln-type-dot-sm {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── 1.80: Add Point time row ────────────────────────── */
+    .ln-point-time-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+    }
+    .ln-point-time-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      flex-shrink: 0;
+    }
+    .ln-point-time-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      outline: none;
+    }
+
+    /* ── 1.82: Shortcuts bar edit button ────────────────── */
+    .shortcuts-edit-btn {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .shortcuts-edit-btn:hover {
+      background: var(--accent-hover);
+      color: var(--text-primary);
+      border-color: var(--border);
+    }
+
+    /* ── 1.82: Quick Prefs popup ─────────────────────────── */
+    .quick-prefs-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 600;
+    }
+    .quick-prefs-popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 601;
+      width: 340px;
+      max-width: 94vw;
+      max-height: 80vh;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: popIn 0.18s ease;
+    }
+    .quick-prefs-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .quick-prefs-title-row {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .quick-prefs-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .quick-prefs-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .quick-prefs-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .quick-prefs-close:hover { color: var(--text-primary); }
+
+    .quick-prefs-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 14px;
+    }
+    .quick-prefs-domain-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 4px 0 6px;
+    }
+    .quick-pref-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+      margin-bottom: 4px;
+      background: var(--bg-card);
+    }
+    .quick-pref-item:hover { background: var(--accent-hover); }
+    .quick-pref-item--on {
+      border-color: rgba(74,144,226,0.4);
+      background: rgba(74,144,226,0.08);
+    }
+    .quick-pref-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .quick-pref-name {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .quick-pref-badge {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+    .quick-pref-toggle-icon {
+      display: flex;
+      align-items: center;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .quick-prefs-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .quick-prefs-reset {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-size: 12px;
+      padding: 7px 14px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .quick-prefs-reset:hover { background: var(--accent-hover); color: var(--text-primary); }
+    .quick-prefs-save {
+      flex: 1;
+      background: var(--highlight-selected);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .quick-prefs-save:disabled { opacity: 0.5; cursor: not-allowed; }
+    .quick-prefs-save:hover:not(:disabled) { opacity: 0.88; }
   `]
 })
 export class AppComponent implements OnInit {
@@ -2397,7 +2520,7 @@ export class AppComponent implements OnInit {
   isAuthenticated = false;
   currentUser     = this.authService.getUser();
 
-  activeView: 'logger' = 'logger';
+  activeView: 'logger' | 'timeline' = 'logger';
   theme: 'dark' | 'light' = 'dark';
   readonly currentYear = new Date().getFullYear();
 
@@ -2444,33 +2567,7 @@ export class AppComponent implements OnInit {
   inlineEdit = { title: '', startAt: '', endAt: '', logTypeId: '' };
   inlineSaving = false;
   inlineLogTypes: any[] = [];
-  showAddLogMenu = false;
-  logSortOrder: 'asc' | 'desc' = 'asc';
-
-  // ── 1.55: Quick Logs ──────────────────────────────────────
-  quickLogsExpanded   = false;
-  quickLogActiveItem: QuickLogItem | null = null;
-  quickLogPopupPos:   { top: number; left: number } | null = null;
-  quickLogSaving      = false;
-  readonly quickLogItems: QuickLogItem[] = [
-    { label: 'Meeting',   name: 'Meeting',   category: 'meeting',  color: '#7898A8' },
-    { label: 'Transit',   name: 'Transit',   category: 'transit',  color: '#3E6480' },
-    { label: 'Code Time', name: 'Code Time', category: 'codetime', color: '#5A9CB5' },
-    { label: 'Sleep',     name: 'Zleep',     category: 'sleep',    color: '#213C51' },
-    { label: 'Design',    name: 'Design',    category: 'design',   color: '#7A5A74' },
-    { label: 'Breakfast', name: 'Breakfast', category: 'food',     color: '#F2A65A' },
-    { label: 'Lunch',     name: 'Lunch',     category: 'food',     color: '#6F8F72' },
-    { label: 'Dinner',    name: 'Dinner',    category: 'food',     color: '#D97D55' },
-  ];
-  readonly quickDurations = [
-    { label: '15m', mins: 15  },
-    { label: '30m', mins: 30  },
-    { label: '1h',  mins: 60  },
-    { label: '2h',  mins: 120 },
-  ];
-  quickSelectedTime = '09:00';                                     // HH:MM — user-editable start
-  readonly quickHours   = Array.from({ length: 24 }, (_, i) => i); // 0–23
-  readonly quickMinutes = Array.from({ length: 60 }, (_, i) => i); // 0–59
+  logSortOrder: 'asc' | 'desc' = 'desc';
 
   // ── 1.62: Quick Shortcuts Bar ─────────────────────────────────
   shortcutToast: { message: string; logId: string } | null = null;
@@ -2484,6 +2581,27 @@ export class AppComponent implements OnInit {
   logNowStart  = '09:00';
   logNowEnd    = '09:00';
   logNowSaving = false;
+  readonly logNowHours   = Array.from({ length: 24 }, (_, i) => i);
+  readonly logNowMinutes = [15, 30, 45, 0]; // quarter-hour steps only
+
+  // ── 1.81: Log Now domain + type drum ─────────────────────────
+  logNowDomain: 'work' | 'personal' = 'work';
+  logNowTypeIndex = 0;
+
+  // ── 1.80: Add Point sheet ────────────────────────────────────
+  addPointOpen      = false;
+  addPointDomain: 'work' | 'personal' = 'work';
+  addPointTypeIndex = 0;
+  addPointTypeId    = '';
+  addPointTitle     = '';
+  addPointTime      = '09:00';
+  addPointSaving    = false;
+
+  // ── 1.82: Quick Prefs ─────────────────────────────────────────
+  quickPrefsOpen    = false;
+  quickPrefsSaving  = false;
+  quickPrefsItems:  { logTypeId: string; defaultMins: number }[] = [];
+  quickPrefsEdit    = new Set<string>();
 
   // ── 1.63: Continue Last Log ───────────────────────────────────
   // (reuses shortcutSaving / shortcutToast / toastTimer)
@@ -2592,6 +2710,8 @@ export class AppComponent implements OnInit {
         this.stopActiveLogTimer();
         this.activeLog = null;
       }
+      // 1.82: Load quick shortcuts
+      this.quickPrefsItems = prefs?.quickShortcuts ?? [];
     });
   }
 
@@ -2770,7 +2890,6 @@ export class AppComponent implements OnInit {
 
   onLogItemClick(log: LogEntry, event: MouseEvent): void {
     event.stopPropagation();
-    this.showAddLogMenu = false;
     if (this.inlineEditId === log.id) return;
     this.inlineEditId = log.id;
     this.inlineEdit = {
@@ -2828,41 +2947,8 @@ export class AppComponent implements OnInit {
     this.inlineEdit[field] = `${String(Math.floor(clamped / 60)).padStart(2, '0')}:${String(clamped % 60).padStart(2, '0')}`;
   }
 
-  // ── 1.54: Quick-add log ──────────────────────────────────
-  toggleAddLogMenu(): void {
-    this.showAddLogMenu = !this.showAddLogMenu;
-    if (this.showAddLogMenu && !this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((types: any[]) => this.inlineLogTypes = types);
-    }
-  }
-
-  quickAddMeeting(): void {
-    this.showAddLogMenu = false;
-    const run = () => {
-      const meeting = this.inlineLogTypes.find((t: any) =>
-        t.name.toLowerCase() === 'meeting') ?? this.inlineLogTypes[0];
-      if (!meeting) return;
-      const lastLog   = this.logs[this.logs.length - 1];
-      const rawStart  = lastLog
-        ? this.timeToMinutes(lastLog.endAt ?? lastLog.startAt)
-        : this.timeToMinutes(this.currentTimeStr());
-      const startMins = Math.min(rawStart, 23 * 60 - 30);
-      const endMins   = Math.min(startMins + 30, 23 * 60 + 59);
-      this.logService.createLog(this.selectedDate, {
-        title:     meeting.name,
-        logTypeId: meeting._id,
-        startTime: this.minsToTimeStr(startMins),
-        endTime:   this.minsToTimeStr(endMins)
-      }).subscribe({ next: () => this.loadLogs(),
-                     error: () => alert('Failed to create placeholder.') });
-    };
-    if (this.inlineLogTypes.length) { run(); }
-    else { this.logTypeService.getLogTypes().subscribe((t: any[]) => { this.inlineLogTypes = t; run(); }); }
-  }
-
   openAddLogForm(): void {
-    this.showAddLogMenu = false;
-    const lastLog   = this.logs[this.logs.length - 1];
+    const lastLog = this.logs[this.logs.length - 1];
     const rawStart  = lastLog
       ? this.timeToMinutes(lastLog.endAt ?? lastLog.startAt)
       : this.timeToMinutes('09:00');
@@ -2873,118 +2959,16 @@ export class AppComponent implements OnInit {
     this.showForm      = true;
   }
 
-  // ── 1.55: Quick Logs ────────────────────────────────────
-
-  /** Derived from selected time — used by drum picker to mark the active item. */
-  get quickSelectedHour(): number   { return +this.quickSelectedTime.split(':')[0]; }
-  get quickSelectedMinute(): number { return +this.quickSelectedTime.split(':')[1]; }
-
-  /** Default start time: end of last log for the day, or current clock time. */
-  private get quickDefaultStart(): string {
-    const last = this.logs[this.logs.length - 1];
-    return last ? (last.endAt ?? last.startAt) : this.currentTimeStr();
-  }
-
-  toggleQuickLogs(): void {
-    this.quickLogsExpanded = !this.quickLogsExpanded;
-    this.closeQuickLogPopup();
-    if (this.quickLogsExpanded && !this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t: any[]) => this.inlineLogTypes = t);
-    }
-  }
-
-  closeQuickLogPopup(): void {
-    this.quickLogActiveItem = null;
-    this.quickLogPopupPos   = null;
-  }
-
-  selectQuickLogItem(item: QuickLogItem, event: MouseEvent): void {
-    event.stopPropagation();
-
-    if (this.quickLogActiveItem?.label === item.label) {
-      this.closeQuickLogPopup(); return;
-    }
-
-    // Anchor popover below the clicked card, clamped within viewport
-    const card    = event.currentTarget as HTMLElement;
-    const rect    = card.getBoundingClientRect();
-    const popupW  = window.innerWidth <= 700 ? window.innerWidth - 32 : 236;
-    const rawLeft = rect.left + rect.width / 2;
-    const left    = Math.max(popupW / 2 + 8, Math.min(rawLeft, window.innerWidth - popupW / 2 - 8));
-
-    // Seed selected time from last log end (or now)
-    this.quickSelectedTime  = this.quickDefaultStart;
-    this.quickLogActiveItem = item;
-    this.quickLogPopupPos   = { top: rect.bottom + 8, left };
-
-    // Scroll drum wheels to match initial time (after *ngIf renders on next tick)
-    setTimeout(() => this.scrollDrumsToTime(), 40);
-
-    if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t: any[]) => this.inlineLogTypes = t);
-    }
-  }
-
-  /** Programmatically scroll hour/minute drums to match quickSelectedTime. */
-  private scrollDrumsToTime(): void {
-    const item = 44; // px per drum row
-    const hEl  = document.querySelector('.ql-drum-hours') as HTMLElement | null;
-    const mEl  = document.querySelector('.ql-drum-mins')  as HTMLElement | null;
-    if (hEl) hEl.scrollTop = this.quickSelectedHour   * item;
-    if (mEl) mEl.scrollTop = this.quickSelectedMinute * item;
-  }
-
-  onQuickHourScroll(event: Event): void {
-    const el  = event.target as HTMLElement;
-    const h   = Math.max(0, Math.min(23, Math.round(el.scrollTop / 44)));
-    if (h === this.quickSelectedHour) return;
-    const m   = this.quickSelectedTime.split(':')[1];
-    this.quickSelectedTime = `${String(h).padStart(2, '0')}:${m}`;
-  }
-
-  onQuickMinuteScroll(event: Event): void {
-    const el  = event.target as HTMLElement;
-    const m   = Math.max(0, Math.min(59, Math.round(el.scrollTop / 44)));
-    if (m === this.quickSelectedMinute) return;
-    const h   = this.quickSelectedTime.split(':')[0];
-    this.quickSelectedTime = `${h}:${String(m).padStart(2, '0')}`;
-  }
-
-  createQuickLog(durationMins: number): void {
-    if (this.quickLogSaving || !this.quickLogActiveItem) return;
-    const item      = this.quickLogActiveItem;
-    const startTime = this.quickSelectedTime;
-
-    const run = () => {
-      const matched = this.inlineLogTypes.find((t: any) =>
-        t.name.toLowerCase() === item.name.toLowerCase() || t.category === item.category
-      );
-      if (!matched) { alert('Log type not found. Please try again.'); return; }
-
-      const startMins = this.timeToMinutes(startTime);
-      const endMins   = Math.min(startMins + durationMins, 23 * 60 + 59);
-
-      this.quickLogSaving = true;
-      this.logService.createLog(this.selectedDate, {
-        title:     item.label,
-        logTypeId: matched._id,
-        startTime,
-        endTime:   this.minsToTimeStr(endMins),
-      }).subscribe({
-        next:  () => { this.quickLogSaving = false; this.closeQuickLogPopup(); this.loadLogs(); },
-        error: () => { this.quickLogSaving = false; alert('Failed to create log. Please try again.'); }
-      });
-    };
-
-    if (this.inlineLogTypes.length) { run(); }
-    else { this.logTypeService.getLogTypes().subscribe((t: any[]) => { this.inlineLogTypes = t; run(); }); }
-  }
-
   // ── 1.62: Quick Shortcuts ─────────────────────────────────────
 
-  /** Top 5 log types for the shortcuts bar — types used today first, then work domain. */
+  /** Top log types for the shortcuts bar — uses configured list if set, else smart defaults. */
   get shortcutDisplayTypes(): any[] {
     if (!this.inlineLogTypes.length) return [];
+    if (this.quickPrefsItems.length > 0) {
+      return this.quickPrefsItems
+        .map(p => this.inlineLogTypes.find((lt: any) => lt._id === p.logTypeId))
+        .filter(Boolean);
+    }
     const usedIds = new Set(this.logs.map(l => l.logType?.id).filter(Boolean));
     return [...this.inlineLogTypes]
       .sort((a, b) => {
@@ -3206,29 +3190,125 @@ export class AppComponent implements OnInit {
     );
   }
 
+  // ── 1.78: Log Now drum picker getters ──────────────────────
+  get logNowStartHour():   number { return +this.logNowStart.split(':')[0]; }
+  get logNowStartMinute(): number { return +this.logNowStart.split(':')[1]; }
+  get logNowEndHour():     number { return +this.logNowEnd.split(':')[0]; }
+  get logNowEndMinute():   number { return +this.logNowEnd.split(':')[1]; }
+
+  /** Map a raw minute (0-59) to the nearest quarter-hour index in logNowMinutes ([15,30,45,0]). */
+  private minuteToQtrIndex(m: number): number {
+    // snap to 0, 15, 30, 45 → find index in [15,30,45,0]
+    const snapped = Math.round(m / 15) * 15 % 60;
+    const idx = this.logNowMinutes.indexOf(snapped);
+    return idx >= 0 ? idx : 0;
+  }
+
+  /** Scroll all four Log Now drums to match the current start/end times. */
+  private scrollLogNowDrums(): void {
+    const item = 44; // px per drum row
+    const sh = document.querySelector('.ln-drum-start-h') as HTMLElement | null;
+    const sm = document.querySelector('.ln-drum-start-m') as HTMLElement | null;
+    const eh = document.querySelector('.ln-drum-end-h')   as HTMLElement | null;
+    const em = document.querySelector('.ln-drum-end-m')   as HTMLElement | null;
+    if (sh) sh.scrollTop = this.logNowStartHour                           * item;
+    if (sm) sm.scrollTop = this.minuteToQtrIndex(this.logNowStartMinute)  * item;
+    if (eh) eh.scrollTop = this.logNowEndHour                             * item;
+    if (em) em.scrollTop = this.minuteToQtrIndex(this.logNowEndMinute)    * item;
+  }
+
+  onLogNowStartHourScroll(event: Event): void {
+    const el = event.target as HTMLElement;
+    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 44)));
+    if (h === this.logNowStartHour) return;
+    this.logNowStart = `${String(h).padStart(2, '0')}:${this.logNowStart.split(':')[1]}`;
+  }
+  onLogNowStartMinuteScroll(event: Event): void {
+    const el  = event.target as HTMLElement;
+    const idx = Math.max(0, Math.min(this.logNowMinutes.length - 1, Math.round(el.scrollTop / 44)));
+    const m   = this.logNowMinutes[idx];
+    if (m === this.logNowStartMinute) return;
+    this.logNowStart = `${this.logNowStart.split(':')[0]}:${String(m).padStart(2, '0')}`;
+  }
+  onLogNowEndHourScroll(event: Event): void {
+    const el = event.target as HTMLElement;
+    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 44)));
+    if (h === this.logNowEndHour) return;
+    this.logNowEnd = `${String(h).padStart(2, '0')}:${this.logNowEnd.split(':')[1]}`;
+  }
+  onLogNowEndMinuteScroll(event: Event): void {
+    const el  = event.target as HTMLElement;
+    const idx = Math.max(0, Math.min(this.logNowMinutes.length - 1, Math.round(el.scrollTop / 44)));
+    const m   = this.logNowMinutes[idx];
+    if (m === this.logNowEndMinute) return;
+    this.logNowEnd = `${this.logNowEnd.split(':')[0]}:${String(m).padStart(2, '0')}`;
+  }
+
+  /** Snap a HH:MM string to the nearest quarter-hour. */
+  private snapToQuarter(time: string): string {
+    const [h, m] = time.split(':').map(Number);
+    const snapped = Math.round(m / 15) * 15;
+    if (snapped === 60) {
+      const newH = Math.min(23, h + 1);
+      return `${String(newH).padStart(2, '0')}:00`;
+    }
+    return `${String(h).padStart(2, '0')}:${String(snapped).padStart(2, '0')}`;
+  }
+
   openLogNow(): void {
-    const now      = this.currentTimeStr();
-    const startStr = this.smartDefaultStart;
-    this.logNowStart = startStr;
-    this.logNowEnd   = now;
-    // Default to last-used type today, or first type
-    const lastTypeId = this.logs.length ? (this.logs[this.logs.length - 1].logType?.id ?? null) : null;
-    const defaultLt  = lastTypeId
-      ? (this.inlineLogTypes.find((t: any) => t._id === lastTypeId) ?? this.inlineLogTypes[0])
-      : this.inlineLogTypes[0];
-    this.logNowTypeId = defaultLt?._id ?? '';
-    this.logNowTitle  = '';
-    this.logNowOpen   = true;
+    const now      = this.snapToQuarter(this.currentTimeStr());
+    const startStr = this.snapToQuarter(this.smartDefaultStart);
+    this.logNowStart     = startStr;
+    this.logNowEnd       = now;
+    this.logNowDomain    = 'work';
+    this.logNowTypeIndex = 0;
+    this.logNowTitle     = '';
+
+    if (!this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((t: any[]) => {
+        this.inlineLogTypes = t;
+        this._initLogNowType();
+        this.logNowOpen = true;
+        setTimeout(() => { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }, 40);
+      });
+    } else {
+      this._initLogNowType();
+      this.logNowOpen = true;
+      setTimeout(() => { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }, 40);
+    }
+  }
+
+  private _initLogNowType(): void {
+    const workTypes = this.inlineLogTypes.filter((lt: any) => lt.domain === 'work');
+    this.logNowTypeId    = workTypes[0]?._id ?? this.inlineLogTypes[0]?._id ?? '';
+    this.logNowTypeIndex = 0;
+    this.logNowDomain    = 'work';
   }
 
   closeLogNow(): void { this.logNowOpen = false; }
 
-  onLogNowTypeChange(): void {
-    // Auto-fill title only if user hasn't typed anything yet
-    if (!this.logNowTitle) {
-      const lt = this.inlineLogTypes.find((t: any) => t._id === this.logNowTypeId);
-      if (lt) this.logNowTitle = lt.name;
-    }
+  get logNowFilteredTypes(): any[] {
+    return this.inlineLogTypes.filter((lt: any) => lt.domain === this.logNowDomain);
+  }
+
+  setLogNowDomain(domain: 'work' | 'personal'): void {
+    this.logNowDomain    = domain;
+    this.logNowTypeIndex = 0;
+    this.logNowTypeId    = this.logNowFilteredTypes[0]?._id ?? '';
+    setTimeout(() => this.scrollLogNowTypeDrum(), 20);
+  }
+
+  onLogNowTypeScroll(event: Event): void {
+    const el  = event.target as HTMLElement;
+    const idx = Math.max(0, Math.min(this.logNowFilteredTypes.length - 1, Math.round(el.scrollTop / 44)));
+    if (idx === this.logNowTypeIndex) return;
+    this.logNowTypeIndex = idx;
+    this.logNowTypeId    = this.logNowFilteredTypes[idx]?._id ?? '';
+  }
+
+  private scrollLogNowTypeDrum(): void {
+    const el = document.querySelector('.ln-drum-ln-types') as HTMLElement | null;
+    if (el) el.scrollTop = this.logNowTypeIndex * 44;
   }
 
   saveLogNow(): void {
@@ -3245,6 +3325,136 @@ export class AppComponent implements OnInit {
       next:  () => { this.logNowSaving = false; this.logNowOpen = false; this.loadLogs(); },
       error: () => { this.logNowSaving = false; }
     });
+  }
+
+  // ── 1.80: Add Point ──────────────────────────────────────────
+  get addPointFilteredTypes(): any[] {
+    return this.inlineLogTypes.filter((lt: any) => lt.domain === this.addPointDomain);
+  }
+
+  openAddPoint(): void {
+    this.addPointDomain    = 'work';
+    this.addPointTypeIndex = 0;
+    this.addPointTitle     = '';
+    // Default to current time rounded to nearest minute
+    const n = new Date();
+    this.addPointTime = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+    if (!this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((t: any[]) => {
+        this.inlineLogTypes = t;
+        this._initAddPoint();
+      });
+    } else {
+      this._initAddPoint();
+    }
+    this.addPointOpen = true;
+    setTimeout(() => this.scrollAddPointTypeDrum(), 40);
+  }
+
+  private _initAddPoint(): void {
+    const types = this.addPointFilteredTypes;
+    this.addPointTypeId    = types[0]?._id ?? '';
+    this.addPointTypeIndex = 0;
+  }
+
+  closeAddPoint(): void { this.addPointOpen = false; }
+
+  setAddPointDomain(domain: 'work' | 'personal'): void {
+    this.addPointDomain    = domain;
+    this.addPointTypeIndex = 0;
+    this.addPointTypeId    = this.addPointFilteredTypes[0]?._id ?? '';
+    setTimeout(() => this.scrollAddPointTypeDrum(), 20);
+  }
+
+  onAddPointTypeScroll(event: Event): void {
+    const el  = event.target as HTMLElement;
+    const idx = Math.max(0, Math.min(this.addPointFilteredTypes.length - 1, Math.round(el.scrollTop / 44)));
+    if (idx === this.addPointTypeIndex) return;
+    this.addPointTypeIndex = idx;
+    this.addPointTypeId    = this.addPointFilteredTypes[idx]?._id ?? '';
+  }
+
+  private scrollAddPointTypeDrum(): void {
+    const el = document.querySelector('.ln-drum-ap-types') as HTMLElement | null;
+    if (el) el.scrollTop = this.addPointTypeIndex * 44;
+  }
+
+  saveAddPoint(): void {
+    if (this.addPointSaving || !this.addPointTypeId) return;
+    const lt    = this.inlineLogTypes.find((t: any) => t._id === this.addPointTypeId);
+    const title = this.addPointTitle.trim() || (lt?.name ?? 'Point');
+    this.addPointSaving = true;
+    this.logService.createLog(this.selectedDate, {
+      title,
+      logTypeId: this.addPointTypeId,
+      entryType: 'point',
+      pointTime: this.addPointTime,
+      startTime: this.addPointTime,
+      endTime:   this.addPointTime,
+    }).subscribe({
+      next:  () => { this.addPointSaving = false; this.addPointOpen = false; this.loadLogs(); },
+      error: () => { this.addPointSaving = false; }
+    });
+  }
+
+  // ── 1.82: Quick Prefs ─────────────────────────────────────────
+
+  get quickPrefsWorkTypes(): any[] {
+    return this.inlineLogTypes.filter((lt: any) => lt.domain === 'work');
+  }
+  get quickPrefsPersonalTypes(): any[] {
+    return this.inlineLogTypes.filter((lt: any) => lt.domain === 'personal');
+  }
+
+  openQuickPrefs(event: MouseEvent): void {
+    event.stopPropagation();
+    if (!this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((t: any[]) => {
+        this.inlineLogTypes = t;
+        this._doOpenQuickPrefs();
+      });
+    } else {
+      this._doOpenQuickPrefs();
+    }
+  }
+
+  private _doOpenQuickPrefs(): void {
+    this.quickPrefsEdit = new Set(this.quickPrefsItems.map(p => p.logTypeId));
+    this.quickPrefsOpen = true;
+  }
+
+  closeQuickPrefs(): void { this.quickPrefsOpen = false; }
+
+  isInQuickPrefs(logTypeId: string): boolean {
+    return this.quickPrefsEdit.has(logTypeId);
+  }
+
+  toggleQuickPref(logTypeId: string): void {
+    if (this.quickPrefsEdit.has(logTypeId)) {
+      this.quickPrefsEdit.delete(logTypeId);
+    } else {
+      this.quickPrefsEdit.add(logTypeId);
+    }
+    // Force Angular change detection
+    this.quickPrefsEdit = new Set(this.quickPrefsEdit);
+  }
+
+  saveQuickPrefs(): void {
+    if (this.quickPrefsSaving) return;
+    const shortcuts = [...this.quickPrefsEdit].map(id => ({ logTypeId: id, defaultMins: 30 }));
+    this.quickPrefsSaving = true;
+    this.prefService.updateQuickShortcuts(shortcuts).subscribe({
+      next: () => {
+        this.quickPrefsItems  = shortcuts;
+        this.quickPrefsSaving = false;
+        this.quickPrefsOpen   = false;
+      },
+      error: () => { this.quickPrefsSaving = false; }
+    });
+  }
+
+  resetQuickPrefs(): void {
+    this.quickPrefsEdit = new Set<string>();
   }
 
   // ── 1.63: Continue Last Log ──────────────────────────────────

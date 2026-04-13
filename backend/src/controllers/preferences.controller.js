@@ -105,6 +105,21 @@ async function stopActiveLog(req, res) {
   }
 }
 
+// ─── PUT /api/preferences/quick-shortcuts ─────────────────────────────────────
+async function updateQuickShortcuts(req, res) {
+  try {
+    const { shortcuts } = req.body;
+    if (!Array.isArray(shortcuts)) {
+      return res.status(400).json({ error: 'shortcuts must be an array.' });
+    }
+    const result = await preferencesService.updateQuickShortcuts(req.user.userId, shortcuts);
+    res.json(result.data);
+  } catch (err) {
+    console.error('PUT /preferences/quick-shortcuts error:', err.message);
+    res.status(500).json({ error: 'Failed to save quick shortcuts.' });
+  }
+}
+
 module.exports = {
   getPreferences,
   upsertPalette,
@@ -113,4 +128,5 @@ module.exports = {
   removePreset,
   startActiveLog,
   stopActiveLog,
+  updateQuickShortcuts,
 };

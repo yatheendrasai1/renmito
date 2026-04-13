@@ -9,9 +9,10 @@ async function getPreferences(userId) {
   const pref = await UserPreference.findOne({ userId });
   if (!pref) return null;
   return {
-    palette:       pref.palette       ?? null,
-    customPresets: pref.customPresets ?? [],
-    activeLog:     pref.activeLog     ?? null,
+    palette:        pref.palette       ?? null,
+    customPresets:  pref.customPresets ?? [],
+    activeLog:      pref.activeLog     ?? null,
+    quickShortcuts: pref.quickShortcuts ?? [],
   };
 }
 
@@ -112,6 +113,18 @@ async function stopActiveLog(userId) {
   return { data: null };
 }
 
+/**
+ * 1.82 — Saves the user's quick shortcuts list.
+ */
+async function updateQuickShortcuts(userId, shortcuts) {
+  const pref = await UserPreference.findOneAndUpdate(
+    { userId },
+    { $set: { quickShortcuts: shortcuts } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  return { data: { quickShortcuts: pref.quickShortcuts } };
+}
+
 module.exports = {
   getPreferences,
   upsertPalette,
@@ -120,4 +133,5 @@ module.exports = {
   removePreset,
   startActiveLog,
   stopActiveLog,
+  updateQuickShortcuts,
 };

@@ -5,6 +5,12 @@ import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { ColorPalette } from '../components/theme-editor/theme-editor.component';
 
+/** 1.82 — A single entry in the user's configured quick shortcuts bar. */
+export interface QuickShortcut {
+  logTypeId:   string;
+  defaultMins: number;
+}
+
 /** 1.71 — A live running log stored in the backend so it syncs across devices. */
 export interface ActiveLog {
   logTypeId:   string;
@@ -14,9 +20,10 @@ export interface ActiveLog {
 }
 
 export interface UserPreferences {
-  palette:       ColorPalette | null;
-  customPresets: ColorPalette[];
-  activeLog:     ActiveLog | null;
+  palette:        ColorPalette | null;
+  customPresets:  ColorPalette[];
+  activeLog:      ActiveLog | null;
+  quickShortcuts: QuickShortcut[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -120,6 +127,22 @@ export class PreferenceService {
         catchError(err => {
           console.warn('Could not stop active log:', err?.message);
           return of(undefined);
+        })
+      );
+  }
+
+  /** 1.82 — Saves the user's quick shortcuts configuration. */
+  updateQuickShortcuts(shortcuts: QuickShortcut[]): Observable<QuickShortcut[] | null> {
+    return this.http
+      .put<{ quickShortcuts: QuickShortcut[] }>(
+        `${this.apiBase}/quick-shortcuts`,
+        { shortcuts }
+      )
+      .pipe(
+        map(res => res?.quickShortcuts ?? null),
+        catchError(err => {
+          console.warn('Could not update quick shortcuts:', err?.message);
+          return of(null);
         })
       );
   }

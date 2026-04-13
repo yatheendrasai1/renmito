@@ -10,4 +10,6 @@ router.delete('/presets/:name',    preferencesController.removePreset);
 router.put('/active-log',          preferencesController.startActiveLog);
 router.delete('/active-log',       preferencesController.stopActiveLog);
 
+router.put('/quick-shortcuts', preferencesController.updateQuickShortcuts);
+
 module.exports = router;
