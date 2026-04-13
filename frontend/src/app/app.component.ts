@@ -14,13 +14,14 @@ import { PreferenceService, ActiveLog } from './services/preference.service';
 import { LogEntry, CreateLogEntry } from './models/log.model';
 import { forkJoin } from 'rxjs';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
+import { LogTypeSelectComponent } from './components/log-type-select/log-type-select.component';
 
 interface QuickLogItem { label: string; name: string; category: string; color: string; }
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent],
+  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent, LogTypeSelectComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -421,10 +422,11 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
                            maxlength="300"
                            placeholder="Activity description"
                            (keydown)="onInlineKeydown($event, log)">
-                    <select class="inline-type-select" [(ngModel)]="inlineEdit.logTypeId">
-                      <option *ngIf="!inlineLogTypes.length" value="">Loading…</option>
-                      <option *ngFor="let t of inlineLogTypes" [value]="t._id">{{ t.name }}</option>
-                    </select>
+                    <app-log-type-select
+                      [logTypes]="inlineLogTypes"
+                      [selectedId]="inlineEdit.logTypeId"
+                      (selectedIdChange)="inlineEdit.logTypeId = $event">
+                    </app-log-type-select>
                     <div class="inline-time-row">
                       <span class="inline-time-label">Start</span>
                       <button type="button" class="btn-time-step"
@@ -542,13 +544,11 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
           </button>
         </div>
         <div class="log-now-fields">
-          <select class="log-now-select"
-                  [(ngModel)]="logNowTypeId"
-                  (ngModelChange)="onLogNowTypeChange()">
-            <option *ngFor="let lt of inlineLogTypes" [value]="lt._id">
-              {{ lt.name }}
-            </option>
-          </select>
+          <app-log-type-select
+            [logTypes]="inlineLogTypes"
+            [selectedId]="logNowTypeId"
+            (selectedIdChange)="logNowTypeId = $event; onLogNowTypeChange()">
+          </app-log-type-select>
           <input class="log-now-input" type="text"
                  placeholder="Title (optional — defaults to type name)"
                  [(ngModel)]="logNowTitle"/>
@@ -584,9 +584,11 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
           </button>
         </div>
         <div class="log-now-fields">
-          <select class="log-now-select" [(ngModel)]="startLogTypeId">
-            <option *ngFor="let lt of inlineLogTypes" [value]="lt._id">{{ lt.name }}</option>
-          </select>
+          <app-log-type-select
+            [logTypes]="inlineLogTypes"
+            [selectedId]="startLogTypeId"
+            (selectedIdChange)="startLogTypeId = $event">
+          </app-log-type-select>
           <input class="log-now-input" type="text"
                  placeholder="Title (optional — defaults to type name)"
                  [(ngModel)]="startLogTitle"/>
@@ -649,10 +651,12 @@ interface QuickLogItem { label: string; name: string; category: string; color: s
         </div>
 
         <div class="log-now-fields">
-          <select class="log-now-select" [(ngModel)]="wrapUpTypeId">
-            <option value="" disabled>Select type…</option>
-            <option *ngFor="let lt of inlineLogTypes" [value]="lt._id">{{ lt.name }}</option>
-          </select>
+          <app-log-type-select
+            [logTypes]="inlineLogTypes"
+            [selectedId]="wrapUpTypeId"
+            placeholder="Select type…"
+            (selectedIdChange)="wrapUpTypeId = $event">
+          </app-log-type-select>
           <input class="log-now-input" type="text"
                  placeholder="Title (optional — defaults to type name)"
                  [(ngModel)]="wrapUpTitle"/>
