@@ -37,10 +37,12 @@ interface TickMark { pos: number; isHalf: boolean; }
     <div class="timeline-wrapper">
 
       <!-- ── Header: selection/create bar ─────────────── -->
-      <div class="timeline-header" (click)="isCollapsed = !isCollapsed">
+      <div class="timeline-header" [class.timeline-header--no-toggle]="!collapsible"
+           (click)="collapsible && (isCollapsed = !isCollapsed)">
 
         <!-- Collapse toggle (visual only — click handled by parent div) -->
         <button class="timeline-collapse-btn" tabindex="-1"
+                *ngIf="collapsible"
                 [title]="isCollapsed ? 'Expand timeline' : 'Collapse timeline'"
                 [attr.aria-expanded]="!isCollapsed">
           <svg class="collapse-chevron" [class.collapse-chevron--open]="!isCollapsed"
@@ -86,7 +88,7 @@ interface TickMark { pos: number; isHalf: boolean; }
       </div>
 
       <!-- ── Scrollable timeline canvas ─────────────── -->
-      <div class="scroll-container" #scrollContainer *ngIf="!isCollapsed">
+      <div class="scroll-container" #scrollContainer *ngIf="!collapsible || !isCollapsed">
         <div
           class="timeline-canvas"
           #track
@@ -223,6 +225,7 @@ interface TickMark { pos: number; isHalf: boolean; }
       min-height: 38px;
       cursor: pointer;
     }
+    .timeline-header--no-toggle { cursor: default; }
 
     /* ── Collapse toggle ─────────────────────────────── */
     .timeline-collapse-btn {
@@ -731,6 +734,8 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
   @Input() selectedDate:     Date = new Date();
   @Input() highlightedLogId: string | null = null;
   @Input() metricLogIds:     Set<string> | null = null;
+  /** When false, the timeline is always expanded with no collapse toggle. */
+  @Input() collapsible = true;
   @Output() selectionMade      = new EventEmitter<DragSelection>();
   @Output() createLogClicked   = new EventEmitter<DragSelection>();
   @Output() logClicked         = new EventEmitter<LogEntry>();

@@ -442,7 +442,7 @@ export class MetricsComponent implements OnChanges {
     const transit = this.hoursWhere(l => this.isWork(l, 'transit'));
     const dayTotal = 24; // transit % shown as fraction of full day
     const workDayPct = Math.round((work / 8) * 100); // % of 8h standard workday
-    const workLogIds = this.logIdsWhere(l => l.logType?.domain === 'work' && l.logType?.category !== 'transit');
+    const workLogIds = this.logIdsWhere(l => l.logType?.domain === 'work' && l.logType?.category !== 'transit' && l.logType?.category !== 'break');
 
     return [
       { label: 'Total Work Hours', main: this.fmtH(work),           side: null,
@@ -535,9 +535,9 @@ export class MetricsComponent implements OnChanges {
 
   /* ── Metric computation ──────────────────────────── */
 
-  /** Transit is excluded — it's travel time, not productive work. */
+  /** Transit and break are excluded — travel time and breaks are not productive work. */
   private get totalWorkHours(): number {
-    return this.hoursWhere(l => l.logType?.domain === 'work' && l.logType?.category !== 'transit');
+    return this.hoursWhere(l => l.logType?.domain === 'work' && l.logType?.category !== 'transit' && l.logType?.category !== 'break');
   }
 
   /**
