@@ -126,7 +126,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
         </nav>
 
         <!-- ── View area ───────────────────────────────── -->
-        <div class="view-area">
+        <div class="view-area" (scroll)="onViewAreaScroll($event)">
 
           <!-- Logger view -->
           <div class="content-area" *ngIf="activeView === 'logger'">
@@ -887,8 +887,8 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
 
       </div>
 
-      <!-- ── Footer — 1.35 / fixed full-width 1.52 ─────── -->
-      <footer class="app-footer">
+      <!-- ── Footer — 1.35 / fixed full-width 1.52 / 1.84 mobile scroll ─── -->
+      <footer class="app-footer" [class.footer-visible]="footerVisible">
         <div class="footer-brand">
           <svg width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true">
             <circle cx="14" cy="14" r="12" stroke="rgba(241,233,233,0.85)" stroke-width="1.8"/>
@@ -1680,21 +1680,33 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
     @media (max-width: 700px) {
       .header-date { display: none; }
       .timeline-view-container { padding: 10px; }
+
+      /* ── 1.84: Footer — thin + only at bottom of scroll ─── */
+      .app-footer {
+        display: none;
+        padding: 5px 12px;
+        padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px));
+        gap: 10px;
+      }
+      .app-footer.footer-visible { display: flex; }
+      .footer-brand svg { display: none; }
+      .footer-brand { gap: 4px; }
+      .footer-logo-text { font-size: 10px; }
+      .footer-tagline { font-size: 8px; min-width: 0; }
+      .footer-copy { font-size: 8px; }
     }
 
-    /* ── 1.62: Quick Shortcuts Bar ──────────────────────────── */
+    /* ── 1.62: Quick Shortcuts Bar / 1.84: wrap to 2 rows ───── */
     .shortcuts-bar {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 8px;
       padding: 8px 14px;
-      overflow-x: auto;
       background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      scrollbar-width: none;
     }
-    .shortcuts-bar::-webkit-scrollbar { display: none; }
 
     .shortcuts-label {
       font-size: 10px;
@@ -2745,6 +2757,9 @@ export class AppComponent implements OnInit {
   inlineLogTypes: any[] = [];
   logSortOrder: 'asc' | 'desc' = 'desc';
 
+  // ── 1.84: Footer scroll visibility (mobile only) ─────────────
+  footerVisible = false;
+
   // ── 1.62: Quick Shortcuts Bar ─────────────────────────────────
   shortcutToast: { message: string; logId: string } | null = null;
   shortcutSaving = false;
@@ -3205,6 +3220,12 @@ export class AppComponent implements OnInit {
         return 0;
       })
       .slice(0, 6);
+  }
+
+  // ── 1.84: Show footer only when view-area is scrolled to bottom (mobile) ──
+  onViewAreaScroll(e: Event): void {
+    const el = e.target as HTMLElement;
+    this.footerVisible = el.scrollHeight - el.scrollTop <= el.clientHeight + 24;
   }
 
   onShortcutTap(lt: any): void {
