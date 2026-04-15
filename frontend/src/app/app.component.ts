@@ -930,6 +930,55 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
       </footer>
     </div><!-- /app-shell -->
 
+    <!-- ── 1.68: End-of-Day Wrap-Up Sheet ───────────────── -->
+    <div class="log-now-backdrop" *ngIf="wrapUpOpen" (click)="closeWrapUp()"></div>
+    <div class="log-now-sheet wrapup-sheet" *ngIf="wrapUpOpen">
+      <div class="log-now-header">
+        <div class="wrapup-header-left">
+          <span class="log-now-title">Fill Gap {{ wrapUpIdx + 1 }} / {{ wrapUpGaps.length }}</span>
+          <div class="wrapup-step-dots">
+            <span *ngFor="let g of wrapUpGaps; let i = index"
+                  class="wrapup-step-dot"
+                  [class.wrapup-step-dot--done]="i < wrapUpIdx"
+                  [class.wrapup-step-dot--active]="i === wrapUpIdx"></span>
+          </div>
+        </div>
+        <button class="log-now-close" (click)="closeWrapUp()" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6"  x2="6"  y2="18"/>
+            <line x1="6"  y1="6"  x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="wrapup-gap-time" *ngIf="wrapUpCurrentGap">
+        <span class="wrapup-time">{{ wrapUpCurrentGap.start }}</span>
+        <span class="wrapup-time-arrow">→</span>
+        <span class="wrapup-time">{{ wrapUpCurrentGap.end }}</span>
+        <span class="wrapup-duration-badge">{{ formatGapMins(wrapUpCurrentGap.mins) }}</span>
+      </div>
+
+      <div class="log-now-fields">
+        <select class="log-now-select" [(ngModel)]="wrapUpTypeId">
+          <option value="" disabled>Select type…</option>
+          <option *ngFor="let lt of inlineLogTypes" [value]="lt._id">{{ lt.name }}</option>
+        </select>
+        <input class="log-now-input" type="text"
+               placeholder="Title (optional — defaults to type name)"
+               [(ngModel)]="wrapUpTitle"/>
+      </div>
+
+      <div class="log-now-actions">
+        <button class="log-now-cancel" (click)="wrapUpSkip()">Skip</button>
+        <button class="log-now-save"
+                (click)="wrapUpSave()"
+                [disabled]="wrapUpSaving || !wrapUpTypeId">
+          {{ wrapUpSaving ? 'Saving…' : (wrapUpIdx === wrapUpGaps.length - 1 ? 'Save & Finish' : 'Save & Next →') }}
+        </button>
+      </div>
+    </div>
+
     <!-- ── Log Form Modal ─────────────────────────────── -->
     <app-log-form
       *ngIf="showForm"
