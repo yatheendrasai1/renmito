@@ -49,7 +49,6 @@ interface MetricCard {
           <span class="coverage-of">of 8h today</span>
         </div>
         <div class="streak-block">
-          <span class="streak-fire">🔥</span>
           <div class="streak-text-col">
             <span class="streak-count">{{ streak }}</span>
             <span class="streak-label">{{ streak === 1 ? 'day' : 'days' }} streak</span>
