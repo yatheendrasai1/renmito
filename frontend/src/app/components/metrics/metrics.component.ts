@@ -32,12 +32,12 @@ interface MetricCard {
       <div class="coverage-row">
         <div class="coverage-ring-wrap">
           <svg viewBox="0 0 56 56" class="coverage-svg" aria-hidden="true">
-            <!-- Track -->
+            <!-- Track — 1.85: text-primary at low opacity always contrasts any bg -->
             <circle cx="28" cy="28" r="20" fill="none"
-              stroke="var(--border-light)" stroke-width="5"/>
-            <!-- Filled arc — green at 100%, accent otherwise -->
+              class="ring-track" stroke-width="5"/>
+            <!-- Filled arc — green at 100%, accent-bright otherwise (1.85) -->
             <circle cx="28" cy="28" r="20" fill="none"
-              [attr.stroke]="coveragePct >= 100 ? '#5BAD6F' : 'var(--accent)'"
+              [attr.stroke]="coveragePct >= 100 ? '#5BAD6F' : 'var(--accent-bright)'"
               stroke-width="5" stroke-linecap="round"
               [attr.stroke-dasharray]="coverageDash"
               transform="rotate(-90 28 28)"/>
@@ -290,6 +290,12 @@ interface MetricCard {
     }
 
     .coverage-svg { width: 56px; height: 56px; }
+
+    /* 1.85: track always visible — text-primary at 18% opacity contrasts any bg */
+    .ring-track {
+      stroke: var(--text-primary);
+      stroke-opacity: 0.18;
+    }
 
     .coverage-center-text {
       position: absolute;
