@@ -657,9 +657,9 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                 <div class="ln-drum-spacer"></div>
               </div>
             </div>
-            <input class="log-now-input" type="text"
-                   placeholder="Title (optional — defaults to type name)"
-                   [(ngModel)]="logNowTitle"/>
+            <textarea class="log-now-input"
+                      placeholder="Title (optional — defaults to type name)"
+                      [(ngModel)]="logNowTitle"></textarea>
             <!-- 1.78: Drum time pickers for Start and End -->
             <div class="ln-time-pickers">
               <div class="ln-time-block">
@@ -775,13 +775,47 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                 <div class="ln-drum-spacer"></div>
               </div>
             </div>
-            <input class="log-now-input" type="text"
-                   placeholder="Title (optional)"
-                   [(ngModel)]="addPointTitle"/>
-            <!-- Point time: native time input -->
-            <div class="ln-point-time-row">
-              <span class="ln-point-time-label">Time</span>
-              <input class="ln-point-time-input" type="time" [(ngModel)]="addPointTime"/>
+            <textarea class="log-now-input"
+                      placeholder="Title (optional)"
+                      [(ngModel)]="addPointTitle"></textarea>
+            <!-- Point time: drum picker (H + M, quarters only) -->
+            <div class="ln-time-pickers ln-time-pickers--single">
+              <div class="ln-time-block">
+                <span class="ln-time-block-label">Time</span>
+                <div class="ln-drum-group">
+                  <div class="ln-drum-col">
+                    <div class="ln-drum-wrapper">
+                      <div class="ln-drum-center-band"></div>
+                      <div class="ln-drum ln-drum-ap-h" (scroll)="onAddPointHourScroll($event)">
+                        <div class="ln-drum-spacer"></div>
+                        <div class="ln-drum-item"
+                             *ngFor="let h of logNowHours"
+                             [class.ln-drum-item--sel]="h === addPointHour">
+                          {{ h | number:'2.0-0' }}
+                        </div>
+                        <div class="ln-drum-spacer"></div>
+                      </div>
+                    </div>
+                    <span class="ln-drum-unit">h</span>
+                  </div>
+                  <div class="ln-drum-colon">:</div>
+                  <div class="ln-drum-col">
+                    <div class="ln-drum-wrapper">
+                      <div class="ln-drum-center-band"></div>
+                      <div class="ln-drum ln-drum-ap-m" (scroll)="onAddPointMinuteScroll($event)">
+                        <div class="ln-drum-spacer"></div>
+                        <div class="ln-drum-item"
+                             *ngFor="let m of addPointMinutes"
+                             [class.ln-drum-item--sel]="m === addPointMinute">
+                          {{ m | number:'2.0-0' }}
+                        </div>
+                        <div class="ln-drum-spacer"></div>
+                      </div>
+                    </div>
+                    <span class="ln-drum-unit">m</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div class="log-now-actions">
@@ -820,9 +854,9 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                 <div class="ln-drum-spacer"></div>
               </div>
             </div>
-            <input class="log-now-input" type="text"
-                   placeholder="Title (optional — defaults to type name)"
-                   [(ngModel)]="startLogTitle"/>
+            <textarea class="log-now-input"
+                      placeholder="Title (optional — defaults to type name)"
+                      [(ngModel)]="startLogTitle"></textarea>
             <!-- 1.72: Planned duration chips -->
             <div class="start-log-planned-row">
               <span class="start-log-planned-label">Plan for:</span>
@@ -1875,6 +1909,12 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
       color: var(--text-primary);
       font-size: 14px;
       box-sizing: border-box;
+      font-family: inherit;
+    }
+    textarea.log-now-input {
+      resize: none;
+      line-height: 1.5;
+      height: calc(1.5em * 3 + 20px);
     }
     /* ── 1.78: Log Now drum time pickers ────────────────── */
     .ln-time-pickers {
@@ -1886,6 +1926,9 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 10px 8px;
+    }
+    .ln-time-pickers--single {
+      justify-content: flex-start;
     }
     .ln-time-block {
       display: flex;
@@ -1929,7 +1972,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
     .ln-drum-wrapper {
       position: relative;
       width: 56px;
-      height: 108px;
+      height: 75px;
       overflow: hidden;
     }
     .ln-drum-wrapper::before,
@@ -1937,7 +1980,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
       content: '';
       position: absolute;
       left: 0; right: 0;
-      height: 36px;
+      height: 25px;
       z-index: 2;
       pointer-events: none;
     }
@@ -1952,7 +1995,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
     .ln-drum-center-band {
       position: absolute;
       top: 50%; left: 3px; right: 3px;
-      height: 36px;
+      height: 25px;
       transform: translateY(-50%);
       border-top: 1px solid var(--border-light);
       border-bottom: 1px solid var(--border-light);
@@ -1972,14 +2015,14 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
       -webkit-overflow-scrolling: touch;
     }
     .ln-drum::-webkit-scrollbar { display: none; }
-    .ln-drum-spacer { height: 36px; flex-shrink: 0; display: block; }
+    .ln-drum-spacer { height: 25px; flex-shrink: 0; display: block; }
     .ln-drum-item {
-      height: 36px;
+      height: 25px;
       scroll-snap-align: center;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 15px;
+      font-size: 11px;
       font-weight: 500;
       color: var(--text-muted);
       font-variant-numeric: tabular-nums;
@@ -1988,7 +2031,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
     }
     .ln-drum-item--sel {
       color: var(--text-primary);
-      font-size: 20px;
+      font-size: 14px;
       font-weight: 700;
     }
     .ln-drum-unit {
@@ -2211,11 +2254,14 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
       transition: border-color 0.15s, background 0.15s, color 0.15s;
     }
     .start-log-chip:hover { border-color: var(--accent); color: var(--text-primary); }
-    .start-log-chip--active {
-      border-color: var(--accent);
-      background: color-mix(in srgb, var(--accent) 15%, var(--bg-card));
-      color: var(--accent);
+    .start-log-chip--active,
+    .start-log-chip--active:focus,
+    .start-log-chip--active:active {
+      border-color: var(--highlight-selected);
+      background: var(--highlight-selected);
+      color: #fff;
       font-weight: 600;
+      outline: none;
     }
     .log-now-save--start {
       display: flex;
@@ -2394,7 +2440,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
     .ln-type-drum-wrap {
       position: relative;
       width: 100%;
-      height: 108px;
+      height: 75px;
       overflow: hidden;
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -2405,7 +2451,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
       content: '';
       position: absolute;
       left: 0; right: 0;
-      height: 36px;
+      height: 25px;
       z-index: 2;
       pointer-events: none;
     }
@@ -2418,13 +2464,13 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
       background: linear-gradient(to top, var(--bg-card) 10%, transparent);
     }
     .ln-type-drum-item {
-      height: 36px;
+      height: 25px;
       scroll-snap-align: center;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 7px;
-      font-size: 13px;
+      font-size: 10px;
       font-weight: 500;
       color: var(--text-muted);
       user-select: none;
@@ -2432,7 +2478,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
     }
     .ln-type-drum-item--sel {
       color: var(--text-primary);
-      font-size: 15px;
+      font-size: 12px;
       font-weight: 700;
     }
     .ln-type-dot-sm {
@@ -2711,8 +2757,9 @@ export class AppComponent implements OnInit {
   logNowStart  = '09:00';
   logNowEnd    = '09:00';
   logNowSaving = false;
-  readonly logNowHours   = Array.from({ length: 24 }, (_, i) => i);
-  readonly logNowMinutes = [15, 30, 45, 0]; // quarter-hour steps only
+  readonly logNowHours    = Array.from({ length: 24 }, (_, i) => i);
+  readonly logNowMinutes  = [15, 30, 45, 0]; // quarter-hour steps only
+  readonly addPointMinutes = [0, 15, 30, 45]; // quarter-hour steps for Add Point
 
   // ── 1.81: Log Now domain + type drum ─────────────────────────
   logNowDomain: 'work' | 'personal' = 'work';
@@ -3299,7 +3346,7 @@ export class AppComponent implements OnInit {
 
   onStartLogTypeScroll(event: Event): void {
     const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.startLogFilteredTypes.length - 1, Math.round(el.scrollTop / 36)));
+    const idx = Math.max(0, Math.min(this.startLogFilteredTypes.length - 1, Math.round(el.scrollTop / 25)));
     if (idx === this.startLogTypeIndex) return;
     this.startLogTypeIndex = idx;
     this.startLogTypeId    = this.startLogFilteredTypes[idx]?._id ?? '';
@@ -3307,7 +3354,7 @@ export class AppComponent implements OnInit {
 
   private scrollStartLogTypeDrum(): void {
     const el = document.querySelector('.ln-drum-sl-types') as HTMLElement | null;
-    if (el) el.scrollTop = this.startLogTypeIndex * 36;
+    if (el) el.scrollTop = this.startLogTypeIndex * 25;
   }
 
   /** Sends PUT /preferences/active-log — server records startedAt. */
@@ -3415,7 +3462,7 @@ export class AppComponent implements OnInit {
 
   /** Scroll all four Log Now drums to match the current start/end times. */
   private scrollLogNowDrums(): void {
-    const item = 36; // px per drum row
+    const item = 25; // px per drum row
     const sh = document.querySelector('.ln-drum-start-h') as HTMLElement | null;
     const sm = document.querySelector('.ln-drum-start-m') as HTMLElement | null;
     const eh = document.querySelector('.ln-drum-end-h')   as HTMLElement | null;
@@ -3428,26 +3475,26 @@ export class AppComponent implements OnInit {
 
   onLogNowStartHourScroll(event: Event): void {
     const el = event.target as HTMLElement;
-    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 36)));
+    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 25)));
     if (h === this.logNowStartHour) return;
     this.logNowStart = `${String(h).padStart(2, '0')}:${this.logNowStart.split(':')[1]}`;
   }
   onLogNowStartMinuteScroll(event: Event): void {
     const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.logNowMinutes.length - 1, Math.round(el.scrollTop / 36)));
+    const idx = Math.max(0, Math.min(this.logNowMinutes.length - 1, Math.round(el.scrollTop / 25)));
     const m   = this.logNowMinutes[idx];
     if (m === this.logNowStartMinute) return;
     this.logNowStart = `${this.logNowStart.split(':')[0]}:${String(m).padStart(2, '0')}`;
   }
   onLogNowEndHourScroll(event: Event): void {
     const el = event.target as HTMLElement;
-    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 36)));
+    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 25)));
     if (h === this.logNowEndHour) return;
     this.logNowEnd = `${String(h).padStart(2, '0')}:${this.logNowEnd.split(':')[1]}`;
   }
   onLogNowEndMinuteScroll(event: Event): void {
     const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.logNowMinutes.length - 1, Math.round(el.scrollTop / 36)));
+    const idx = Math.max(0, Math.min(this.logNowMinutes.length - 1, Math.round(el.scrollTop / 25)));
     const m   = this.logNowMinutes[idx];
     if (m === this.logNowEndMinute) return;
     this.logNowEnd = `${this.logNowEnd.split(':')[0]}:${String(m).padStart(2, '0')}`;
@@ -3521,7 +3568,7 @@ export class AppComponent implements OnInit {
     // Re-init scroll drums for the newly visible tab
     setTimeout(() => {
       if (this.unifiedSheetTab === 0) { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }
-      if (this.unifiedSheetTab === 1) { this.scrollAddPointTypeDrum(); }
+      if (this.unifiedSheetTab === 1) { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }
       if (this.unifiedSheetTab === 2) { this.scrollStartLogTypeDrum(); }
     }, 40);
   }
@@ -3539,7 +3586,7 @@ export class AppComponent implements OnInit {
 
   onLogNowTypeScroll(event: Event): void {
     const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.logNowFilteredTypes.length - 1, Math.round(el.scrollTop / 36)));
+    const idx = Math.max(0, Math.min(this.logNowFilteredTypes.length - 1, Math.round(el.scrollTop / 25)));
     if (idx === this.logNowTypeIndex) return;
     this.logNowTypeIndex = idx;
     this.logNowTypeId    = this.logNowFilteredTypes[idx]?._id ?? '';
@@ -3547,7 +3594,7 @@ export class AppComponent implements OnInit {
 
   private scrollLogNowTypeDrum(): void {
     const el = document.querySelector('.ln-drum-ln-types') as HTMLElement | null;
-    if (el) el.scrollTop = this.logNowTypeIndex * 36;
+    if (el) el.scrollTop = this.logNowTypeIndex * 25;
   }
 
   saveLogNow(): void {
@@ -3575,7 +3622,7 @@ export class AppComponent implements OnInit {
     this._prepAddPoint();
     this.unifiedSheetTab  = 1;
     this.unifiedSheetOpen = true;
-    setTimeout(() => this.scrollAddPointTypeDrum(), 40);
+    setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
   }
 
   private _prepAddPoint(): void {
@@ -3583,12 +3630,14 @@ export class AppComponent implements OnInit {
     this.addPointTypeIndex = 0;
     this.addPointTitle     = '';
     const n = new Date();
-    this.addPointTime = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+    this.addPointTime = this.snapToQuarter(
+      `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`
+    );
     if (!this.inlineLogTypes.length) {
       this.logTypeService.getLogTypes().subscribe((t: any[]) => {
         this.inlineLogTypes = t;
         this._initAddPoint();
-        setTimeout(() => this.scrollAddPointTypeDrum(), 40);
+        setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
       });
     } else {
       this._initAddPoint();
@@ -3612,7 +3661,7 @@ export class AppComponent implements OnInit {
 
   onAddPointTypeScroll(event: Event): void {
     const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.addPointFilteredTypes.length - 1, Math.round(el.scrollTop / 36)));
+    const idx = Math.max(0, Math.min(this.addPointFilteredTypes.length - 1, Math.round(el.scrollTop / 25)));
     if (idx === this.addPointTypeIndex) return;
     this.addPointTypeIndex = idx;
     this.addPointTypeId    = this.addPointFilteredTypes[idx]?._id ?? '';
@@ -3620,7 +3669,39 @@ export class AppComponent implements OnInit {
 
   private scrollAddPointTypeDrum(): void {
     const el = document.querySelector('.ln-drum-ap-types') as HTMLElement | null;
-    if (el) el.scrollTop = this.addPointTypeIndex * 36;
+    if (el) el.scrollTop = this.addPointTypeIndex * 25;
+  }
+
+  get addPointHour():   number { return +this.addPointTime.split(':')[0]; }
+  get addPointMinute(): number { return +this.addPointTime.split(':')[1]; }
+
+  private addPointMinuteToIdx(m: number): number {
+    const snapped = Math.round(m / 15) * 15 % 60;
+    const idx = this.addPointMinutes.indexOf(snapped);
+    return idx >= 0 ? idx : 0;
+  }
+
+  private scrollAddPointTimeDrums(): void {
+    const item = 25;
+    const ah = document.querySelector('.ln-drum-ap-h') as HTMLElement | null;
+    const am = document.querySelector('.ln-drum-ap-m') as HTMLElement | null;
+    if (ah) ah.scrollTop = this.addPointHour * item;
+    if (am) am.scrollTop = this.addPointMinuteToIdx(this.addPointMinute) * item;
+  }
+
+  onAddPointHourScroll(event: Event): void {
+    const el = event.target as HTMLElement;
+    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 25)));
+    if (h === this.addPointHour) return;
+    this.addPointTime = `${String(h).padStart(2, '0')}:${this.addPointTime.split(':')[1]}`;
+  }
+
+  onAddPointMinuteScroll(event: Event): void {
+    const el  = event.target as HTMLElement;
+    const idx = Math.max(0, Math.min(this.addPointMinutes.length - 1, Math.round(el.scrollTop / 25)));
+    const m   = this.addPointMinutes[idx];
+    if (m === this.addPointMinute) return;
+    this.addPointTime = `${this.addPointTime.split(':')[0]}:${String(m).padStart(2, '0')}`;
   }
 
   saveAddPoint(): void {
