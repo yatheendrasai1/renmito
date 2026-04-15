@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, HostListener, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CalendarComponent } from './components/calendar/calendar.component';
@@ -267,7 +267,8 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
             </div>
 
             <!-- ── Quick Shortcuts — 1.62 / 1.82 ──────────────── -->
-            <div class="shortcuts-bar" *ngIf="isAuthenticated && shortcutDisplayTypes.length > 0">
+            <div class="shortcuts-bar" *ngIf="isAuthenticated && shortcutDisplayTypes.length > 0"
+                 (click)="$event.stopPropagation()">
               <span class="shortcuts-label">
                 Quick
                 <button class="shortcuts-edit-btn"
@@ -282,12 +283,36 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
               </span>
               <button class="shortcut-chip"
                       *ngFor="let lt of shortcutDisplayTypes"
+                      [class.shortcut-chip--active]="quickActionChip?._id === lt._id"
                       [disabled]="shortcutSaving"
                       (click)="onShortcutTap(lt)"
-                      [title]="'Log ' + lt.name + ' from now'">
+                      [title]="'Log ' + lt.name">
                 <span class="shortcut-dot" [style.background]="lt.color"></span>
                 {{ lt.name }}
               </button>
+
+              <!-- ── 1.85: Quick action panel ─────────────────── -->
+              <div class="quick-action-panel" *ngIf="quickActionChip">
+                <div class="quick-action-row">
+                  <button class="quick-anchor-btn"
+                          [class.quick-anchor-btn--active]="quickActionAnchor === 'start'"
+                          (click)="quickActionAnchor = 'start'">start</button>
+                  <button class="quick-anchor-btn"
+                          [class.quick-anchor-btn--active]="quickActionAnchor === 'conclude'"
+                          (click)="quickActionAnchor = 'conclude'">conclude</button>
+                </div>
+                <div class="quick-action-row">
+                  <button class="quick-dur-chip"
+                          *ngFor="let d of quickDurations"
+                          [class.quick-dur-chip--active]="quickActionDuration === d.mins"
+                          (click)="quickActionDuration = d.mins">{{ d.label }}</button>
+                </div>
+                <div class="quick-action-row quick-action-row--log">
+                  <button class="quick-log-btn"
+                          (click)="commitQuickLog()"
+                          [disabled]="shortcutSaving">Log</button>
+                </div>
+              </div>
             </div>
 
             <!-- ── 1.68: End-of-Day Wrap-Up Banner ───────────── -->
@@ -1738,11 +1763,21 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
       transition: background 0.15s, border-color 0.15s, color 0.15s;
     }
     .shortcut-chip:hover:not(:disabled) {
-      background: var(--nav-item-hover);
-      border-color: var(--accent);
-      color: var(--text-primary);
+      background: var(--nav-item-active);
+      border-color: var(--nav-bg);
+      color: var(--nav-bg);
     }
     .shortcut-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+    .shortcut-chip--active {
+      background: var(--bg-card);
+      border-color: var(--nav-bg);
+      color: var(--text-secondary);
+    }
+    .shortcut-chip--active:hover:not(:disabled) {
+      background: var(--nav-item-active);
+      border-color: var(--nav-bg);
+      color: var(--nav-bg);
+    }
 
     .shortcut-dot {
       width: 8px;
@@ -1750,6 +1785,86 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
       border-radius: 50%;
       flex-shrink: 0;
     }
+
+    /* ── 1.85: Quick action panel ─────────────────────────────── */
+    .quick-action-panel {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-top: 4px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .quick-action-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 0 6px;
+      box-shadow: 0 1px 0 var(--border);
+    }
+    .quick-action-row--log {
+      box-shadow: none;
+      padding-bottom: 2px;
+    }
+    .quick-anchor-btn {
+      padding: 4px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      text-transform: lowercase;
+    }
+    .quick-anchor-btn:hover {
+      background: var(--nav-item-active);
+      border-color: var(--nav-bg);
+      color: var(--nav-bg);
+    }
+    .quick-anchor-btn--active {
+      background: var(--nav-bg);
+      border-color: var(--nav-bg);
+      color: var(--nav-text);
+    }
+    .quick-anchor-btn--active:hover { opacity: 0.9; }
+    .quick-dur-chip {
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .quick-dur-chip:hover {
+      background: var(--nav-item-active);
+      border-color: var(--nav-bg);
+      color: var(--nav-bg);
+    }
+    .quick-dur-chip--active {
+      background: var(--nav-bg);
+      border-color: var(--nav-bg);
+      color: var(--nav-text);
+    }
+    .quick-dur-chip--active:hover { opacity: 0.9; }
+    .quick-log-btn {
+      padding: 5px 20px;
+      border-radius: 20px;
+      border: none;
+      background: var(--nav-bg);
+      color: var(--nav-text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.12s;
+    }
+    .quick-log-btn:hover:not(:disabled) { opacity: 0.85; }
+    .quick-log-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* Toast */
     .shortcut-toast {
@@ -2765,6 +2880,17 @@ export class AppComponent implements OnInit {
   shortcutSaving = false;
   private toastTimer: any = null;
 
+  // ── 1.85: Quick action panel (start/conclude + duration) ──────
+  quickActionChip:     any | null = null;
+  quickActionAnchor:   'start' | 'conclude' = 'conclude';
+  quickActionDuration: number = 30; // minutes
+  readonly quickDurations = [
+    { mins: 15, label: '15m' },
+    { mins: 30, label: '30m' },
+    { mins: 45, label: '45m' },
+    { mins: 60, label: '1h'  },
+  ];
+
   // ── 1.61: Log Now FAB ─────────────────────────────────────────
   logNowOpen   = false;
   logNowTypeId = '';
@@ -3228,23 +3354,59 @@ export class AppComponent implements OnInit {
     this.footerVisible = el.scrollHeight - el.scrollTop <= el.clientHeight + 24;
   }
 
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.quickActionChip) this.quickActionChip = null;
+  }
+
   onShortcutTap(lt: any): void {
     if (this.shortcutSaving) return;
-    const now       = this.currentTimeStr();
-    const startStr  = this.smartDefaultStart;
-    const startMins = this.timeToMinutes(startStr);
-    const endMins   = this.timeToMinutes(now);
-    if (endMins <= startMins) return;
+    // Deselect if same chip tapped again
+    if (this.quickActionChip?._id === lt._id) {
+      this.quickActionChip = null;
+      return;
+    }
+    // Select chip and populate defaults
+    this.quickActionChip   = lt;
+    this.quickActionAnchor = 'conclude';
+    const pref = this.quickPrefsItems.find(p => p.logTypeId === lt._id);
+    const rawMins = pref?.defaultMins ?? 30;
+    // Snap to nearest supported duration
+    const durations = [15, 30, 45, 60];
+    this.quickActionDuration = durations.reduce((prev, curr) =>
+      Math.abs(curr - rawMins) < Math.abs(prev - rawMins) ? curr : prev
+    );
+  }
+
+  commitQuickLog(): void {
+    if (!this.quickActionChip || this.shortcutSaving) return;
+    const lt      = this.quickActionChip;
+    const nowMins = this.timeToMinutes(this.currentTimeStr());
+    let startMins: number, endMins: number;
+    if (this.quickActionAnchor === 'start') {
+      startMins = nowMins;
+      endMins   = nowMins + this.quickActionDuration;
+    } else {
+      endMins   = nowMins;
+      startMins = nowMins - this.quickActionDuration;
+    }
+    if (startMins < 0)          startMins = 0;
+    if (endMins   > 24 * 60)    endMins   = 24 * 60;
+    if (endMins   <= startMins) return;
+
+    const startStr = this.minsToTimeStr(startMins);
+    const endStr   = this.minsToTimeStr(endMins);
 
     this.shortcutSaving = true;
     this.logService.createLog(this.selectedDate, {
       title:     lt.name,
       logTypeId: lt._id,
       startTime: startStr,
-      endTime:   now,
+      endTime:   endStr,
     }).subscribe({
       next: (created) => {
-        this.shortcutSaving = false;
+        this.shortcutSaving   = false;
+        this.quickActionChip  = null;
         this.loadLogs();
         const diff = endMins - startMins;
         const h = Math.floor(diff / 60), m = diff % 60;
