@@ -8,7 +8,6 @@ const logTypesRouter         = require('./routes/logtypes.route');
 const enhancementsRouter     = require('./routes/enhancements.route');
 const preferencesRouter      = require('./routes/preferences.route');
 const dayLevelMetadataRouter = require('./routes/daylevelmetadata.route');
-const notificationsRouter    = require('./routes/notifications.route');
 const authMiddleware       = require('./middleware/authMiddleware');
 const seedDefaultLogTypes  = require('./utils/seedDefaults');
 const seedEnhancements     = require('./utils/seedEnhancements');
@@ -61,8 +60,7 @@ app.use('/api/logs',         authMiddleware, logsRouter);
 app.use('/api/logtypes',     authMiddleware, logTypesRouter);
 app.use('/api/enhancements', authMiddleware, enhancementsRouter);
 app.use('/api/preferences',    authMiddleware, preferencesRouter);
-app.use('/api/day-metadata',    authMiddleware, dayLevelMetadataRouter);
-app.use('/api/notifications',  notificationsRouter);
+app.use('/api/day-metadata',   authMiddleware, dayLevelMetadataRouter);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
