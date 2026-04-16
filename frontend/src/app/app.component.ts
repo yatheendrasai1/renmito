@@ -17,6 +17,7 @@ import { forkJoin } from 'rxjs';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { LogTypeSelectComponent } from './components/log-type-select/log-type-select.component';
 import { ImportantLogsComponent } from './components/important-logs/important-logs.component';
+import { NotificationService } from './services/notification.service';
 
 @Component({
   selector: 'app-root',
@@ -70,6 +71,40 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
               <circle cx="19"   cy="13"  r="2.5"/>
               <circle cx="6"    cy="13"  r="2.5"/>
               <circle cx="10"   cy="19"  r="2.5"/>
+            </svg>
+          </button>
+
+          <!-- Notifications bell -->
+          <button class="header-icon-btn"
+                  *ngIf="notifSupported"
+                  (click)="toggleNotifications()"
+                  [class.header-icon-btn--active]="notifSubscribed"
+                  [title]="notifBellTitle"
+                  aria-label="Toggle notifications">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              <circle *ngIf="notifSubscribed" cx="18" cy="6" r="4" fill="var(--accent,#6c63ff)" stroke="none"/>
+            </svg>
+          </button>
+
+          <!-- Notification test fire -->
+          <button class="header-icon-btn header-icon-btn--test-notif"
+                  *ngIf="notifSubscribed"
+                  (click)="sendTestNotification()"
+                  [disabled]="notifTestSending"
+                  title="Send a test notification now"
+                  aria-label="Test notification">
+            <svg *ngIf="!notifTestSending" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+            <svg *ngIf="notifTestSending" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="9" stroke-dasharray="56" stroke-dashoffset="14"
+                      style="animation:spin .8s linear infinite;transform-origin:center"/>
             </svg>
           </button>
 
@@ -3014,12 +3049,24 @@ export class AppComponent implements OnInit {
   wrapUpSaving  = false;
   private wrapUpDismissedDate = '';
 
+  // ── Notification state ──────────────────────────────────────────────────────
+  notifSupported   = false;
+  notifSubscribed  = false;
+  notifTestSending = false;
+
+  get notifBellTitle(): string {
+    if (this.notifSubscribed) return 'Notifications on — tap to disable';
+    if (this.notifService.permissionState === 'denied') return 'Notifications blocked in browser settings';
+    return 'Enable daily check-in notifications';
+  }
+
   constructor(
     private logService:      LogService,
     private authService:     AuthService,
     private logTypeService:  LogTypeService,
     private prefService:     PreferenceService,
     private dayLevelService: DayLevelService,
+    private notifService:    NotificationService,
   ) {}
 
   get todayLabel(): string {
@@ -3051,6 +3098,8 @@ export class AppComponent implements OnInit {
     // Default is collapsed; only expand if explicitly saved as 'false'
     this.navCollapsed = localStorage.getItem('renmito-nav-collapsed') !== 'false';
 
+    this.notifSupported = this.notifService.isSupported;
+
     this.isAuthenticated = this.authService.isLoggedIn();
     if (this.isAuthenticated) {
       this.currentUser = this.authService.getUser();
@@ -3062,6 +3111,7 @@ export class AppComponent implements OnInit {
       this.logTypeService.getLogTypes().subscribe((t: any[]) => this.inlineLogTypes = t);
       // Sync palette from DB (may differ if the user changed it on another device)
       this.syncPaletteFromDB();
+      this.syncNotificationState();
     }
   }
 
@@ -3074,6 +3124,29 @@ export class AppComponent implements OnInit {
     this.loadLogs();
     // Always fetch the freshest palette from DB right after login
     this.syncPaletteFromDB();
+    this.syncNotificationState();
+  }
+
+  private syncNotificationState(): void {
+    this.notifService.isSubscribed().then(sub => this.notifSubscribed = sub);
+  }
+
+  async sendTestNotification(): Promise<void> {
+    if (this.notifTestSending) return;
+    this.notifTestSending = true;
+    await this.notifService.sendTest();
+    this.notifTestSending = false;
+  }
+
+  async toggleNotifications(): Promise<void> {
+    if (this.notifService.permissionState === 'denied') return; // blocked — browser settings handles it
+    if (this.notifSubscribed) {
+      await this.notifService.unsubscribe();
+      this.notifSubscribed = false;
+    } else {
+      const result = await this.notifService.subscribe();
+      this.notifSubscribed = result === 'granted';
+    }
   }
 
   /** Fetch preferences from DB — apply palette + restore any running log.

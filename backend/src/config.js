@@ -18,6 +18,14 @@ const config = {
     // Local dev: http://localhost:4200
     // Vercel:    set CORS_ORIGIN=* in project environment variables
     origin: process.env.CORS_ORIGIN || 'http://localhost:4200'
+  },
+  vapid: {
+    publicKey:  process.env.VAPID_PUBLIC_KEY  || '',
+    privateKey: process.env.VAPID_PRIVATE_KEY || '',
+    subject:    process.env.VAPID_SUBJECT     || 'mailto:admin@renmito.app'
+  },
+  cron: {
+    secret: process.env.CRON_SECRET || ''
   }
 };
 

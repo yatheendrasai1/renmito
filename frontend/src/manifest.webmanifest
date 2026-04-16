@@ -1,0 +1,16 @@
+{
+  "name": "Renmito",
+  "short_name": "Renmito",
+  "description": "Visual time-logging — log, reflect, observe",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}
