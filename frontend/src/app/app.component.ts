@@ -386,7 +386,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                     <!-- Long-press dropdown -->
                     <div class="add-point-backdrop" *ngIf="addPointMenuOpen" (click)="closeAddPointMenu(); $event.stopPropagation()"></div>
                     <div class="add-point-menu" *ngIf="addPointMenuOpen" (click)="$event.stopPropagation()">
-                      <button class="add-point-menu-item" (click)="addPointLogNow(); closeAddPointMenu()">
+                      <button class="add-point-menu-item" (click)="addPointLogNow(); closeAddPointMenu(); $event.stopPropagation()">
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
                           <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/>
                           <path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
@@ -396,7 +396,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                           <span class="add-point-menu-sub">Stamp at {{ currentTimeStr() }}</span>
                         </div>
                       </button>
-                      <button class="add-point-menu-item" (click)="openAddPoint(); closeAddPointMenu()">
+                      <button class="add-point-menu-item" (click)="openAddPoint(); closeAddPointMenu(); $event.stopPropagation()">
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
                           <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
                           <path d="M5 3V1.5M11 3V1.5M2 7h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
