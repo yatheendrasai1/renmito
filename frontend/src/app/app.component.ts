@@ -417,7 +417,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                 </div>
               </div>
 
-              <!-- ── Vertical Timeline ── -->
+              <!-- ── Log cards ── -->
               <div class="log-list" *ngIf="!isLoading && logs.length > 0">
                 <div
                   class="tl-item"
@@ -428,14 +428,38 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                   [class.tl-item--editing]="inlineEditId === log.id"
                   (click)="onLogItemClick(log, $event)"
                 >
-                  <!-- Left: time -->
-                  <div class="tl-left">
-                    <span class="tl-time">{{ log.startAt }}</span>
-                    <span class="tl-duration" *ngIf="getDuration(log)">{{ getDuration(log) }}</span>
-                  </div>
+                  <!-- Swipe wrapper -->
+                  <div class="swipe-wrap"
+                       (touchstart)="onSwipeStart(log, $event)"
+                       (touchmove)="onSwipeMove(log, $event)"
+                       (touchend)="onSwipeEnd(log, $event)">
 
-                  <!-- Right: card -->
-                  <div class="tl-card">
+                    <!-- Swipe-right reveal: Edit -->
+                    <div class="swipe-reveal swipe-reveal--edit"
+                         [class.swipe-reveal--active]="swipeLogId === log.id && swipeTranslateX > 20"
+                         [class.swipe-reveal--ready]="swipeLogId === log.id && swipeTranslateX > 72">
+                      <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                        <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                      </svg>
+                      Edit
+                    </div>
+
+                    <!-- Swipe-left reveal: Delete -->
+                    <div class="swipe-reveal swipe-reveal--delete"
+                         [class.swipe-reveal--active]="swipeLogId === log.id && swipeTranslateX < -20"
+                         [class.swipe-reveal--ready]="swipeLogId === log.id && swipeTranslateX < -72">
+                      Delete
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                        <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"
+                              stroke="currentColor" stroke-width="1.4"
+                              stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </div>
+
+                    <!-- Card -->
+                    <div class="tl-card"
+                         [style.transform]="swipeLogId === log.id ? 'translateX(' + swipeTranslateX + 'px)' : ''"
+                         [class.tl-card--snapping]="swipeLogId === log.id && swipeSnapping">
 
                     <!-- ── View mode ── -->
                     <ng-container *ngIf="inlineEditId !== log.id">
@@ -443,14 +467,16 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                         <div class="tl-card-body">
                           <div class="log-list-label">{{ log.title }}</div>
                           <div class="log-list-meta">
+                            <span class="log-list-time">
+                              <ng-container *ngIf="log.entryType === 'point'">⏱ {{ log.startAt }}</ng-container>
+                              <ng-container *ngIf="log.entryType !== 'point'">{{ log.startAt }} – {{ log.endAt }}</ng-container>
+                            </span>
                             <span class="log-list-type-badge"
                                   [style.background]="(log.logType?.color ?? '#9B9B9B') + '22'"
                                   [style.color]="log.logType?.color ?? '#9B9B9B'">
                               {{ log.logType?.name ?? '—' }}
                             </span>
-                            <span class="log-list-time" *ngIf="log.entryType !== 'point'">
-                              {{ log.startAt }} – {{ log.endAt }}
-                            </span>
+                            <span class="log-list-duration" *ngIf="getDuration(log)">{{ getDuration(log) }}</span>
                           </div>
                         </div>
                         <div class="tl-card-actions">
@@ -523,7 +549,8 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                       </div>
                     </div>
 
-                  </div><!-- /tl-card -->
+                    </div><!-- /tl-card -->
+                  </div><!-- /swipe-wrap -->
                 </div><!-- /tl-item -->
               </div><!-- /log-list -->
 
@@ -1534,15 +1561,8 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
 
     /* ── Vertical Timeline ─────────────────────────────────── */
     .log-list-skeleton { display: flex; flex-direction: column; }
-    .tl-skeleton-row {
-      display: grid; grid-template-columns: 38px 1fr; gap: 0 8px;
-      align-items: start; padding-bottom: 8px;
-    }
-    .tl-sk-time {
-      height: 10px; border-radius: 4px; margin-top: 16px; align-self: start;
-      background: linear-gradient(90deg, var(--bg-card) 25%, var(--accent-hover) 50%, var(--bg-card) 75%);
-      background-size: 200% 100%; animation: shimmer 1.4s infinite;
-    }
+    .tl-skeleton-row { padding-bottom: 8px; }
+    .tl-sk-time {display: none; }
     .tl-sk-spine { display: none; }
     .tl-sk-line  { display: none; }
     .tl-sk-dot   { display: none; }
@@ -1555,45 +1575,50 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
 
     .log-list { display: flex; flex-direction: column; }
 
-    /* Log row — time label + card */
-    .tl-item {
-      display: grid; grid-template-columns: 38px 1fr;
-      gap: 0 8px; cursor: pointer; align-items: start;
-    }
-    .tl-item--active .tl-card { border-color: rgba(74,144,226,0.5) !important; background: rgba(74,144,226,0.08) !important; }
-    .tl-item--metric-active .tl-card { border-color: rgba(74,144,226,0.6) !important; background: rgba(74,144,226,0.12) !important; }
+    /* Log row */
+    .tl-item { cursor: pointer; }
     .tl-item--dimmed { opacity: 0.38; }
     .tl-item--editing { cursor: default; }
-    .tl-item--editing .tl-card { border-color: var(--border-light) !important; background: var(--bg-card) !important; }
-    .tl-item:hover .tl-card { background: var(--accent-hover); border-color: var(--border); }
-    .tl-item--active:hover .tl-card,
-    .tl-item--metric-active:hover .tl-card { background: unset; }
 
-    /* Left: time column */
-    .tl-left {
-      display: flex; flex-direction: column; align-items: flex-end;
-      padding-top: 12px; gap: 1px; flex-shrink: 0;
-    }
-    .tl-time {
-      font-size: 10px; font-weight: 600; color: var(--text-muted);
-      font-variant-numeric: tabular-nums; line-height: 1;
-    }
-    .tl-duration {
-      font-size: 9px; color: var(--text-muted); opacity: 0.55;
-      font-variant-numeric: tabular-nums; line-height: 1;
+    /* ── Swipe wrapper ─────────────────────────────────── */
+    .swipe-wrap {
+      position: relative; overflow: hidden;
+      border-radius: var(--radius-sm); margin-bottom: 8px;
     }
 
-    /* Card */
+    /* Reveal layers sit behind the sliding card */
+    .swipe-reveal {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; gap: 7px;
+      padding: 0 18px;
+      font-size: 12px; font-weight: 700;
+      border-radius: var(--radius-sm);
+      opacity: 0; transition: opacity 0.1s, filter 0.1s;
+    }
+    .swipe-reveal--active  { opacity: 1; }
+    .swipe-reveal--ready   { filter: brightness(1.15); }
+    .swipe-reveal--edit    { background: rgba(74,144,226,0.9); color: #fff; justify-content: flex-start; }
+    .swipe-reveal--delete  { background: rgba(210,55,55,0.9);  color: #fff; justify-content: flex-end; }
+
+    /* Card slides on top */
     .tl-card {
+      position: relative; z-index: 1;
       background: var(--bg-card); border: 1px solid transparent;
-      border-radius: var(--radius-sm); padding: 8px 10px;
-      margin-top: 4px; margin-bottom: 6px;
+      border-radius: var(--radius-sm); padding: 10px 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.03);
-      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s; min-width: 0;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+      min-width: 0; will-change: transform;
     }
-    .tl-item:hover .tl-card {
-      box-shadow: 0 4px 14px rgba(0,0,0,0.26), 0 0 0 1px rgba(255,255,255,0.04);
+    .tl-card--snapping {
+      transition: transform 0.24s cubic-bezier(0.25,1,0.5,1),
+                  background 0.15s, border-color 0.15s, box-shadow 0.15s;
     }
+    .tl-item:hover .tl-card { background: var(--accent-hover); border-color: var(--border); box-shadow: 0 4px 14px rgba(0,0,0,0.26); }
+    .tl-item--active .tl-card   { border-color: rgba(74,144,226,0.5) !important; background: rgba(74,144,226,0.08) !important; }
+    .tl-item--metric-active .tl-card { border-color: rgba(74,144,226,0.6) !important; background: rgba(74,144,226,0.12) !important; }
+    .tl-item--editing .tl-card  { border-color: var(--border-light) !important; background: var(--bg-card) !important; }
+    .tl-item--active:hover .tl-card, .tl-item--metric-active:hover .tl-card { background: unset; }
+
     .tl-card-header { display: flex; align-items: flex-start; gap: 6px; }
     .tl-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
     .tl-card-actions { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: 2px; }
@@ -1602,6 +1627,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
     .log-list-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .log-list-type-badge { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.4px; }
     .log-list-time { font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .log-list-duration { font-size: 11px; color: var(--text-muted); background: var(--bg-surface); padding: 1px 6px; border-radius: 6px; font-variant-numeric: tabular-nums; }
 
     /* Action buttons — low opacity by default, full on hover */
     .log-list-edit-btn {
@@ -3085,6 +3111,14 @@ export class AppComponent implements OnInit {
   // ── 1.54: Inline edit + quick-add + sort ─────────────────
   inlineEditId: string | null = null;
   inlineEdit = { title: '', startAt: '', endAt: '', logTypeId: '' };
+
+  // ── Swipe-to-action state ──────────────────────────────────
+  swipeLogId: string | null = null;
+  swipeTranslateX = 0;
+  swipeSnapping   = false;
+  private swipeStartX = 0;
+  private swipeStartY = 0;
+  private swipeIsHorizontal: boolean | null = null;
   inlineSaving = false;
   inlineLogTypes: any[] = [];
   logSortOrder: 'asc' | 'desc' = 'desc';
@@ -3490,6 +3524,56 @@ export class AppComponent implements OnInit {
   }
 
   cancelInlineEdit(): void { this.inlineEditId = null; }
+
+  // ── Swipe-to-action ────────────────────────────────────────
+  onSwipeStart(log: LogEntry, e: TouchEvent): void {
+    if (this.inlineEditId) return;
+    this.swipeLogId        = log.id;
+    this.swipeStartX       = e.touches[0].clientX;
+    this.swipeStartY       = e.touches[0].clientY;
+    this.swipeTranslateX   = 0;
+    this.swipeSnapping     = false;
+    this.swipeIsHorizontal = null;
+  }
+
+  onSwipeMove(log: LogEntry, e: TouchEvent): void {
+    if (this.swipeLogId !== log.id) return;
+    const dx = e.touches[0].clientX - this.swipeStartX;
+    const dy = e.touches[0].clientY - this.swipeStartY;
+
+    // Lock direction on first 8px of movement
+    if (this.swipeIsHorizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      this.swipeIsHorizontal = Math.abs(dx) > Math.abs(dy);
+    }
+    if (!this.swipeIsHorizontal) return;
+
+    e.preventDefault(); // block page scroll while swiping horizontally
+    // Clamp to ±120 px with slight resistance near the edge
+    const max = 120;
+    this.swipeTranslateX = Math.max(-max, Math.min(max, dx));
+  }
+
+  onSwipeEnd(log: LogEntry, _e: TouchEvent): void {
+    if (this.swipeLogId !== log.id || !this.swipeIsHorizontal) {
+      this.swipeLogId = null;
+      return;
+    }
+
+    const threshold = 72;
+    const action = this.swipeTranslateX >  threshold ? 'edit'
+                 : this.swipeTranslateX < -threshold ? 'delete'
+                 : null;
+
+    // Snap back first, then fire action
+    this.swipeSnapping   = true;
+    this.swipeTranslateX = 0;
+    setTimeout(() => {
+      this.swipeLogId    = null;
+      this.swipeSnapping = false;
+      if (action === 'edit')   this.onLogItemClick(log, new MouseEvent('click'));
+      if (action === 'delete') this.confirmDeleteLog(log);
+    }, 240);
+  }
 
   confirmDeleteLog(log: LogEntry): void {
     this.cancelInlineEdit();
