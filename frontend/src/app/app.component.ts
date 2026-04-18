@@ -421,7 +421,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
               <div class="log-list" *ngIf="!isLoading && logs.length > 0">
                 <div
                   class="tl-item"
-                  *ngFor="let log of sortedLogs; let i = index; let isFirst = first; let isLast = last"
+                  *ngFor="let log of sortedLogs; let i = index"
                   [class.tl-item--active]="log.id === highlightedLogId && !metricLogIds && inlineEditId !== log.id"
                   [class.tl-item--metric-active]="metricLogIds?.has(log.id) && inlineEditId !== log.id"
                   [class.tl-item--dimmed]="metricLogIds && !metricLogIds.has(log.id) && inlineEditId !== log.id"
@@ -432,26 +432,6 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                   <div class="tl-left">
                     <span class="tl-time">{{ log.startAt }}</span>
                     <span class="tl-duration" *ngIf="getDuration(log)">{{ getDuration(log) }}</span>
-                  </div>
-
-                  <!-- Center: spine + dot -->
-                  <div class="tl-spine">
-                    <div class="tl-line" [class.tl-line--hidden]="isFirst"></div>
-                    <div class="tl-dot"
-                         [style.background]="inlineEditId === log.id ? (inlineCurrentColor ?? log.logType?.color ?? '#9B9B9B') : (log.logType?.color ?? '#9B9B9B')"
-                         [ngSwitch]="getLogIconKey(log)">
-                      <svg *ngSwitchCase="'sleep'" width="8" height="8" viewBox="0 0 10 10"><path d="M7 1.5a4.5 4.5 0 1 1-5.5 5.5A3 3 0 0 0 7 1.5z" fill="rgba(255,255,255,0.9)"/></svg>
-                      <svg *ngSwitchCase="'wake'" width="8" height="8" viewBox="0 0 10 10"><circle cx="5" cy="5" r="1.6" fill="rgba(255,255,255,0.9)"/><path d="M5 1.5v1M5 7.5v1M1.5 5h1M7.5 5h1M2.6 2.6l.7.7M6.7 6.7l.7.7M2.6 7.4l.7-.7M6.7 3.3l.7-.7" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" stroke-linecap="round"/></svg>
-                      <svg *ngSwitchCase="'walk'" width="8" height="8" viewBox="0 0 10 10"><circle cx="6" cy="1.8" r="1" fill="rgba(255,255,255,0.9)"/><path d="M6 3.2 5 5.5H3.2l1.8 2.5M6 3.2l1 1.5 1.2.6" stroke="rgba(255,255,255,0.9)" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
-                      <svg *ngSwitchCase="'exercise'" width="8" height="8" viewBox="0 0 10 10"><path d="M2 5h6M1.5 4v2M2.5 3.2v3.6M7.5 3.2v3.6M8.5 4v2" stroke="rgba(255,255,255,0.9)" stroke-width="1" stroke-linecap="round"/></svg>
-                      <svg *ngSwitchCase="'food'" width="8" height="8" viewBox="0 0 10 10"><path d="M3 1.5v3c0 .8.7 1.4 1.5 1.5V8.5M3 3h1.5M7 1.5v7M7 1.5C7 3 5.5 3.8 5.5 5" stroke="rgba(255,255,255,0.9)" stroke-width="0.9" stroke-linecap="round" fill="none"/></svg>
-                      <svg *ngSwitchCase="'work'" width="8" height="8" viewBox="0 0 10 10"><rect x="1.5" y="4" width="7" height="4.5" rx="0.8" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" fill="none"/><path d="M3.5 4V3C3.5 2.4 3.9 2 4.5 2h1C6.1 2 6.5 2.4 6.5 3v1" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" fill="none"/><path d="M1.5 6.5h7" stroke="rgba(255,255,255,0.9)" stroke-width="0.8"/></svg>
-                      <svg *ngSwitchCase="'read'" width="8" height="8" viewBox="0 0 10 10"><path d="M5 8.5V3C5 2.2 4.3 1.5 3.5 1.5H1.5V7h2C4.2 7 5 7.7 5 8.5zM5 8.5V3c0-.8.7-1.5 1.5-1.5H8.5V7H6.5C5.8 7 5 7.7 5 8.5z" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" fill="none"/></svg>
-                      <svg *ngSwitchCase="'meditate'" width="8" height="8" viewBox="0 0 10 10"><circle cx="5" cy="2.5" r="1" fill="rgba(255,255,255,0.9)"/><path d="M2.5 5.5c.5-.8 1.4-1.5 2.5-1.5s2 .7 2.5 1.5M1.5 7.5c0-1.5 1.5-2.5 3.5-2.5s3.5 1 3.5 2.5" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" stroke-linecap="round" fill="none"/></svg>
-                      <svg *ngSwitchCase="'point'" width="8" height="8" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" fill="rgba(255,255,255,0.9)"/></svg>
-                      <svg *ngSwitchDefault width="8" height="8" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.5" stroke="rgba(255,255,255,0.9)" stroke-width="0.9" fill="none"/><path d="M5 3v2l1.5 1" stroke="rgba(255,255,255,0.9)" stroke-width="0.9" stroke-linecap="round"/></svg>
-                    </div>
-                    <div class="tl-line" [class.tl-line--hidden]="isLast"></div>
                   </div>
 
                   <!-- Right: card -->
@@ -1555,27 +1535,17 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
     /* ── Vertical Timeline ─────────────────────────────────── */
     .log-list-skeleton { display: flex; flex-direction: column; }
     .tl-skeleton-row {
-      display: grid; grid-template-columns: 44px 28px 1fr; gap: 0 8px;
-      align-items: stretch; padding-bottom: 8px;
+      display: grid; grid-template-columns: 38px 1fr; gap: 0 8px;
+      align-items: start; padding-bottom: 8px;
     }
     .tl-sk-time {
       height: 10px; border-radius: 4px; margin-top: 16px; align-self: start;
       background: linear-gradient(90deg, var(--bg-card) 25%, var(--accent-hover) 50%, var(--bg-card) 75%);
       background-size: 200% 100%; animation: shimmer 1.4s infinite;
     }
-    .tl-sk-spine {
-      display: flex; flex-direction: column; align-items: center;
-    }
-    .tl-sk-line {
-      flex: 1; width: 2px; min-height: 10px;
-      background: linear-gradient(90deg, var(--bg-card) 25%, var(--accent-hover) 50%, var(--bg-card) 75%);
-      background-size: 200% 100%; animation: shimmer 1.4s infinite;
-    }
-    .tl-sk-dot {
-      width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
-      background: linear-gradient(90deg, var(--bg-card) 25%, var(--accent-hover) 50%, var(--bg-card) 75%);
-      background-size: 200% 100%; animation: shimmer 1.4s infinite;
-    }
+    .tl-sk-spine { display: none; }
+    .tl-sk-line  { display: none; }
+    .tl-sk-dot   { display: none; }
     .tl-sk-card {
       height: 52px; border-radius: var(--radius-sm); margin-top: 6px; align-self: start;
       background: linear-gradient(90deg, var(--bg-card) 25%, var(--accent-hover) 50%, var(--bg-card) 75%);
@@ -1585,10 +1555,10 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
 
     .log-list { display: flex; flex-direction: column; }
 
-    /* Timeline row */
+    /* Log row — time label + card */
     .tl-item {
-      display: grid; grid-template-columns: 38px 20px 1fr;
-      gap: 0 7px; cursor: pointer; align-items: stretch;
+      display: grid; grid-template-columns: 38px 1fr;
+      gap: 0 8px; cursor: pointer; align-items: start;
     }
     .tl-item--active .tl-card { border-color: rgba(74,144,226,0.5) !important; background: rgba(74,144,226,0.08) !important; }
     .tl-item--metric-active .tl-card { border-color: rgba(74,144,226,0.6) !important; background: rgba(74,144,226,0.12) !important; }
@@ -1602,7 +1572,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
     /* Left: time column */
     .tl-left {
       display: flex; flex-direction: column; align-items: flex-end;
-      padding-top: 16px; gap: 1px; flex-shrink: 0;
+      padding-top: 12px; gap: 1px; flex-shrink: 0;
     }
     .tl-time {
       font-size: 10px; font-weight: 600; color: var(--text-muted);
@@ -1613,27 +1583,16 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
       font-variant-numeric: tabular-nums; line-height: 1;
     }
 
-    /* Center: spine with dot */
-    .tl-spine {
-      display: flex; flex-direction: column; align-items: center;
-    }
-    /* Top line: fixed height so dot lands in a predictable position */
-    .tl-line:first-child { height: 14px; flex: none; width: 2px; background: var(--border); }
-    /* Bottom line: fills remaining height to connect to next item */
-    .tl-line:last-child { flex: 1; width: 2px; min-height: 8px; background: var(--border); }
-    .tl-line--hidden { background: transparent !important; }
-    .tl-dot {
-      width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 0 0 2px var(--bg-surface);
-    }
-
-    /* Right: card */
+    /* Card */
     .tl-card {
       background: var(--bg-card); border: 1px solid transparent;
       border-radius: var(--radius-sm); padding: 8px 10px;
-      margin-top: 7px; margin-bottom: 6px;
-      transition: background 0.15s, border-color 0.15s; min-width: 0;
+      margin-top: 4px; margin-bottom: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.03);
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s; min-width: 0;
+    }
+    .tl-item:hover .tl-card {
+      box-shadow: 0 4px 14px rgba(0,0,0,0.26), 0 0 0 1px rgba(255,255,255,0.04);
     }
     .tl-card-header { display: flex; align-items: flex-start; gap: 6px; }
     .tl-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
