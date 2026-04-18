@@ -237,7 +237,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
 
             <!-- ── 1.71: Running Log Banner ───────────────────────── -->
             <div class="running-log-banner" *ngIf="activeLog">
-              <div class="running-log-left">
+              <div class="running-log-left" (click)="openTimerEdit()" title="Edit timer details">
                 <span class="running-log-dot"
                       [style.background]="activeLogTypeColor"
                       [class.running-log-dot--pulse]="true"></span>
@@ -245,6 +245,9 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                   <span class="running-log-name">{{ activeLog.title || activeLogTypeName }}</span>
                   <span class="running-log-sub">{{ activeLogTypeName }}</span>
                 </div>
+                <svg class="running-log-edit-icon" width="11" height="11" viewBox="0 0 16 16" fill="none">
+                  <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                </svg>
               </div>
               <div class="running-log-center">
                 <span class="running-log-clock">{{ activeLogElapsedStr }}</span>
@@ -401,109 +404,148 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                 </button>
               </div>
 
+              <!-- ── Timeline skeleton ── -->
               <div class="log-list-skeleton" *ngIf="isLoading">
-                <div class="skeleton-row" *ngFor="let i of [1,2,3]"></div>
-              </div>
-
-              <div class="log-list" *ngIf="!isLoading && logs.length > 0">
-                <div
-                  class="log-list-item"
-                  *ngFor="let log of sortedLogs; let i = index"
-                  [class.log-list-item--active]="log.id === highlightedLogId && !metricLogIds && inlineEditId !== log.id"
-                  [class.log-list-item--metric-active]="metricLogIds?.has(log.id) && inlineEditId !== log.id"
-                  [class.log-list-item--dimmed]="metricLogIds && !metricLogIds.has(log.id) && inlineEditId !== log.id"
-                  [class.log-list-item--editing]="inlineEditId === log.id"
-                  (click)="onLogItemClick(log, $event)"
-                >
-                  <div class="log-list-index">{{ i + 1 }}</div>
-                  <div class="log-list-color-bar"
-                       [style.background]="inlineEditId === log.id ? (inlineCurrentColor ?? log.logType?.color ?? '#9B9B9B') : (log.logType?.color ?? '#9B9B9B')"></div>
-
-                  <!-- ── View mode ── -->
-                  <ng-container *ngIf="inlineEditId !== log.id">
-                    <div class="log-list-body">
-                      <div class="log-list-label">{{ log.title }}</div>
-                      <div class="log-list-meta">
-                        <span class="log-list-type-badge"
-                              [style.background]="(log.logType?.color ?? '#9B9B9B') + '22'"
-                              [style.color]="log.logType?.color ?? '#9B9B9B'">
-                          {{ log.logType?.name ?? '—' }}
-                        </span>
-                        <span class="log-list-time">
-                          <ng-container *ngIf="log.entryType === 'point'">⏱ {{ log.startAt }}</ng-container>
-                          <ng-container *ngIf="log.entryType !== 'point'">{{ log.startAt }} – {{ log.endAt }}</ng-container>
-                        </span>
-                        <span class="log-list-duration">{{ getDuration(log) }}</span>
-                      </div>
-                    </div>
-                    <button type="button" class="log-list-edit-btn"
-                            (click)="editLog(log); $event.stopPropagation()"
-                            aria-label="Edit">
-                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                        <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
-                              stroke-width="1.5" stroke-linejoin="round"/>
-                      </svg>
-                    </button>
-                    <button type="button" class="log-list-delete-btn"
-                            (click)="confirmDeleteLog(log); $event.stopPropagation()"
-                            aria-label="Delete">
-                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                        <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"
-                              stroke="currentColor" stroke-width="1.4"
-                              stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </button>
-                  </ng-container>
-
-                  <!-- ── Inline edit mode — 1.54 / 1.57 mobile-friendly ── -->
-                  <div class="log-list-inline" *ngIf="inlineEditId === log.id"
-                       (click)="$event.stopPropagation()">
-                    <input class="inline-title-input" type="text"
-                           [(ngModel)]="inlineEdit.title"
-                           maxlength="300"
-                           placeholder="Activity description"
-                           (keydown)="onInlineKeydown($event, log)">
-                    <app-log-type-select
-                      [logTypes]="inlineLogTypes"
-                      [selectedId]="inlineEdit.logTypeId"
-                      (selectedIdChange)="inlineEdit.logTypeId = $event">
-                    </app-log-type-select>
-                    <div class="inline-time-row">
-                      <span class="inline-time-label">Start</span>
-                      <button type="button" class="btn-time-step"
-                              (click)="adjustTime('startAt', -10); $event.stopPropagation()">−10m</button>
-                      <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.startAt">
-                      <button type="button" class="btn-time-step"
-                              (click)="adjustTime('startAt', 10); $event.stopPropagation()">+10m</button>
-                    </div>
-                    <div class="inline-time-row" *ngIf="log.entryType !== 'point'">
-                      <span class="inline-time-label">End</span>
-                      <button type="button" class="btn-time-step"
-                              (click)="adjustTime('endAt', -10); $event.stopPropagation()">−10m</button>
-                      <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.endAt">
-                      <button type="button" class="btn-time-step"
-                              (click)="adjustTime('endAt', 10); $event.stopPropagation()">+10m</button>
-                    </div>
-                    <div class="inline-action-row">
-                      <button type="button" class="btn-inline-save"
-                              (click)="saveInlineEdit(log); $event.stopPropagation()"
-                              [disabled]="inlineSaving">
-                        {{ inlineSaving ? '…' : '✓ Save' }}
-                      </button>
-                      <button type="button" class="btn-inline-cancel"
-                              (click)="cancelInlineEdit(); $event.stopPropagation()">✕ Cancel</button>
-                      <button type="button" class="btn-inline-fullform"
-                              (click)="editLog(log); cancelInlineEdit(); $event.stopPropagation()"
-                              title="Open full edit form">
-                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
-                          <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
-                                stroke-width="1.5" stroke-linejoin="round"/>
-                        </svg>
-                      </button>
-                    </div>
+                <div class="tl-skeleton-row" *ngFor="let i of [1,2,3]">
+                  <div class="tl-sk-time"></div>
+                  <div class="tl-sk-spine">
+                    <div class="tl-sk-line"></div>
+                    <div class="tl-sk-dot"></div>
+                    <div class="tl-sk-line"></div>
                   </div>
+                  <div class="tl-sk-card"></div>
                 </div>
               </div>
+
+              <!-- ── Vertical Timeline ── -->
+              <div class="log-list" *ngIf="!isLoading && logs.length > 0">
+                <div
+                  class="tl-item"
+                  *ngFor="let log of sortedLogs; let i = index; let isFirst = first; let isLast = last"
+                  [class.tl-item--active]="log.id === highlightedLogId && !metricLogIds && inlineEditId !== log.id"
+                  [class.tl-item--metric-active]="metricLogIds?.has(log.id) && inlineEditId !== log.id"
+                  [class.tl-item--dimmed]="metricLogIds && !metricLogIds.has(log.id) && inlineEditId !== log.id"
+                  [class.tl-item--editing]="inlineEditId === log.id"
+                  (click)="onLogItemClick(log, $event)"
+                >
+                  <!-- Left: time -->
+                  <div class="tl-left">
+                    <span class="tl-time">{{ log.startAt }}</span>
+                    <span class="tl-duration" *ngIf="getDuration(log)">{{ getDuration(log) }}</span>
+                  </div>
+
+                  <!-- Center: spine + dot -->
+                  <div class="tl-spine">
+                    <div class="tl-line" [class.tl-line--hidden]="isFirst"></div>
+                    <div class="tl-dot"
+                         [style.background]="inlineEditId === log.id ? (inlineCurrentColor ?? log.logType?.color ?? '#9B9B9B') : (log.logType?.color ?? '#9B9B9B')"
+                         [ngSwitch]="getLogIconKey(log)">
+                      <svg *ngSwitchCase="'sleep'" width="8" height="8" viewBox="0 0 10 10"><path d="M7 1.5a4.5 4.5 0 1 1-5.5 5.5A3 3 0 0 0 7 1.5z" fill="rgba(255,255,255,0.9)"/></svg>
+                      <svg *ngSwitchCase="'wake'" width="8" height="8" viewBox="0 0 10 10"><circle cx="5" cy="5" r="1.6" fill="rgba(255,255,255,0.9)"/><path d="M5 1.5v1M5 7.5v1M1.5 5h1M7.5 5h1M2.6 2.6l.7.7M6.7 6.7l.7.7M2.6 7.4l.7-.7M6.7 3.3l.7-.7" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" stroke-linecap="round"/></svg>
+                      <svg *ngSwitchCase="'walk'" width="8" height="8" viewBox="0 0 10 10"><circle cx="6" cy="1.8" r="1" fill="rgba(255,255,255,0.9)"/><path d="M6 3.2 5 5.5H3.2l1.8 2.5M6 3.2l1 1.5 1.2.6" stroke="rgba(255,255,255,0.9)" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                      <svg *ngSwitchCase="'exercise'" width="8" height="8" viewBox="0 0 10 10"><path d="M2 5h6M1.5 4v2M2.5 3.2v3.6M7.5 3.2v3.6M8.5 4v2" stroke="rgba(255,255,255,0.9)" stroke-width="1" stroke-linecap="round"/></svg>
+                      <svg *ngSwitchCase="'food'" width="8" height="8" viewBox="0 0 10 10"><path d="M3 1.5v3c0 .8.7 1.4 1.5 1.5V8.5M3 3h1.5M7 1.5v7M7 1.5C7 3 5.5 3.8 5.5 5" stroke="rgba(255,255,255,0.9)" stroke-width="0.9" stroke-linecap="round" fill="none"/></svg>
+                      <svg *ngSwitchCase="'work'" width="8" height="8" viewBox="0 0 10 10"><rect x="1.5" y="4" width="7" height="4.5" rx="0.8" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" fill="none"/><path d="M3.5 4V3C3.5 2.4 3.9 2 4.5 2h1C6.1 2 6.5 2.4 6.5 3v1" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" fill="none"/><path d="M1.5 6.5h7" stroke="rgba(255,255,255,0.9)" stroke-width="0.8"/></svg>
+                      <svg *ngSwitchCase="'read'" width="8" height="8" viewBox="0 0 10 10"><path d="M5 8.5V3C5 2.2 4.3 1.5 3.5 1.5H1.5V7h2C4.2 7 5 7.7 5 8.5zM5 8.5V3c0-.8.7-1.5 1.5-1.5H8.5V7H6.5C5.8 7 5 7.7 5 8.5z" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" fill="none"/></svg>
+                      <svg *ngSwitchCase="'meditate'" width="8" height="8" viewBox="0 0 10 10"><circle cx="5" cy="2.5" r="1" fill="rgba(255,255,255,0.9)"/><path d="M2.5 5.5c.5-.8 1.4-1.5 2.5-1.5s2 .7 2.5 1.5M1.5 7.5c0-1.5 1.5-2.5 3.5-2.5s3.5 1 3.5 2.5" stroke="rgba(255,255,255,0.9)" stroke-width="0.8" stroke-linecap="round" fill="none"/></svg>
+                      <svg *ngSwitchCase="'point'" width="8" height="8" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" fill="rgba(255,255,255,0.9)"/></svg>
+                      <svg *ngSwitchDefault width="8" height="8" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.5" stroke="rgba(255,255,255,0.9)" stroke-width="0.9" fill="none"/><path d="M5 3v2l1.5 1" stroke="rgba(255,255,255,0.9)" stroke-width="0.9" stroke-linecap="round"/></svg>
+                    </div>
+                    <div class="tl-line" [class.tl-line--hidden]="isLast"></div>
+                  </div>
+
+                  <!-- Right: card -->
+                  <div class="tl-card">
+
+                    <!-- ── View mode ── -->
+                    <ng-container *ngIf="inlineEditId !== log.id">
+                      <div class="tl-card-header">
+                        <div class="tl-card-body">
+                          <div class="log-list-label">{{ log.title }}</div>
+                          <div class="log-list-meta">
+                            <span class="log-list-type-badge"
+                                  [style.background]="(log.logType?.color ?? '#9B9B9B') + '22'"
+                                  [style.color]="log.logType?.color ?? '#9B9B9B'">
+                              {{ log.logType?.name ?? '—' }}
+                            </span>
+                            <span class="log-list-time" *ngIf="log.entryType !== 'point'">
+                              {{ log.startAt }} – {{ log.endAt }}
+                            </span>
+                          </div>
+                        </div>
+                        <div class="tl-card-actions">
+                          <button type="button" class="log-list-edit-btn"
+                                  (click)="editLog(log); $event.stopPropagation()"
+                                  aria-label="Edit">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                              <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
+                                    stroke-width="1.5" stroke-linejoin="round"/>
+                            </svg>
+                          </button>
+                          <button type="button" class="log-list-delete-btn"
+                                  (click)="confirmDeleteLog(log); $event.stopPropagation()"
+                                  aria-label="Delete">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                              <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"
+                                    stroke="currentColor" stroke-width="1.4"
+                                    stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </ng-container>
+
+                    <!-- ── Inline edit mode ── -->
+                    <div class="log-list-inline" *ngIf="inlineEditId === log.id"
+                         (click)="$event.stopPropagation()">
+                      <input class="inline-title-input" type="text"
+                             [(ngModel)]="inlineEdit.title"
+                             maxlength="300"
+                             placeholder="Activity description"
+                             (keydown)="onInlineKeydown($event, log)">
+                      <app-log-type-select
+                        [logTypes]="inlineLogTypes"
+                        [selectedId]="inlineEdit.logTypeId"
+                        (selectedIdChange)="inlineEdit.logTypeId = $event">
+                      </app-log-type-select>
+                      <div class="inline-time-row">
+                        <span class="inline-time-label">Start</span>
+                        <button type="button" class="btn-time-step"
+                                (click)="adjustTime('startAt', -10); $event.stopPropagation()">−10m</button>
+                        <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.startAt">
+                        <button type="button" class="btn-time-step"
+                                (click)="adjustTime('startAt', 10); $event.stopPropagation()">+10m</button>
+                      </div>
+                      <div class="inline-time-row" *ngIf="log.entryType !== 'point'">
+                        <span class="inline-time-label">End</span>
+                        <button type="button" class="btn-time-step"
+                                (click)="adjustTime('endAt', -10); $event.stopPropagation()">−10m</button>
+                        <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.endAt">
+                        <button type="button" class="btn-time-step"
+                                (click)="adjustTime('endAt', 10); $event.stopPropagation()">+10m</button>
+                      </div>
+                      <div class="inline-action-row">
+                        <button type="button" class="btn-inline-save"
+                                (click)="saveInlineEdit(log); $event.stopPropagation()"
+                                [disabled]="inlineSaving">
+                          {{ inlineSaving ? '…' : '✓ Save' }}
+                        </button>
+                        <button type="button" class="btn-inline-cancel"
+                                (click)="cancelInlineEdit(); $event.stopPropagation()">✕ Cancel</button>
+                        <button type="button" class="btn-inline-fullform"
+                                (click)="editLog(log); cancelInlineEdit(); $event.stopPropagation()"
+                                title="Open full edit form">
+                          <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                            <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
+                                  stroke-width="1.5" stroke-linejoin="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                  </div><!-- /tl-card -->
+                </div><!-- /tl-item -->
+              </div><!-- /log-list -->
 
               <div class="log-list-empty" *ngIf="!isLoading && logs.length === 0">
                 <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
@@ -910,6 +952,66 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
           </div>
         </ng-container>
 
+      </div>
+
+      <!-- ── Timer-edit sheet: opens immediately when timer starts ── -->
+      <div class="log-now-backdrop" *ngIf="timerEditOpen" (click)="closeTimerEdit()"></div>
+      <div class="log-now-sheet timer-edit-sheet" *ngIf="timerEditOpen">
+
+        <!-- Live clock header -->
+        <div class="te-clock-row">
+          <span class="running-log-dot running-log-dot--pulse"
+                [style.background]="activeLogTypeColor"></span>
+          <span class="te-recording-label">Recording</span>
+          <span class="te-elapsed">
+            {{ activeLog ? activeLogElapsedStr : (startLogSaving ? 'Starting…' : '0:00') }}
+          </span>
+        </div>
+
+        <div class="log-now-fields te-fields">
+          <!-- Domain tabs -->
+          <div class="ln-domain-tabs">
+            <button class="ln-domain-tab"
+                    [class.ln-domain-tab--active]="startLogDomain === 'work'"
+                    (click)="setStartLogDomain('work')">Work</button>
+            <button class="ln-domain-tab"
+                    [class.ln-domain-tab--active]="startLogDomain === 'personal'"
+                    (click)="setStartLogDomain('personal')">Personal</button>
+          </div>
+          <!-- Log type drum -->
+          <div class="ln-type-drum-wrap">
+            <div class="ln-drum-center-band"></div>
+            <div class="ln-drum ln-drum-sl-types" (scroll)="onStartLogTypeScroll($event)">
+              <div class="ln-drum-spacer"></div>
+              <div class="ln-type-drum-item"
+                   *ngFor="let lt of startLogFilteredTypes; let i = index"
+                   [class.ln-type-drum-item--sel]="i === startLogTypeIndex">
+                <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
+                {{ lt.name }}
+              </div>
+              <div class="ln-drum-spacer"></div>
+            </div>
+          </div>
+          <!-- Description -->
+          <textarea class="log-now-input"
+                    placeholder="Description (optional)"
+                    [(ngModel)]="startLogTitle"
+                    (ngModelChange)="onTimerTitleChange($event)"></textarea>
+        </div>
+
+        <div class="log-now-actions te-actions">
+          <button class="log-now-cancel te-dismiss-btn" (click)="closeTimerEdit()">
+            Keep running
+          </button>
+          <button class="log-now-save log-now-save--start"
+                  (click)="stopRunningLog(); closeTimerEdit()"
+                  [disabled]="!activeLog">
+            <svg width="11" height="11" viewBox="0 0 14 14" fill="currentColor">
+              <rect x="2" y="2" width="10" height="10" rx="2"/>
+            </svg>
+            Stop & Save
+          </button>
+        </div>
       </div>
 
       <!-- ── Footer — 1.35 / fixed full-width 1.52 / 1.84 mobile scroll ─── -->
@@ -1450,78 +1552,119 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
     }
     .btn-sort:hover { background: var(--accent-hover); color: var(--text-primary); border-color: var(--accent); }
 
-    .log-list-skeleton { display: flex; flex-direction: column; gap: 8px; }
-    .skeleton-row {
-      height: 52px; border-radius: var(--radius-sm);
+    /* ── Vertical Timeline ─────────────────────────────────── */
+    .log-list-skeleton { display: flex; flex-direction: column; }
+    .tl-skeleton-row {
+      display: grid; grid-template-columns: 44px 28px 1fr; gap: 0 8px;
+      align-items: stretch; padding-bottom: 8px;
+    }
+    .tl-sk-time {
+      height: 10px; border-radius: 4px; margin-top: 16px; align-self: start;
       background: linear-gradient(90deg, var(--bg-card) 25%, var(--accent-hover) 50%, var(--bg-card) 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.4s infinite;
+      background-size: 200% 100%; animation: shimmer 1.4s infinite;
+    }
+    .tl-sk-spine {
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .tl-sk-line {
+      flex: 1; width: 2px; min-height: 10px;
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--accent-hover) 50%, var(--bg-card) 75%);
+      background-size: 200% 100%; animation: shimmer 1.4s infinite;
+    }
+    .tl-sk-dot {
+      width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--accent-hover) 50%, var(--bg-card) 75%);
+      background-size: 200% 100%; animation: shimmer 1.4s infinite;
+    }
+    .tl-sk-card {
+      height: 52px; border-radius: var(--radius-sm); margin-top: 6px; align-self: start;
+      background: linear-gradient(90deg, var(--bg-card) 25%, var(--accent-hover) 50%, var(--bg-card) 75%);
+      background-size: 200% 100%; animation: shimmer 1.4s infinite;
     }
     @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-    .log-list { display: flex; flex-direction: column; gap: 6px; }
-    .log-list-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 10px 12px; border-radius: var(--radius-sm);
-      border: 1px solid transparent; cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
-      background: var(--bg-card);
+    .log-list { display: flex; flex-direction: column; }
+
+    /* Timeline row */
+    .tl-item {
+      display: grid; grid-template-columns: 38px 20px 1fr;
+      gap: 0 7px; cursor: pointer; align-items: stretch;
     }
-    .log-list-item:hover { background: var(--accent-hover); border-color: var(--border); }
-    .log-list-item--active {
-      border-color: rgba(74,144,226,0.5) !important;
-      background: rgba(74,144,226,0.08) !important;
+    .tl-item--active .tl-card { border-color: rgba(74,144,226,0.5) !important; background: rgba(74,144,226,0.08) !important; }
+    .tl-item--metric-active .tl-card { border-color: rgba(74,144,226,0.6) !important; background: rgba(74,144,226,0.12) !important; }
+    .tl-item--dimmed { opacity: 0.38; }
+    .tl-item--editing { cursor: default; }
+    .tl-item--editing .tl-card { border-color: var(--border-light) !important; background: var(--bg-card) !important; }
+    .tl-item:hover .tl-card { background: var(--accent-hover); border-color: var(--border); }
+    .tl-item--active:hover .tl-card,
+    .tl-item--metric-active:hover .tl-card { background: unset; }
+
+    /* Left: time column */
+    .tl-left {
+      display: flex; flex-direction: column; align-items: flex-end;
+      padding-top: 16px; gap: 1px; flex-shrink: 0;
     }
-    .log-list-item--metric-active {
-      border-color: rgba(74,144,226,0.6) !important;
-      background: rgba(74,144,226,0.12) !important;
+    .tl-time {
+      font-size: 10px; font-weight: 600; color: var(--text-muted);
+      font-variant-numeric: tabular-nums; line-height: 1;
     }
-    .log-list-item--dimmed {
-      opacity: 0.38;
-      /* Visually de-emphasised but still tappable — do NOT add pointer-events:none */
+    .tl-duration {
+      font-size: 9px; color: var(--text-muted); opacity: 0.55;
+      font-variant-numeric: tabular-nums; line-height: 1;
     }
 
-    .log-list-index { font-size: 11px; font-weight: 600; color: var(--text-muted); width: 18px; text-align: center; flex-shrink: 0; }
-    .log-list-color-bar { width: 4px; height: 36px; border-radius: 2px; flex-shrink: 0; }
-    .log-list-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    /* Center: spine with dot */
+    .tl-spine {
+      display: flex; flex-direction: column; align-items: center;
+    }
+    /* Top line: fixed height so dot lands in a predictable position */
+    .tl-line:first-child { height: 14px; flex: none; width: 2px; background: var(--border); }
+    /* Bottom line: fills remaining height to connect to next item */
+    .tl-line:last-child { flex: 1; width: 2px; min-height: 8px; background: var(--border); }
+    .tl-line--hidden { background: transparent !important; }
+    .tl-dot {
+      width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 0 2px var(--bg-surface);
+    }
+
+    /* Right: card */
+    .tl-card {
+      background: var(--bg-card); border: 1px solid transparent;
+      border-radius: var(--radius-sm); padding: 8px 10px;
+      margin-top: 7px; margin-bottom: 6px;
+      transition: background 0.15s, border-color 0.15s; min-width: 0;
+    }
+    .tl-card-header { display: flex; align-items: flex-start; gap: 6px; }
+    .tl-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .tl-card-actions { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: 2px; }
+
     .log-list-label { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .log-list-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .log-list-type-badge { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.4px; }
     .log-list-time { font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-    .log-list-duration { font-size: 11px; color: var(--text-muted); background: var(--bg-surface); padding: 1px 6px; border-radius: 6px; }
 
-    /* Always visible at low opacity (accessible on touch/mobile);
-       brighten to full on desktop hover */
+    /* Action buttons — low opacity by default, full on hover */
     .log-list-edit-btn {
       background: none; color: var(--text-muted); border: none;
       padding: 5px; border-radius: var(--radius-sm); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       opacity: 0.45; transition: opacity 0.15s, background 0.15s, color 0.15s; flex-shrink: 0;
     }
-    .log-list-item:hover .log-list-edit-btn { opacity: 1; }
+    .tl-item:hover .log-list-edit-btn { opacity: 1; }
     .log-list-edit-btn:hover { background: var(--accent-hover); color: var(--text-primary); }
     .log-list-delete-btn {
       background: none; color: var(--text-muted); border: none;
       padding: 5px; border-radius: var(--radius-sm); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
       opacity: 0.45; transition: opacity 0.15s, background 0.15s, color 0.15s; flex-shrink: 0;
     }
-    .log-list-item:hover .log-list-delete-btn { opacity: 1; }
+    .tl-item:hover .log-list-delete-btn { opacity: 1; }
     .log-list-delete-btn:hover { background: rgba(158,59,59,0.14); color: #9E3B3B; }
 
-    /* ── Inline edit mode — 1.54 / 1.57 mobile-friendly ──── */
-    .log-list-item--editing {
-      align-items: flex-start;
-      border-color: var(--border-light) !important;
-      background: var(--bg-card) !important;
-      cursor: default;
-    }
-    .log-list-item--editing .log-list-color-bar {
-      align-self: stretch; height: auto;
-    }
+    /* ── Inline edit mode ──── */
     .log-list-inline {
-      flex: 1; min-width: 0;
-      display: flex; flex-direction: column; gap: 8px;
-      padding: 2px 0;
+      min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 2px 0;
     }
     .inline-title-input {
       width: 100%; box-sizing: border-box;
@@ -2373,6 +2516,72 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
     }
     .running-log-progress-fill--done { background: #5BAD6F; }
 
+    /* ── Running banner edit icon ── */
+    .running-log-left {
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      padding: 2px 4px 2px 0;
+      transition: background 0.15s;
+    }
+    .running-log-left:hover { background: rgba(255,255,255,0.06); }
+    .running-log-edit-icon {
+      color: var(--text-muted); opacity: 0; flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+    .running-log-left:hover .running-log-edit-icon { opacity: 0.7; }
+
+    /* ── Timer-edit bottom sheet ──────────────────────────────── */
+    .timer-edit-sheet {
+      display: flex;
+      flex-direction: column;
+      max-height: 72dvh;
+      padding: 20px 20px 36px;
+      gap: 0;
+    }
+    .te-clock-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .te-recording-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      flex: 1;
+    }
+    .te-elapsed {
+      font-size: 30px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-primary);
+      letter-spacing: 1px;
+      line-height: 1;
+    }
+    .te-fields {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      min-height: 0;
+      padding-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .te-actions {
+      flex-shrink: 0;
+      padding-top: 14px;
+    }
+    .te-dismiss-btn {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
     .running-log-stop-btn {
       display: flex;
       align-items: center;
@@ -2998,6 +3207,7 @@ export class AppComponent implements OnInit {
 
   // Start-timer sheet state
   startLogOpen      = false;
+  timerEditOpen     = false;         // timer-edit sheet (opens immediately on Start activity)
   startLogDomain: 'work' | 'personal' = 'work';
   startLogTypeIndex = 0;
   startLogTypeId    = '';
@@ -3531,22 +3741,29 @@ export class AppComponent implements OnInit {
     }
   }
 
-  /** Opens the unified sheet on the "Start Timer" tab. */
+  /** Starts the timer immediately and opens the edit sheet. */
   openStartLog(): void {
-    this._prepStartLog();
-    this.unifiedSheetTab  = 2;
-    this.unifiedSheetOpen = true;
-  }
+    // If a timer is already running, just open the edit sheet to modify details
+    if (this.activeLog) {
+      this._syncStartLogUiToActiveLog();
+      this.timerEditOpen = true;
+      setTimeout(() => this.scrollStartLogTypeDrum(), 40);
+      return;
+    }
 
-  private _prepStartLog(): void {
+    this.timerEditOpen  = true;
+    this.startLogTitle  = '';
     this.startLogDomain = 'work';
+
     if (!this.inlineLogTypes.length) {
       this.logTypeService.getLogTypes().subscribe((t: any[]) => {
         this.inlineLogTypes = t;
         this._initStartLog();
+        this._immediatelyStartTimer();
       });
     } else {
       this._initStartLog();
+      this._immediatelyStartTimer();
     }
   }
 
@@ -3563,7 +3780,67 @@ export class AppComponent implements OnInit {
     setTimeout(() => this.scrollStartLogTypeDrum(), 40);
   }
 
-  closeStartLog(): void { this.unifiedSheetOpen = false; }
+  /** Fires the API to start the timer with defaults immediately. */
+  private _immediatelyStartTimer(): void {
+    if (this.activeLog) return;
+    const typeId = this.startLogTypeId || this.inlineLogTypes[0]?._id;
+    if (!typeId) return;
+
+    this.startLogSaving = true;
+    this.prefService.startActiveLog({ logTypeId: typeId, title: '', plannedMins: null })
+      .subscribe({
+        next: (activeLog) => {
+          this.startLogSaving = false;
+          if (activeLog) {
+            // Merge any type/title the user may have already updated in the sheet
+            this.activeLog = {
+              ...activeLog,
+              logTypeId: this.startLogTypeId || activeLog.logTypeId,
+              title:     this.startLogTitle.trim()
+            };
+            this.startActiveLogTimer();
+          }
+        },
+        error: () => { this.startLogSaving = false; }
+      });
+  }
+
+  /** Syncs the sheet drum/domain UI to match a currently running timer. */
+  private _syncStartLogUiToActiveLog(): void {
+    if (!this.activeLog) return;
+    const lt = this.inlineLogTypes.find((t: any) => t._id === this.activeLog!.logTypeId);
+    if (lt) {
+      this.startLogDomain = lt.domain ?? 'work';
+      const filtered = this.startLogFilteredTypes;
+      const idx = filtered.findIndex((t: any) => t._id === this.activeLog!.logTypeId);
+      this.startLogTypeIndex = idx >= 0 ? idx : 0;
+      this.startLogTypeId    = this.activeLog.logTypeId;
+    }
+    this.startLogTitle = this.activeLog.title;
+  }
+
+  openTimerEdit(): void {
+    if (!this.activeLog) return;
+    if (!this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((t: any[]) => {
+        this.inlineLogTypes = t;
+        this._syncStartLogUiToActiveLog();
+        this.timerEditOpen = true;
+        setTimeout(() => this.scrollStartLogTypeDrum(), 40);
+      });
+      return;
+    }
+    this._syncStartLogUiToActiveLog();
+    this.timerEditOpen = true;
+    setTimeout(() => this.scrollStartLogTypeDrum(), 40);
+  }
+
+  closeTimerEdit(): void { this.timerEditOpen = false; }
+
+  /** Called by ngModelChange on the description textarea — keeps activeLog in sync. */
+  onTimerTitleChange(title: string): void {
+    if (this.activeLog) this.activeLog = { ...this.activeLog, title };
+  }
 
   get startLogFilteredTypes(): any[] {
     return this.inlineLogTypes.filter((lt: any) => lt.domain === this.startLogDomain);
@@ -3573,6 +3850,10 @@ export class AppComponent implements OnInit {
     this.startLogDomain    = domain;
     this.startLogTypeIndex = 0;
     this.startLogTypeId    = this.startLogFilteredTypes[0]?._id ?? '';
+    // Keep running timer in sync
+    if (this.activeLog && this.startLogTypeId) {
+      this.activeLog = { ...this.activeLog, logTypeId: this.startLogTypeId };
+    }
     setTimeout(() => this.scrollStartLogTypeDrum(), 20);
   }
 
@@ -3582,6 +3863,10 @@ export class AppComponent implements OnInit {
     if (idx === this.startLogTypeIndex) return;
     this.startLogTypeIndex = idx;
     this.startLogTypeId    = this.startLogFilteredTypes[idx]?._id ?? '';
+    // Keep running timer in sync
+    if (this.activeLog && this.startLogTypeId) {
+      this.activeLog = { ...this.activeLog, logTypeId: this.startLogTypeId };
+    }
   }
 
   private scrollStartLogTypeDrum(): void {
@@ -3589,7 +3874,7 @@ export class AppComponent implements OnInit {
     if (el) el.scrollTop = this.startLogTypeIndex * 25;
   }
 
-  /** Sends PUT /preferences/active-log — server records startedAt. */
+  /** Legacy — kept for the Tab 2 "Start Timer" button in the unified sheet. */
   saveStartLog(): void {
     if (this.startLogSaving || !this.startLogTypeId) return;
     const lt          = this.inlineLogTypes.find((t: any) => t._id === this.startLogTypeId);
@@ -4153,6 +4438,20 @@ export class AppComponent implements OnInit {
     if (h === 0) return `${m}m`;
     if (m === 0) return `${h}h`;
     return `${h}h ${m}m`;
+  }
+
+  getLogIconKey(log: LogEntry): string {
+    if (log.entryType === 'point') return 'point';
+    const n = (log.logType?.name ?? '').toLowerCase();
+    if (/sleep|rest|nap/.test(n)) return 'sleep';
+    if (/wake|woke|morning|rise|alarm/.test(n)) return 'wake';
+    if (/walk|run|jog|hike|step/.test(n)) return 'walk';
+    if (/gym|lift|workout|exercise|strength|weight|train|pull|push|squat|dumbbell|kettlebell/.test(n)) return 'exercise';
+    if (/food|eat|meal|lunch|dinner|breakfast|cook|diet|snack|calori|suppl|protein|creatine/.test(n)) return 'food';
+    if (/work|focus|code|dev|project|meeting|call|task|office/.test(n)) return 'work';
+    if (/read|study|learn|book|course|lecture/.test(n)) return 'read';
+    if (/meditat|mindful|breath|yoga|stretch|sauna|shower|bath/.test(n)) return 'meditate';
+    return 'default';
   }
 
   onSelectionChanged(_selection: DragSelection): void { /* no-op */ }
