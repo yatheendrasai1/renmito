@@ -12,7 +12,16 @@ import { LogEntry } from '../../models/log.model';
 import { LogService } from '../../services/log.service';
 import { DayLevelService } from '../../services/day-level.service';
 
-type MetricView = 'professional' | 'personal';
+type MetricView    = 'professional' | 'personal';
+type AnalyticsMode = 'digital' | 'visual';
+
+interface PieSlice {
+  name:  string;
+  color: string;
+  hours: number;
+  pct:   number;
+  path:  string;   // SVG path for the slice
+}
 
 interface MetricCard {
   label:   string;
@@ -67,7 +76,7 @@ interface MetricCard {
         </button>
         <div class="metrics-header-right" *ngIf="isExpanded" (click)="$event.stopPropagation()">
           <button class="metrics-clear-btn"
-                  *ngIf="selectedCardIdx !== null"
+                  *ngIf="selectedCardIdx !== null && analyticsMode === 'digital'"
                   (click)="clearSelection()"
                   aria-label="Clear metric filter">
             <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
@@ -77,16 +86,48 @@ interface MetricCard {
             Clear
           </button>
           <select class="metrics-view-select"
+                  *ngIf="analyticsMode === 'digital'"
                   [ngModel]="view"
                   (ngModelChange)="onViewChange($event)">
             <option value="professional">Professional</option>
             <option value="personal">Personal</option>
           </select>
+          <!-- 1.91: Mode selector -->
+          <div class="mode-wrap">
+            <button class="mode-btn" (click)="toggleModeMenu(); $event.stopPropagation()">
+              Mode
+              <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="mode-menu" *ngIf="modeMenuOpen">
+              <button class="mode-menu-item"
+                      [class.mode-menu-item--active]="analyticsMode === 'digital'"
+                      (click)="setMode('digital')">
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                  <rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M4 7h6M4 9.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+                Digital
+              </button>
+              <button class="mode-menu-item"
+                      [class.mode-menu-item--active]="analyticsMode === 'visual'"
+                      (click)="setMode('visual')">
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                  <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M7 7L7 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  <path d="M7 7L11.5 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+                Visual
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- ── Cards ────────────────────────────────────── -->
-      <div class="metrics-cards" *ngIf="isExpanded">
+      <!-- ── Digital: metric cards ────────────────────── -->
+      <div class="metrics-cards" *ngIf="isExpanded && analyticsMode === 'digital'">
         <div class="metric-card"
              *ngFor="let card of activeCards; let i = index"
              [class.metric-card--selected]="selectedCardIdx === i"
@@ -97,6 +138,44 @@ interface MetricCard {
             <span class="metric-side" *ngIf="card.side">{{ card.side }}</span>
           </div>
         </div>
+      </div>
+
+      <!-- ── Visual: pie chart ─────────────────────────── -->
+      <div class="metrics-visual" *ngIf="isExpanded && analyticsMode === 'visual'">
+        <ng-container *ngIf="workPieSlices.length > 0; else noPieData">
+          <div class="pie-wrap">
+            <!-- Donut pie chart -->
+            <svg viewBox="0 0 200 200" class="pie-svg" aria-label="Work domain breakdown">
+              <ng-container *ngIf="workPieSlices.length === 1">
+                <!-- Full circle for single type -->
+                <circle cx="100" cy="100" r="80" [attr.fill]="workPieSlices[0].color"/>
+              </ng-container>
+              <ng-container *ngIf="workPieSlices.length > 1">
+                <path *ngFor="let s of workPieSlices"
+                      [attr.d]="s.path"
+                      [attr.fill]="s.color"
+                      class="pie-slice"/>
+              </ng-container>
+              <!-- Donut hole -->
+              <circle cx="100" cy="100" r="52" fill="var(--bg-surface)"/>
+              <!-- Center label -->
+              <text x="100" y="94" text-anchor="middle" class="pie-center-top">Work</text>
+              <text x="100" y="112" text-anchor="middle" class="pie-center-bot">{{ workTotalLabel }}</text>
+            </svg>
+            <!-- Legend -->
+            <div class="pie-legend">
+              <div class="pie-legend-row" *ngFor="let s of workPieSlices">
+                <span class="pie-legend-dot" [style.background]="s.color"></span>
+                <span class="pie-legend-name">{{ s.name }}</span>
+                <span class="pie-legend-val">{{ fmtHPublic(s.hours) }}</span>
+                <span class="pie-legend-pct">{{ s.pct }}%</span>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+        <ng-template #noPieData>
+          <div class="pie-empty">No work logs for today.</div>
+        </ng-template>
       </div>
 
     </div>
@@ -259,6 +338,97 @@ interface MetricCard {
       border-radius: 10px;
     }
 
+    /* ── 1.91: Mode toggle ──────────────────────────── */
+    .mode-wrap { position: relative; }
+
+    .mode-btn {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 5px 9px; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .mode-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+
+    .mode-menu {
+      position: absolute; top: calc(100% + 5px); right: 0;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+      min-width: 130px; z-index: 50;
+      overflow: hidden;
+      animation: slideDown 0.14s ease;
+    }
+    .mode-menu-item {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 9px 13px;
+      background: none; border: none;
+      color: var(--text-secondary); font-size: 12px; font-weight: 500;
+      cursor: pointer; text-align: left;
+      transition: background 0.12s, color 0.12s;
+    }
+    .mode-menu-item:not(:last-child) { border-bottom: 1px solid var(--border); }
+    .mode-menu-item:hover { background: var(--accent-hover); color: var(--text-primary); }
+    .mode-menu-item--active { color: var(--highlight-selected); font-weight: 700; }
+    .mode-menu-item svg { flex-shrink: 0; }
+
+    /* ── 1.91: Visual / pie chart ────────────────── */
+    .metrics-visual {
+      padding: 8px 14px 16px;
+    }
+    .pie-wrap {
+      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    }
+    .pie-svg {
+      width: 160px; height: 160px; flex-shrink: 0;
+    }
+    .pie-slice { transition: opacity 0.15s; }
+    .pie-slice:hover { opacity: 0.82; }
+    .pie-center-top {
+      font-size: 12px; font-weight: 700;
+      fill: var(--text-muted);
+    }
+    .pie-center-bot {
+      font-size: 18px; font-weight: 800;
+      fill: var(--text-primary);
+    }
+    .pie-legend {
+      flex: 1; min-width: 140px;
+      display: flex; flex-direction: column; gap: 7px;
+    }
+    .pie-legend-row {
+      display: flex; align-items: center; gap: 7px;
+    }
+    .pie-legend-dot {
+      width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+    }
+    .pie-legend-name {
+      flex: 1; font-size: 12px; color: var(--text-secondary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pie-legend-val {
+      font-size: 11px; font-weight: 600; color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+    .pie-legend-pct {
+      font-size: 10px; color: var(--text-muted);
+      background: var(--bg-card);
+      padding: 1px 5px; border-radius: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .pie-empty {
+      padding: 20px 0; text-align: center;
+      font-size: 12px; color: var(--text-muted);
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
     @media (max-width: 700px) {
       .metrics-cards {
         display: grid;
@@ -359,7 +529,9 @@ export class MetricsComponent implements OnChanges {
   @Input()  selectedDate: Date = new Date();
   @Output() cardHighlight = new EventEmitter<string[] | null>();
 
-  view: MetricView = 'professional';
+  view: MetricView      = 'professional';
+  analyticsMode: AnalyticsMode = 'digital';
+  modeMenuOpen          = false;
   prevDayLogs:          LogEntry[] = [];
   selectedCardIdx:      number | null = null;
   isExpanded            = false;
@@ -442,6 +614,65 @@ export class MetricsComponent implements OnChanges {
   clearSelection(): void {
     this.selectedCardIdx = null;
     this.cardHighlight.emit(null);
+  }
+
+  // ── 1.91: Analytics mode ──────────────────────────────────
+  toggleModeMenu(): void { this.modeMenuOpen = !this.modeMenuOpen; }
+
+  setMode(m: AnalyticsMode): void {
+    this.analyticsMode = m;
+    this.modeMenuOpen  = false;
+    if (m === 'digital') return;
+    this.clearSelection();
+  }
+
+  // ── 1.91: Pie chart ───────────────────────────────────────
+
+  get workTotalLabel(): string { return this.fmtH(this.workDomainTotalHours); }
+
+  fmtHPublic(h: number): string { return this.fmtH(h); }
+
+  private get workDomainTotalHours(): number {
+    return this.logs
+      .filter(l => l.logType?.domain === 'work' && l.entryType !== 'point' && l.endAt)
+      .reduce((s, l) => s + Math.max(0, this.toMins(l.endAt!) - this.toMins(l.startAt)), 0) / 60;
+  }
+
+  get workPieSlices(): PieSlice[] {
+    const map = new Map<string, { name: string; color: string; hours: number }>();
+
+    for (const l of this.logs) {
+      if (l.logType?.domain !== 'work' || l.entryType === 'point' || !l.endAt) continue;
+      const key   = l.logType.id;
+      const hours = Math.max(0, this.toMins(l.endAt) - this.toMins(l.startAt)) / 60;
+      if (!map.has(key)) map.set(key, { name: l.logType.name, color: l.logType.color, hours: 0 });
+      map.get(key)!.hours += hours;
+    }
+
+    const entries = Array.from(map.values()).filter(s => s.hours > 0);
+    const total   = entries.reduce((s, e) => s + e.hours, 0);
+    if (!total) return [];
+
+    // Sort largest first for cleaner chart
+    entries.sort((a, b) => b.hours - a.hours);
+
+    let cumPct = 0;
+    return entries.map(e => {
+      const pct  = (e.hours / total) * 100;
+      const path = this.pieArcPath(cumPct, cumPct + pct, 80, 100, 100);
+      cumPct += pct;
+      return { name: e.name, color: e.color, hours: e.hours, pct: Math.round(pct), path };
+    });
+  }
+
+  private pieArcPath(startPct: number, endPct: number, r: number, cx: number, cy: number): string {
+    const rad  = (p: number) => (p / 100) * 2 * Math.PI - Math.PI / 2;
+    const s    = rad(startPct);
+    const e    = rad(endPct);
+    const x1   = cx + r * Math.cos(s), y1 = cy + r * Math.sin(s);
+    const x2   = cx + r * Math.cos(e), y2 = cy + r * Math.sin(e);
+    const large = (endPct - startPct) > 50 ? 1 : 0;
+    return `M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large} 1 ${x2.toFixed(1)},${y2.toFixed(1)} Z`;
   }
 
   /* ── Active cards ────────────────────────────────── */

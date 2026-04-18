@@ -370,13 +370,44 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
                     </svg>
                     Add log
                   </button>
-                  <button class="btn-add-entry" (click)="openAddPoint()">
-                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                      <circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.6"/>
-                      <circle cx="6" cy="6" r="1.5" fill="currentColor"/>
-                    </svg>
-                    Add point
-                  </button>
+                  <!-- 1.90: long-press for quick options -->
+                  <div class="add-point-wrap"
+                       (pointerdown)="onAddPointPointerDown($event)"
+                       (pointerup)="onAddPointPointerUp()"
+                       (pointerleave)="onAddPointPointerUp()"
+                       (click)="onAddPointClick($event)">
+                    <button class="btn-add-entry" style="pointer-events:none; width:100%">
+                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                        <circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.6"/>
+                        <circle cx="6" cy="6" r="1.5" fill="currentColor"/>
+                      </svg>
+                      Add point
+                    </button>
+                    <!-- Long-press dropdown -->
+                    <div class="add-point-backdrop" *ngIf="addPointMenuOpen" (click)="closeAddPointMenu(); $event.stopPropagation()"></div>
+                    <div class="add-point-menu" *ngIf="addPointMenuOpen" (click)="$event.stopPropagation()">
+                      <button class="add-point-menu-item" (click)="addPointLogNow(); closeAddPointMenu()">
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                          <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/>
+                          <path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                        </svg>
+                        <div class="add-point-menu-text">
+                          <span>Log now</span>
+                          <span class="add-point-menu-sub">Stamp at {{ currentTimeStr() }}</span>
+                        </div>
+                      </button>
+                      <button class="add-point-menu-item" (click)="openAddPoint(); closeAddPointMenu()">
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                          <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+                          <path d="M5 3V1.5M11 3V1.5M2 7h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                        </svg>
+                        <div class="add-point-menu-text">
+                          <span>Log time</span>
+                          <span class="add-point-menu-sub">Pick a time</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
                   <button class="btn-add-entry btn-add-entry--activity" (click)="openStartLog()">
                     <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                       <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/>
@@ -2747,6 +2778,48 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
       display: flex;
       gap: 8px;
     }
+
+    /* ── 1.90: Add-point long-press wrapper ── */
+    .add-point-wrap {
+      flex: 1; position: relative;
+      display: flex; flex-direction: column;
+      user-select: none; -webkit-user-select: none;
+    }
+    .add-point-backdrop {
+      position: fixed; inset: 0; z-index: 199;
+    }
+    .add-point-menu {
+      position: absolute; top: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%);
+      z-index: 200;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      overflow: hidden;
+      min-width: 190px;
+      animation: slideDown 0.15s ease;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    .add-point-menu-item {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 11px 14px;
+      background: none; border: none; color: var(--text-primary);
+      font-size: 13px; font-weight: 500; cursor: pointer; text-align: left;
+      transition: background 0.12s;
+    }
+    .add-point-menu-item:not(:last-child) { border-bottom: 1px solid var(--border); }
+    .add-point-menu-item:hover { background: var(--accent-hover); }
+    .add-point-menu-item svg { color: var(--text-muted); flex-shrink: 0; }
+    .add-point-menu-text {
+      display: flex; flex-direction: column; gap: 1px;
+    }
+    .add-point-menu-sub {
+      font-size: 10px; color: var(--text-muted); font-weight: 400;
+    }
     .btn-add-entry {
       flex: 1;
       display: flex;
@@ -3199,8 +3272,11 @@ export class AppComponent implements OnInit {
   private activeLogTimerRef: any = null;
 
   // Start-timer sheet state
-  startLogOpen      = false;
-  timerEditOpen     = false;         // timer-edit sheet (opens immediately on Start activity)
+  startLogOpen          = false;
+  timerEditOpen         = false;         // timer-edit sheet (opens immediately on Start activity)
+  addPointMenuOpen      = false;
+  private addPointLongPressTimer: any = null;
+  private addPointLongPressTriggered  = false;
   startLogDomain: 'work' | 'personal' = 'work';
   startLogTypeIndex = 0;
   startLogTypeId    = '';
@@ -4173,6 +4249,65 @@ export class AppComponent implements OnInit {
     });
   }
 
+  // ── 1.90: Add Point long-press ───────────────────────────────
+  onAddPointPointerDown(_e: PointerEvent): void {
+    this.addPointLongPressTriggered = false;
+    this.addPointLongPressTimer = setTimeout(() => {
+      this.addPointLongPressTriggered = true;
+      this.addPointMenuOpen = true;
+      this.addPointLongPressTimer = null;
+      if (!this.inlineLogTypes.length) {
+        this.logTypeService.getLogTypes().subscribe((t: any[]) => { this.inlineLogTypes = t; });
+      }
+    }, 500);
+  }
+
+  onAddPointPointerUp(): void {
+    if (this.addPointLongPressTimer) {
+      clearTimeout(this.addPointLongPressTimer);
+      this.addPointLongPressTimer = null;
+    }
+  }
+
+  onAddPointClick(e: MouseEvent): void {
+    if (this.addPointLongPressTriggered) {
+      this.addPointLongPressTriggered = false;
+      return; // long press already handled
+    }
+    if (this.addPointMenuOpen) {
+      this.addPointMenuOpen = false;
+      return;
+    }
+    this.openAddPoint();
+  }
+
+  closeAddPointMenu(): void { this.addPointMenuOpen = false; }
+
+  /** Instantly stamp a point log at the current time using the default/last log type. */
+  addPointLogNow(): void {
+    const pt = this.currentTimeStr();
+    const save = () => {
+      const typeId = this.addPointTypeId || this.inlineLogTypes[0]?._id;
+      if (!typeId) return;
+      const lt    = this.inlineLogTypes.find((t: any) => t._id === typeId);
+      const title = lt?.name ?? 'Point';
+      this.logService.createLog(this.selectedDate, {
+        title, logTypeId: typeId, entryType: 'point',
+        pointTime: pt, startTime: pt, endTime: pt,
+      }).subscribe({ next: () => this.loadLogs(), error: () => {} });
+    };
+    if (!this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((t: any[]) => {
+        this.inlineLogTypes = t;
+        this.addPointTypeId = t[0]?._id ?? '';
+        save();
+      });
+    } else {
+      if (!this.addPointTypeId) this.addPointTypeId = this.inlineLogTypes[0]?._id ?? '';
+      save();
+    }
+  }
+
   // ── 1.80: Add Point ──────────────────────────────────────────
   get addPointFilteredTypes(): any[] {
     return this.inlineLogTypes.filter((lt: any) => lt.domain === this.addPointDomain);
@@ -4468,7 +4603,7 @@ export class AppComponent implements OnInit {
     return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
   }
 
-  private currentTimeStr(): string {
+  currentTimeStr(): string {
     const n = new Date();
     return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
   }
