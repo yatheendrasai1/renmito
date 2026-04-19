@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit, ViewChild } from '@angular/core';
+import { Component, AfterViewInit, HostListener, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CalendarComponent } from './components/calendar/calendar.component';
@@ -17,6 +17,75 @@ import { forkJoin } from 'rxjs';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { LogTypeSelectComponent } from './components/log-type-select/log-type-select.component';
 import { ImportantLogsComponent } from './components/important-logs/important-logs.component';
+
+// ── Performance Profiler ─────────────────────────────────────────────────────
+// Tracks startup HTTP calls with performance.mark/measure (visible in DevTools
+// Performance panel under "User Timings"). Prints a summary table to the console
+// once all startup calls settle.  Check DevTools → Performance → User Timings
+// or just read the "[Renmito Perf]" group in the Console tab.
+const PERF = (() => {
+  const marks = new Map<string, number>();
+  let   pendingCalls = 0;         // incremented on start, decremented on end
+  let   summaryScheduled = false;
+
+  function tryPrintSummary() {
+    if (pendingCalls > 0) return;
+    if (summaryScheduled) return;
+    summaryScheduled = true;
+    // Give Angular one more tick to finish rendering before printing
+    setTimeout(() => {
+      const entries = performance.getEntriesByType('measure')
+        .filter(e => e.name.startsWith('renmito:'))
+        .map(e => ({
+          operation: e.name.replace('renmito:', ''),
+          'ms': Math.round(e.duration),
+          verdict: e.duration < 200 ? '✅ fast' : e.duration < 600 ? '⚠️  slow' : '🔴 very slow',
+        }))
+        .sort((a, b) => b['ms'] - a['ms']);
+      console.groupCollapsed('%c[Renmito Perf] Startup summary', 'color:#a78bfa;font-weight:bold');
+      console.table(entries);
+      const worst = entries[0];
+      if (worst?.['ms'] > 600) {
+        console.warn(`[Renmito Perf] Bottleneck: "${worst.operation}" took ${worst['ms']}ms — check network tab for that request.`);
+      }
+      console.groupEnd();
+    }, 0);
+  }
+
+  return {
+    /** Mark the start of a named operation. */
+    start(label: string): void {
+      marks.set(label, performance.now());
+      performance.mark(`renmito:${label}:start`);
+      pendingCalls++;
+    },
+
+    /** Mark the end of a named operation and record a measure. */
+    end(label: string, detail = ''): void {
+      const startMark = `renmito:${label}:start`;
+      const endMark   = `renmito:${label}:end`;
+      performance.mark(endMark);
+      try { performance.measure(`renmito:${label}`, startMark, endMark); } catch { /* mark may not exist */ }
+      const elapsed = performance.now() - (marks.get(label) ?? performance.now());
+      const badge   = elapsed < 200 ? '🟢' : elapsed < 600 ? '🟡' : '🔴';
+      console.debug(
+        `%c[Renmito Perf]%c ${badge} ${label}${detail ? ' · ' + detail : ''} — ${elapsed.toFixed(1)} ms`,
+        'color:#a78bfa;font-weight:bold', 'color:inherit'
+      );
+      pendingCalls = Math.max(0, pendingCalls - 1);
+      tryPrintSummary();
+    },
+
+    /** Mark a one-shot instant event (no duration). */
+    instant(label: string): void {
+      performance.mark(`renmito:${label}`);
+      console.debug(
+        `%c[Renmito Perf]%c ⚡ ${label} @ ${performance.now().toFixed(1)} ms`,
+        'color:#a78bfa;font-weight:bold', 'color:inherit'
+      );
+    },
+  };
+})();
 
 @Component({
   selector: 'app-root',
@@ -3133,7 +3202,7 @@ import { ImportantLogsComponent } from './components/important-logs/important-lo
     .quick-prefs-save:hover:not(:disabled) { opacity: 0.88; }
   `]
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, AfterViewInit {
   @ViewChild('timelineRef') timelineRef!: TimelineComponent;
 
   isAuthenticated = false;
@@ -3319,6 +3388,8 @@ export class AppComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    PERF.instant('ngOnInit:start');
+
     const savedTheme = localStorage.getItem('renmito-theme') as 'dark' | 'light' | null;
     this.theme = savedTheme ?? 'dark';
     document.documentElement.setAttribute('data-theme', this.theme);
@@ -3338,10 +3409,18 @@ export class AppComponent implements OnInit {
       this.selectedDate = today;
       this.loadLogs();
       // Pre-load log types for shortcuts bar and Log Now FAB
-      this.logTypeService.getLogTypes().subscribe((t: any[]) => this.inlineLogTypes = t);
+      PERF.start('api:log-types');
+      this.logTypeService.getLogTypes().subscribe({
+        next: (t: any[]) => { this.inlineLogTypes = t; PERF.end('api:log-types', `${t.length} types`); },
+        error: ()         => { PERF.end('api:log-types', 'ERROR'); }
+      });
       // Sync palette from DB (may differ if the user changed it on another device)
       this.syncPaletteFromDB();
     }
+  }
+
+  ngAfterViewInit(): void {
+    PERF.instant('first-render');
   }
 
   onLoggedIn(): void {
@@ -3362,7 +3441,9 @@ export class AppComponent implements OnInit {
    *  1.71: activeLog is restored here so the ticking timer resumes even after a
    *  page reload or when the user opens the app on a different device. */
   private syncPaletteFromDB(): void {
+    PERF.start('api:preferences');
     this.prefService.getPreferences().subscribe(prefs => {
+      PERF.end('api:preferences', prefs ? 'ok' : 'null');
       if (prefs?.palette) {
         applyPaletteToDOM(prefs.palette);
         localStorage.setItem('renmito-palette', JSON.stringify(prefs.palette));
@@ -3522,16 +3603,19 @@ export class AppComponent implements OnInit {
   // ── Log loading ──────────────────────────────────────────
   loadLogs(): void {
     this.isLoading = true;
+    PERF.start('api:logs');
     this.logService.getLogsForDate(this.selectedDate).subscribe({
       next: (logs) => {
         this.logs = logs.sort((a, b) =>
           this.timeToMinutes(a.startAt) - this.timeToMinutes(b.startAt)
         );
         this.isLoading = false;
+        PERF.end('api:logs', `${logs.length} entries`);
       },
       error: () => {
         this.logs      = [];
         this.isLoading = false;
+        PERF.end('api:logs', 'ERROR');
       }
     });
     this.loadDayMetadata();
@@ -3539,9 +3623,10 @@ export class AppComponent implements OnInit {
 
   // ── 1.83: Day metadata ────────────────────────────────────
   private loadDayMetadata(): void {
+    PERF.start('api:day-metadata');
     this.dayLevelService.getMetadata(this.selectedDateStr).subscribe({
-      next:  meta => { this.dayMetadata = meta; },
-      error: ()   => { this.dayMetadata = null; }
+      next:  meta => { this.dayMetadata = meta; PERF.end('api:day-metadata'); },
+      error: ()   => { this.dayMetadata = null; PERF.end('api:day-metadata', 'ERROR'); }
     });
   }
 
