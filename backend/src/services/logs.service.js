@@ -2,6 +2,7 @@ const mongoose       = require('mongoose');
 const TimeLog        = require('../models/TimeLog');
 const LogType        = require('../models/LogType');
 const DefaultLogType = require('../models/DefaultLogType');
+const journeysSvc    = require('./journeys.service');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -110,6 +111,7 @@ async function createLog(userId, date, body) {
   });
 
   const populated = await TimeLog.findById(created._id).populate(POPULATE_LOGTYPE).lean();
+  journeysSvc.syncLogEntry(userId, created);
   return { data: toResponse(populated), status: 201 };
 }
 
@@ -153,6 +155,7 @@ async function updateLog(userId, date, id, body) {
     .lean();
 
   if (!doc) return { error: 'Log entry not found.', status: 404 };
+  journeysSvc.syncLogEntry(userId, doc);
   return { data: toResponse(doc) };
 }
 
@@ -162,6 +165,7 @@ async function updateLog(userId, date, id, body) {
 async function deleteLog(userId, id) {
   const doc = await TimeLog.findOneAndDelete({ _id: id, userId });
   if (!doc) return { error: 'Log entry not found.', status: 404 };
+  journeysSvc.unsyncLogEntry(doc._id);
   return { data: { message: 'Log entry deleted successfully.' } };
 }
 

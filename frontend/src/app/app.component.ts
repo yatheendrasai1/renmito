@@ -17,6 +17,7 @@ import { forkJoin } from 'rxjs';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { LogTypeSelectComponent } from './components/log-type-select/log-type-select.component';
 import { ImportantLogsComponent } from './components/important-logs/important-logs.component';
+import { JourneysComponent } from './components/journeys/journeys.component';
 
 // ── Performance Profiler ─────────────────────────────────────────────────────
 // Tracks startup HTTP calls with performance.mark/measure (visible in DevTools
@@ -90,7 +91,7 @@ const PERF = (() => {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent],
+  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent, JourneysComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -158,7 +159,10 @@ const PERF = (() => {
       <div class="app-body">
 
         <!-- Left Navigation — 1.22: collapsible -->
-        <nav class="left-nav" [class.left-nav--collapsed]="navCollapsed">
+        <nav class="left-nav"
+             [class.left-nav--collapsed]="navCollapsed && !navOverlayOpen"
+             [class.left-nav--overlay]="navOverlayOpen"
+             (click)="navOverlayOpen = false">
           <div class="nav-group">
             <span class="nav-group-label">Main</span>
             <button
@@ -190,6 +194,19 @@ const PERF = (() => {
                 <circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/>
               </svg>
               <span>Time Line</span>
+            </button>
+            <button
+              class="left-nav-item"
+              [class.left-nav-item--active]="activeView === 'journeys'"
+              [title]="navCollapsed ? 'Journey Logs' : ''"
+              (click)="activeView = 'journeys'"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 20h9"/>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+              <span>Journey Logs</span>
             </button>
           </div>
         </nav>
@@ -768,7 +785,15 @@ const PERF = (() => {
 
           </div><!-- /content-area (timeline) -->
 
+          <!-- ── Journey Logs view ─────────────────────────── -->
+          <div class="content-area" *ngIf="activeView === 'journeys'">
+            <app-journeys [availableLogTypes]="inlineLogTypes"></app-journeys>
+          </div><!-- /content-area (journeys) -->
+
         </div><!-- /view-area -->
+      <!-- 1.93: Mobile nav overlay backdrop -->
+      <div class="nav-dim-backdrop" *ngIf="navOverlayOpen" (click)="navOverlayOpen = false"></div>
+
       </div><!-- /app-body -->
 
       <!-- ── 1.62: Undo toast ──────────────────────────────── -->
@@ -1977,6 +2002,28 @@ const PERF = (() => {
     /* Nav collapse is controlled solely by the hamburger toggle (navCollapsed).
        No media query auto-collapses it — the user's explicit toggle is the
        single source of truth for open vs. closed state.                      */
+
+    /* ── 1.93: Mobile nav overlay (left-edge swipe) ─────── */
+    .nav-dim-backdrop {
+      position: fixed;
+      inset: 0;
+      top: 60px;
+      background: rgba(0,0,0,0.5);
+      z-index: 99;
+    }
+    .left-nav--overlay {
+      position: fixed !important;
+      top: 60px;
+      left: 0;
+      bottom: 0;
+      width: 210px !important;
+      padding: 20px 10px !important;
+      border-right: 1px solid var(--border);
+      box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+      z-index: 100;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
 
     /* Mobile overrides */
     @media (max-width: 700px) {
@@ -3208,12 +3255,19 @@ export class AppComponent implements OnInit, AfterViewInit {
   isAuthenticated = false;
   currentUser     = this.authService.getUser();
 
-  activeView: 'logger' | 'timeline' = 'logger';
+  activeView: 'logger' | 'timeline' | 'journeys' = 'logger';
   theme: 'dark' | 'light' = 'dark';
   readonly currentYear = new Date().getFullYear();
 
   // ── 1.22: Nav collapse — collapsed by default ───────────
   navCollapsed = true;
+
+  // ── 1.93: Mobile nav overlay (left-edge swipe) ──────────
+  navOverlayOpen = false;
+  private navEdgeSwipeTracking = false;
+  private navEdgeSwipeStartX = 0;
+  private navEdgeSwipeStartY = 0;
+  private navEdgeIsHorizontal: boolean | null = null;
 
   // ── 1.42: Palette / theme editor ─────────────────────────
   showThemeEditor = false;
@@ -3496,6 +3550,42 @@ export class AppComponent implements OnInit, AfterViewInit {
   toggleNav(): void {
     this.navCollapsed = !this.navCollapsed;
     localStorage.setItem('renmito-nav-collapsed', String(this.navCollapsed));
+  }
+
+  // ── 1.93: Left-edge swipe → mobile nav overlay ───────────
+  @HostListener('document:touchstart', ['$event'])
+  onDocTouchStart(e: TouchEvent): void {
+    if (window.innerWidth > 700 || this.navOverlayOpen) return;
+    const t = e.touches[0];
+    if (t.clientX > 28) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.swipe-wrap') || target.closest('.jrn-card-list') || target.closest('.jrn-entries')) return;
+    this.navEdgeSwipeTracking = true;
+    this.navEdgeSwipeStartX = t.clientX;
+    this.navEdgeSwipeStartY = t.clientY;
+    this.navEdgeIsHorizontal = null;
+  }
+
+  @HostListener('document:touchmove', ['$event'])
+  onDocTouchMove(e: TouchEvent): void {
+    if (!this.navEdgeSwipeTracking) return;
+    const t = e.touches[0];
+    const dx = t.clientX - this.navEdgeSwipeStartX;
+    const dy = t.clientY - this.navEdgeSwipeStartY;
+    if (this.navEdgeIsHorizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      this.navEdgeIsHorizontal = Math.abs(dx) > Math.abs(dy);
+    }
+    if (this.navEdgeIsHorizontal === false) { this.navEdgeSwipeTracking = false; return; }
+    if (dx > 60) {
+      this.navOverlayOpen = true;
+      this.navEdgeSwipeTracking = false;
+    }
+  }
+
+  @HostListener('document:touchend')
+  onDocTouchEnd(): void {
+    this.navEdgeSwipeTracking = false;
+    this.navEdgeIsHorizontal = null;
   }
 
   // ── 1.50: Profile popup ───────────────────────────────────
