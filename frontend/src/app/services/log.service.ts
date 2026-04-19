@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { Observable, of, shareReplay } from 'rxjs';
+import { catchError, tap } from 'rxjs/operators';
 import { LogEntry, CreateLogEntry } from '../models/log.model';
 import { environment } from '../../environments/environment';
 
@@ -10,6 +10,9 @@ import { environment } from '../../environments/environment';
 })
 export class LogService {
   private readonly apiBase = `${environment.apiBase}/logs`;
+
+  private dateCache$: Map<string, Observable<LogEntry[]>> = new Map();
+  private monthCache$: Map<string, Observable<Record<string, number>>> = new Map();
 
   constructor(private http: HttpClient) {}
 
@@ -22,33 +25,62 @@ export class LogService {
 
   getLogsForDate(date: Date): Observable<LogEntry[]> {
     const dateStr = this.formatDate(date);
-    return this.http.get<LogEntry[]>(`${this.apiBase}/${dateStr}`).pipe(
-      catchError(err => {
-        console.error('Failed to fetch logs:', err);
-        return of([]);
-      })
-    );
+    if (!this.dateCache$.has(dateStr)) {
+      const obs$ = this.http.get<LogEntry[]>(`${this.apiBase}/${dateStr}`).pipe(
+        shareReplay(1),
+        catchError(err => {
+          console.error('Failed to fetch logs:', err);
+          return of([]);
+        })
+      );
+      this.dateCache$.set(dateStr, obs$);
+    }
+    return this.dateCache$.get(dateStr)!;
   }
 
   createLog(date: Date, entry: CreateLogEntry): Observable<LogEntry> {
     const dateStr = this.formatDate(date);
-    return this.http.post<LogEntry>(`${this.apiBase}/${dateStr}`, entry);
+    return this.http.post<LogEntry>(`${this.apiBase}/${dateStr}`, entry).pipe(
+      tap(() => this.invalidateDate(dateStr))
+    );
   }
 
   updateLog(date: Date, id: string, entry: Partial<CreateLogEntry>): Observable<LogEntry> {
     const dateStr = this.formatDate(date);
-    return this.http.put<LogEntry>(`${this.apiBase}/${dateStr}/${id}`, entry);
+    return this.http.put<LogEntry>(`${this.apiBase}/${dateStr}/${id}`, entry).pipe(
+      tap(() => this.invalidateDate(dateStr))
+    );
   }
 
   deleteLog(date: Date, id: string): Observable<{ message: string }> {
     const dateStr = this.formatDate(date);
-    return this.http.delete<{ message: string }>(`${this.apiBase}/${dateStr}/${id}`);
+    return this.http.delete<{ message: string }>(`${this.apiBase}/${dateStr}/${id}`).pipe(
+      tap(() => this.invalidateDate(dateStr))
+    );
   }
 
   /** Returns { "YYYY-MM-DD": workMinutes } for the given month (transit excluded). */
   getMonthWorkSummary(year: number, month: number): Observable<Record<string, number>> {
-    return this.http.get<Record<string, number>>(`${this.apiBase}/month/${year}/${month}`).pipe(
-      catchError(() => of({}))
-    );
+    const key = `${year}-${month}`;
+    if (!this.monthCache$.has(key)) {
+      const obs$ = this.http.get<Record<string, number>>(`${this.apiBase}/month/${year}/${month}`).pipe(
+        shareReplay(1),
+        catchError(() => of({}))
+      );
+      this.monthCache$.set(key, obs$);
+    }
+    return this.monthCache$.get(key)!;
+  }
+
+  invalidateDate(dateStr: string): void {
+    this.dateCache$.delete(dateStr);
+    // Also clear month summary for the month containing this date
+    const [y, m] = dateStr.split('-');
+    this.monthCache$.delete(`${y}-${parseInt(m, 10)}`);
+  }
+
+  clearAllCaches(): void {
+    this.dateCache$.clear();
+    this.monthCache$.clear();
   }
 }

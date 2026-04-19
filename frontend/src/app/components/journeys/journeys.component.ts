@@ -7,7 +7,7 @@ import {
   JourneySpan, ValueType, JourneyConfig, ValueMetric
 } from '../../models/journey.model';
 
-type SubView = 'list' | 'create' | 'detail';
+type SubView = 'list' | 'detail';
 
 @Component({
   selector: 'app-journeys',
@@ -52,7 +52,6 @@ type SubView = 'list' | 'create' | 'detail';
         <!-- Journey cards -->
         <div class="jrn-card-list" *ngIf="journeys.length > 0">
           <div class="jrn-journey-card" *ngFor="let j of journeys" (click)="openDetail(j)">
-            <div class="jrn-journey-card-accent"></div>
             <div class="jrn-journey-card-body">
               <div class="jrn-journey-card-top">
                 <span class="jrn-journey-name">{{ j.name }}</span>
@@ -79,177 +78,6 @@ type SubView = 'list' | 'create' | 'detail';
           <span class="jrn-loading-dot"></span>Loading journeys…
         </div>
 
-      </ng-container>
-
-      <!-- ════════════════════════════════════════════════════
-           CREATE VIEW
-      ════════════════════════════════════════════════════ -->
-      <ng-container *ngIf="subView === 'create'">
-
-        <div class="jrn-nav-row">
-          <button class="jrn-back-btn" (click)="subView = 'list'">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-            Back
-          </button>
-        </div>
-
-        <div class="jrn-form-card">
-          <h2 class="jrn-form-title">New Journey</h2>
-
-          <form (ngSubmit)="submitCreate()" #createForm="ngForm">
-
-            <div class="jrn-field">
-              <label class="jrn-label">Journey Name <span class="jrn-req">*</span></label>
-              <input class="jrn-input" type="text" [(ngModel)]="form.name" name="name"
-                     placeholder="e.g. Weight Tracker, Daily Mood" required autocomplete="off">
-            </div>
-
-            <div class="jrn-field">
-              <label class="jrn-label">Start Date <span class="jrn-req">*</span></label>
-              <input class="jrn-input" type="date" [(ngModel)]="form.startDate" name="startDate" required>
-            </div>
-
-            <!-- Span toggle -->
-            <div class="jrn-field">
-              <label class="jrn-label">Journey Span <span class="jrn-req">*</span></label>
-              <div class="jrn-seg">
-                <button type="button" class="jrn-seg-opt"
-                        [class.jrn-seg-opt--active]="form.span === 'indefinite'"
-                        (click)="form.span = 'indefinite'">Indefinite</button>
-                <button type="button" class="jrn-seg-opt"
-                        [class.jrn-seg-opt--active]="form.span === 'definite'"
-                        (click)="form.span = 'definite'">Fixed End Date</button>
-              </div>
-            </div>
-
-            <div class="jrn-field" *ngIf="form.span === 'definite'">
-              <label class="jrn-label">End Date <span class="jrn-req">*</span></label>
-              <input class="jrn-input" type="date" [(ngModel)]="form.endDate" name="endDate"
-                     [required]="form.span === 'definite'">
-            </div>
-
-            <!-- Tracker type tiles -->
-            <div class="jrn-field">
-              <label class="jrn-label">Tracker Type <span class="jrn-req">*</span></label>
-              <div class="jrn-tracker-grid">
-                <button type="button" class="jrn-tracker-tile"
-                        [class.jrn-tracker-tile--active]="form.trackerType === 'point-log'"
-                        (click)="form.trackerType = 'point-log'">
-                  <span class="jrn-tracker-icon">📍</span>
-                  <span class="jrn-tracker-name">Point Log</span>
-                  <span class="jrn-tracker-badge">v1</span>
-                </button>
-                <button type="button" class="jrn-tracker-tile"
-                        [class.jrn-tracker-tile--active]="form.trackerType === 'derived'"
-                        (click)="form.trackerType = 'derived'">
-                  <span class="jrn-tracker-icon">🔗</span>
-                  <span class="jrn-tracker-name">Derived</span>
-                  <span class="jrn-tracker-badge">v1</span>
-                </button>
-                <button type="button" class="jrn-tracker-tile jrn-tracker-tile--soon" disabled title="Coming soon">
-                  <span class="jrn-tracker-icon">⏱</span>
-                  <span class="jrn-tracker-name">Time Period</span>
-                  <span class="jrn-tracker-badge jrn-tracker-badge--soon">soon</span>
-                </button>
-                <button type="button" class="jrn-tracker-tile jrn-tracker-tile--soon" disabled title="Coming soon">
-                  <span class="jrn-tracker-icon">📝</span>
-                  <span class="jrn-tracker-name">Journal</span>
-                  <span class="jrn-tracker-badge jrn-tracker-badge--soon">soon</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Point Log config -->
-            <div class="jrn-config-block" *ngIf="form.trackerType === 'point-log'">
-              <p class="jrn-config-label">Point Log Setup</p>
-
-              <div class="jrn-field">
-                <label class="jrn-label">Metric Name</label>
-                <input class="jrn-input" type="text" [(ngModel)]="form.config.metricName" name="metricName"
-                       placeholder="Weight, Mood, Steps, Score…" autocomplete="off">
-              </div>
-
-              <div class="jrn-field">
-                <label class="jrn-label">Value Type <span class="jrn-req">*</span></label>
-                <div class="jrn-seg">
-                  <button type="button" class="jrn-seg-opt"
-                          [class.jrn-seg-opt--active]="form.config.valueType === 'numeric'"
-                          (click)="form.config.valueType = 'numeric'">Numeric</button>
-                  <button type="button" class="jrn-seg-opt"
-                          [class.jrn-seg-opt--active]="form.config.valueType === 'categorical'"
-                          (click)="form.config.valueType = 'categorical'">Categorical</button>
-                </div>
-              </div>
-
-              <div class="jrn-field" *ngIf="form.config.valueType === 'categorical'">
-                <label class="jrn-label">Allowed Values</label>
-                <div class="jrn-tags" *ngIf="form.config.allowedValues.length > 0">
-                  <span class="jrn-tag" *ngFor="let v of form.config.allowedValues; let i = index">
-                    {{ v }}
-                    <button type="button" class="jrn-tag-remove" (click)="removeAllowedValue(i)">×</button>
-                  </span>
-                </div>
-                <div class="jrn-tag-input-row">
-                  <input class="jrn-input" type="text"
-                         [(ngModel)]="newAllowedValue" name="newAllowedValue"
-                         placeholder="e.g. Happy, Neutral, Sad"
-                         (keydown.enter)="$event.preventDefault(); addAllowedValue()">
-                  <button type="button" class="jrn-pill-btn jrn-pill-btn--ghost jrn-pill-btn--sm"
-                          (click)="addAllowedValue()">Add</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Derived config -->
-            <div class="jrn-config-block" *ngIf="form.trackerType === 'derived'">
-              <p class="jrn-config-label">Derived Setup</p>
-
-              <div class="jrn-field">
-                <label class="jrn-label">Log Type to track <span class="jrn-req">*</span></label>
-                <select class="jrn-input" [(ngModel)]="form.derivedLogTypeId" name="derivedLogTypeId">
-                  <option value="" disabled>Select a log type…</option>
-                  <optgroup label="Work" *ngIf="workLogTypes.length > 0">
-                    <option *ngFor="let lt of workLogTypes" [value]="lt._id">{{ lt.name }}</option>
-                  </optgroup>
-                  <optgroup label="Personal" *ngIf="personalLogTypes.length > 0">
-                    <option *ngFor="let lt of personalLogTypes" [value]="lt._id">{{ lt.name }}</option>
-                  </optgroup>
-                  <optgroup label="Family" *ngIf="familyLogTypes.length > 0">
-                    <option *ngFor="let lt of familyLogTypes" [value]="lt._id">{{ lt.name }}</option>
-                  </optgroup>
-                </select>
-              </div>
-
-              <div class="jrn-field">
-                <label class="jrn-label">Value to track</label>
-                <div class="jrn-metric-grid">
-                  <button type="button" class="jrn-metric-opt"
-                          *ngFor="let m of valueMetricOptions"
-                          [class.jrn-metric-opt--active]="form.derivedValueMetric === m.value"
-                          (click)="form.derivedValueMetric = m.value">
-                    <span class="jrn-metric-icon">{{ m.icon }}</span>
-                    <span class="jrn-metric-label">{{ m.label }}</span>
-                    <span class="jrn-metric-hint">{{ m.hint }}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="jrn-error-banner" *ngIf="createError">{{ createError }}</div>
-
-            <div class="jrn-form-actions">
-              <button type="button" class="jrn-pill-btn jrn-pill-btn--ghost"
-                      (click)="subView = 'list'">Cancel</button>
-              <button type="submit" class="jrn-pill-btn jrn-pill-btn--primary" [disabled]="saving">
-                {{ saving ? 'Creating…' : 'Create Journey' }}
-              </button>
-            </div>
-
-          </form>
-        </div>
       </ng-container>
 
       <!-- ════════════════════════════════════════════════════
@@ -624,6 +452,174 @@ type SubView = 'list' | 'create' | 'detail';
 
       </ng-container>
 
+      <!-- ════════════════════════════════════════════════════
+           CREATE MODAL
+      ════════════════════════════════════════════════════ -->
+      <div class="jrn-modal-bd" *ngIf="showCreateModal" (click)="closeCreateModal()">
+        <div class="jrn-modal" (click)="$event.stopPropagation()">
+          <div class="jrn-modal-hdr">
+            <h2 class="jrn-form-title" style="margin:0">New Journey</h2>
+            <button class="jrn-modal-x" type="button" (click)="closeCreateModal()" aria-label="Close">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+
+          <form (ngSubmit)="submitCreate()" #createForm="ngForm" class="jrn-modal-form">
+
+            <div class="jrn-field">
+              <label class="jrn-label">Journey Name <span class="jrn-req">*</span></label>
+              <input class="jrn-input" type="text" [(ngModel)]="form.name" name="name"
+                     placeholder="e.g. Weight Tracker, Daily Mood" required autocomplete="off">
+            </div>
+
+            <div class="jrn-field">
+              <label class="jrn-label">Start Date <span class="jrn-req">*</span></label>
+              <input class="jrn-input" type="date" [(ngModel)]="form.startDate" name="startDate" required>
+            </div>
+
+            <!-- Span toggle -->
+            <div class="jrn-field">
+              <label class="jrn-label">Journey Span <span class="jrn-req">*</span></label>
+              <div class="jrn-seg">
+                <button type="button" class="jrn-seg-opt"
+                        [class.jrn-seg-opt--active]="form.span === 'indefinite'"
+                        (click)="form.span = 'indefinite'">Indefinite</button>
+                <button type="button" class="jrn-seg-opt"
+                        [class.jrn-seg-opt--active]="form.span === 'definite'"
+                        (click)="form.span = 'definite'">Fixed End Date</button>
+              </div>
+            </div>
+
+            <div class="jrn-field" *ngIf="form.span === 'definite'">
+              <label class="jrn-label">End Date <span class="jrn-req">*</span></label>
+              <input class="jrn-input" type="date" [(ngModel)]="form.endDate" name="endDate"
+                     [required]="form.span === 'definite'">
+            </div>
+
+            <!-- Tracker type tiles -->
+            <div class="jrn-field">
+              <label class="jrn-label">Tracker Type <span class="jrn-req">*</span></label>
+              <div class="jrn-tracker-grid">
+                <button type="button" class="jrn-tracker-tile"
+                        [class.jrn-tracker-tile--active]="form.trackerType === 'point-log'"
+                        (click)="form.trackerType = 'point-log'">
+                  <span class="jrn-tracker-icon">📍</span>
+                  <span class="jrn-tracker-name">Point Log</span>
+                  <span class="jrn-tracker-badge">v1</span>
+                </button>
+                <button type="button" class="jrn-tracker-tile"
+                        [class.jrn-tracker-tile--active]="form.trackerType === 'derived'"
+                        (click)="form.trackerType = 'derived'">
+                  <span class="jrn-tracker-icon">🔗</span>
+                  <span class="jrn-tracker-name">Derived</span>
+                  <span class="jrn-tracker-badge">v1</span>
+                </button>
+                <button type="button" class="jrn-tracker-tile jrn-tracker-tile--soon" disabled title="Coming soon">
+                  <span class="jrn-tracker-icon">⏱</span>
+                  <span class="jrn-tracker-name">Time Period</span>
+                  <span class="jrn-tracker-badge jrn-tracker-badge--soon">soon</span>
+                </button>
+                <button type="button" class="jrn-tracker-tile jrn-tracker-tile--soon" disabled title="Coming soon">
+                  <span class="jrn-tracker-icon">📝</span>
+                  <span class="jrn-tracker-name">Journal</span>
+                  <span class="jrn-tracker-badge jrn-tracker-badge--soon">soon</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Point Log config -->
+            <div class="jrn-config-block" *ngIf="form.trackerType === 'point-log'">
+              <p class="jrn-config-label">Point Log Setup</p>
+
+              <div class="jrn-field">
+                <label class="jrn-label">Metric Name</label>
+                <input class="jrn-input" type="text" [(ngModel)]="form.config.metricName" name="metricName"
+                       placeholder="Weight, Mood, Steps, Score…" autocomplete="off">
+              </div>
+
+              <div class="jrn-field">
+                <label class="jrn-label">Value Type <span class="jrn-req">*</span></label>
+                <div class="jrn-seg">
+                  <button type="button" class="jrn-seg-opt"
+                          [class.jrn-seg-opt--active]="form.config.valueType === 'numeric'"
+                          (click)="form.config.valueType = 'numeric'">Numeric</button>
+                  <button type="button" class="jrn-seg-opt"
+                          [class.jrn-seg-opt--active]="form.config.valueType === 'categorical'"
+                          (click)="form.config.valueType = 'categorical'">Categorical</button>
+                </div>
+              </div>
+
+              <div class="jrn-field" *ngIf="form.config.valueType === 'categorical'">
+                <label class="jrn-label">Allowed Values</label>
+                <div class="jrn-tags" *ngIf="form.config.allowedValues.length > 0">
+                  <span class="jrn-tag" *ngFor="let v of form.config.allowedValues; let i = index">
+                    {{ v }}
+                    <button type="button" class="jrn-tag-remove" (click)="removeAllowedValue(i)">×</button>
+                  </span>
+                </div>
+                <div class="jrn-tag-input-row">
+                  <input class="jrn-input" type="text"
+                         [(ngModel)]="newAllowedValue" name="newAllowedValue"
+                         placeholder="e.g. Happy, Neutral, Sad"
+                         (keydown.enter)="$event.preventDefault(); addAllowedValue()">
+                  <button type="button" class="jrn-pill-btn jrn-pill-btn--ghost jrn-pill-btn--sm"
+                          (click)="addAllowedValue()">Add</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Derived config -->
+            <div class="jrn-config-block" *ngIf="form.trackerType === 'derived'">
+              <p class="jrn-config-label">Derived Setup</p>
+
+              <div class="jrn-field">
+                <label class="jrn-label">Log Type to track <span class="jrn-req">*</span></label>
+                <select class="jrn-input" [(ngModel)]="form.derivedLogTypeId" name="derivedLogTypeId">
+                  <option value="" disabled>Select a log type…</option>
+                  <optgroup label="Work" *ngIf="workLogTypes.length > 0">
+                    <option *ngFor="let lt of workLogTypes" [value]="lt._id">{{ lt.name }}</option>
+                  </optgroup>
+                  <optgroup label="Personal" *ngIf="personalLogTypes.length > 0">
+                    <option *ngFor="let lt of personalLogTypes" [value]="lt._id">{{ lt.name }}</option>
+                  </optgroup>
+                  <optgroup label="Family" *ngIf="familyLogTypes.length > 0">
+                    <option *ngFor="let lt of familyLogTypes" [value]="lt._id">{{ lt.name }}</option>
+                  </optgroup>
+                </select>
+              </div>
+
+              <div class="jrn-field">
+                <label class="jrn-label">Value to track</label>
+                <div class="jrn-metric-grid">
+                  <button type="button" class="jrn-metric-opt"
+                          *ngFor="let m of valueMetricOptions"
+                          [class.jrn-metric-opt--active]="form.derivedValueMetric === m.value"
+                          (click)="form.derivedValueMetric = m.value">
+                    <span class="jrn-metric-icon">{{ m.icon }}</span>
+                    <span class="jrn-metric-label">{{ m.label }}</span>
+                    <span class="jrn-metric-hint">{{ m.hint }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="jrn-error-banner" *ngIf="createError">{{ createError }}</div>
+
+            <div class="jrn-form-actions">
+              <button type="button" class="jrn-pill-btn jrn-pill-btn--ghost"
+                      (click)="closeCreateModal()">Cancel</button>
+              <button type="submit" class="jrn-pill-btn jrn-pill-btn--primary" [disabled]="saving">
+                {{ saving ? 'Creating…' : 'Create Journey' }}
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
     </div>
   `,
   styles: [`
@@ -683,20 +679,17 @@ type SubView = 'list' | 'create' | 'detail';
     .jrn-pill-btn--primary {
       background: var(--accent-bright);
       color: #fff;
-      box-shadow: 0 4px 14px rgba(233,79,55,0.35);
     }
     .jrn-pill-btn--primary:not(:disabled):hover { filter: brightness(1.1); }
     .jrn-pill-btn--ghost {
       background: var(--bg-card);
       color: var(--text-secondary);
       border: 1px solid var(--border);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
     }
     .jrn-pill-btn--ghost:hover { color: var(--text-primary); border-color: var(--border-light); }
     .jrn-pill-btn--danger {
       background: #c0392b;
       color: #fff;
-      box-shadow: 0 4px 12px rgba(192,57,43,0.3);
     }
     .jrn-pill-btn--danger:hover { filter: brightness(1.1); }
     .jrn-pill-btn--sm { padding: 7px 16px; font-size: 0.8rem; }
@@ -740,7 +733,7 @@ type SubView = 'list' | 'create' | 'detail';
       border-radius: 50%;
       background: var(--bg-card);
       border: 1px solid var(--border);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -759,31 +752,24 @@ type SubView = 'list' | 'create' | 'detail';
     .jrn-journey-card {
       display: flex;
       align-items: center;
-      gap: 0;
       background: var(--bg-card);
-      border-radius: 16px;
-      box-shadow: 0 2px 16px rgba(0,0,0,0.28), 0 1px 4px rgba(0,0,0,0.18);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
       cursor: pointer;
       overflow: hidden;
       transition: box-shadow 0.18s, transform 0.12s;
       -webkit-tap-highlight-color: transparent;
     }
     .jrn-journey-card:hover {
-      box-shadow: 0 6px 24px rgba(0,0,0,0.38), 0 2px 8px rgba(0,0,0,0.22);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
       transform: translateY(-1px);
     }
     .jrn-journey-card:active { transform: scale(0.985); }
 
-    .jrn-journey-card-accent {
-      width: 4px;
-      align-self: stretch;
-      background: var(--accent-bright);
-      flex-shrink: 0;
-    }
-
     .jrn-journey-card-body {
       flex: 1;
-      padding: 16px 14px 14px 16px;
+      padding: 14px 12px 14px 16px;
       min-width: 0;
     }
 
@@ -856,8 +842,9 @@ type SubView = 'list' | 'create' | 'detail';
     ══════════════════════════════════════════ */
     .jrn-form-card {
       background: var(--bg-card);
-      border-radius: 20px;
-      box-shadow: 0 4px 28px rgba(0,0,0,0.35);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
       padding: 24px 20px;
       display: flex;
       flex-direction: column;
@@ -914,7 +901,6 @@ type SubView = 'list' | 'create' | 'detail';
     .jrn-seg-opt--active {
       background: var(--accent-bright);
       color: #fff;
-      box-shadow: 0 2px 8px rgba(233,79,55,0.3);
     }
 
     /* Tracker type grid */
@@ -1023,8 +1009,9 @@ type SubView = 'list' | 'create' | 'detail';
     ══════════════════════════════════════════ */
     .jrn-hero-card {
       background: var(--bg-card);
-      border-radius: 20px;
-      box-shadow: 0 4px 28px rgba(0,0,0,0.35);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
       padding: 20px 20px 16px;
       margin-bottom: 20px;
     }
@@ -1126,8 +1113,9 @@ type SubView = 'list' | 'create' | 'detail';
     ══════════════════════════════════════════ */
     .jrn-metrics-card {
       background: var(--bg-card);
-      border-radius: 16px;
-      box-shadow: 0 2px 16px rgba(0,0,0,0.25);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
       padding: 16px 18px;
       margin-bottom: 20px;
     }
@@ -1197,8 +1185,9 @@ type SubView = 'list' | 'create' | 'detail';
     ══════════════════════════════════════════ */
     .jrn-entry-form-card {
       background: var(--bg-card);
-      border-radius: 16px;
-      box-shadow: 0 2px 16px rgba(0,0,0,0.25);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
       padding: 16px;
       margin-bottom: 14px;
       display: flex;
@@ -1226,15 +1215,14 @@ type SubView = 'list' | 'create' | 'detail';
       align-items: center;
       gap: 10px;
       background: var(--bg-card);
-      border: 1px solid transparent;
+      border: 1px solid var(--border);
       border-radius: var(--radius);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.03);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
       padding: 10px 12px;
-      transition: background 0.15s, box-shadow 0.15s;
+      transition: background 0.15s;
     }
     .jrn-entry-card:hover {
       background: var(--accent-hover);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.26), 0 0 0 1px rgba(255,255,255,0.05);
     }
 
     .jrn-entry-left {
@@ -1498,8 +1486,9 @@ type SubView = 'list' | 'create' | 'detail';
     ══════════════════════════════════════════ */
     .jrn-day-group {
       background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: var(--radius);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.03);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
       overflow: hidden;
     }
 
@@ -1560,6 +1549,73 @@ type SubView = 'list' | 'create' | 'detail';
       font-size: 0.88rem;
       min-width: 44px;
     }
+
+    /* ══════════════════════════════════════════
+       CREATE MODAL
+    ══════════════════════════════════════════ */
+    .jrn-modal-bd {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 400;
+    }
+    @media (min-width: 480px) {
+      .jrn-modal-bd { align-items: center; padding: 16px; }
+    }
+    .jrn-modal {
+      background: var(--bg-surface);
+      border-radius: 20px 20px 0 0;
+      width: 100%;
+      max-width: 520px;
+      max-height: 90dvh;
+      overflow-y: auto;
+      scrollbar-width: none;
+      animation: jrn-modal-in 0.22s ease;
+    }
+    .jrn-modal::-webkit-scrollbar { display: none; }
+    @media (min-width: 480px) {
+      .jrn-modal { border-radius: 20px; }
+    }
+    @keyframes jrn-modal-in {
+      from { opacity: 0; transform: translateY(16px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)    scale(1);    }
+    }
+    .jrn-modal-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 20px 16px;
+      position: sticky;
+      top: 0;
+      background: var(--bg-surface);
+      z-index: 1;
+      border-bottom: 1px solid var(--border);
+    }
+    .jrn-modal-x {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+    .jrn-modal-x:hover { color: var(--text-primary); background: var(--accent-hover); }
+    .jrn-modal-form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding: 20px 20px 28px;
+    }
   `]
 })
 export class JourneysComponent implements OnInit {
@@ -1586,6 +1642,7 @@ export class JourneysComponent implements OnInit {
 
   saving = false;
   createError = '';
+  showCreateModal = false;
 
   editingJourney = false;
   savingEdit = false;
@@ -1790,7 +1847,12 @@ export class JourneysComponent implements OnInit {
   openCreate() {
     this.form = this.blankForm();
     this.createError = '';
-    this.subView = 'create';
+    this.showCreateModal = true;
+  }
+
+  closeCreateModal() {
+    this.showCreateModal = false;
+    this.createError = '';
   }
 
   addAllowedValue() {
@@ -1841,6 +1903,7 @@ export class JourneysComponent implements OnInit {
       next: (created) => {
         this.saving = false;
         this.journeys = [created, ...this.journeys];
+        this.showCreateModal = false;
         this.openDetail(created);
         // Auto-resync derived journeys from history
         if (created.trackerType === 'derived') {

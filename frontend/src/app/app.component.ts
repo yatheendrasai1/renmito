@@ -18,6 +18,7 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
 import { LogTypeSelectComponent } from './components/log-type-select/log-type-select.component';
 import { ImportantLogsComponent } from './components/important-logs/important-logs.component';
 import { JourneysComponent } from './components/journeys/journeys.component';
+import { JourneyService } from './services/journey.service';
 
 // ── Performance Profiler ─────────────────────────────────────────────────────
 // Tracks startup HTTP calls with performance.mark/measure (visible in DevTools
@@ -158,9 +159,9 @@ const PERF = (() => {
       <!-- ── Body ───────────────────────────────────────── -->
       <div class="app-body">
 
-        <!-- Left Navigation — 1.22: collapsible -->
+        <!-- Left Navigation — always overlay, never pushes content -->
         <nav class="left-nav"
-             [class.left-nav--collapsed]="navCollapsed && !navOverlayOpen"
+             [class.left-nav--collapsed]="!navOverlayOpen"
              [class.left-nav--overlay]="navOverlayOpen"
              (click)="navOverlayOpen = false">
           <div class="nav-group">
@@ -168,7 +169,6 @@ const PERF = (() => {
             <button
               class="left-nav-item"
               [class.left-nav-item--active]="activeView === 'logger'"
-              [title]="navCollapsed ? 'Logger' : ''"
               (click)="activeView = 'logger'"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -181,7 +181,6 @@ const PERF = (() => {
             <button
               class="left-nav-item"
               [class.left-nav-item--active]="activeView === 'timeline'"
-              [title]="navCollapsed ? 'Time Line' : ''"
               (click)="activeView = 'timeline'"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -198,7 +197,6 @@ const PERF = (() => {
             <button
               class="left-nav-item"
               [class.left-nav-item--active]="activeView === 'journeys'"
-              [title]="navCollapsed ? 'Journey Logs' : ''"
               (click)="activeView = 'journeys'"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -1475,9 +1473,14 @@ const PERF = (() => {
     .app-body { display: flex; flex: 1; overflow: hidden; }
 
     /* ── Left Nav — 1.22 collapsible ────────────────────── */
+    /* Nav is always fixed — never participates in flex layout.
+       Hidden off-screen by default; slides in via transform when overlay is open. */
     .left-nav {
+      position: fixed;
+      top: 60px;
+      left: 0;
+      bottom: 0;
       width: 210px;
-      flex-shrink: 0;
       background: var(--nav-bg);
       border-right: 1px solid var(--border);
       padding: 20px 10px;
@@ -1486,16 +1489,14 @@ const PERF = (() => {
       display: flex;
       flex-direction: column;
       gap: 24px;
-      transition: width 0.22s ease;
+      transform: translateX(-100%);
+      transition: transform 0.22s ease;
+      z-index: 100;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.4);
     }
 
-    /* Collapsed state — fully hidden, takes no space */
-    .left-nav--collapsed {
-      width: 0;
-      padding: 0;
-      border-right-width: 0;
-      overflow: hidden;
-    }
+    .left-nav--collapsed { /* off-screen via base transform, nothing extra needed */ }
+    .left-nav--overlay   { transform: translateX(0); }
 
     .nav-group { display: flex; flex-direction: column; gap: 4px; }
     .nav-group-label {
@@ -1998,31 +1999,12 @@ const PERF = (() => {
     }
     .btn-profile-save:disabled { opacity: 0.45; cursor: not-allowed; }
 
-    /* ── Responsive ─────────────────────────────────────── */
-    /* Nav collapse is controlled solely by the hamburger toggle (navCollapsed).
-       No media query auto-collapses it — the user's explicit toggle is the
-       single source of truth for open vs. closed state.                      */
-
-    /* ── 1.93: Mobile nav overlay (left-edge swipe) ─────── */
     .nav-dim-backdrop {
       position: fixed;
       inset: 0;
       top: 60px;
       background: rgba(0,0,0,0.5);
       z-index: 99;
-    }
-    .left-nav--overlay {
-      position: fixed !important;
-      top: 60px;
-      left: 0;
-      bottom: 0;
-      width: 210px !important;
-      padding: 20px 10px !important;
-      border-right: 1px solid var(--border);
-      box-shadow: 4px 0 24px rgba(0,0,0,0.4);
-      z-index: 100;
-      overflow-y: auto;
-      overflow-x: hidden;
     }
 
     /* Mobile overrides */
@@ -3259,10 +3241,6 @@ export class AppComponent implements OnInit, AfterViewInit {
   theme: 'dark' | 'light' = 'dark';
   readonly currentYear = new Date().getFullYear();
 
-  // ── 1.22: Nav collapse — collapsed by default ───────────
-  navCollapsed = true;
-
-  // ── 1.93: Mobile nav overlay (left-edge swipe) ──────────
   navOverlayOpen = false;
   private navEdgeSwipeTracking = false;
   private navEdgeSwipeStartX = 0;
@@ -3422,6 +3400,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     private logTypeService:  LogTypeService,
     private prefService:     PreferenceService,
     private dayLevelService: DayLevelService,
+    private journeyService:  JourneyService,
   ) {}
 
   get todayLabel(): string {
@@ -3453,8 +3432,6 @@ export class AppComponent implements OnInit, AfterViewInit {
     if (cachedPalette) { applyPaletteToDOM(cachedPalette); }
 
     // Default is collapsed; only expand if explicitly saved as 'false'
-    this.navCollapsed = localStorage.getItem('renmito-nav-collapsed') !== 'false';
-
     this.isAuthenticated = this.authService.isLoggedIn();
     if (this.isAuthenticated) {
       this.currentUser = this.authService.getUser();
@@ -3525,6 +3502,10 @@ export class AppComponent implements OnInit, AfterViewInit {
       onConfirm: () => {
         this.authService.logout();
         this.logTypeService.clearCache();
+        this.logService.clearAllCaches();
+        this.dayLevelService.clearAllCaches();
+        this.prefService.clearPrefsCache();
+        this.journeyService.clearAllCaches();
         // 1.52: Wipe theme cache on logout so the next user on this browser
         // cannot see a previous user's palette or dark/light preference
         clearPaletteFromDOM();
@@ -3546,20 +3527,19 @@ export class AppComponent implements OnInit, AfterViewInit {
     localStorage.setItem('renmito-theme', this.theme);
   }
 
-  // ── 1.22 ────────────────────────────────────────────────
   toggleNav(): void {
-    this.navCollapsed = !this.navCollapsed;
-    localStorage.setItem('renmito-nav-collapsed', String(this.navCollapsed));
+    this.navOverlayOpen = !this.navOverlayOpen;
   }
 
-  // ── 1.93: Left-edge swipe → mobile nav overlay ───────────
+  // Swipe-left on the main view-area (excluding log cards/journal lists) opens the nav overlay
   @HostListener('document:touchstart', ['$event'])
   onDocTouchStart(e: TouchEvent): void {
-    if (window.innerWidth > 700 || this.navOverlayOpen) return;
-    const t = e.touches[0];
-    if (t.clientX > 28) return;
+    if (this.navOverlayOpen) return;
     const target = e.target as HTMLElement;
-    if (target.closest('.swipe-wrap') || target.closest('.jrn-card-list') || target.closest('.jrn-entries')) return;
+    if (!target.closest('.view-area')) return;
+    if (target.closest('.swipe-wrap') || target.closest('.log-list') ||
+        target.closest('.jrn-card-list') || target.closest('.jrn-entries')) return;
+    const t = e.touches[0];
     this.navEdgeSwipeTracking = true;
     this.navEdgeSwipeStartX = t.clientX;
     this.navEdgeSwipeStartY = t.clientY;
@@ -3576,7 +3556,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       this.navEdgeIsHorizontal = Math.abs(dx) > Math.abs(dy);
     }
     if (this.navEdgeIsHorizontal === false) { this.navEdgeSwipeTracking = false; return; }
-    if (dx > 60) {
+    if (dx < -60) {
       this.navOverlayOpen = true;
       this.navEdgeSwipeTracking = false;
     }

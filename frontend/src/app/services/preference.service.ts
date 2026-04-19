@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Observable, of, shareReplay } from 'rxjs';
+import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { ColorPalette } from '../components/theme-editor/theme-editor.component';
 
@@ -30,19 +30,29 @@ export interface UserPreferences {
 export class PreferenceService {
   private readonly apiBase = `${environment.apiBase}/preferences`;
 
+  private prefs$: Observable<UserPreferences | null> | null = null;
+
   constructor(private http: HttpClient) {}
 
   /** Returns active palette + all custom presets + running log. Null on 204 / error. */
   getPreferences(): Observable<UserPreferences | null> {
-    return this.http
-      .get<UserPreferences>(this.apiBase)
-      .pipe(
-        map(res => res ?? null),
-        catchError(err => {
-          console.warn('Could not fetch preferences:', err?.message);
-          return of(null);
-        })
-      );
+    if (!this.prefs$) {
+      this.prefs$ = this.http
+        .get<UserPreferences>(this.apiBase)
+        .pipe(
+          shareReplay(1),
+          map(res => res ?? null),
+          catchError(err => {
+            console.warn('Could not fetch preferences:', err?.message);
+            return of(null);
+          })
+        );
+    }
+    return this.prefs$;
+  }
+
+  clearPrefsCache(): void {
+    this.prefs$ = null;
   }
 
   /** Upserts the currently active palette. */
@@ -50,6 +60,7 @@ export class PreferenceService {
     return this.http
       .put<{ palette: ColorPalette }>(`${this.apiBase}/palette`, palette)
       .pipe(
+        tap(() => this.clearPrefsCache()),
         map(res => res?.palette ?? null),
         catchError(err => {
           console.warn('Could not save palette:', err?.message);
@@ -63,6 +74,7 @@ export class PreferenceService {
     return this.http
       .delete<void>(`${this.apiBase}/palette`)
       .pipe(
+        tap(() => this.clearPrefsCache()),
         catchError(err => {
           console.warn('Could not delete palette:', err?.message);
           return of(undefined);
@@ -75,6 +87,7 @@ export class PreferenceService {
     return this.http
       .post<{ customPresets: ColorPalette[] }>(`${this.apiBase}/presets`, preset)
       .pipe(
+        tap(() => this.clearPrefsCache()),
         map(res => res?.customPresets ?? null),
         catchError(err => {
           console.warn('Could not add preset:', err?.message);
@@ -90,6 +103,7 @@ export class PreferenceService {
         `${this.apiBase}/presets/${encodeURIComponent(name)}`
       )
       .pipe(
+        tap(() => this.clearPrefsCache()),
         map(res => res?.customPresets ?? null),
         catchError(err => {
           console.warn('Could not delete preset:', err?.message);
@@ -111,6 +125,7 @@ export class PreferenceService {
     return this.http
       .put<{ activeLog: ActiveLog }>(`${this.apiBase}/active-log`, payload)
       .pipe(
+        tap(() => this.clearPrefsCache()),
         map(res => res?.activeLog ?? null),
         catchError(err => {
           console.warn('Could not start active log:', err?.message);
@@ -124,6 +139,7 @@ export class PreferenceService {
     return this.http
       .delete<void>(`${this.apiBase}/active-log`)
       .pipe(
+        tap(() => this.clearPrefsCache()),
         catchError(err => {
           console.warn('Could not stop active log:', err?.message);
           return of(undefined);
@@ -139,6 +155,7 @@ export class PreferenceService {
         { shortcuts }
       )
       .pipe(
+        tap(() => this.clearPrefsCache()),
         map(res => res?.quickShortcuts ?? null),
         catchError(err => {
           console.warn('Could not update quick shortcuts:', err?.message);

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Observable, of, shareReplay } from 'rxjs';
+import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export type DayType = 'working' | 'holiday' | 'paid_leave' | 'sick_leave' | 'wfh';
@@ -44,22 +44,31 @@ export interface DaySettings {
 export class DayLevelService {
   private readonly apiBase = `${environment.apiBase}/day-metadata`;
 
+  private metaCache$: Map<string, Observable<DayMetadata | null>> = new Map();
+  private monthCache$: Map<string, Observable<Record<string, string>>> = new Map();
+
   constructor(private http: HttpClient) {}
 
   /** Loads (or creates) the day metadata for the given YYYY-MM-DD date. */
   getMetadata(date: string): Observable<DayMetadata | null> {
-    return this.http.get<DayMetadata>(`${this.apiBase}/${date}`).pipe(
-      map(res => res ?? null),
-      catchError(err => {
-        console.warn('Could not fetch day metadata:', err?.message);
-        return of(null);
-      })
-    );
+    if (!this.metaCache$.has(date)) {
+      const obs$ = this.http.get<DayMetadata>(`${this.apiBase}/${date}`).pipe(
+        shareReplay(1),
+        map(res => res ?? null),
+        catchError(err => {
+          console.warn('Could not fetch day metadata:', err?.message);
+          return of(null);
+        })
+      );
+      this.metaCache$.set(date, obs$);
+    }
+    return this.metaCache$.get(date)!;
   }
 
   /** Sets the day type flag for the given date. */
   setDayType(date: string, dayType: DayType): Observable<DayMetadata | null> {
     return this.http.put<DayMetadata>(`${this.apiBase}/${date}/day-type`, { dayType }).pipe(
+      tap(() => this.invalidateDate(date)),
       map(res => res ?? null),
       catchError(err => {
         console.warn('Could not set day type:', err?.message);
@@ -71,6 +80,7 @@ export class DayLevelService {
   /** Triggers the backend to capture the current important-log snapshot. */
   capture(date: string): Observable<DayMetadata | null> {
     return this.http.post<DayMetadata>(`${this.apiBase}/${date}/capture`, {}).pipe(
+      tap(() => this.invalidateDate(date)),
       map(res => res ?? null),
       catchError(err => {
         console.warn('Could not capture important logs:', err?.message);
@@ -84,8 +94,27 @@ export class DayLevelService {
    * the given month. Dates not in the map have no explicit override.
    */
   getMonthDayTypes(year: number, month: number): Observable<Record<string, string>> {
-    return this.http
-      .get<Record<string, string>>(`${this.apiBase}/month/${year}/${month}`)
-      .pipe(catchError(() => of({})));
+    const key = `${year}-${month}`;
+    if (!this.monthCache$.has(key)) {
+      const obs$ = this.http
+        .get<Record<string, string>>(`${this.apiBase}/month/${year}/${month}`)
+        .pipe(
+          shareReplay(1),
+          catchError(() => of({}))
+        );
+      this.monthCache$.set(key, obs$);
+    }
+    return this.monthCache$.get(key)!;
+  }
+
+  invalidateDate(date: string): void {
+    this.metaCache$.delete(date);
+    const [y, m] = date.split('-');
+    this.monthCache$.delete(`${y}-${parseInt(m, 10)}`);
+  }
+
+  clearAllCaches(): void {
+    this.metaCache$.clear();
+    this.monthCache$.clear();
   }
 }
