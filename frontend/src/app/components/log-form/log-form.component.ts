@@ -267,6 +267,21 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
             ></textarea>
           </div>
 
+          <!-- ── Ticket ID (work domain, non-transit/break only) ── -->
+          <div class="form-group" *ngIf="showTicketId">
+            <label for="ticketIdInput">Ticket ID</label>
+            <input
+              id="ticketIdInput"
+              name="ticketIdInput"
+              type="text"
+              [(ngModel)]="ticketId"
+              placeholder="e.g. JIRA-1234 (optional)"
+              maxlength="100"
+              autocomplete="off"
+              class="ticket-id-input"
+            />
+          </div>
+
           <!-- ── Actions ─────────────────────────────────────── -->
           <div class="form-actions">
             <button type="button" class="btn-cancel" (click)="cancel()">Cancel</button>
@@ -643,6 +658,21 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .description-textarea:focus { border-color: var(--highlight-selected); outline: none; }
     .description-textarea::placeholder { color: var(--text-muted); }
 
+    /* ── Ticket ID input ─────────────────────────────────── */
+    .ticket-id-input {
+      width: 100%;
+      padding: 8px 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    .ticket-id-input:focus { border-color: var(--highlight-selected); outline: none; }
+    .ticket-id-input::placeholder { color: var(--text-muted); }
+
     /* Actions */
     .form-actions { display: flex; gap: 10px; margin-top: 12px; }
     .btn-cancel { flex: 1; padding: 10px; background: var(--bg-card); color: var(--text-secondary); }
@@ -721,6 +751,7 @@ export class LogFormComponent implements OnInit, OnChanges {
 
   // ── description ────────────────────────────────────────
   labelValue = '';
+  ticketId   = '';
   editMode   = false;
   entryType: 'range' | 'point' = 'point';
 
@@ -769,6 +800,11 @@ export class LogFormComponent implements OnInit, OnChanges {
     if (diff <= 0) return '';
     const h = Math.floor(diff / 60), m = diff % 60;
     return h && m ? `${h}h ${m}m` : h ? `${h}h` : `${m}m`;
+  }
+
+  get showTicketId(): boolean {
+    const lt = this.selectedLogType;
+    return lt?.domain === 'work' && lt.category !== 'transit' && lt.category !== 'break';
   }
 
   get canSave(): boolean {
@@ -852,6 +888,7 @@ export class LogFormComponent implements OnInit, OnChanges {
       this.formEndTime   = this.editEntry.endAt ?? '01:00';
       this.formDate      = this.editEntry.date;
       this.labelValue    = this.editEntry.title;
+      this.ticketId      = this.editEntry.ticketId ?? '';
 
       // Restore log type — match by id first, then by name
       this.selectedLogType =
@@ -872,6 +909,7 @@ export class LogFormComponent implements OnInit, OnChanges {
       this.formEndTime     = this.endTime;
       this.formDate        = this.currentDate;
       this.labelValue      = '';
+      this.ticketId        = '';
       this.selectedLogType =
         (this.preselectedLogTypeId
           ? this.logTypes.find(lt => lt._id === this.preselectedLogTypeId)
@@ -1052,6 +1090,7 @@ export class LogFormComponent implements OnInit, OnChanges {
       date:       this.formDate || undefined,
       entryType:  this.entryType,
       pointTime:  this.entryType === 'point' ? this.formStartTime : undefined,
+      ticketId:   this.showTicketId ? (this.ticketId.trim() || undefined) : undefined,
     };
 
     if (this.editMode && this.editEntry) {

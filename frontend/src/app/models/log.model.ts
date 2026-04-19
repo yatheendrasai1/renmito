@@ -16,6 +16,7 @@ export interface LogEntry {
   logType: LogType | null;
   logTypeSource: 'DefaultLogType' | 'LogType' | null;
   entryType: 'range' | 'point';
+  ticketId?: string;
   updatedAt: string | null;  // ISO — used for Important Logs stale detection (1.83)
 }
 
@@ -27,4 +28,5 @@ export interface CreateLogEntry {
   date?: string;        // YYYY-MM-DD — overrides selectedDate when set
   entryType?: 'range' | 'point';
   pointTime?: string;   // HH:MM — used for point logs instead of startTime/endTime
+  ticketId?: string;
 }

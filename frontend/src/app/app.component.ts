@@ -785,7 +785,7 @@ const PERF = (() => {
 
           <!-- ── Journey Logs view ─────────────────────────── -->
           <div class="content-area" *ngIf="activeView === 'journeys'">
-            <app-journeys [availableLogTypes]="inlineLogTypes"></app-journeys>
+            <app-journeys #journeysRef [availableLogTypes]="inlineLogTypes"></app-journeys>
           </div><!-- /content-area (journeys) -->
 
         </div><!-- /view-area -->
@@ -800,11 +800,11 @@ const PERF = (() => {
         <button class="shortcut-toast-undo" (click)="undoShortcut()">Undo</button>
       </div>
 
-      <!-- ── 1.61: Log Now FAB (always shows + icon) ── -->
+      <!-- ── 1.61: Log Now FAB / Journey New FAB ── -->
       <button class="log-now-fab"
               *ngIf="isAuthenticated"
-              (click)="openLogNow()"
-              title="Log Now — tap to record what you just did">
+              (click)="activeView === 'journeys' ? journeysRef?.openCreate() : openLogNow()"
+              [title]="activeView === 'journeys' ? 'New Journey' : 'Log Now — tap to record what you just did'">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
           <line x1="12" y1="5" x2="12" y2="19"/>
@@ -2014,12 +2014,15 @@ const PERF = (() => {
 
       /* ── 1.84: Footer — thin + only at bottom of scroll ─── */
       .app-footer {
-        display: none;
+        display: flex;
         padding: 5px 12px;
         padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px));
         gap: 10px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
       }
-      .app-footer.footer-visible { display: flex; }
+      .app-footer.footer-visible { opacity: 1; pointer-events: auto; }
       .footer-brand svg { display: none; }
       .footer-brand { gap: 4px; }
       .footer-logo-text { font-size: 10px; }
@@ -3232,7 +3235,8 @@ const PERF = (() => {
   `]
 })
 export class AppComponent implements OnInit, AfterViewInit {
-  @ViewChild('timelineRef') timelineRef!: TimelineComponent;
+  @ViewChild('timelineRef')  timelineRef!:  TimelineComponent;
+  @ViewChild('journeysRef')  journeysRef?:  JourneysComponent;
 
   isAuthenticated = false;
   currentUser     = this.authService.getUser();

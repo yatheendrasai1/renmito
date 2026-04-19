@@ -45,6 +45,7 @@ function toResponse(doc) {
     } : null,
     logTypeSource: doc.logTypeSource ?? null,
     entryType:     doc.entryType     ?? 'range',
+    ticketId:      doc.ticketId      ?? '',
     updatedAt:     doc.updatedAt     ?? doc.createdAt ?? null,
   };
 }
@@ -87,7 +88,7 @@ async function getLogsByDate(userId, date) {
  * Returns the populated response object.
  */
 async function createLog(userId, date, body) {
-  const { startTime, endTime, title, logTypeId, entryType, pointTime } = body;
+  const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId } = body;
   const isPoint = entryType === 'point';
 
   const resolved = await validateLogTypeId(logTypeId);
@@ -102,6 +103,7 @@ async function createLog(userId, date, body) {
     logTypeId:     resolved.id,
     logTypeSource: resolved.source,
     title,
+    ticketId:      ticketId ?? '',
     startAt,
     endAt,
     durationMins,
@@ -120,7 +122,7 @@ async function createLog(userId, date, body) {
  * Returns the updated response object or an error.
  */
 async function updateLog(userId, date, id, body) {
-  const { startTime, endTime, title, logTypeId, entryType, pointTime } = body;
+  const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId } = body;
   const isPoint = entryType === 'point';
   const updates = {};
 
@@ -140,7 +142,8 @@ async function updateLog(userId, date, id, body) {
     }
   }
 
-  if (title !== undefined) updates.title = title;
+  if (title    !== undefined) updates.title    = title;
+  if (ticketId !== undefined) updates.ticketId = ticketId;
 
   if (logTypeId !== undefined) {
     const resolved = await validateLogTypeId(logTypeId);
