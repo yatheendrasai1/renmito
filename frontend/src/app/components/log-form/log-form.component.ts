@@ -181,6 +181,74 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                 </div>
               </div>
 
+              <!-- New Log Type accordion -->
+              <div class="accordion-item accordion-item--new"
+                   (click)="toggleAccordion('__new__')">
+                <button type="button" class="accordion-header accordion-header--new"
+                        [class.accordion-header--open]="isAccordionOpen('__new__')"
+                        tabindex="-1">
+                  <svg class="accordion-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span class="accordion-label accordion-label--new">New Log Type</span>
+                </button>
+                <div class="accordion-body" *ngIf="isAccordionOpen('__new__')"
+                     (click)="$event.stopPropagation()">
+
+                  <div class="create-type-error" *ngIf="createTypeError">{{ createTypeError }}</div>
+
+                  <div class="create-fields">
+                    <div class="create-top-row">
+                      <div class="create-field create-field--name">
+                        <label class="create-label">Name</label>
+                        <input
+                          type="text"
+                          name="newTypeName"
+                          [(ngModel)]="newTypeName"
+                          placeholder="e.g. Deep Work, Therapy…"
+                          maxlength="40"
+                          autocomplete="off"
+                          class="create-input"
+                          [disabled]="creatingType"
+                        />
+                      </div>
+                      <div class="create-field create-field--domain">
+                        <label class="create-label">Domain</label>
+                        <select name="newTypeDomain" [(ngModel)]="newTypeDomain" [disabled]="creatingType" class="create-select">
+                          <option value="work">Work</option>
+                          <option value="personal">Personal</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="create-field create-field--color">
+                      <label class="create-label">Color</label>
+                      <div class="swatch-grid">
+                        <button *ngFor="let c of paletteColors" type="button"
+                          class="swatch-btn"
+                          [class.swatch-btn--active]="newTypeColor === c"
+                          [style.background]="c"
+                          [disabled]="creatingType"
+                          (click)="newTypeColor = c"
+                          [attr.aria-label]="c">
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="create-actions">
+                    <button
+                      type="button"
+                      class="btn-create-submit"
+                      (click)="submitCreateType()"
+                      [disabled]="creatingType || !newTypeName.trim()"
+                    >
+                      <span class="btn-spinner" *ngIf="creatingType"></span>
+                      <span>{{ creatingType ? 'Creating…' : 'Create & Select' }}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
             </div><!-- /accordion-list -->
           </div>
 
@@ -423,6 +491,8 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
+    .accordion-item--new .accordion-header--new svg path { stroke: var(--highlight-selected); }
+
     /* Chips */
     .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
     .activity-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 20px; border: 1.5px solid transparent; background: var(--bg-card); color: var(--text-secondary); font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s; }
@@ -430,6 +500,64 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .activity-chip--active { font-weight: 700; border-width: 2px; }
     .chip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .chip-source-badge { font-size: 9px; opacity: 0.7; margin-left: 1px; }
+
+    /* ── Create new log type (inside accordion) ─────────── */
+    .create-type-error {
+      font-size: 12px; color: #ef5350;
+      padding: 7px 10px; margin-bottom: 10px;
+      background: rgba(239,83,80,0.1);
+      border-radius: var(--radius-sm);
+    }
+
+    .create-fields { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+    .create-top-row { display: flex; gap: 8px; align-items: flex-end; }
+    .create-field { display: flex; flex-direction: column; gap: 5px; }
+    .create-field--name { flex: 1; min-width: 0; }
+    .create-field--domain { width: 110px; flex-shrink: 0; }
+    .create-field--color { /* full width below name+domain row */ }
+
+    .create-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+
+    .create-input, .create-select {
+      padding: 7px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+    .create-input:focus, .create-select:focus { outline: none; border-color: var(--highlight-selected); }
+    .create-input::placeholder { color: var(--text-muted); }
+    .create-input:disabled, .create-select:disabled { opacity: 0.5; }
+
+    .swatch-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .swatch-btn {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      padding: 0;
+      transition: transform 0.1s, border-color 0.1s;
+      flex-shrink: 0;
+    }
+    .swatch-btn:hover { transform: scale(1.15); }
+    .swatch-btn--active { border-color: var(--text-primary); transform: scale(1.15); }
+    .swatch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .create-actions { display: flex; justify-content: flex-end; }
+
+    .btn-create-submit {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 14px; font-size: 12px; font-weight: 600;
+      background: var(--highlight-selected); color: #fff;
+      border-radius: var(--radius-sm);
+      transition: opacity 0.15s;
+    }
+    .btn-create-submit:hover:not(:disabled) { opacity: 0.88; }
+    .btn-create-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-spinner { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Custom log type context menu ───────────────────── */
     .chip-ctx-backdrop {
@@ -630,7 +758,19 @@ export class LogFormComponent implements OnInit, OnChanges {
   // ── accordion state ────────────────────────────────────
   openAccordions = new Set<string>();
 
-  // ── 15 pastel log-type colours (kept for reference) ──────
+  // ── 15 pastel log-type colours (1.50) ─────────────────
+  readonly paletteColors = [
+    '#F2A65A', '#D97D55', '#C4844A', '#9E3B3B', '#703B3B',
+    '#6F8F72', '#4D7A60', '#5A9CB5', '#3E6480', '#213C51',
+    '#7898A8', '#574964', '#7A5A74', '#BFC6C4', '#8C8C8C'
+  ];
+
+  // ── create new type inline form ────────────────────────
+  newTypeName     = '';
+  newTypeDomain:  'work' | 'personal' = 'work';
+  newTypeColor    = '#F2A65A';
+  creatingType    = false;
+  createTypeError = '';
 
   // ── context menu (right-click / long-press on user chips) ─
   ctxMenu: { visible: boolean; x: number; y: number; logType: LogType | null } =
@@ -689,8 +829,14 @@ export class LogFormComponent implements OnInit, OnChanges {
     if (this.openAccordions.has(key)) {
       this.openAccordions.delete(key);
     } else {
-      this.openAccordions.clear();
+      this.openAccordions.clear();   // close any other open accordion
       this.openAccordions.add(key);
+      if (key === '__new__') {
+        this.newTypeName     = '';
+        this.newTypeDomain   = 'work';
+        this.newTypeColor    = '#F2A65A';
+        this.createTypeError = '';
+      }
     }
   }
 
@@ -889,6 +1035,45 @@ export class LogFormComponent implements OnInit, OnChanges {
         }
       },
       error: () => {}
+    });
+  }
+
+  // ── create new type ────────────────────────────────────
+
+  submitCreateType(): void {
+    if (!this.newTypeName.trim() || this.creatingType) return;
+
+    this.creatingType    = true;
+    this.createTypeError = '';
+
+    this.logTypeService.createLogType({
+      name:   this.newTypeName.trim(),
+      domain: this.newTypeDomain,
+      color:  this.newTypeColor
+    }).subscribe({
+      next: (created) => {
+        this.creatingType = false;
+
+        // Add the new type to local list and rebuild groups
+        this.logTypes     = [...this.logTypes, created];
+        this.groupedTypes = this.buildGroups(this.logTypes);
+
+        // Auto-select it
+        this.selectedLogType = created;
+
+        // Close create accordion, open the domain accordion so user sees the new type
+        this.openAccordions.delete('__new__');
+        this.openAccordions.add(created.domain);
+
+        // Reset create form
+        this.newTypeName  = '';
+        this.newTypeColor = '#4A90E2';
+        this.newTypeDomain = 'work';
+      },
+      error: (err) => {
+        this.creatingType    = false;
+        this.createTypeError = err?.error?.error ?? 'Failed to create log type. Please try again.';
+      }
     });
   }
 

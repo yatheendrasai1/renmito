@@ -15,6 +15,7 @@ import { DayLevelService, DayMetadata, DayType } from './services/day-level.serv
 import { LogEntry, CreateLogEntry } from './models/log.model';
 import { forkJoin } from 'rxjs';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
+import { LogTypeSelectComponent } from './components/log-type-select/log-type-select.component';
 import { ImportantLogsComponent } from './components/important-logs/important-logs.component';
 import { JourneysComponent } from './components/journeys/journeys.component';
 import { JourneyService } from './services/journey.service';
@@ -91,7 +92,7 @@ const PERF = (() => {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent, ImportantLogsComponent, JourneysComponent],
+  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent, JourneysComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -503,7 +504,7 @@ const PERF = (() => {
 
               <!-- ── 1.80: Continue Last Log ── -->
               <div class="continue-log-row"
-                   *ngIf="isToday && lastRangeLog">
+                   *ngIf="isToday && lastRangeLog && !inlineEditId">
                 <button class="continue-log-btn"
                         [disabled]="shortcutSaving"
                         (click)="continueLastLog()">
@@ -536,10 +537,11 @@ const PERF = (() => {
                 <div
                   class="tl-item"
                   *ngFor="let log of sortedLogs; let i = index"
-                  [class.tl-item--active]="log.id === highlightedLogId && !metricLogIds"
-                  [class.tl-item--metric-active]="metricLogIds?.has(log.id)"
-                  [class.tl-item--dimmed]="metricLogIds && !metricLogIds.has(log.id)"
-                  (click)="editLog(log); $event.stopPropagation()"
+                  [class.tl-item--active]="log.id === highlightedLogId && !metricLogIds && inlineEditId !== log.id"
+                  [class.tl-item--metric-active]="metricLogIds?.has(log.id) && inlineEditId !== log.id"
+                  [class.tl-item--dimmed]="metricLogIds && !metricLogIds.has(log.id) && inlineEditId !== log.id"
+                  [class.tl-item--editing]="inlineEditId === log.id"
+                  (click)="onLogItemClick(log, $event)"
                 >
                   <!-- Swipe wrapper -->
                   <div class="swipe-wrap"
@@ -574,7 +576,9 @@ const PERF = (() => {
                          [style.transform]="swipeLogId === log.id ? 'translateX(' + swipeTranslateX + 'px)' : ''"
                          [class.tl-card--snapping]="swipeLogId === log.id && swipeSnapping">
 
-                    <div class="tl-card-header">
+                    <!-- ── View mode ── -->
+                    <ng-container *ngIf="inlineEditId !== log.id">
+                      <div class="tl-card-header">
                         <div class="tl-card-body">
                           <div class="log-list-label">{{ log.title }}</div>
                           <div class="log-list-meta">
@@ -610,6 +614,55 @@ const PERF = (() => {
                           </button>
                         </div>
                       </div>
+                    </ng-container>
+
+                    <!-- ── Inline edit mode ── -->
+                    <div class="log-list-inline" *ngIf="inlineEditId === log.id"
+                         (click)="$event.stopPropagation()">
+                      <input class="inline-title-input" type="text"
+                             [(ngModel)]="inlineEdit.title"
+                             maxlength="300"
+                             placeholder="Activity description"
+                             (keydown)="onInlineKeydown($event, log)">
+                      <app-log-type-select
+                        [logTypes]="inlineLogTypes"
+                        [selectedId]="inlineEdit.logTypeId"
+                        (selectedIdChange)="inlineEdit.logTypeId = $event">
+                      </app-log-type-select>
+                      <div class="inline-time-row">
+                        <span class="inline-time-label">Start</span>
+                        <button type="button" class="btn-time-step"
+                                (click)="adjustTime('startAt', -10); $event.stopPropagation()">−10m</button>
+                        <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.startAt">
+                        <button type="button" class="btn-time-step"
+                                (click)="adjustTime('startAt', 10); $event.stopPropagation()">+10m</button>
+                      </div>
+                      <div class="inline-time-row" *ngIf="log.entryType !== 'point'">
+                        <span class="inline-time-label">End</span>
+                        <button type="button" class="btn-time-step"
+                                (click)="adjustTime('endAt', -10); $event.stopPropagation()">−10m</button>
+                        <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.endAt">
+                        <button type="button" class="btn-time-step"
+                                (click)="adjustTime('endAt', 10); $event.stopPropagation()">+10m</button>
+                      </div>
+                      <div class="inline-action-row">
+                        <button type="button" class="btn-inline-save"
+                                (click)="saveInlineEdit(log); $event.stopPropagation()"
+                                [disabled]="inlineSaving">
+                          {{ inlineSaving ? '…' : '✓ Save' }}
+                        </button>
+                        <button type="button" class="btn-inline-cancel"
+                                (click)="cancelInlineEdit(); $event.stopPropagation()">✕ Cancel</button>
+                        <button type="button" class="btn-inline-fullform"
+                                (click)="editLog(log); cancelInlineEdit(); $event.stopPropagation()"
+                                title="Open full edit form">
+                          <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                            <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
+                                  stroke-width="1.5" stroke-linejoin="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
 
                     </div><!-- /tl-card -->
                   </div><!-- /swipe-wrap -->
@@ -628,64 +681,6 @@ const PERF = (() => {
               </div>
 
             </div><!-- /log-list-section -->
-
-            <!-- ── New Log Type ─────────────────────────────── -->
-            <div class="new-log-type-section">
-              <div class="new-log-type-header" (click)="showNewLogTypeForm = !showNewLogTypeForm">
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                </svg>
-                <span>New Log Type</span>
-                <svg class="new-lt-chevron" [class.new-lt-chevron--open]="showNewLogTypeForm"
-                     width="11" height="11" viewBox="0 0 12 12" fill="none">
-                  <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-              <div class="new-log-type-body" *ngIf="showNewLogTypeForm"
-                   (click)="$event.stopPropagation()">
-                <div class="create-type-error" *ngIf="createLogTypeError">{{ createLogTypeError }}</div>
-                <div class="nlt-fields">
-                  <div class="nlt-top-row">
-                    <div class="nlt-field nlt-field--name">
-                      <label class="nlt-label">Name</label>
-                      <input type="text" [(ngModel)]="newLogTypeName"
-                             placeholder="e.g. Deep Work, Therapy…"
-                             maxlength="40" autocomplete="off"
-                             class="nlt-input"
-                             [disabled]="creatingLogType"/>
-                    </div>
-                    <div class="nlt-field nlt-field--domain">
-                      <label class="nlt-label">Domain</label>
-                      <select [(ngModel)]="newLogTypeDomain" [disabled]="creatingLogType" class="nlt-select">
-                        <option value="work">Work</option>
-                        <option value="personal">Personal</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div class="nlt-field">
-                    <label class="nlt-label">Color</label>
-                    <div class="nlt-swatch-grid">
-                      <button *ngFor="let c of newLogTypePalette" type="button"
-                              class="nlt-swatch"
-                              [class.nlt-swatch--active]="newLogTypeColor === c"
-                              [style.background]="c"
-                              [disabled]="creatingLogType"
-                              (click)="newLogTypeColor = c">
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div class="nlt-actions">
-                  <button type="button" class="nlt-btn-create"
-                          (click)="submitNewLogType()"
-                          [disabled]="creatingLogType || !newLogTypeName.trim()">
-                    <span class="nlt-spinner" *ngIf="creatingLogType"></span>
-                    {{ creatingLogType ? 'Creating…' : 'Create Log Type' }}
-                  </button>
-                </div>
-              </div>
-            </div>
-
             </div><!-- /split-logs -->
 
             </div><!-- /logger-split -->
@@ -1779,81 +1774,74 @@ const PERF = (() => {
     .log-list-delete-btn:hover { background: rgba(158,59,59,0.14); color: #9E3B3B; }
 
     /* ── Inline edit mode ──── */
-    /* ── New Log Type section (below logs list) ─────────────────── */
-    .new-log-type-section {
-      margin: 10px 0 4px;
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-sm);
-      overflow: hidden;
+    .log-list-inline {
+      min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 2px 0;
     }
-    .new-log-type-header {
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 12px;
-      background: var(--bg-card);
-      color: var(--highlight-selected);
-      font-size: 13px; font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s;
-      user-select: none;
+    .inline-title-input {
+      width: 100%; box-sizing: border-box;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-size: 13px; font-weight: 600; padding: 7px 8px;
+      font-family: inherit; outline: none;
     }
-    .new-log-type-header:hover { background: var(--accent-hover); }
-    .new-lt-chevron {
-      margin-left: auto;
-      color: var(--text-muted);
-      transform: rotate(-90deg);
-      transition: transform 0.2s ease;
+    .inline-title-input:focus { border-color: var(--border-light); }
+    .inline-type-select {
+      width: 100%; box-sizing: border-box;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-size: 12px; padding: 7px 6px; outline: none; cursor: pointer;
     }
-    .new-lt-chevron--open { transform: rotate(0deg); }
-    .new-log-type-body {
-      padding: 10px 12px;
-      background: var(--bg-surface);
-      border-top: 1px solid var(--border-light);
-      animation: nlFadeIn 0.15s ease;
-    }
-    @keyframes nlFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-    .create-type-error {
-      font-size: 12px; color: #ef5350;
-      padding: 6px 10px; margin-bottom: 8px;
-      background: rgba(239,83,80,0.1); border-radius: var(--radius-sm);
-    }
-    .nlt-fields { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
-    .nlt-top-row { display: flex; gap: 8px; align-items: flex-end; }
-    .nlt-field { display: flex; flex-direction: column; gap: 5px; }
-    .nlt-field--name { flex: 1; min-width: 0; }
-    .nlt-field--domain { width: 110px; flex-shrink: 0; }
-    .nlt-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
-    .nlt-input, .nlt-select {
-      padding: 7px 10px;
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: var(--radius-sm); color: var(--text-primary); font-size: 13px;
-    }
-    .nlt-input:focus, .nlt-select:focus { outline: none; border-color: var(--highlight-selected); }
-    .nlt-input::placeholder { color: var(--text-muted); }
-    .nlt-input:disabled, .nlt-select:disabled { opacity: 0.5; }
-    .nlt-swatch-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-    .nlt-swatch {
-      width: 22px; height: 22px; border-radius: 50%;
-      border: 2px solid transparent; cursor: pointer; padding: 0;
-      transition: transform 0.1s, border-color 0.1s; flex-shrink: 0;
-    }
-    .nlt-swatch:hover { transform: scale(1.15); }
-    .nlt-swatch--active { border-color: var(--text-primary); transform: scale(1.15); }
-    .nlt-swatch:disabled { opacity: 0.4; cursor: not-allowed; }
-    .nlt-actions { display: flex; justify-content: flex-end; }
-    .nlt-btn-create {
+    .inline-type-select:focus { border-color: var(--border-light); }
+    /* ── Time stepper row — 1.57 ── */
+    .inline-time-row {
       display: flex; align-items: center; gap: 6px;
-      padding: 7px 14px; font-size: 12px; font-weight: 600;
-      background: var(--highlight-selected); color: #fff;
-      border-radius: var(--radius-sm); transition: opacity 0.15s;
     }
-    .nlt-btn-create:hover:not(:disabled) { opacity: 0.88; }
-    .nlt-btn-create:disabled { opacity: 0.4; cursor: not-allowed; }
-    .nlt-spinner {
-      width: 11px; height: 11px; border: 2px solid rgba(255,255,255,0.35);
-      border-top-color: #fff; border-radius: 50%;
-      animation: spin 0.7s linear infinite; display: inline-block;
+    .inline-time-label {
+      font-size: 10px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.6px;
+      width: 30px; flex-shrink: 0;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn-time-step {
+      flex-shrink: 0;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-secondary);
+      font-size: 11px; font-weight: 600;
+      padding: 0 10px; height: 34px;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .btn-time-step:hover { background: var(--accent-hover); color: var(--text-primary); }
+    .inline-time-input {
+      flex: 1; min-width: 0;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-size: 13px; padding: 6px 8px; font-variant-numeric: tabular-nums;
+      outline: none; text-align: center;
+    }
+    .inline-time-input:focus { border-color: var(--border-light); }
+    .inline-action-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+    .btn-inline-save {
+      flex: 1;
+      background: var(--highlight-selected); color: #fff; border: none;
+      border-radius: var(--radius-sm); padding: 8px 12px;
+      font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+    }
+    .btn-inline-save:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-inline-save:hover:not(:disabled) { opacity: 0.85; }
+    .btn-inline-cancel {
+      flex: 1;
+      background: transparent; color: var(--text-muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 8px 10px; font-size: 12px; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-inline-cancel:hover { background: var(--accent-hover); }
+    .btn-inline-fullform {
+      background: transparent; color: var(--text-muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 0 10px; height: 36px; cursor: pointer; display: flex; align-items: center;
+      transition: background 0.15s, color 0.15s; flex-shrink: 0;
+    }
+    .btn-inline-fullform:hover { background: var(--accent-hover); color: var(--text-primary); }
 
     /* ── Add log row — 1.54 / 1.80 ────────────────────────────────── */
     .log-list-add-row { position: relative; padding-top: 4px; }
@@ -3298,8 +3286,9 @@ export class AppComponent implements OnInit, AfterViewInit {
   // ── 1.30: Metric card highlight ──────────────────────────
   metricLogIds: Set<string> | null = null;
 
-  // ── Log types cache (used by shortcuts, start-log, wrap-up, etc.) ──
-  inlineLogTypes: any[] = [];
+  // ── 1.54: Inline edit + quick-add + sort ─────────────────
+  inlineEditId: string | null = null;
+  inlineEdit = { title: '', startAt: '', endAt: '', logTypeId: '' };
 
   // ── Swipe-to-action state ──────────────────────────────────
   swipeLogId: string | null = null;
@@ -3308,20 +3297,9 @@ export class AppComponent implements OnInit, AfterViewInit {
   private swipeStartX = 0;
   private swipeStartY = 0;
   private swipeIsHorizontal: boolean | null = null;
+  inlineSaving = false;
+  inlineLogTypes: any[] = [];
   logSortOrder: 'asc' | 'desc' = 'desc';
-
-  // ── New Log Type (below logs list) ────────────────────────
-  showNewLogTypeForm = false;
-  newLogTypeName     = '';
-  newLogTypeDomain: 'work' | 'personal' = 'work';
-  newLogTypeColor    = '#F2A65A';
-  creatingLogType    = false;
-  createLogTypeError = '';
-  readonly newLogTypePalette = [
-    '#F2A65A', '#D97D55', '#C4844A', '#9E3B3B', '#703B3B',
-    '#6F8F72', '#4D7A60', '#5A9CB5', '#3E6480', '#213C51',
-    '#7898A8', '#574964', '#7A5A74', '#BFC6C4', '#8C8C8C'
-  ];
 
   // ── 1.84: Footer scroll visibility (mobile only) ─────────────
   footerVisible = false;
@@ -3749,6 +3727,12 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.timelineRef?.scrollToLog(log);
   }
 
+  // ── 1.54: Inline list editing ────────────────────────────
+  get inlineCurrentColor(): string | null {
+    const t = this.inlineLogTypes.find((t: any) => t._id === this.inlineEdit.logTypeId);
+    return t?.color ?? null;
+  }
+
   get sortedLogs(): LogEntry[] {
     return this.logSortOrder === 'asc' ? this.logs : [...this.logs].reverse();
   }
@@ -3757,35 +3741,28 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.logSortOrder = this.logSortOrder === 'asc' ? 'desc' : 'asc';
   }
 
-  cancelInlineEdit(): void { /* no-op — inline edit removed */ }
-
-  submitNewLogType(): void {
-    if (!this.newLogTypeName.trim() || this.creatingLogType) return;
-    this.creatingLogType    = true;
-    this.createLogTypeError = '';
-    this.logTypeService.createLogType({
-      name:   this.newLogTypeName.trim(),
-      domain: this.newLogTypeDomain,
-      color:  this.newLogTypeColor
-    }).subscribe({
-      next: (created) => {
-        this.creatingLogType   = false;
-        this.inlineLogTypes    = [...this.inlineLogTypes, created];
-        this.newLogTypeName    = '';
-        this.newLogTypeColor   = '#F2A65A';
-        this.newLogTypeDomain  = 'work';
-        this.showNewLogTypeForm = false;
-      },
-      error: (err) => {
-        this.creatingLogType    = false;
-        this.createLogTypeError = err?.error?.error ?? 'Failed to create log type. Please try again.';
-      }
-    });
+  onLogItemClick(log: LogEntry, event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.inlineEditId === log.id) return;
+    this.inlineEditId = log.id;
+    this.inlineEdit = {
+      title:     log.title,
+      startAt:   log.startAt,
+      endAt:     log.endAt ?? '',
+      logTypeId: log.logType?.id ?? ''
+    };
+    this.highlightedLogId = log.id;
+    this.timelineRef?.scrollToLog(log);
+    if (!this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((types: any[]) => this.inlineLogTypes = types);
+    }
   }
+
+  cancelInlineEdit(): void { this.inlineEditId = null; }
 
   // ── Swipe-to-action ────────────────────────────────────────
   onSwipeStart(log: LogEntry, e: TouchEvent): void {
-    if (this.swipeLogId) return;
+    if (this.inlineEditId) return;
     this.swipeLogId        = log.id;
     this.swipeStartX       = e.touches[0].clientX;
     this.swipeStartY       = e.touches[0].clientY;
@@ -3828,7 +3805,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     setTimeout(() => {
       this.swipeLogId    = null;
       this.swipeSnapping = false;
-      if (action === 'edit')   this.editLog(log);
+      if (action === 'edit')   this.onLogItemClick(log, new MouseEvent('click'));
       if (action === 'delete') this.confirmDeleteLog(log);
     }, 240);
   }
@@ -3843,6 +3820,34 @@ export class AppComponent implements OnInit, AfterViewInit {
       okLabel: 'Delete',
       onConfirm: () => this.onLogDeleted(log.id)
     };
+  }
+
+  saveInlineEdit(log: LogEntry): void {
+    if (this.inlineSaving) return;
+    this.inlineSaving = true;
+    const payload: Partial<CreateLogEntry> = log.entryType === 'point'
+      ? { title: this.inlineEdit.title, logTypeId: this.inlineEdit.logTypeId,
+          entryType: 'point', pointTime: this.inlineEdit.startAt }
+      : { title: this.inlineEdit.title, logTypeId: this.inlineEdit.logTypeId,
+          startTime: this.inlineEdit.startAt, endTime: this.inlineEdit.endAt };
+    this.logService.updateLog(this.selectedDate, log.id, payload).subscribe({
+      next:  () => { this.inlineSaving = false; this.inlineEditId = null; this.loadLogs(); },
+      error: () => { this.inlineSaving = false; alert('Failed to save changes.'); }
+    });
+  }
+
+  onInlineKeydown(event: KeyboardEvent, log: LogEntry): void {
+    if (event.key === 'Enter')  { event.preventDefault(); this.saveInlineEdit(log); }
+    if (event.key === 'Escape') { this.cancelInlineEdit(); }
+  }
+
+  /** Shift a time field by deltaMins (±10), clamped to 00:00–23:59. */
+  adjustTime(field: 'startAt' | 'endAt', deltaMins: number): void {
+    const val = this.inlineEdit[field];
+    if (!val) return;
+    const [h, m] = val.split(':').map(Number);
+    const clamped = Math.max(0, Math.min(1439, h * 60 + m + deltaMins));
+    this.inlineEdit[field] = `${String(Math.floor(clamped / 60)).padStart(2, '0')}:${String(clamped % 60).padStart(2, '0')}`;
   }
 
   openAddLogForm(): void {
