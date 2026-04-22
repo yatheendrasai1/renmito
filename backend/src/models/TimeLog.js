@@ -15,7 +15,7 @@ const timeLogSchema = new mongoose.Schema(
     durationMins:    { type: Number, default: null },
     ticketId:        { type: String, default: '' },
     tags:            [{ type: String }],
-    source:          { type: String, enum: ['manual', 'auto', 'imported'], default: 'manual' },
+    source:          { type: String, enum: ['manual', 'auto', 'imported', 'ai'], default: 'manual' },
     entryType:       { type: String, enum: ['range', 'point'], default: 'range' },
     lastHeartbeatAt: { type: Date, default: null }
   },

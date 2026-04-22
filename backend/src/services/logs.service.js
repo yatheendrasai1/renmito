@@ -46,6 +46,7 @@ function toResponse(doc) {
     logTypeSource: doc.logTypeSource ?? null,
     entryType:     doc.entryType     ?? 'range',
     ticketId:      doc.ticketId      ?? '',
+    source:        doc.source        ?? 'manual',
     updatedAt:     doc.updatedAt     ?? doc.createdAt ?? null,
   };
 }
@@ -88,15 +89,20 @@ async function getLogsByDate(userId, date) {
  * Returns the populated response object.
  */
 async function createLog(userId, date, body) {
-  const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId } = body;
+  const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId, source,
+          startAtISO, endAtISO, pointAtISO } = body;
   const isPoint = entryType === 'point';
 
   const resolved = await validateLogTypeId(logTypeId);
   if (!resolved) return { error: 'Invalid logTypeId — log type not found.', status: 400 };
 
-  const startAt      = isPoint ? toDate(date, pointTime) : toDate(date, startTime);
-  const endAt        = isPoint ? null                    : toDate(date, endTime);
-  const durationMins = isPoint ? null                    : Math.round((endAt - startAt) / 60000);
+  // Accept full ISO datetimes when provided (Renni AI flow), otherwise build from date+time strings
+  const startAt      = isPoint
+    ? (pointAtISO ? new Date(pointAtISO) : toDate(date, pointTime))
+    : (startAtISO  ? new Date(startAtISO)  : toDate(date, startTime));
+  const endAt        = isPoint ? null
+    : (endAtISO ? new Date(endAtISO) : toDate(date, endTime));
+  const durationMins = isPoint ? null : Math.round((endAt - startAt) / 60000);
 
   const created = await TimeLog.create({
     userId,
@@ -109,7 +115,7 @@ async function createLog(userId, date, body) {
     durationMins,
     entryType: isPoint ? 'point' : 'range',
     status:    'completed',
-    source:    'manual'
+    source:    source === 'ai' ? 'ai' : 'manual'
   });
 
   const populated = await TimeLog.findById(created._id).populate(POPULATE_LOGTYPE).lean();

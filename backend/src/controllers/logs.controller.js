@@ -44,16 +44,21 @@ async function createLog(req, res) {
       return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
     }
 
-    const { startTime, endTime, title, logTypeId, entryType, pointTime } = req.body;
+    const { startTime, endTime, title, logTypeId, entryType, pointTime,
+            startAtISO, endAtISO, pointAtISO } = req.body;
     const isPoint = entryType === 'point';
 
     if (isPoint) {
-      if (!pointTime || !title || !logTypeId) {
-        return res.status(400).json({ error: 'Missing required fields: pointTime, title, logTypeId' });
+      if (!pointTime && !pointAtISO) {
+        return res.status(400).json({ error: 'Missing required fields: pointTime or pointAtISO' });
+      }
+      if (!title || !logTypeId) {
+        return res.status(400).json({ error: 'Missing required fields: title, logTypeId' });
       }
     } else {
-      if (!startTime || !endTime || !title || !logTypeId) {
-        return res.status(400).json({ error: 'Missing required fields: startTime, endTime, title, logTypeId' });
+      const hasTime = (startTime && endTime) || (startAtISO && endAtISO);
+      if (!hasTime || !title || !logTypeId) {
+        return res.status(400).json({ error: 'Missing required fields: startTime+endTime (or startAtISO+endAtISO), title, logTypeId' });
       }
     }
 
