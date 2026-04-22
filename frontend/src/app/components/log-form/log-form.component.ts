@@ -803,8 +803,7 @@ export class LogFormComponent implements OnInit, OnChanges {
   }
 
   get showTicketId(): boolean {
-    const lt = this.selectedLogType;
-    return lt?.domain === 'work' && lt.category !== 'transit' && lt.category !== 'break';
+    return this.selectedLogType?.domain === 'work';
   }
 
   get canSave(): boolean {

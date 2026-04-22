@@ -100,4 +100,35 @@ async function deleteLog(req, res) {
   }
 }
 
-module.exports = { getMonthSummary, getLogsByDate, createLog, updateLog, deleteLog };
+// ─── GET /api/logs/range?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD ─────────────
+async function getLogsByDateRange(req, res) {
+  try {
+    const { startDate, endDate } = req.query;
+    if (!DATE_REGEX.test(startDate) || !DATE_REGEX.test(endDate)) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+    if (startDate > endDate) {
+      return res.status(400).json({ error: 'startDate must be on or before endDate.' });
+    }
+    const logs = await logsService.getLogsByDateRange(req.user.userId, startDate, endDate);
+    res.json(logs);
+  } catch (err) {
+    console.error('GET /logs/range error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch logs.' });
+  }
+}
+
+// ─── PATCH /api/logs/:id/report ───────────────────────────────────────────────
+async function updateLogReport(req, res) {
+  try {
+    const { id } = req.params;
+    const result = await logsService.updateLogReport(req.user.userId, id, req.body);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+    res.json(result.data);
+  } catch (err) {
+    console.error('PATCH /logs/:id/report error:', err.message);
+    res.status(500).json({ error: 'Failed to update log.' });
+  }
+}
+
+module.exports = { getMonthSummary, getLogsByDate, createLog, updateLog, deleteLog, getLogsByDateRange, updateLogReport };

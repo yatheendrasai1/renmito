@@ -201,10 +201,74 @@ async function getMonthWorkSummary(userId, year, month) {
   return summary;
 }
 
+/**
+ * Returns all logs in [startDate, endDate] (inclusive), excluding break and transit by category.
+ * Adds startAtISO to each entry for full-precision datetime in the report view.
+ */
+async function getLogsByDateRange(userId, startDate, endDate) {
+  const start = new Date(`${startDate}T00:00:00.000Z`);
+  const end   = new Date(`${endDate}T23:59:59.999Z`);
+
+  const docs = await TimeLog
+    .find({ userId, startAt: { $gte: start, $lte: end } })
+    .populate(POPULATE_LOGTYPE)
+    .sort({ startAt: 1 })
+    .lean();
+
+  return docs
+    .filter(doc => {
+      const lt = doc.logTypeId && typeof doc.logTypeId === 'object' ? doc.logTypeId : null;
+      if (!lt) return false;
+      return lt.domain === 'work' && lt.category !== 'break' && lt.category !== 'transit';
+    })
+    .map(doc => ({
+      ...toResponse(doc),
+      startAtISO: doc.startAt ? doc.startAt.toISOString() : null,
+    }));
+}
+
+/**
+ * Report-mode update: accepts full ISO startAt, durationMins, title, ticketId.
+ * Recomputes endAt from startAt + durationMins.
+ */
+async function updateLogReport(userId, id, body) {
+  const { title, ticketId, startAtISO, durationMins } = body;
+  const updates = {};
+
+  if (title    !== undefined) updates.title    = title;
+  if (ticketId !== undefined) updates.ticketId = ticketId ?? '';
+
+  if (startAtISO !== undefined) {
+    const newStart = new Date(startAtISO);
+    if (isNaN(newStart.getTime())) return { error: 'Invalid startAt date.', status: 400 };
+    updates.startAt = newStart;
+    if (durationMins !== undefined) {
+      updates.durationMins = durationMins;
+      updates.endAt = new Date(newStart.getTime() + durationMins * 60000);
+    }
+  } else if (durationMins !== undefined) {
+    const existing = await TimeLog.findOne({ _id: id, userId }, 'startAt').lean();
+    if (!existing) return { error: 'Log entry not found.', status: 404 };
+    updates.durationMins = durationMins;
+    updates.endAt = new Date(existing.startAt.getTime() + durationMins * 60000);
+  }
+
+  const doc = await TimeLog
+    .findOneAndUpdate({ _id: id, userId }, updates, { new: true })
+    .populate(POPULATE_LOGTYPE)
+    .lean();
+
+  if (!doc) return { error: 'Log entry not found.', status: 404 };
+  journeysSvc.syncLogEntry(userId, doc);
+  return { data: { ...toResponse(doc), startAtISO: doc.startAt?.toISOString() ?? null } };
+}
+
 module.exports = {
   getLogsByDate,
   createLog,
   updateLog,
   deleteLog,
-  getMonthWorkSummary
+  getMonthWorkSummary,
+  getLogsByDateRange,
+  updateLogReport,
 };

@@ -18,6 +18,7 @@ import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dial
 import { LogTypeSelectComponent } from './components/log-type-select/log-type-select.component';
 import { ImportantLogsComponent } from './components/important-logs/important-logs.component';
 import { JourneysComponent } from './components/journeys/journeys.component';
+import { ReportComponent } from './components/report/report.component';
 import { JourneyService } from './services/journey.service';
 
 // ── Performance Profiler ─────────────────────────────────────────────────────
@@ -92,7 +93,7 @@ const PERF = (() => {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent, JourneysComponent],
+  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent, JourneysComponent, ReportComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -205,6 +206,19 @@ const PERF = (() => {
                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
               </svg>
               <span>Journey Logs</span>
+            </button>
+            <button
+              class="left-nav-item"
+              [class.left-nav-item--active]="activeView === 'report'"
+              (click)="activeView = 'report'"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="9" y1="21" x2="9" y2="9"/>
+              </svg>
+              <span>Reports</span>
             </button>
           </div>
         </nav>
@@ -787,6 +801,11 @@ const PERF = (() => {
           <div class="content-area" *ngIf="activeView === 'journeys'">
             <app-journeys #journeysRef [availableLogTypes]="inlineLogTypes"></app-journeys>
           </div><!-- /content-area (journeys) -->
+
+          <!-- ── Reports view ────────────────────────────────── -->
+          <div class="content-area" *ngIf="activeView === 'report'">
+            <app-report></app-report>
+          </div><!-- /content-area (report) -->
 
         </div><!-- /view-area -->
       <!-- 1.93: Mobile nav overlay backdrop -->
@@ -3240,7 +3259,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   isAuthenticated = false;
   currentUser     = this.authService.getUser();
 
-  activeView: 'logger' | 'timeline' | 'journeys' = 'logger';
+  activeView: 'logger' | 'timeline' | 'journeys' | 'report' = 'logger';
   theme: 'dark' | 'light' = 'dark';
   readonly currentYear = new Date().getFullYear();
 

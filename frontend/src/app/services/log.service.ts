@@ -72,6 +72,28 @@ export class LogService {
     return this.monthCache$.get(key)!;
   }
 
+  /** Fetches all logs in [startDate, endDate] (YYYY-MM-DD), break/transit excluded. */
+  getLogsForDateRange(startDate: string, endDate: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiBase}/range?startDate=${startDate}&endDate=${endDate}`);
+  }
+
+  /** Report-mode patch: updates title, ticketId, startAtISO, durationMins. */
+  updateLogReport(
+    id: string,
+    body: { title?: string; ticketId?: string | null; startAtISO?: string; durationMins?: number },
+    oldDateStr: string
+  ): Observable<any> {
+    return this.http.patch<any>(`${this.apiBase}/${id}/report`, body).pipe(
+      tap(() => {
+        this.invalidateDate(oldDateStr);
+        if (body.startAtISO) {
+          const newDate = body.startAtISO.slice(0, 10);
+          if (newDate !== oldDateStr) this.invalidateDate(newDate);
+        }
+      })
+    );
+  }
+
   invalidateDate(dateStr: string): void {
     this.dateCache$.delete(dateStr);
     // Also clear month summary for the month containing this date
