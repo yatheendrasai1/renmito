@@ -16,4 +16,19 @@ async function parseLog(req, res) {
   }
 }
 
-module.exports = { parseLog };
+async function chat(req, res) {
+  const { message, date } = req.body;
+  if (!message || !date) {
+    return res.status(400).json({ error: 'message and date are required.' });
+  }
+  try {
+    const result = await aiSvc.chatWithRenni(req.user.userId, message, date);
+    res.json(result);
+  } catch (err) {
+    const status = err.status || 500;
+    console.error('POST /ai/chat error:', err.message);
+    res.status(status).json({ error: err.message || 'Chat failed.' });
+  }
+}
+
+module.exports = { parseLog, chat };

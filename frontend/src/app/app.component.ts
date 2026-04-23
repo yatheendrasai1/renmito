@@ -21,7 +21,7 @@ import { JourneysComponent } from './components/journeys/journeys.component';
 import { ReportComponent } from './components/report/report.component';
 import { JourneyService } from './services/journey.service';
 import { ConfigurationComponent } from './components/configuration/configuration.component';
-import { AiService, ParsedLog } from './services/ai.service';
+import { AiService, ParsedLog, RenniMessage, ChatResponse } from './services/ai.service';
 
 // ── Performance Profiler ─────────────────────────────────────────────────────
 // Tracks startup HTTP calls with performance.mark/measure (visible in DevTools
@@ -869,23 +869,23 @@ const PERF = (() => {
 
         <!-- Tab pill header -->
         <div class="uni-tabs">
-          <button class="uni-tab" [class.uni-tab--active]="unifiedSheetTab === 0"
-                  (click)="switchTab(0)">Add log</button>
-          <button class="uni-tab" [class.uni-tab--active]="unifiedSheetTab === 1"
-                  (click)="switchTab(1)">Add point</button>
-          <button class="uni-tab" [class.uni-tab--active]="unifiedSheetTab === 2"
-                  (click)="switchTab(2)">Start timer</button>
-          <button class="uni-tab uni-tab--renni" [class.uni-tab--active]="unifiedSheetTab === 3"
-                  (click)="switchTab(3)">
+          <button class="uni-tab uni-tab--renni" [class.uni-tab--active]="unifiedSheetTab === 0"
+                  (click)="switchTab(0)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="margin-right:4px">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
             </svg>
             Renni
           </button>
+          <button class="uni-tab" [class.uni-tab--active]="unifiedSheetTab === 1"
+                  (click)="switchTab(1)">Add log</button>
+          <button class="uni-tab" [class.uni-tab--active]="unifiedSheetTab === 2"
+                  (click)="switchTab(2)">Add point</button>
+          <button class="uni-tab" [class.uni-tab--active]="unifiedSheetTab === 3"
+                  (click)="switchTab(3)">Start timer</button>
         </div>
 
-        <!-- ── Tab 0: Add log ── -->
-        <ng-container *ngIf="unifiedSheetTab === 0">
+        <!-- ── Tab 1: Add log ── -->
+        <ng-container *ngIf="unifiedSheetTab === 1">
           <div class="log-now-fields">
             <!-- 1.81: Work / Personal domain tabs -->
             <div class="ln-domain-tabs">
@@ -1002,8 +1002,8 @@ const PERF = (() => {
           </div>
         </ng-container>
 
-        <!-- ── Tab 1: Add point ── -->
-        <ng-container *ngIf="unifiedSheetTab === 1">
+        <!-- ── Tab 2: Add point ── -->
+        <ng-container *ngIf="unifiedSheetTab === 2">
           <div class="log-now-fields">
             <!-- Domain tabs -->
             <div class="ln-domain-tabs">
@@ -1081,8 +1081,8 @@ const PERF = (() => {
           </div>
         </ng-container>
 
-        <!-- ── Tab 2: Start timer ── -->
-        <ng-container *ngIf="unifiedSheetTab === 2">
+        <!-- ── Tab 3: Start timer ── -->
+        <ng-container *ngIf="unifiedSheetTab === 3">
           <div class="log-now-fields">
             <!-- Domain tabs -->
             <div class="ln-domain-tabs">
@@ -1138,69 +1138,104 @@ const PERF = (() => {
           </div>
         </ng-container>
 
-        <!-- ── Tab 3: Renni AI ── -->
-        <ng-container *ngIf="unifiedSheetTab === 3">
-          <div class="log-now-fields renni-fields">
-            <div class="renni-intro">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" class="renni-star">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
-              <span>Describe your logs in plain English</span>
-            </div>
-            <textarea class="log-now-input renni-input"
-                      placeholder="e.g. reached office at 9am, had lunch at 1pm with maggi"
-                      [(ngModel)]="renniPrompt"
-                      rows="3"></textarea>
-
-            <!-- Parsed preview cards — editable -->
-            <ng-container *ngIf="renniParsed">
-              <div class="renni-preview" *ngFor="let log of renniParsed; let i = index">
-                <div class="renni-card-top">
-                  <span class="renni-card-badge">
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                    {{ log.logTypeName }}
-                    <span class="renni-domain-dot" style="text-transform:capitalize">· {{ log.domain }}</span>
-                  </span>
-                  <button class="renni-remove-btn" (click)="removeRenniLog(i)" title="Remove">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                  </button>
-                </div>
-                <div class="renni-edit-row">
-                  <span class="renni-preview-label">Title</span>
-                  <input class="renni-edit-input" [(ngModel)]="log.title" placeholder="Title" />
-                </div>
-                <div class="renni-edit-row" *ngIf="log.entryType === 'point'">
-                  <span class="renni-preview-label">Time</span>
-                  <input class="renni-edit-input renni-time-input" [(ngModel)]="log.pointTime" placeholder="HH:MM" />
-                </div>
-                <div class="renni-edit-row" *ngIf="log.entryType === 'range'">
-                  <span class="renni-preview-label">Time</span>
-                  <input class="renni-edit-input renni-time-input" [(ngModel)]="log.startTime" placeholder="HH:MM" />
-                  <span class="renni-time-sep">–</span>
-                  <input class="renni-edit-input renni-time-input" [(ngModel)]="log.endTime" placeholder="HH:MM" />
-                </div>
+        <!-- ── Tab 0: Renni chat ── -->
+        <ng-container *ngIf="unifiedSheetTab === 0">
+          <div class="renni-chat-area">
+            <!-- Message history -->
+            <div class="renni-messages" #renniScroll>
+              <!-- Empty state -->
+              <div class="renni-empty" *ngIf="renniMsgs.length === 0">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" class="renni-star">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                <p>Hi! I'm Renni. Describe what you did and I'll log it, or ask anything about your day.</p>
               </div>
-            </ng-container>
 
-            <div class="renni-error" *ngIf="renniError">{{ renniError }}</div>
-          </div>
+              <!-- Messages -->
+              <ng-container *ngFor="let msg of renniMsgs; let i = index">
+                <!-- User bubble -->
+                <div *ngIf="msg.from === 'user'" class="renni-msg renni-msg--user">
+                  <div class="renni-bubble renni-bubble--user">{{ msg.text }}</div>
+                </div>
 
-          <div class="log-now-actions">
-            <button class="log-now-cancel" (click)="closeUnifiedSheet()">Cancel</button>
-            <button class="log-now-save"
-                    *ngIf="!renniParsed"
-                    (click)="parseRenniLog()"
-                    [disabled]="renniLoading || !renniPrompt.trim()">
-              {{ renniLoading ? 'Thinking…' : 'Parse' }}
-            </button>
-            <div class="renni-confirm-actions" *ngIf="renniParsed">
-              <button class="log-now-cancel" (click)="renniParsed = null; renniError = ''">Re-parse</button>
-              <button class="log-now-save" (click)="confirmRenniLog()" [disabled]="renniLoading">
-                {{ renniLoading ? 'Saving…' : (renniParsed.length > 1 ? 'Log all (' + renniParsed.length + ')' : 'Log it') }}
+                <!-- Renni response -->
+                <div *ngIf="msg.from === 'renni'" class="renni-msg renni-msg--renni">
+                  <!-- Thinking indicator -->
+                  <div *ngIf="msg.thinking" class="renni-bubble renni-bubble--renni renni-thinking">
+                    <span class="renni-dot"></span><span class="renni-dot"></span><span class="renni-dot"></span>
+                  </div>
+
+                  <!-- Text answer -->
+                  <div *ngIf="!msg.thinking && msg.text && !msg.logs" class="renni-bubble renni-bubble--renni">
+                    {{ msg.text }}
+                  </div>
+
+                  <!-- Confirmed success -->
+                  <div *ngIf="msg.confirmed" class="renni-bubble renni-bubble--renni renni-confirmed">
+                    ✓ Logged {{ msg.logs?.length }} {{ msg.logs?.length === 1 ? 'entry' : 'entries' }}
+                  </div>
+
+                  <!-- Log cards to review -->
+                  <div *ngIf="!msg.thinking && msg.logs && !msg.confirmed" class="renni-log-card">
+                    <div class="renni-log-card-intro">
+                      Found {{ msg.logs.length }} log{{ msg.logs.length > 1 ? 's' : '' }}. Review &amp; confirm:
+                    </div>
+                    <div class="renni-preview" *ngFor="let log of msg.logs; let j = index">
+                      <div class="renni-card-top">
+                        <span class="renni-card-badge">
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                          </svg>
+                          {{ log.logTypeName }}
+                          <span class="renni-domain-dot" style="text-transform:capitalize">· {{ log.domain }}</span>
+                        </span>
+                        <button class="renni-remove-btn" (click)="removeRenniLogFromMsg(i, j)" title="Remove">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                          </svg>
+                        </button>
+                      </div>
+                      <div class="renni-edit-row">
+                        <span class="renni-preview-label">Title</span>
+                        <input class="renni-edit-input" [(ngModel)]="log.title" placeholder="Title" />
+                      </div>
+                      <div class="renni-edit-row" *ngIf="log.entryType === 'point'">
+                        <span class="renni-preview-label">Time</span>
+                        <input class="renni-edit-input renni-time-input" [(ngModel)]="log.pointTime" placeholder="HH:MM" />
+                      </div>
+                      <div class="renni-edit-row" *ngIf="log.entryType === 'range'">
+                        <span class="renni-preview-label">Time</span>
+                        <input class="renni-edit-input renni-time-input" [(ngModel)]="log.startTime" placeholder="HH:MM" />
+                        <span class="renni-time-sep">–</span>
+                        <input class="renni-edit-input renni-time-input" [(ngModel)]="log.endTime" placeholder="HH:MM" />
+                      </div>
+                    </div>
+                    <div class="renni-log-actions">
+                      <button class="renni-discard-btn" (click)="discardRenniLogs(i)">Discard</button>
+                      <button class="renni-confirm-btn" (click)="confirmRenniLogs(i)" [disabled]="msg.saving">
+                        {{ msg.saving ? 'Saving…' : (msg.logs.length > 1 ? 'Log all (' + msg.logs.length + ')' : 'Log it') }}
+                      </button>
+                    </div>
+                    <div class="renni-error" *ngIf="msg.error">{{ msg.error }}</div>
+                  </div>
+                </div>
+              </ng-container>
+            </div>
+
+            <!-- Input row -->
+            <div class="renni-input-row">
+              <textarea class="renni-input-field"
+                        [(ngModel)]="renniInput"
+                        placeholder="Describe logs or ask anything…"
+                        rows="1"
+                        (keydown)="onRenniKeydown($event)"></textarea>
+              <button class="renni-send-btn"
+                      (click)="sendRenniMessage()"
+                      [disabled]="renniThinking || !renniInput.trim()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"/>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
               </button>
             </div>
           </div>
@@ -2439,19 +2474,72 @@ const PERF = (() => {
       border-color: #7c3aed; color: #fff;
     }
 
-    /* Renni tab content */
-    .renni-fields { gap: 12px; }
-    .renni-intro {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 0.8rem; opacity: 0.65;
+    /* ── Renni chat UI ── */
+    .renni-chat-area {
+      flex: 1; display: flex; flex-direction: column;
+      min-height: 0; overflow: hidden;
     }
-    .renni-star { color: #a78bfa; flex-shrink: 0; }
-    .renni-input { min-height: 72px; resize: none; }
+    .renni-messages {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 8px 0 4px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .renni-empty {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; padding: 24px 16px; text-align: center;
+      opacity: 0.6;
+    }
+    .renni-empty p { font-size: 0.85rem; line-height: 1.5; margin: 0; }
+    .renni-star { color: #a78bfa; }
+    .renni-msg { display: flex; flex-direction: column; max-width: 88%; }
+    .renni-msg--user { align-self: flex-end; align-items: flex-end; }
+    .renni-msg--renni { align-self: flex-start; align-items: flex-start; }
+    .renni-bubble {
+      padding: 9px 13px; border-radius: 16px;
+      font-size: 0.86rem; line-height: 1.45; word-break: break-word;
+    }
+    .renni-bubble--user {
+      background: var(--accent, #6366f1); color: #fff;
+      border-radius: 16px 16px 4px 16px;
+    }
+    .renni-bubble--renni {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px 16px 16px 4px;
+    }
+    .renni-confirmed {
+      background: rgba(167,139,250,0.15);
+      border-color: rgba(167,139,250,0.3);
+      color: #a78bfa; font-weight: 500;
+    }
+    .renni-thinking {
+      display: flex; gap: 5px; padding: 12px 16px; align-items: center;
+    }
+    .renni-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: currentColor; opacity: 0.5;
+      animation: renniPulse 1.2s ease-in-out infinite;
+    }
+    .renni-dot:nth-child(2) { animation-delay: 0.2s; }
+    .renni-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes renniPulse {
+      0%, 80%, 100% { opacity: 0.2; transform: scale(0.85); }
+      40%           { opacity: 0.9; transform: scale(1); }
+    }
+    .renni-log-card {
+      background: rgba(167,139,250,0.07);
+      border: 1px solid rgba(167,139,250,0.2);
+      border-radius: 12px; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .renni-log-card-intro {
+      font-size: 0.78rem; opacity: 0.7; padding-bottom: 2px;
+    }
     .renni-preview {
       background: rgba(167,139,250,0.08);
-      border: 1px solid rgba(167,139,250,0.25);
-      border-radius: 8px; padding: 10px 12px;
-      display: flex; flex-direction: column; gap: 8px;
+      border: 1px solid rgba(167,139,250,0.2);
+      border-radius: 8px; padding: 8px 10px;
+      display: flex; flex-direction: column; gap: 7px;
     }
     .renni-card-top {
       display: flex; align-items: center; justify-content: space-between;
@@ -2467,9 +2555,7 @@ const PERF = (() => {
       display: flex; align-items: center;
     }
     .renni-remove-btn:hover { opacity: 0.8; }
-    .renni-edit-row {
-      display: flex; align-items: center; gap: 8px;
-    }
+    .renni-edit-row { display: flex; align-items: center; gap: 8px; }
     .renni-preview-label { font-size: 0.72rem; opacity: 0.55; width: 38px; flex-shrink: 0; }
     .renni-edit-input {
       flex: 1; padding: 5px 8px;
@@ -2479,11 +2565,44 @@ const PERF = (() => {
     .renni-edit-input:focus { outline: none; border-color: rgba(167,139,250,0.5); }
     .renni-time-input { flex: 0 0 72px; font-family: monospace; }
     .renni-time-sep   { opacity: 0.5; font-size: 0.8rem; }
-    .renni-error {
-      font-size: 0.8rem; color: #f87171;
-      background: rgba(248,113,113,0.1); border-radius: 6px; padding: 7px 10px;
+    .renni-log-actions {
+      display: flex; gap: 8px; padding-top: 2px;
     }
-    .renni-confirm-actions { display: flex; gap: 8px; }
+    .renni-discard-btn {
+      flex: 1; padding: 7px 10px; border-radius: 8px; font-size: 0.82rem;
+      background: transparent; border: 1px solid rgba(255,255,255,0.15);
+      color: var(--text-secondary); cursor: pointer;
+    }
+    .renni-confirm-btn {
+      flex: 2; padding: 7px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
+      background: linear-gradient(135deg, #7c3aed, #a78bfa);
+      border: none; color: #fff; cursor: pointer;
+    }
+    .renni-confirm-btn:disabled { opacity: 0.6; cursor: default; }
+    .renni-error {
+      font-size: 0.78rem; color: #f87171;
+      background: rgba(248,113,113,0.1); border-radius: 6px; padding: 6px 9px;
+    }
+    .renni-input-row {
+      flex-shrink: 0; display: flex; gap: 8px; align-items: flex-end;
+      padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.07);
+      margin-top: 4px;
+    }
+    .renni-input-field {
+      flex: 1; resize: none; min-height: 36px; max-height: 80px;
+      padding: 8px 10px; border-radius: 10px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      color: inherit; font-size: 0.87rem; line-height: 1.4;
+      font-family: inherit;
+    }
+    .renni-input-field:focus { outline: none; border-color: rgba(167,139,250,0.4); }
+    .renni-send-btn {
+      flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, #7c3aed, #a78bfa);
+      border: none; color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .renni-send-btn:disabled { opacity: 0.45; cursor: default; }
 
     /* AI badge on log cards */
     .log-ai-badge {
@@ -3530,14 +3649,12 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   // ── 1.83: Unified log-creation sheet (replaces 3 separate sheets) ──
   unifiedSheetOpen = false;
-  unifiedSheetTab: 0 | 1 | 2 | 3 = 0; // 0=Add log, 1=Add point, 2=Start timer, 3=Renni AI
+  unifiedSheetTab: 0 | 1 | 2 | 3 = 0; // 0=Renni chat, 1=Add log, 2=Add point, 3=Start timer
 
-  // ── Renni AI tab ─────────────────────────────────────────────
-  renniPrompt  = '';
-  renniLoading = false;
-  renniError   = '';
-  renniParsed: ParsedLog[] | null = null;
-  renniSavedCount = 0;
+  // ── Renni AI chat ─────────────────────────────────────────────
+  renniMsgs: RenniMessage[] = [];
+  renniInput    = '';
+  renniThinking = false;
   private uniTouchStartX = 0;
 
   // ── 1.82: Quick Prefs ─────────────────────────────────────────
@@ -4499,11 +4616,9 @@ export class AppComponent implements OnInit, AfterViewInit {
   }
 
   openLogNow(): void {
-    this._prepLogNow();
-    this._resetRenni();
-    this.unifiedSheetTab  = 0;
+    this._prepLogNow();  // pre-loads log types for when user switches to Add log tab
+    this.unifiedSheetTab  = 0;  // open to Renni chat
     this.unifiedSheetOpen = true;
-    setTimeout(() => { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }, 40);
   }
 
   private _prepLogNow(): void {
@@ -4535,7 +4650,9 @@ export class AppComponent implements OnInit, AfterViewInit {
   closeLogNow(): void { this.unifiedSheetOpen = false; this._resetRenni(); }
   closeUnifiedSheet(): void { this.unifiedSheetOpen = false; this._resetRenni(); }
   private _resetRenni(): void {
-    this.renniPrompt = ''; this.renniParsed = null; this.renniError = '';
+    this.renniMsgs    = [];
+    this.renniInput   = '';
+    this.renniThinking = false;
   }
 
   onUnifiedSwipeStart(e: TouchEvent): void {
@@ -4556,11 +4673,10 @@ export class AppComponent implements OnInit, AfterViewInit {
     this._onTabSwitch();
   }
   private _onTabSwitch(): void {
-    // Re-init scroll drums for the newly visible tab
     setTimeout(() => {
-      if (this.unifiedSheetTab === 0) { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }
-      if (this.unifiedSheetTab === 1) { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }
-      if (this.unifiedSheetTab === 2) { this.scrollStartLogTypeDrum(); }
+      if (this.unifiedSheetTab === 1) { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }
+      if (this.unifiedSheetTab === 2) { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }
+      if (this.unifiedSheetTab === 3) { this.scrollStartLogTypeDrum(); }
     }, 40);
   }
 
@@ -4604,45 +4720,75 @@ export class AppComponent implements OnInit, AfterViewInit {
     });
   }
 
-  // ── Renni AI tab ─────────────────────────────────────────────
-  parseRenniLog(): void {
-    if (this.renniLoading || !this.renniPrompt.trim()) return;
-    this.renniLoading = true;
-    this.renniError   = '';
-    this.renniParsed  = null;
-    this.aiService.parseLog(this.renniPrompt.trim(), this.selectedDateStr).subscribe({
-      next:  logs => { this.renniLoading = false; this.renniParsed = logs; },
-      error: err  => {
-        this.renniLoading = false;
-        this.renniError   = err.error?.error || 'Could not parse. Try rephrasing.';
-      }
+  // ── Renni AI chat ─────────────────────────────────────────────
+  onRenniKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      this.sendRenniMessage();
+    }
+  }
+
+  sendRenniMessage(): void {
+    const text = this.renniInput.trim();
+    if (!text || this.renniThinking) return;
+    this.renniInput   = '';
+    this.renniThinking = true;
+
+    this.renniMsgs.push({ from: 'user', text });
+    const thinkingIdx = this.renniMsgs.length;
+    this.renniMsgs.push({ from: 'renni', thinking: true });
+    this._scrollRenniToBottom();
+
+    this.aiService.chat(text, this.selectedDateStr).subscribe({
+      next: (res: ChatResponse) => {
+        this.renniThinking = false;
+        if (res.type === 'logs' && res.logs?.length) {
+          this.renniMsgs[thinkingIdx] = { from: 'renni', logs: res.logs };
+        } else {
+          this.renniMsgs[thinkingIdx] = { from: 'renni', text: res.text || 'Done!' };
+        }
+        this._scrollRenniToBottom();
+      },
+      error: err => {
+        this.renniThinking = false;
+        this.renniMsgs[thinkingIdx] = {
+          from: 'renni',
+          text: err.error?.error || 'Something went wrong. Try again.',
+        };
+        this._scrollRenniToBottom();
+      },
     });
   }
 
-  removeRenniLog(i: number): void {
-    if (!this.renniParsed) return;
-    this.renniParsed.splice(i, 1);
-    if (this.renniParsed.length === 0) this.renniParsed = null;
+  removeRenniLogFromMsg(msgIdx: number, logIdx: number): void {
+    const msg = this.renniMsgs[msgIdx];
+    if (!msg?.logs) return;
+    msg.logs.splice(logIdx, 1);
+    if (msg.logs.length === 0) this.renniMsgs.splice(msgIdx, 1);
   }
 
-  confirmRenniLog(): void {
-    if (!this.renniParsed?.length || this.renniLoading) return;
-    this.renniLoading    = true;
-    this.renniSavedCount = 0;
-    const logs = [...this.renniParsed];
+  discardRenniLogs(msgIdx: number): void {
+    this.renniMsgs.splice(msgIdx, 1);
+  }
+
+  confirmRenniLogs(msgIdx: number): void {
+    const msg = this.renniMsgs[msgIdx];
+    if (!msg?.logs?.length || msg.saving) return;
+    msg.saving = true;
+    msg.error  = undefined;
+    const logs    = [...msg.logs];
+    const dateStr = this.selectedDateStr;
+
     const saveNext = (idx: number) => {
       if (idx >= logs.length) {
-        this.renniLoading     = false;
-        this.renniPrompt      = '';
-        this.renniParsed      = null;
-        this.renniError       = '';
-        this.unifiedSheetOpen = false;
+        msg.saving    = false;
+        msg.confirmed = true;
         this.loadLogs();
+        this._scrollRenniToBottom();
         return;
       }
       const p: any = logs[idx];
       const payload: any = { title: p.title, logTypeId: p.logTypeId, entryType: p.entryType, source: 'ai' };
-      const dateStr = this.selectedDateStr; // YYYY-MM-DD
       if (p.entryType === 'point') {
         payload.pointAtISO = `${dateStr}T${p.pointTime}:00.000Z`;
         payload.pointTime  = p.pointTime;
@@ -4653,14 +4799,21 @@ export class AppComponent implements OnInit, AfterViewInit {
         payload.endTime    = p.endTime;
       }
       this.logService.createLog(this.selectedDate, payload).subscribe({
-        next:  () => { this.renniSavedCount++; saveNext(idx + 1); },
+        next:  () => saveNext(idx + 1),
         error: err => {
-          this.renniLoading = false;
-          this.renniError   = `Failed on "${p.title}": ${err.error?.error || 'Save error'}`;
-        }
+          msg.saving = false;
+          msg.error  = `Failed on "${p.title}": ${err.error?.error || 'Save error'}`;
+        },
       });
     };
     saveNext(0);
+  }
+
+  private _scrollRenniToBottom(): void {
+    setTimeout(() => {
+      const el = document.querySelector('.renni-messages');
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 50);
   }
 
   // ── 1.90: Add Point long-press ───────────────────────────────
@@ -4729,7 +4882,7 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   openAddPoint(): void {
     this._prepAddPoint();
-    this.unifiedSheetTab  = 1;
+    this.unifiedSheetTab  = 2;
     this.unifiedSheetOpen = true;
     setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
   }

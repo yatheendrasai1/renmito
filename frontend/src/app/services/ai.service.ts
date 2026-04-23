@@ -14,6 +14,22 @@ export interface ParsedLog {
   title:       string;
 }
 
+export interface ChatResponse {
+  type: 'logs' | 'answer';
+  text?: string;
+  logs?: ParsedLog[];
+}
+
+export interface RenniMessage {
+  from:      'user' | 'renni';
+  text?:     string;
+  logs?:     ParsedLog[];
+  thinking?: boolean;
+  confirmed?: boolean;
+  saving?:   boolean;
+  error?:    string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AiService {
   private readonly apiBase = `${environment.apiBase}/ai`;
@@ -22,5 +38,9 @@ export class AiService {
 
   parseLog(prompt: string, date: string): Observable<ParsedLog[]> {
     return this.http.post<ParsedLog[]>(`${this.apiBase}/parse-log`, { prompt, date });
+  }
+
+  chat(message: string, date: string): Observable<ChatResponse> {
+    return this.http.post<ChatResponse>(`${this.apiBase}/chat`, { message, date });
   }
 }
