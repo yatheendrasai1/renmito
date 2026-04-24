@@ -630,7 +630,9 @@ const PERF = (() => {
                           <div class="log-list-meta">
                             <span class="log-list-time">
                               <ng-container *ngIf="log.entryType === 'point'">⏱ {{ log.startAt }}</ng-container>
-                              <ng-container *ngIf="log.entryType !== 'point'">{{ log.startAt }} – {{ log.endAt }}</ng-container>
+                              <ng-container *ngIf="log.entryType !== 'point'">
+                                <span *ngIf="log.date !== selectedDateStr" class="log-prev-day-date">{{ shortDate(log.date) }}, </span>{{ log.startAt }} – <span *ngIf="log.endDate && log.endDate !== log.date && log.endDate !== selectedDateStr" class="log-prev-day-date">{{ shortDate(log.endDate) }}, </span>{{ log.endAt }}
+                              </ng-container>
                             </span>
                             <span class="log-list-type-badge"
                                   [style.background]="(log.logType?.color ?? '#9B9B9B') + '22'"
@@ -1964,6 +1966,7 @@ const PERF = (() => {
     .log-list-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .log-list-type-badge { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.4px; }
     .log-list-time { font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .log-prev-day-date { color: var(--text-muted); font-style: italic; }
     .log-list-duration { font-size: 11px; color: var(--text-muted); background: var(--bg-surface); padding: 1px 6px; border-radius: 6px; font-variant-numeric: tabular-nums; }
 
     /* Action buttons — low opacity by default, full on hover */
@@ -5248,12 +5251,18 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   getDuration(log: LogEntry): string {
     if (log.entryType === 'point' || !log.endAt) return '';
-    const diff = this.timeToMinutes(log.endAt) - this.timeToMinutes(log.startAt);
-    if (diff <= 0) return '';
-    const h = Math.floor(diff / 60), m = diff % 60;
+    const mins = log.durationMins ?? (this.timeToMinutes(log.endAt) - this.timeToMinutes(log.startAt));
+    if (mins <= 0) return '';
+    const h = Math.floor(mins / 60), m = mins % 60;
     if (h === 0) return `${m}m`;
     if (m === 0) return `${h}h`;
     return `${h}h ${m}m`;
+  }
+
+  shortDate(dateStr: string): string {
+    const [y, mo, d] = dateStr.split('-').map(Number);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[mo - 1]} ${d}`;
   }
 
   getLogIconKey(log: LogEntry): string {

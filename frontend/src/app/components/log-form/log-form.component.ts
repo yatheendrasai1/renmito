@@ -70,15 +70,16 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
               </svg>
               <div class="time-field">
                 <span class="time-field-label">Start</span>
-                <input type="time" name="formStartTime" [(ngModel)]="formStartTime" class="time-input"/>
+                <input type="time" name="formStartTime" [(ngModel)]="formStartTime" class="time-input" (ngModelChange)="onStartTimeChange()"/>
               </div>
               <span class="time-arrow">→</span>
               <div class="time-field">
                 <span class="time-field-label">End</span>
-                <input type="time" name="formEndTime" [(ngModel)]="formEndTime" class="time-input"/>
+                <input type="time" name="formEndTime" [(ngModel)]="formEndTime" class="time-input" (ngModelChange)="onEndTimeChange()"/>
+                <span class="next-day-badge" *ngIf="isNextDay" (click)="resetEndToSameDay()" title="Ends next day — click to reset to same day">+1 day ×</span>
               </div>
               <span class="duration-label" *ngIf="durationLabel">{{ durationLabel }}</span>
-              <span class="duration-label duration-label--error" *ngIf="!durationLabel && formStartTime && formEndTime">end ≤ start</span>
+              <span class="duration-label duration-label--error" *ngIf="!durationLabel && !isNextDay && formStartTime && formEndTime">end ≤ start</span>
             </div>
           </ng-container>
 
@@ -109,8 +110,8 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
               <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
               <path d="M1.5 6h13M5 1v3M11 1v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
             </svg>
-            <span class="time-field-label" style="align-self:center">Date</span>
-            <input type="date" name="formDate" [(ngModel)]="formDate" class="date-input"/>
+            <span class="time-field-label" style="align-self:center">{{ entryType === 'range' ? 'Start Date' : 'Date' }}</span>
+            <input type="date" name="formDate" [(ngModel)]="formDate" class="date-input" (ngModelChange)="onStartDateChange()"/>
           </div>
 
         </div>
@@ -417,6 +418,8 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .time-arrow { font-size: 16px; color: var(--text-muted); flex-shrink: 0; margin-top: 14px; }
     .duration-label { font-size: 11px; color: var(--text-muted); margin-top: 14px; white-space: nowrap; }
     .duration-label--error { color: #e94560; font-weight: 600; }
+    .next-day-badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; color: var(--highlight-selected); background: color-mix(in srgb, var(--highlight-selected) 14%, transparent); border: 1px solid color-mix(in srgb, var(--highlight-selected) 30%, transparent); border-radius: 10px; padding: 2px 7px; margin-top: 4px; cursor: pointer; white-space: nowrap; letter-spacing: 0.3px; transition: background 0.15s; }
+    .next-day-badge:hover { background: color-mix(in srgb, var(--highlight-selected) 22%, transparent); }
 
     /* Form group */
     .form-group { margin-bottom: 12px; }
@@ -745,6 +748,7 @@ export class LogFormComponent implements OnInit, OnChanges {
   formStartTime = '00:00';
   formEndTime   = '01:00';
   formDate      = '';
+  formEndDate   = '';  // same as formDate unless cross-midnight
 
   // ── type selection ─────────────────────────────────────
   selectedLogType: LogType | null = null;
@@ -795,8 +799,13 @@ export class LogFormComponent implements OnInit, OnChanges {
 
   // ── computed ───────────────────────────────────────────
 
+  get isNextDay(): boolean {
+    return !!(this.formEndDate && this.formDate && this.formEndDate !== this.formDate);
+  }
+
   get durationLabel(): string {
-    const diff = this.toMins(this.formEndTime) - this.toMins(this.formStartTime);
+    const dayDiff = this.isNextDay ? 1440 : 0;
+    const diff = this.toMins(this.formEndTime) - this.toMins(this.formStartTime) + dayDiff;
     if (diff <= 0) return '';
     const h = Math.floor(diff / 60), m = diff % 60;
     return h && m ? `${h}h ${m}m` : h ? `${h}h` : `${m}m`;
@@ -809,7 +818,8 @@ export class LogFormComponent implements OnInit, OnChanges {
   get canSave(): boolean {
     if (!this.selectedLogType) return false;
     if (this.entryType === 'point') return true;
-    return this.toMins(this.formEndTime) > this.toMins(this.formStartTime);
+    const dayDiff = this.isNextDay ? 1440 : 0;
+    return this.toMins(this.formEndTime) - this.toMins(this.formStartTime) + dayDiff > 0;
   }
 
   isActive(lt: LogType): boolean {
@@ -886,6 +896,7 @@ export class LogFormComponent implements OnInit, OnChanges {
       this.formStartTime = this.editEntry.startAt;
       this.formEndTime   = this.editEntry.endAt ?? '01:00';
       this.formDate      = this.editEntry.date;
+      this.formEndDate   = this.editEntry.endDate ?? this.editEntry.date;
       this.labelValue    = this.editEntry.title;
       this.ticketId      = this.editEntry.ticketId ?? '';
 
@@ -907,6 +918,7 @@ export class LogFormComponent implements OnInit, OnChanges {
       this.formStartTime   = this.startTime;
       this.formEndTime     = this.endTime;
       this.formDate        = this.currentDate;
+      this.formEndDate     = this.currentDate;
       this.labelValue      = '';
       this.ticketId        = '';
       this.selectedLogType =
@@ -1087,6 +1099,7 @@ export class LogFormComponent implements OnInit, OnChanges {
       title:      this.labelValue.trim() || this.selectedLogType?.name || '',
       logTypeId:  this.selectedLogType!._id,
       date:       this.formDate || undefined,
+      endDate:    this.entryType === 'range' && this.isNextDay ? this.formEndDate : undefined,
       entryType:  this.entryType,
       pointTime:  this.entryType === 'point' ? this.formStartTime : undefined,
       ticketId:   this.showTicketId ? (this.ticketId.trim() || undefined) : undefined,
@@ -1147,6 +1160,40 @@ export class LogFormComponent implements OnInit, OnChanges {
           .filter(([d]) => !DOMAIN_ORDER.includes(d as any))
           .map(([d, t]) => ({ domain: d as 'work' | 'personal' | 'family', types: t }))
       );
+  }
+
+  onEndTimeChange(): void {
+    if (this.entryType !== 'range') return;
+    if (this.toMins(this.formEndTime) < this.toMins(this.formStartTime)) {
+      this.formEndDate = this.addDays(this.formDate, 1);
+    } else {
+      this.formEndDate = this.formDate;
+    }
+  }
+
+  onStartTimeChange(): void {
+    if (this.entryType !== 'range') return;
+    if (this.isNextDay && this.toMins(this.formEndTime) >= this.toMins(this.formStartTime)) {
+      this.formEndDate = this.formDate;
+    }
+  }
+
+  onStartDateChange(): void {
+    if (this.isNextDay) {
+      this.formEndDate = this.addDays(this.formDate, 1);
+    } else {
+      this.formEndDate = this.formDate;
+    }
+  }
+
+  resetEndToSameDay(): void {
+    this.formEndDate = this.formDate;
+  }
+
+  private addDays(dateStr: string, days: number): string {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
   }
 
   private toMins(time: string): number {

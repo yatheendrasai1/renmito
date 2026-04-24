@@ -32,6 +32,7 @@ function toResponse(doc) {
   return {
     id:           doc._id.toString(),
     date:         toDateStr(doc.startAt),
+    endDate:      doc.endAt ? toDateStr(doc.endAt) : null,
     startAt:      toTimeStr(doc.startAt),
     endAt:        toTimeStr(doc.endAt),
     title:        doc.title ?? '',
@@ -77,7 +78,13 @@ async function getLogsByDate(userId, date) {
   const dayEnd   = new Date(`${date}T23:59:59.999Z`);
 
   const docs = await TimeLog
-    .find({ userId, startAt: { $gte: dayStart, $lte: dayEnd } })
+    .find({
+      userId,
+      $or: [
+        { startAt: { $gte: dayStart, $lte: dayEnd } },
+        { endAt:   { $gte: dayStart, $lte: dayEnd } },
+      ]
+    })
     .populate(POPULATE_LOGTYPE)
     .lean();
 
@@ -90,7 +97,7 @@ async function getLogsByDate(userId, date) {
  */
 async function createLog(userId, date, body) {
   const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId, source,
-          startAtISO, endAtISO, pointAtISO } = body;
+          startAtISO, endAtISO, pointAtISO, endDate } = body;
   const isPoint = entryType === 'point';
 
   const resolved = await validateLogTypeId(logTypeId);
@@ -100,8 +107,9 @@ async function createLog(userId, date, body) {
   const startAt      = isPoint
     ? (pointAtISO ? new Date(pointAtISO) : toDate(date, pointTime))
     : (startAtISO  ? new Date(startAtISO)  : toDate(date, startTime));
+  // endDate allows cross-midnight logs (e.g. sleep from 23:30 on day D to 07:00 on day D+1)
   const endAt        = isPoint ? null
-    : (endAtISO ? new Date(endAtISO) : toDate(date, endTime));
+    : (endAtISO ? new Date(endAtISO) : toDate(endDate || date, endTime));
   const durationMins = isPoint ? null : Math.round((endAt - startAt) / 60000);
 
   const created = await TimeLog.create({
@@ -128,7 +136,7 @@ async function createLog(userId, date, body) {
  * Returns the updated response object or an error.
  */
 async function updateLog(userId, date, id, body) {
-  const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId } = body;
+  const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId, endDate } = body;
   const isPoint = entryType === 'point';
   const updates = {};
 
@@ -142,7 +150,7 @@ async function updateLog(userId, date, id, body) {
     }
   } else {
     if (startTime !== undefined) updates.startAt = toDate(date, startTime);
-    if (endTime   !== undefined) updates.endAt   = toDate(date, endTime);
+    if (endTime   !== undefined) updates.endAt   = toDate(endDate || date, endTime);
     if (updates.startAt && updates.endAt) {
       updates.durationMins = Math.round((updates.endAt - updates.startAt) / 60000);
     }
