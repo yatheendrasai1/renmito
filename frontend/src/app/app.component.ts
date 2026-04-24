@@ -22,6 +22,8 @@ import { ReportComponent } from './components/report/report.component';
 import { JourneyService } from './services/journey.service';
 import { ConfigurationComponent } from './components/configuration/configuration.component';
 import { AiService, ParsedLog, RenniMessage, ChatResponse } from './services/ai.service';
+import { NotesSheetComponent } from './components/notes-sheet/notes-sheet.component';
+import { NotesService } from './services/notes.service';
 
 // ── Performance Profiler ─────────────────────────────────────────────────────
 // Tracks startup HTTP calls with performance.mark/measure (visible in DevTools
@@ -95,7 +97,7 @@ const PERF = (() => {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent, JourneysComponent, ReportComponent, ConfigurationComponent],
+  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent, JourneysComponent, ReportComponent, ConfigurationComponent, NotesSheetComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -342,6 +344,17 @@ const PERF = (() => {
                   </button>
                 </div>
               </div>
+              <button class="dt-notes-btn" (click)="showNotesSheet = true" title="Day notes">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
+                Notes<span class="dt-notes-count" *ngIf="notesCount > 0">{{ notesCount }}</span>
+              </button>
             </div>
             <div class="dt-backdrop" *ngIf="dayTypeDropdownOpen" (click)="dayTypeDropdownOpen = false"></div>
 
@@ -801,6 +814,17 @@ const PERF = (() => {
                   </button>
                 </div>
               </div>
+              <button class="dt-notes-btn" (click)="showNotesSheet = true" title="Day notes">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
+                Notes<span class="dt-notes-count" *ngIf="notesCount > 0">{{ notesCount }}</span>
+              </button>
             </div>
             <div class="dt-backdrop" *ngIf="dayTypeDropdownOpen" (click)="dayTypeDropdownOpen = false"></div>
 
@@ -1533,6 +1557,13 @@ const PERF = (() => {
       (logsChanged)="loadLogs()"
     ></app-important-logs>
 
+    <!-- Notes bottom sheet -->
+    <app-notes-sheet
+      *ngIf="showNotesSheet"
+      [date]="selectedDate"
+      (close)="closeNotesSheet()"
+    ></app-notes-sheet>
+
     <!-- Global confirmation dialog (logout + merge) -->
     <app-confirm-dialog
       [visible]="confirmDialog !== null"
@@ -1722,7 +1753,29 @@ const PERF = (() => {
     .date-bar-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
     /* ── 1.83: Day type dropdown ────────────────────────────── */
-    .day-type-bar { padding: 8px 4px 2px; position: relative; }
+    .day-type-bar { padding: 8px 4px 2px; position: relative; display: flex; align-items: center; gap: 8px; }
+    .dt-notes-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 12px; font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .dt-notes-btn:hover { border-color: var(--highlight-selected); color: var(--text-primary); }
+    .dt-notes-count {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 16px; height: 16px;
+      padding: 0 4px;
+      background: var(--highlight-selected);
+      color: #fff;
+      font-size: 10px; font-weight: 700;
+      border-radius: 8px;
+      line-height: 1;
+    }
     .dt-backdrop {
       position: fixed; inset: 0; z-index: 49; background: transparent;
     }
@@ -3666,6 +3719,8 @@ export class AppComponent implements OnInit, AfterViewInit {
   // ── 1.83: Day-level metadata ──────────────────────────────────
   dayMetadata:       DayMetadata | null = null;
   showImportantLogs  = false;
+  showNotesSheet     = false;
+  notesCount         = 0;
 
   readonly dayTypeOptions: { value: DayType; label: string }[] = [
     { value: 'working',    label: 'Working Day' },
@@ -3714,6 +3769,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     private dayLevelService: DayLevelService,
     private journeyService:  JourneyService,
     private aiService:       AiService,
+    private notesService:    NotesService,
   ) {}
 
   get todayLabel(): string {
@@ -4011,6 +4067,21 @@ export class AppComponent implements OnInit, AfterViewInit {
       next:  meta => { this.dayMetadata = meta; PERF.end('api:day-metadata'); },
       error: ()   => { this.dayMetadata = null; PERF.end('api:day-metadata', 'ERROR'); }
     });
+    this.loadNotesCount();
+  }
+
+  private loadNotesCount(): void {
+    const dateStr = this.selectedDateStr;
+    this.notesCount = 0;
+    this.notesService.getNotes(dateStr).subscribe({
+      next:  d  => { if (this.selectedDateStr === dateStr) this.notesCount = d.notes.length; },
+      error: () => { if (this.selectedDateStr === dateStr) this.notesCount = 0; }
+    });
+  }
+
+  closeNotesSheet(): void {
+    this.showNotesSheet = false;
+    this.loadNotesCount();
   }
 
   openImportantLogs(): void {
