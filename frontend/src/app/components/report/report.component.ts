@@ -109,6 +109,15 @@ interface DayGroup {
   logs: ReportEntry[];
 }
 
+interface LogTypeBreakdown {
+  id: string;
+  name: string;
+  color: string;
+  totalMins: number;
+}
+
+type Preset = 'last10' | 'thisWeek' | 'currentMonth' | 'lastMonth';
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 @Component({
@@ -118,35 +127,26 @@ interface DayGroup {
   template: `
 <div class="rpt-wrap">
 
-  <!-- ── Range picker overlay ──────────────────────── -->
+  <!-- ── Range picker overlay (bottom sheet on mobile) ── -->
   <div class="rpt-cal-overlay" *ngIf="showRangeCal" (click)="onRangeOverlay($event)">
     <div class="rpt-cal-popup">
 
-      <!-- Hint -->
+      <div class="rpt-popup-drag-handle"></div>
+
       <div class="rpt-range-hint">
-        <ng-container *ngIf="!pendingFromDate">Click to select start date</ng-container>
-        <ng-container *ngIf="pendingFromDate && !pendingToDate">Now click the end date</ng-container>
+        <ng-container *ngIf="!pendingFromDate">Tap start date</ng-container>
+        <ng-container *ngIf="pendingFromDate && !pendingToDate">Now tap the end date</ng-container>
         <ng-container *ngIf="pendingFromDate && pendingToDate">
-          {{ fmtDateBtn(pendingFromDate) }} → {{ fmtDateBtn(pendingToDate) }}
+          <strong>{{ fmtDateBtn(pendingFromDate) }}</strong> → <strong>{{ fmtDateBtn(pendingToDate) }}</strong>
         </ng-container>
       </div>
 
-      <!-- Calendar in range mode -->
       <app-calendar
         [rangeFrom]="pendingFromDate"
         [rangeTo]="pendingToDate"
         (dateSelected)="onRangeDateClick($event)">
       </app-calendar>
 
-      <!-- Quick presets -->
-      <div class="rpt-presets">
-        <button class="rpt-preset-btn" (click)="setQuick('last10')">Last 10 days</button>
-        <button class="rpt-preset-btn" (click)="setQuick('thisWeek')">This week</button>
-        <button class="rpt-preset-btn" (click)="setQuick('currentMonth')">Current month</button>
-        <button class="rpt-preset-btn" (click)="setQuick('lastMonth')">Last month</button>
-      </div>
-
-      <!-- Time inputs -->
       <div class="rpt-time-row">
         <div class="rpt-time-group">
           <label class="rpt-time-lbl">From time (UTC)</label>
@@ -183,10 +183,10 @@ interface DayGroup {
     </button>
   </div>
 
-  <!-- ── Date/time range bar ────────────────────────── -->
+  <!-- ── Range bar ──────────────────────────────────── -->
   <div class="rpt-range-bar">
     <button class="rpt-dt-btn" (click)="openRangeCal()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
            stroke="currentColor" stroke-width="2"
            stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -196,27 +196,67 @@ interface DayGroup {
       </svg>
       {{ rangeLabel }}
     </button>
-
     <button class="rpt-fetch-btn" (click)="fetchLogs()" [disabled]="isFetching">
       {{ isFetching ? 'Loading…' : 'Fetch Logs' }}
     </button>
   </div>
 
+  <!-- ── Quick presets ──────────────────────────────── -->
+  <div class="rpt-presets">
+    <button class="rpt-preset-btn" [class.rpt-preset-btn--active]="activePreset === 'last10'"       (click)="applyPreset('last10')">Last 10 days</button>
+    <button class="rpt-preset-btn" [class.rpt-preset-btn--active]="activePreset === 'thisWeek'"     (click)="applyPreset('thisWeek')">This week</button>
+    <button class="rpt-preset-btn" [class.rpt-preset-btn--active]="activePreset === 'currentMonth'" (click)="applyPreset('currentMonth')">Current month</button>
+    <button class="rpt-preset-btn" [class.rpt-preset-btn--active]="activePreset === 'lastMonth'"    (click)="applyPreset('lastMonth')">Last month</button>
+  </div>
+
   <!-- ── Error ──────────────────────────────────────── -->
   <div class="rpt-fetch-error" *ngIf="fetchError">{{ fetchError }}</div>
 
-  <!-- ── Summary bar ────────────────────────────────── -->
-  <div class="rpt-summary" *ngIf="hasFetched && !isFetching">
-    <span>{{ logs.length }} log{{ logs.length !== 1 ? 's' : '' }}</span>
-    <span class="rpt-summary-sep" *ngIf="totalMins > 0"> · </span>
-    <span class="rpt-summary-total" *ngIf="totalMins > 0">{{ totalJira }} total</span>
+  <!-- ── Metrics panel ──────────────────────────────── -->
+  <div class="rpt-metrics" *ngIf="hasFetched && logs.length > 0 && !isFetching">
+
+    <div class="rpt-metric-cards">
+      <div class="rpt-metric-card">
+        <span class="rpt-metric-val">{{ logs.length }}</span>
+        <span class="rpt-metric-lbl">Total work logs</span>
+      </div>
+      <div class="rpt-metric-card">
+        <span class="rpt-metric-val">{{ totalJira }}</span>
+        <span class="rpt-metric-lbl">Total time logged</span>
+      </div>
+      <div class="rpt-metric-card">
+        <span class="rpt-metric-val">{{ avgJira }}</span>
+        <span class="rpt-metric-lbl">Avg. per working day</span>
+      </div>
+    </div>
+
+    <div class="rpt-breakdown" *ngIf="logTypeBreakdown.length > 0">
+      <div class="rpt-breakdown-title">Time by log type</div>
+      <div class="rpt-breakdown-list">
+        <div class="rpt-breakdown-item" *ngFor="let bt of logTypeBreakdown">
+          <div class="rpt-breakdown-row">
+            <span class="rpt-breakdown-dot" [style.background]="bt.color || '#9B9B9B'"></span>
+            <span class="rpt-breakdown-name">{{ bt.name }}</span>
+            <span class="rpt-breakdown-time">{{ fmt(bt.totalMins) }}</span>
+            <span class="rpt-breakdown-pct">{{ pct(bt.totalMins) }}%</span>
+          </div>
+          <div class="rpt-breakdown-track">
+            <div class="rpt-breakdown-fill"
+                 [style.width]="pct(bt.totalMins) + '%'"
+                 [style.background]="bt.color || '#9B9B9B'"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ── Bulk-apply ticket to all logs ────────────── -->
   <div class="rpt-week-apply" *ngIf="logs.length > 0">
     <input class="rpt-week-ticket-inp" type="text"
-           placeholder="Ticket No"
-           [(ngModel)]="weekTicketInput">
+           placeholder="Ticket No (e.g. JA-1001)"
+           [(ngModel)]="weekTicketInput"
+           autocomplete="off" autocorrect="off" spellcheck="false">
     <button class="rpt-week-apply-btn"
             (click)="applyTicketToWeek()"
             [disabled]="applyingWeek || !weekTicketInput.trim()">
@@ -230,19 +270,20 @@ interface DayGroup {
 
       <!-- Day header -->
       <div class="rpt-day-hdr">
-        <span class="rpt-day-label">{{ group.dateLabel }}</span>
-        <div class="rpt-day-hdr-right">
+        <div class="rpt-day-hdr-top">
+          <span class="rpt-day-label">{{ group.dateLabel }}</span>
           <span class="rpt-day-total" *ngIf="group.totalMins > 0">{{ fmt(group.totalMins) }}</span>
-          <div class="rpt-day-apply">
-            <input class="rpt-day-ticket-inp" type="text"
-                   placeholder="Ticket No"
-                   [(ngModel)]="dayTicketInputs[group.dateStr]">
-            <button class="rpt-day-apply-btn"
-                    (click)="applyTicketToDay(group)"
-                    [disabled]="applyingDay === group.dateStr || !dayTicketInputs[group.dateStr]?.trim()">
-              {{ applyingDay === group.dateStr ? 'Applying…' : 'Apply to day' }}
-            </button>
-          </div>
+        </div>
+        <div class="rpt-day-apply">
+          <input class="rpt-day-ticket-inp" type="text"
+                 placeholder="Ticket No"
+                 [(ngModel)]="dayTicketInputs[group.dateStr]"
+                 autocomplete="off" autocorrect="off" spellcheck="false">
+          <button class="rpt-day-apply-btn"
+                  (click)="applyTicketToDay(group)"
+                  [disabled]="applyingDay === group.dateStr || !dayTicketInputs[group.dateStr]?.trim()">
+            {{ applyingDay === group.dateStr ? 'Applying…' : 'Apply to day' }}
+          </button>
         </div>
       </div>
 
@@ -268,15 +309,15 @@ interface DayGroup {
                 <span class="rpt-ticket" [class.rpt-ticket--na]="!log.ticketId">
                   {{ log.ticketId || 'NA' }}
                 </span>
-                <span class="rpt-start">{{ formatDisplay(log.startAtISO) }}</span>
                 <span class="rpt-dur" *ngIf="log.durationMins">{{ fmt(log.durationMins) }}</span>
+                <span class="rpt-start">{{ formatDisplay(log.startAtISO) }}</span>
               </div>
               <span class="rpt-comment">{{ log.title }}</span>
             </div>
 
             <span class="rpt-type-badge" *ngIf="log.logType"
-                  [style.background]="(log.logType.color ?? '#9B9B9B') + '22'"
-                  [style.color]="log.logType.color ?? '#9B9B9B'">
+                  [style.background]="(log.logType.color || '#9B9B9B') + '22'"
+                  [style.color]="log.logType.color || '#9B9B9B'">
               {{ log.logType.name }}
             </span>
           </button>
@@ -290,7 +331,8 @@ interface DayGroup {
                 <label class="rpt-field-lbl">Ticket No</label>
                 <input class="rpt-field-inp" type="text"
                        placeholder="e.g. JA-1001 (optional)"
-                       [(ngModel)]="editForm.ticketId">
+                       [(ngModel)]="editForm.ticketId"
+                       autocomplete="off" autocorrect="off" spellcheck="false">
               </div>
 
               <!-- Start Date -->
@@ -375,10 +417,10 @@ interface DayGroup {
     .rpt-wrap {
       max-width: 780px;
       margin: 0 auto;
-      padding: 16px 12px 48px;
+      padding: 16px 12px 64px;
     }
 
-    /* ── Calendar overlay ──────────────────────────── */
+    /* ── Calendar overlay / bottom-sheet ───────────── */
     .rpt-cal-overlay {
       position: fixed;
       inset: 0;
@@ -396,48 +438,93 @@ interface DayGroup {
       border-radius: var(--radius);
       overflow: hidden;
       animation: rpt-popup-in 0.18s ease;
+      max-width: 360px;
+      width: 100%;
     }
     @keyframes rpt-popup-in {
       from { opacity: 0; transform: scale(0.96) translateY(-8px); }
       to   { opacity: 1; transform: scale(1)    translateY(0); }
     }
+    .rpt-popup-drag-handle { display: none; }
+
+    .rpt-range-hint {
+      padding: 12px 16px 6px;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      min-height: 36px;
+    }
+    .rpt-range-hint strong { color: var(--text-primary); }
+
+    .rpt-time-row {
+      display: flex;
+      gap: 12px;
+      padding: 10px 16px 6px;
+      border-top: 1px solid var(--border);
+    }
+    .rpt-time-group { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .rpt-time-lbl {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .rpt-time-input {
+      padding: 8px 10px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 14px;
+      width: 100%;
+      min-height: 44px;
+      box-sizing: border-box;
+    }
+    .rpt-time-input:focus { outline: none; border-color: var(--highlight-selected); }
+
     .rpt-cal-actions {
       display: flex;
       gap: 8px;
       justify-content: flex-end;
-      padding: 10px 16px;
+      padding: 10px 16px 14px;
       border-top: 1px solid var(--border);
     }
     .rpt-cal-cancel {
-      padding: 6px 14px;
+      flex: 1;
+      padding: 10px 14px;
       background: transparent;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text-secondary);
-      font-size: 13px;
+      font-size: 14px;
       cursor: pointer;
+      min-height: 44px;
       transition: background 0.12s;
     }
     .rpt-cal-cancel:hover { background: var(--bg-hover); }
     .rpt-cal-apply {
-      padding: 6px 16px;
+      flex: 2;
+      padding: 10px 16px;
       background: var(--highlight-selected);
       border: none;
       border-radius: var(--radius-sm);
       color: #fff;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
+      min-height: 44px;
       transition: opacity 0.15s;
     }
-    .rpt-cal-apply:hover { opacity: 0.88; }
+    .rpt-cal-apply:hover:not(:disabled) { opacity: 0.88; }
+    .rpt-cal-apply:disabled { opacity: 0.45; cursor: not-allowed; }
 
     /* ── Header ────────────────────────────────────── */
     .rpt-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
     .rpt-title {
       font-size: 17px;
@@ -448,13 +535,14 @@ interface DayGroup {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 7px 14px;
+      padding: 8px 14px;
       background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text-primary);
       font-size: 13px;
       cursor: pointer;
+      min-height: 40px;
       transition: background 0.15s, border-color 0.15s;
     }
     .rpt-export-btn:hover:not(:disabled) {
@@ -463,112 +551,84 @@ interface DayGroup {
     }
     .rpt-export-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* ── Date/time range bar ───────────────────────── */
+    /* ── Range bar ─────────────────────────────────── */
     .rpt-range-bar {
       display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
+      gap: 8px;
+      margin-bottom: 10px;
     }
     .rpt-dt-btn {
+      flex: 1;
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
-      padding: 7px 14px;
+      padding: 10px 14px;
       background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text-primary);
+      font-size: 14px;
+      cursor: pointer;
+      min-height: 44px;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .rpt-dt-btn:hover { background: var(--bg-hover); border-color: var(--highlight-selected); }
+    .rpt-fetch-btn {
+      padding: 10px 20px;
+      background: var(--highlight-selected);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 44px;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    .rpt-fetch-btn:hover:not(:disabled) { opacity: 0.88; }
+    .rpt-fetch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Quick presets ──────────────────────────────── */
+    .rpt-presets {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      margin-bottom: 14px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .rpt-presets::-webkit-scrollbar { display: none; }
+    .rpt-preset-btn {
+      flex-shrink: 0;
+      padding: 7px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text-secondary);
       font-size: 13px;
       cursor: pointer;
       white-space: nowrap;
-      transition: background 0.12s, border-color 0.12s;
-      height: 34px;
-    }
-    .rpt-dt-btn:hover {
-      background: var(--bg-hover);
-      border-color: var(--highlight-selected);
-    }
-
-    /* ── Range picker popup extras ─────────────────── */
-    .rpt-range-hint {
-      padding: 8px 16px 4px;
-      font-size: 12px;
-      color: var(--text-muted);
-      text-align: center;
-    }
-
-    .rpt-presets {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 10px 16px 4px;
-      border-top: 1px solid var(--border);
-    }
-    .rpt-preset-btn {
-      padding: 5px 12px;
-      background: var(--bg-primary);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text-secondary);
-      font-size: 12px;
-      cursor: pointer;
-      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      min-height: 36px;
+      transition: background 0.12s, border-color 0.15s, color 0.15s;
     }
     .rpt-preset-btn:hover {
       background: var(--bg-hover);
       border-color: var(--highlight-selected);
       color: var(--highlight-selected);
     }
-
-    .rpt-time-row {
-      display: flex;
-      gap: 16px;
-      padding: 10px 16px 4px;
-    }
-    .rpt-time-group {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .rpt-time-lbl {
-      font-size: 10px;
-      font-weight: 500;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .rpt-time-input {
-      padding: 6px 8px;
-      background: var(--bg-primary);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text-primary);
-      font-size: 13px;
-      width: 120px;
-    }
-    .rpt-time-input:focus {
-      outline: none;
+    .rpt-preset-btn--active {
+      background: color-mix(in srgb, var(--highlight-selected) 12%, transparent);
       border-color: var(--highlight-selected);
-    }
-    .rpt-fetch-btn {
-      padding: 8px 18px;
-      background: var(--highlight-selected);
-      border: none;
-      border-radius: var(--radius-sm);
-      color: #fff;
-      font-size: 13px;
+      color: var(--highlight-selected);
       font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.15s;
-      height: 34px;
     }
-    .rpt-fetch-btn:hover:not(:disabled) { opacity: 0.88; }
-    .rpt-fetch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* ── Error ─────────────────────────────────────── */
     .rpt-fetch-error {
-      padding: 8px 12px;
+      padding: 10px 12px;
       background: rgba(239, 68, 68, 0.1);
       border: 1px solid rgba(239, 68, 68, 0.3);
       border-radius: var(--radius-sm);
@@ -577,27 +637,157 @@ interface DayGroup {
       margin-bottom: 12px;
     }
 
-    /* ── Summary ───────────────────────────────────── */
-    .rpt-summary {
+    /* ── Metrics panel ─────────────────────────────── */
+    .rpt-metrics {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .rpt-metric-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-bottom: 1px solid var(--border);
+    }
+    .rpt-metric-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 10px;
+      gap: 4px;
+      border-right: 1px solid var(--border);
+    }
+    .rpt-metric-card:last-child { border-right: none; }
+    .rpt-metric-val {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .rpt-metric-lbl {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    .rpt-breakdown { padding: 12px 14px 14px; }
+    .rpt-breakdown-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+    .rpt-breakdown-list { display: flex; flex-direction: column; gap: 10px; }
+    .rpt-breakdown-item { display: flex; flex-direction: column; gap: 5px; }
+    .rpt-breakdown-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .rpt-breakdown-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .rpt-breakdown-name {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .rpt-breakdown-time {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .rpt-breakdown-pct {
       font-size: 12px;
       color: var(--text-muted);
-      margin-bottom: 12px;
+      white-space: nowrap;
+      min-width: 36px;
+      text-align: right;
     }
-    .rpt-summary-total { color: var(--text-secondary); font-weight: 500; }
+    .rpt-breakdown-track {
+      height: 4px;
+      background: var(--bg-hover);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .rpt-breakdown-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.4s ease;
+      opacity: 0.8;
+    }
+
+    /* ── Bulk-apply ticket (date range) ────────────── */
+    .rpt-week-apply {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .rpt-week-ticket-inp {
+      flex: 1;
+      min-width: 140px;
+      padding: 10px 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: monospace;
+      min-height: 44px;
+      transition: border-color 0.12s;
+    }
+    .rpt-week-ticket-inp:focus { outline: none; border-color: var(--highlight-selected); }
+    .rpt-week-ticket-inp::placeholder { color: var(--text-muted); font-family: inherit; }
+    .rpt-week-apply-btn {
+      flex: 2;
+      min-width: 200px;
+      padding: 10px 16px;
+      background: var(--highlight-selected);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 44px;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    .rpt-week-apply-btn:hover:not(:disabled) { opacity: 0.88; }
+    .rpt-week-apply-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
     /* ── Day-grouped list ──────────────────────────── */
     .rpt-list { display: flex; flex-direction: column; }
-
     .rpt-day-group { margin-bottom: 20px; }
     .rpt-day-group:last-child { margin-bottom: 0; }
 
     .rpt-day-hdr {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 5px 2px 7px;
+      flex-direction: column;
+      gap: 8px;
+      padding: 6px 2px 8px;
       margin-bottom: 6px;
       border-bottom: 1px solid var(--border);
+    }
+    .rpt-day-hdr-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
     .rpt-day-label {
       font-size: 11px;
@@ -612,45 +802,37 @@ interface DayGroup {
       color: #5BAD6F;
     }
 
-    .rpt-day-hdr-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
     .rpt-day-apply {
       display: flex;
-      align-items: center;
-      gap: 6px;
+      gap: 8px;
+      align-items: stretch;
     }
-
     .rpt-day-ticket-inp {
-      width: 120px;
-      padding: 4px 8px;
+      flex: 1;
+      min-width: 0;
+      padding: 8px 10px;
       background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text-primary);
-      font-size: 12px;
+      font-size: 13px;
       font-family: monospace;
+      min-height: 40px;
       transition: border-color 0.12s;
     }
-    .rpt-day-ticket-inp:focus {
-      outline: none;
-      border-color: var(--highlight-selected);
-    }
+    .rpt-day-ticket-inp:focus { outline: none; border-color: var(--highlight-selected); }
     .rpt-day-ticket-inp::placeholder { color: var(--text-muted); font-family: inherit; }
-
     .rpt-day-apply-btn {
-      padding: 4px 10px;
+      padding: 8px 14px;
       background: transparent;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text-secondary);
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 500;
       cursor: pointer;
       white-space: nowrap;
+      min-height: 40px;
       transition: background 0.12s, border-color 0.12s, color 0.12s;
     }
     .rpt-day-apply-btn:hover:not(:disabled) {
@@ -659,51 +841,6 @@ interface DayGroup {
       color: var(--highlight-selected);
     }
     .rpt-day-apply-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    /* ── Week-level bulk apply ─────────────────────── */
-    .rpt-week-apply {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 14px;
-      padding: 8px 12px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-    }
-
-    .rpt-week-ticket-inp {
-      flex: 1;
-      max-width: 200px;
-      padding: 6px 10px;
-      background: var(--bg-primary);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text-primary);
-      font-size: 13px;
-      font-family: monospace;
-      transition: border-color 0.12s;
-    }
-    .rpt-week-ticket-inp:focus {
-      outline: none;
-      border-color: var(--highlight-selected);
-    }
-    .rpt-week-ticket-inp::placeholder { color: var(--text-muted); font-family: inherit; }
-
-    .rpt-week-apply-btn {
-      padding: 6px 14px;
-      background: var(--highlight-selected);
-      border: none;
-      border-radius: var(--radius-sm);
-      color: #fff;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: opacity 0.15s;
-    }
-    .rpt-week-apply-btn:hover:not(:disabled) { opacity: 0.88; }
-    .rpt-week-apply-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
     .rpt-day-items { display: flex; flex-direction: column; gap: 6px; }
 
@@ -715,21 +852,20 @@ interface DayGroup {
       overflow: hidden;
       transition: border-color 0.15s;
     }
-    .rpt-item--expanded {
-      border-color: var(--highlight-selected);
-    }
+    .rpt-item--expanded { border-color: var(--highlight-selected); }
 
     .rpt-item-hdr {
       width: 100%;
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 12px;
+      padding: 12px;
       background: transparent;
       border: none;
       cursor: pointer;
       text-align: left;
       color: var(--text-primary);
+      min-height: 56px;
       transition: background 0.12s;
     }
     .rpt-item-hdr:hover { background: var(--bg-hover); }
@@ -737,7 +873,6 @@ interface DayGroup {
     .rpt-chevron {
       flex-shrink: 0;
       color: var(--text-muted);
-      transition: transform 0.15s;
     }
 
     .rpt-item-meta {
@@ -751,7 +886,7 @@ interface DayGroup {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .rpt-ticket {
@@ -760,13 +895,12 @@ interface DayGroup {
       color: var(--text-primary);
       white-space: nowrap;
       font-family: monospace;
-      min-width: 48px;
     }
     .rpt-ticket--na { color: var(--text-muted); font-weight: 400; }
 
     .rpt-start {
       font-size: 12px;
-      color: var(--text-secondary);
+      color: var(--text-muted);
       white-space: nowrap;
     }
 
@@ -792,13 +926,13 @@ interface DayGroup {
       flex-shrink: 0;
       font-size: 11px;
       font-weight: 500;
-      padding: 2px 8px;
+      padding: 3px 8px;
       border-radius: 10px;
     }
 
     /* ── Expanded body ─────────────────────────────── */
     .rpt-item-body {
-      padding: 12px 14px 14px;
+      padding: 14px;
       border-top: 1px solid var(--border);
       animation: rpt-fade-in 0.15s ease;
     }
@@ -811,13 +945,10 @@ interface DayGroup {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
-      margin-bottom: 12px;
-    }
-    @media (max-width: 520px) {
-      .rpt-edit-grid { grid-template-columns: 1fr; }
+      margin-bottom: 14px;
     }
 
-    .rpt-field { display: flex; flex-direction: column; gap: 4px; }
+    .rpt-field { display: flex; flex-direction: column; gap: 5px; }
     .rpt-field--full { grid-column: 1 / -1; }
 
     .rpt-field-lbl {
@@ -829,36 +960,25 @@ interface DayGroup {
     }
 
     .rpt-field-inp {
-      padding: 7px 10px;
+      padding: 10px 12px;
       background: var(--bg-primary);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text-primary);
-      font-size: 13px;
+      font-size: 15px;
       font-family: inherit;
+      min-height: 44px;
       transition: border-color 0.12s;
     }
-    .rpt-field-inp:focus {
-      outline: none;
-      border-color: var(--highlight-selected);
-    }
+    .rpt-field-inp:focus { outline: none; border-color: var(--highlight-selected); }
     .rpt-field-inp--err { border-color: #ef4444 !important; }
 
-    .rpt-field-ta {
-      resize: vertical;
-      min-height: 52px;
-    }
+    .rpt-field-ta { resize: vertical; min-height: 64px; }
 
-    .rpt-field-hint {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-    .rpt-field-err {
-      font-size: 11px;
-      color: #ef4444;
-    }
+    .rpt-field-hint { font-size: 11px; color: var(--text-muted); }
+    .rpt-field-err  { font-size: 11px; color: #ef4444; }
 
-    /* ── Actions ───────────────────────────────────── */
+    /* ── Edit actions ──────────────────────────────── */
     .rpt-actions {
       display: flex;
       align-items: center;
@@ -866,36 +986,36 @@ interface DayGroup {
       flex-wrap: wrap;
     }
     .rpt-save-btn {
-      padding: 7px 20px;
+      flex: 1;
+      padding: 11px 20px;
       background: var(--highlight-selected);
       border: none;
       border-radius: var(--radius-sm);
       color: #fff;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
+      min-height: 44px;
       transition: opacity 0.15s;
     }
     .rpt-save-btn:hover:not(:disabled) { opacity: 0.88; }
     .rpt-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .rpt-cancel-btn {
-      padding: 7px 14px;
+      padding: 11px 16px;
       background: transparent;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text-secondary);
-      font-size: 13px;
+      font-size: 14px;
       cursor: pointer;
+      min-height: 44px;
       transition: background 0.12s;
     }
     .rpt-cancel-btn:hover:not(:disabled) { background: var(--bg-hover); }
     .rpt-cancel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .rpt-save-err {
-      font-size: 12px;
-      color: #ef4444;
-    }
+    .rpt-save-err { font-size: 12px; color: #ef4444; width: 100%; }
 
     /* ── Empty state ───────────────────────────────── */
     .rpt-empty {
@@ -910,10 +1030,66 @@ interface DayGroup {
     .rpt-empty p { margin: 0; font-size: 14px; }
     .rpt-empty span { font-size: 12px; }
 
-    /* ── Mobile tweaks ─────────────────────────────── */
-    @media (max-width: 480px) {
-      .rpt-start  { display: none; }
-      .rpt-dt-row { flex-wrap: wrap; }
+    /* ── Mobile overrides (≤ 600px) ─────────────────── */
+    @media (max-width: 600px) {
+      .rpt-wrap { padding: 12px 8px 64px; }
+
+      /* Bottom sheet */
+      .rpt-cal-overlay { align-items: flex-end; }
+      .rpt-cal-popup {
+        border-radius: 16px 16px 0 0;
+        max-width: 100%;
+        max-height: 92dvh;
+        overflow-y: auto;
+        animation: rpt-sheet-in 0.22s ease;
+      }
+      .rpt-popup-drag-handle {
+        display: block;
+        width: 36px;
+        height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        margin: 10px auto 2px;
+      }
+      @keyframes rpt-sheet-in {
+        from { transform: translateY(60px); opacity: 0; }
+        to   { transform: translateY(0);    opacity: 1; }
+      }
+      /* Make the calendar fill the sheet width */
+      .rpt-cal-popup ::ng-deep .calendar-wrapper {
+        width: 100% !important;
+        box-sizing: border-box;
+      }
+
+      .rpt-header { margin-bottom: 12px; }
+      .rpt-title  { font-size: 16px; }
+      .rpt-export-btn span { display: none; }
+
+      /* Metrics: 1 row of 3 small cards, scrollable */
+      .rpt-metric-cards { grid-template-columns: repeat(3, 1fr); }
+      .rpt-metric-val   { font-size: 16px; }
+      .rpt-metric-lbl   { font-size: 10px; }
+
+      /* Bulk apply stacks */
+      .rpt-week-apply { flex-direction: column; }
+      .rpt-week-ticket-inp,
+      .rpt-week-apply-btn { width: 100%; min-width: 0; flex: none; }
+
+      /* Edit form: single column */
+      .rpt-edit-grid { grid-template-columns: 1fr; }
+      .rpt-field--full { grid-column: 1; }
+
+      /* Bigger action buttons */
+      .rpt-save-btn,
+      .rpt-cancel-btn { flex: 1; }
+
+      /* Hide timestamp on log rows */
+      .rpt-start { display: none; }
+    }
+
+    @media (max-width: 380px) {
+      .rpt-metric-val { font-size: 14px; }
+      .rpt-metric-card { padding: 10px 6px; }
     }
   `]
 })
@@ -931,6 +1107,9 @@ export class ReportComponent {
   pendingToDate:   Date | null = null;
   pendingStartTime = '00:00';
   pendingEndTime   = '23:59';
+
+  // ── Preset tracking ────────────────────────────────────────────────────────
+  activePreset: Preset | null = null;
 
   // ── List state ─────────────────────────────────────────────────────────────
   logs: ReportEntry[] = [];
@@ -979,12 +1158,38 @@ export class ReportComponent {
     return `${this.fmtDateBtn(this.fromDate)} → ${this.fmtDateBtn(this.toDate)}`;
   }
 
-  // ── Computed totals ────────────────────────────────────────────────────────
+  // ── Computed totals & metrics ──────────────────────────────────────────────
 
   get totalMins(): number {
     return this.logs.reduce((s, l) => s + (l.durationMins ?? 0), 0);
   }
   get totalJira(): string { return minsToJira(this.totalMins); }
+
+  get activeDaysCount(): number {
+    return this.groupedLogs.filter(g => g.totalMins > 0).length;
+  }
+
+  get avgJira(): string {
+    const days = this.activeDaysCount;
+    return days > 0 ? minsToJira(Math.round(this.totalMins / days)) : '—';
+  }
+
+  get logTypeBreakdown(): LogTypeBreakdown[] {
+    const map = new Map<string, LogTypeBreakdown>();
+    for (const log of this.logs) {
+      if (!log.logType || !log.durationMins) continue;
+      const key = log.logType.id;
+      if (!map.has(key)) {
+        map.set(key, { id: key, name: log.logType.name, color: log.logType.color, totalMins: 0 });
+      }
+      map.get(key)!.totalMins += log.durationMins;
+    }
+    return Array.from(map.values()).sort((a, b) => b.totalMins - a.totalMins);
+  }
+
+  pct(mins: number): number {
+    return this.totalMins > 0 ? Math.round(mins / this.totalMins * 100) : 0;
+  }
 
   get normalizedTimeSpent(): string {
     const mins = parseTimeSpentToMins(this.editForm.timeSpent);
@@ -1002,12 +1207,7 @@ export class ReportComponent {
     for (const log of this.logs) {
       const dateStr = log.startAtISO.slice(0, 10);
       if (!map.has(dateStr)) {
-        map.set(dateStr, {
-          dateStr,
-          dateLabel: formatDayLabel(dateStr),
-          totalMins: 0,
-          logs: []
-        });
+        map.set(dateStr, { dateStr, dateLabel: formatDayLabel(dateStr), totalMins: 0, logs: [] });
       }
       const g = map.get(dateStr)!;
       g.logs.push(log);
@@ -1028,7 +1228,6 @@ export class ReportComponent {
 
   onRangeDateClick(date: Date): void {
     if (this.pendingToDate) {
-      // Range already complete — start fresh
       this.pendingFromDate = date;
       this.pendingToDate   = null;
     } else if (!this.pendingFromDate) {
@@ -1036,21 +1235,29 @@ export class ReportComponent {
     } else if (date >= this.pendingFromDate) {
       this.pendingToDate = date;
     } else {
-      // Clicked before current start — reset start
       this.pendingFromDate = date;
     }
   }
 
   applyRange(): void {
     if (!this.pendingFromDate || !this.pendingToDate) return;
-    this.fromDate    = new Date(this.pendingFromDate);
-    this.toDate      = new Date(this.pendingToDate);
+    this.fromDate     = new Date(this.pendingFromDate);
+    this.toDate       = new Date(this.pendingToDate);
     this.startTimeStr = this.pendingStartTime;
     this.endTimeStr   = this.pendingEndTime;
+    this.activePreset = null;
     this.showRangeCal = false;
   }
 
-  setQuick(preset: 'last10' | 'thisWeek' | 'currentMonth' | 'lastMonth'): void {
+  onRangeOverlay(event: MouseEvent): void {
+    if ((event.target as HTMLElement).classList.contains('rpt-cal-overlay')) {
+      this.showRangeCal = false;
+    }
+  }
+
+  // ── Quick presets (on main page — directly fetches) ───────────────────────
+
+  applyPreset(preset: Preset): void {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     let from: Date, to: Date = new Date(today);
@@ -1075,16 +1282,12 @@ export class ReportComponent {
         break;
     }
 
-    this.pendingFromDate  = from!;
-    this.pendingToDate    = to;
-    this.pendingStartTime = '00:00';
-    this.pendingEndTime   = '23:59';
-  }
-
-  onRangeOverlay(event: MouseEvent): void {
-    if ((event.target as HTMLElement).classList.contains('rpt-cal-overlay')) {
-      this.showRangeCal = false;
-    }
+    this.fromDate     = from!;
+    this.toDate       = to;
+    this.startTimeStr = '00:00';
+    this.endTimeStr   = '23:59';
+    this.activePreset = preset;
+    this.fetchLogs();
   }
 
   // ── Fetch logs ─────────────────────────────────────────────────────────────
@@ -1099,7 +1302,6 @@ export class ReportComponent {
     this.fetchError = '';
     this.expandedId = null;
 
-    // Build ISO boundary strings for client-side time filtering (UTC)
     const startFilter = `${this.startDateStr}T${this.startTimeStr}:00.000Z`;
     const endFilter   = `${this.endDateStr}T${this.endTimeStr}:59.999Z`;
 
@@ -1122,13 +1324,10 @@ export class ReportComponent {
   // ── Accordion ──────────────────────────────────────────────────────────────
 
   toggleExpand(log: ReportEntry): void {
-    if (this.expandedId === log.id) {
-      this.cancelEdit();
-      return;
-    }
-    this.expandedId  = log.id;
-    this.editErrors  = {};
-    this.saveError   = '';
+    if (this.expandedId === log.id) { this.cancelEdit(); return; }
+    this.expandedId = log.id;
+    this.editErrors = {};
+    this.saveError  = '';
     this.editForm = {
       ticketId:  log.ticketId ?? '',
       startDate: isoToDisplay(log.startAtISO),
@@ -1173,14 +1372,12 @@ export class ReportComponent {
     const durationMins = parseTimeSpentToMins(this.editForm.timeSpent)!;
     const oldDateStr   = log.startAtISO.slice(0, 10);
 
-    this.isSaving = true;
+    this.isSaving  = true;
     this.saveError = '';
 
     this.logService.updateLogReport(log.id, {
-      title:      this.editForm.comment,
-      ticketId:   this.editForm.ticketId || null,
-      startAtISO,
-      durationMins,
+      title: this.editForm.comment, ticketId: this.editForm.ticketId || null,
+      startAtISO, durationMins,
     }, oldDateStr).subscribe({
       next: (updated: any) => {
         const idx = this.logs.findIndex(l => l.id === log.id);
@@ -1205,7 +1402,7 @@ export class ReportComponent {
     });
   }
 
-  // ── Bulk-apply ticket to all logs in the report ──────────────────────────
+  // ── Bulk-apply ticket to all logs in the report ───────────────────────────
 
   applyTicketToWeek(): void {
     const ticketId = this.weekTicketInput.trim();
