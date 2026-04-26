@@ -3712,6 +3712,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   renniInput    = '';
   renniThinking = false;
   private uniTouchStartX = 0;
+  private uniTouchStartY = 0;
 
   // ── 1.82: Quick Prefs ─────────────────────────────────────────
   quickPrefsOpen    = false;
@@ -4731,9 +4732,12 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   onUnifiedSwipeStart(e: TouchEvent): void {
     this.uniTouchStartX = e.changedTouches[0].clientX;
+    this.uniTouchStartY = e.changedTouches[0].clientY;
   }
   onUnifiedSwipeEnd(e: TouchEvent): void {
     const dx = e.changedTouches[0].clientX - this.uniTouchStartX;
+    const dy = e.changedTouches[0].clientY - this.uniTouchStartY;
+    if (Math.abs(dx) <= Math.abs(dy)) return; // vertical scroll — don't switch tabs
     if (dx > 60 && this.unifiedSheetTab > 0) {
       this.unifiedSheetTab = (this.unifiedSheetTab - 1) as 0|1|2|3;
       this._onTabSwitch();

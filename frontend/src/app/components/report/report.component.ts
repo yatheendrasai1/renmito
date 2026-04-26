@@ -210,6 +210,18 @@ interface DayGroup {
     <span class="rpt-summary-total" *ngIf="totalMins > 0">{{ totalJira }} total</span>
   </div>
 
+  <!-- ── Bulk-apply ticket to all logs ────────────── -->
+  <div class="rpt-week-apply" *ngIf="logs.length > 0">
+    <input class="rpt-week-ticket-inp" type="text"
+           placeholder="Ticket No"
+           [(ngModel)]="weekTicketInput">
+    <button class="rpt-week-apply-btn"
+            (click)="applyTicketToWeek()"
+            [disabled]="applyingWeek || !weekTicketInput.trim()">
+      {{ applyingWeek ? 'Applying…' : 'Apply to week' }}
+    </button>
+  </div>
+
   <!-- ── Accordion list grouped by day ─────────────── -->
   <div class="rpt-list" *ngIf="logs.length > 0">
     <div class="rpt-day-group" *ngFor="let group of groupedLogs">
@@ -217,7 +229,19 @@ interface DayGroup {
       <!-- Day header -->
       <div class="rpt-day-hdr">
         <span class="rpt-day-label">{{ group.dateLabel }}</span>
-        <span class="rpt-day-total" *ngIf="group.totalMins > 0">{{ fmt(group.totalMins) }}</span>
+        <div class="rpt-day-hdr-right">
+          <span class="rpt-day-total" *ngIf="group.totalMins > 0">{{ fmt(group.totalMins) }}</span>
+          <div class="rpt-day-apply">
+            <input class="rpt-day-ticket-inp" type="text"
+                   placeholder="Ticket No"
+                   [(ngModel)]="dayTicketInputs[group.dateStr]">
+            <button class="rpt-day-apply-btn"
+                    (click)="applyTicketToDay(group)"
+                    [disabled]="applyingDay === group.dateStr || !dayTicketInputs[group.dateStr]?.trim()">
+              {{ applyingDay === group.dateStr ? 'Applying…' : 'Apply to day' }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Logs in this day -->
@@ -556,6 +580,99 @@ interface DayGroup {
       color: #5BAD6F;
     }
 
+    .rpt-day-hdr-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .rpt-day-apply {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .rpt-day-ticket-inp {
+      width: 120px;
+      padding: 4px 8px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-family: monospace;
+      transition: border-color 0.12s;
+    }
+    .rpt-day-ticket-inp:focus {
+      outline: none;
+      border-color: var(--highlight-selected);
+    }
+    .rpt-day-ticket-inp::placeholder { color: var(--text-muted); font-family: inherit; }
+
+    .rpt-day-apply-btn {
+      padding: 4px 10px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .rpt-day-apply-btn:hover:not(:disabled) {
+      background: var(--bg-hover);
+      border-color: var(--highlight-selected);
+      color: var(--highlight-selected);
+    }
+    .rpt-day-apply-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Week-level bulk apply ─────────────────────── */
+    .rpt-week-apply {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      padding: 8px 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .rpt-week-ticket-inp {
+      flex: 1;
+      max-width: 200px;
+      padding: 6px 10px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: monospace;
+      transition: border-color 0.12s;
+    }
+    .rpt-week-ticket-inp:focus {
+      outline: none;
+      border-color: var(--highlight-selected);
+    }
+    .rpt-week-ticket-inp::placeholder { color: var(--text-muted); font-family: inherit; }
+
+    .rpt-week-apply-btn {
+      padding: 6px 14px;
+      background: var(--highlight-selected);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    .rpt-week-apply-btn:hover:not(:disabled) { opacity: 0.88; }
+    .rpt-week-apply-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
     .rpt-day-items { display: flex; flex-direction: column; gap: 6px; }
 
     /* ── Accordion item ────────────────────────────── */
@@ -796,6 +913,12 @@ export class ReportComponent {
   isSaving  = false;
   saveError = '';
 
+  // ── Bulk-apply ticket state ────────────────────────────────────────────────
+  dayTicketInputs: Record<string, string> = {};
+  applyingDay: string | null = null;
+  weekTicketInput = '';
+  applyingWeek = false;
+
   formatDisplay = isoToDisplay;
   fmt = minsToJira;
 
@@ -1009,6 +1132,52 @@ export class ReportComponent {
         this.isSaving  = false;
       }
     });
+  }
+
+  // ── Bulk-apply ticket to all logs in the report ──────────────────────────
+
+  applyTicketToWeek(): void {
+    const ticketId = this.weekTicketInput.trim();
+    if (!ticketId || this.applyingWeek) return;
+
+    this.applyingWeek = true;
+    let pending = this.logs.length;
+
+    for (const log of this.logs) {
+      this.logService.updateLogReport(log.id, { ticketId }, log.startAtISO.slice(0, 10)).subscribe({
+        next: (updated: any) => {
+          const idx = this.logs.findIndex(l => l.id === log.id);
+          if (idx !== -1) this.logs[idx] = { ...this.logs[idx], ticketId: updated.ticketId ?? ticketId };
+          if (--pending === 0) { this.rebuildGroups(); this.applyingWeek = false; }
+        },
+        error: () => {
+          if (--pending === 0) { this.rebuildGroups(); this.applyingWeek = false; }
+        }
+      });
+    }
+  }
+
+  // ── Bulk-apply ticket to all logs in a day ────────────────────────────────
+
+  applyTicketToDay(group: DayGroup): void {
+    const ticketId = (this.dayTicketInputs[group.dateStr] ?? '').trim();
+    if (!ticketId || this.applyingDay) return;
+
+    this.applyingDay = group.dateStr;
+    let pending = group.logs.length;
+
+    for (const log of group.logs) {
+      this.logService.updateLogReport(log.id, { ticketId }, log.startAtISO.slice(0, 10)).subscribe({
+        next: (updated: any) => {
+          const idx = this.logs.findIndex(l => l.id === log.id);
+          if (idx !== -1) this.logs[idx] = { ...this.logs[idx], ticketId: updated.ticketId ?? ticketId };
+          if (--pending === 0) { this.rebuildGroups(); this.applyingDay = null; }
+        },
+        error: () => {
+          if (--pending === 0) { this.rebuildGroups(); this.applyingDay = null; }
+        }
+      });
+    }
   }
 
   // ── Export CSV ─────────────────────────────────────────────────────────────
