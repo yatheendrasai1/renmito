@@ -1247,6 +1247,7 @@ export class ReportComponent {
     this.endTimeStr   = this.pendingEndTime;
     this.activePreset = null;
     this.showRangeCal = false;
+    this.fetchLogs();
   }
 
   onRangeOverlay(event: MouseEvent): void {
