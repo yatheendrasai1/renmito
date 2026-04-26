@@ -44,15 +44,17 @@ const quickShortcutSchema = new mongoose.Schema(
  */
 const daySettingsSchema = new mongoose.Schema(
   {
-    workStart:       { type: String, default: '09:00' },
-    workEnd:         { type: String, default: '18:00' },
-    officeReach:     { type: String, default: '09:00' },
-    officeLeave:     { type: String, default: '18:00' },
+    wakeTarget:      { type: String, default: '06:30' },
     breakfastTarget: { type: String, default: '08:00' },
     lunchTarget:     { type: String, default: '13:00' },
     dinnerTarget:    { type: String, default: '20:00' },
+    workStart:       { type: String, default: '09:00' },
+    workEnd:         { type: String, default: '18:00' },
+    commuteStart:    { type: String, default: '08:30' }, // leave home for office
+    officeReach:     { type: String, default: '09:00' }, // arrive at office
+    officeLeave:     { type: String, default: '18:00' }, // leave office for home
+    homeReach:       { type: String, default: '19:00' }, // arrive at home
     bedtimeTarget:   { type: String, default: '23:00' },
-    wakeTarget:      { type: String, default: '06:30' },
   },
   { _id: false }
 );

@@ -4,6 +4,7 @@ import { Observable, of, shareReplay } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { ColorPalette } from '../components/theme-editor/theme-editor.component';
+import { DaySettings } from './day-level.service';
 
 /** 1.82 — A single entry in the user's configured quick shortcuts bar. */
 export interface QuickShortcut {
@@ -24,7 +25,10 @@ export interface UserPreferences {
   customPresets:  ColorPalette[];
   activeLog:      ActiveLog | null;
   quickShortcuts: QuickShortcut[];
+  daySettings:    DaySettings | null;
 }
+
+export type { DaySettings };
 
 @Injectable({ providedIn: 'root' })
 export class PreferenceService {
@@ -143,6 +147,20 @@ export class PreferenceService {
         catchError(err => {
           console.warn('Could not stop active log:', err?.message);
           return of(undefined);
+        })
+      );
+  }
+
+  /** Saves the user's ideal-day schedule targets. */
+  updateDaySettings(settings: Partial<DaySettings>): Observable<DaySettings | null> {
+    return this.http
+      .put<{ daySettings: DaySettings }>(`${this.apiBase}/day-settings`, settings)
+      .pipe(
+        tap(() => this.clearPrefsCache()),
+        map(res => res?.daySettings ?? null),
+        catchError(err => {
+          console.warn('Could not update day settings:', err?.message);
+          return of(null);
         })
       );
   }

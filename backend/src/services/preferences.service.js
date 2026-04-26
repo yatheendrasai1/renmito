@@ -131,9 +131,10 @@ async function updateQuickShortcuts(userId, shortcuts) {
  */
 async function updateDaySettings(userId, settings) {
   const allowed = [
-    'workStart', 'workEnd', 'officeReach', 'officeLeave',
-    'breakfastTarget', 'lunchTarget', 'dinnerTarget',
-    'bedtimeTarget', 'wakeTarget',
+    'wakeTarget', 'breakfastTarget', 'lunchTarget', 'dinnerTarget',
+    'workStart', 'workEnd',
+    'commuteStart', 'officeReach', 'officeLeave', 'homeReach',
+    'bedtimeTarget',
   ];
   const update = {};
   for (const key of allowed) {

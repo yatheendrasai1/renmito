@@ -2,6 +2,21 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ConfigService } from '../../services/config.service';
+import { PreferenceService, DaySettings } from '../../services/preference.service';
+
+const DEFAULT_DAY_SETTINGS: DaySettings = {
+  wakeTarget:      '06:30',
+  breakfastTarget: '08:00',
+  lunchTarget:     '13:00',
+  dinnerTarget:    '20:00',
+  workStart:       '09:00',
+  workEnd:         '18:00',
+  commuteStart:    '08:30',
+  officeReach:     '09:00',
+  officeLeave:     '18:00',
+  homeReach:       '19:00',
+  bedtimeTarget:   '23:00',
+};
 
 @Component({
   selector: 'app-configuration',
@@ -12,6 +27,105 @@ import { ConfigService } from '../../services/config.service';
       <div class="config-section-header">
         <h2 class="config-section-title">Configurations</h2>
         <p class="config-section-sub">Manage integrations and account-level settings.</p>
+      </div>
+
+      <!-- My Ideal Day card -->
+      <div class="config-card">
+        <div class="config-card-header">
+          <div class="config-card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div class="config-card-info">
+            <span class="config-card-name">My Ideal Day</span>
+            <span class="config-card-desc">Target times for a well-structured day</span>
+          </div>
+        </div>
+
+        <div class="config-card-body">
+
+          <div class="ideal-group">
+            <div class="ideal-group-label">Daily routine</div>
+            <div class="ideal-grid">
+              <div class="ideal-field">
+                <label class="ideal-label">Wake up by</label>
+                <input class="ideal-input" type="time" [(ngModel)]="idealDay.wakeTarget"/>
+              </div>
+              <div class="ideal-field">
+                <label class="ideal-label">Breakfast by</label>
+                <input class="ideal-input" type="time" [(ngModel)]="idealDay.breakfastTarget"/>
+              </div>
+              <div class="ideal-field">
+                <label class="ideal-label">Lunch by</label>
+                <input class="ideal-input" type="time" [(ngModel)]="idealDay.lunchTarget"/>
+              </div>
+              <div class="ideal-field">
+                <label class="ideal-label">Dinner by</label>
+                <input class="ideal-input" type="time" [(ngModel)]="idealDay.dinnerTarget"/>
+              </div>
+              <div class="ideal-field">
+                <label class="ideal-label">Sleep by</label>
+                <input class="ideal-input" type="time" [(ngModel)]="idealDay.bedtimeTarget"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="ideal-group">
+            <div class="ideal-group-label">Office work</div>
+            <div class="ideal-grid">
+              <div class="ideal-field">
+                <label class="ideal-label">Start work by</label>
+                <input class="ideal-input" type="time" [(ngModel)]="idealDay.workStart"/>
+              </div>
+              <div class="ideal-field">
+                <label class="ideal-label">End work by</label>
+                <input class="ideal-input" type="time" [(ngModel)]="idealDay.workEnd"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="ideal-group">
+            <div class="ideal-group-label">Commute to office</div>
+            <div class="ideal-grid">
+              <div class="ideal-field">
+                <label class="ideal-label">Start to office by</label>
+                <input class="ideal-input" type="time" [(ngModel)]="idealDay.commuteStart"/>
+              </div>
+              <div class="ideal-field">
+                <label class="ideal-label">Reach office by</label>
+                <input class="ideal-input" type="time" [(ngModel)]="idealDay.officeReach"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="ideal-group">
+            <div class="ideal-group-label">Commute home</div>
+            <div class="ideal-grid">
+              <div class="ideal-field">
+                <label class="ideal-label">Start to home by</label>
+                <input class="ideal-input" type="time" [(ngModel)]="idealDay.officeLeave"/>
+              </div>
+              <div class="ideal-field">
+                <label class="ideal-label">Reach home by</label>
+                <input class="ideal-input" type="time" [(ngModel)]="idealDay.homeReach"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="config-feedback config-feedback--error" *ngIf="idealErrorMsg">{{ idealErrorMsg }}</div>
+          <div class="config-feedback config-feedback--ok"    *ngIf="idealSuccessMsg">{{ idealSuccessMsg }}</div>
+
+          <div class="config-card-actions">
+            <button class="config-save-btn"
+                    (click)="saveIdealDay()"
+                    [disabled]="savingIdealDay">
+              {{ savingIdealDay ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Gemini integration card -->
@@ -159,6 +273,21 @@ import { ConfigService } from '../../services/config.service';
     }
     .config-save-btn:hover:not(:disabled) { opacity: 0.85; }
     .config-save-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* My Ideal Day */
+    .ideal-group        { display: flex; flex-direction: column; gap: 8px; }
+    .ideal-group-label  { font-size: 0.73rem; font-weight: 700; letter-spacing: 0.06em;
+                          text-transform: uppercase; opacity: 0.45; }
+    .ideal-grid         { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+    .ideal-field        { display: flex; flex-direction: column; gap: 4px; }
+    .ideal-label        { font-size: 0.76rem; font-weight: 600; opacity: 0.6; }
+    .ideal-input {
+      padding: 7px 9px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 7px; color: inherit; font-size: 0.84rem;
+      color-scheme: dark;
+    }
+    .ideal-input:focus { outline: none; border-color: rgba(255,255,255,0.3); }
   `]
 })
 export class ConfigurationComponent implements OnInit {
@@ -169,12 +298,51 @@ export class ConfigurationComponent implements OnInit {
   errorMsg         = '';
   successMsg       = '';
 
-  constructor(private configService: ConfigService) {}
+  idealDay: DaySettings = { ...DEFAULT_DAY_SETTINGS };
+  savingIdealDay  = false;
+  idealErrorMsg   = '';
+  idealSuccessMsg = '';
+
+  constructor(
+    private configService: ConfigService,
+    private prefService: PreferenceService,
+  ) {}
 
   ngOnInit(): void {
     this.configService.getConfig().subscribe({
       next: cfg => { this.geminiConfigured = cfg.geminiConfigured; },
       error: () => {}
+    });
+    this.prefService.getPreferences().subscribe({
+      next: prefs => {
+        if (prefs?.daySettings) {
+          this.idealDay = { ...DEFAULT_DAY_SETTINGS, ...prefs.daySettings };
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  saveIdealDay(): void {
+    if (this.savingIdealDay) return;
+    this.savingIdealDay  = true;
+    this.idealErrorMsg   = '';
+    this.idealSuccessMsg = '';
+    this.prefService.updateDaySettings(this.idealDay).subscribe({
+      next: saved => {
+        this.savingIdealDay = false;
+        if (saved) {
+          this.idealDay        = { ...DEFAULT_DAY_SETTINGS, ...saved };
+          this.idealSuccessMsg = 'Ideal day saved.';
+          setTimeout(() => { this.idealSuccessMsg = ''; }, 3000);
+        } else {
+          this.idealErrorMsg = 'Could not save. Please try again.';
+        }
+      },
+      error: () => {
+        this.savingIdealDay = false;
+        this.idealErrorMsg  = 'Could not save. Please try again.';
+      }
     });
   }
 

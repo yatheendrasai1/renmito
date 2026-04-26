@@ -29,15 +29,17 @@ export interface DayMetadata {
 }
 
 export interface DaySettings {
-  workStart:       string;
-  workEnd:         string;
-  officeReach:     string;
-  officeLeave:     string;
+  wakeTarget:      string;
   breakfastTarget: string;
   lunchTarget:     string;
   dinnerTarget:    string;
+  workStart:       string;
+  workEnd:         string;
+  commuteStart:    string;
+  officeReach:     string;
+  officeLeave:     string;
+  homeReach:       string;
   bedtimeTarget:   string;
-  wakeTarget:      string;
 }
 
 @Injectable({ providedIn: 'root' })
