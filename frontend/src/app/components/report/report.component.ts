@@ -118,22 +118,49 @@ interface DayGroup {
   template: `
 <div class="rpt-wrap">
 
-  <!-- ── Calendar overlays ─────────────────────────── -->
-  <div class="rpt-cal-overlay" *ngIf="showFromCal" (click)="onFromOverlay($event)">
+  <!-- ── Range picker overlay ──────────────────────── -->
+  <div class="rpt-cal-overlay" *ngIf="showRangeCal" (click)="onRangeOverlay($event)">
     <div class="rpt-cal-popup">
-      <app-calendar [selectedDate]="pendingFromDate" (dateSelected)="pendingFromDate = $event"></app-calendar>
-      <div class="rpt-cal-actions">
-        <button class="rpt-cal-cancel" (click)="showFromCal = false">Cancel</button>
-        <button class="rpt-cal-apply"  (click)="applyFromDate()">Apply</button>
+
+      <!-- Hint -->
+      <div class="rpt-range-hint">
+        <ng-container *ngIf="!pendingFromDate">Click to select start date</ng-container>
+        <ng-container *ngIf="pendingFromDate && !pendingToDate">Now click the end date</ng-container>
+        <ng-container *ngIf="pendingFromDate && pendingToDate">
+          {{ fmtDateBtn(pendingFromDate) }} → {{ fmtDateBtn(pendingToDate) }}
+        </ng-container>
       </div>
-    </div>
-  </div>
-  <div class="rpt-cal-overlay" *ngIf="showToCal" (click)="onToOverlay($event)">
-    <div class="rpt-cal-popup">
-      <app-calendar [selectedDate]="pendingToDate" (dateSelected)="pendingToDate = $event"></app-calendar>
+
+      <!-- Calendar in range mode -->
+      <app-calendar
+        [rangeFrom]="pendingFromDate"
+        [rangeTo]="pendingToDate"
+        (dateSelected)="onRangeDateClick($event)">
+      </app-calendar>
+
+      <!-- Quick presets -->
+      <div class="rpt-presets">
+        <button class="rpt-preset-btn" (click)="setQuick('last10')">Last 10 days</button>
+        <button class="rpt-preset-btn" (click)="setQuick('thisWeek')">This week</button>
+        <button class="rpt-preset-btn" (click)="setQuick('currentMonth')">Current month</button>
+        <button class="rpt-preset-btn" (click)="setQuick('lastMonth')">Last month</button>
+      </div>
+
+      <!-- Time inputs -->
+      <div class="rpt-time-row">
+        <div class="rpt-time-group">
+          <label class="rpt-time-lbl">From time (UTC)</label>
+          <input type="time" class="rpt-time-input" [(ngModel)]="pendingStartTime">
+        </div>
+        <div class="rpt-time-group">
+          <label class="rpt-time-lbl">To time (UTC)</label>
+          <input type="time" class="rpt-time-input" [(ngModel)]="pendingEndTime">
+        </div>
+      </div>
+
       <div class="rpt-cal-actions">
-        <button class="rpt-cal-cancel" (click)="showToCal = false">Cancel</button>
-        <button class="rpt-cal-apply"  (click)="applyToDate()">Apply</button>
+        <button class="rpt-cal-cancel" (click)="showRangeCal = false">Cancel</button>
+        <button class="rpt-cal-apply"  (click)="applyRange()" [disabled]="!pendingToDate">Apply</button>
       </div>
     </div>
   </div>
@@ -158,42 +185,17 @@ interface DayGroup {
 
   <!-- ── Date/time range bar ────────────────────────── -->
   <div class="rpt-range-bar">
-
-    <div class="rpt-dt-group">
-      <span class="rpt-range-text">From</span>
-      <div class="rpt-dt-row">
-        <button class="rpt-dt-btn" (click)="openFromCal()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8"  y1="2" x2="8"  y2="6"/>
-            <line x1="3"  y1="10" x2="21" y2="10"/>
-          </svg>
-          {{ fromDateLabel }}
-        </button>
-        <input type="time" class="rpt-time-input" [(ngModel)]="startTimeStr" title="Start time (UTC)">
-      </div>
-    </div>
-
-    <div class="rpt-dt-group">
-      <span class="rpt-range-text">To</span>
-      <div class="rpt-dt-row">
-        <button class="rpt-dt-btn" (click)="openToCal()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8"  y1="2" x2="8"  y2="6"/>
-            <line x1="3"  y1="10" x2="21" y2="10"/>
-          </svg>
-          {{ toDateLabel }}
-        </button>
-        <input type="time" class="rpt-time-input" [(ngModel)]="endTimeStr" title="End time (UTC)">
-      </div>
-    </div>
+    <button class="rpt-dt-btn" (click)="openRangeCal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8"  y1="2" x2="8"  y2="6"/>
+        <line x1="3"  y1="10" x2="21" y2="10"/>
+      </svg>
+      {{ rangeLabel }}
+    </button>
 
     <button class="rpt-fetch-btn" (click)="fetchLogs()" [disabled]="isFetching">
       {{ isFetching ? 'Loading…' : 'Fetch Logs' }}
@@ -218,7 +220,7 @@ interface DayGroup {
     <button class="rpt-week-apply-btn"
             (click)="applyTicketToWeek()"
             [disabled]="applyingWeek || !weekTicketInput.trim()">
-      {{ applyingWeek ? 'Applying…' : 'Apply to week' }}
+      {{ applyingWeek ? 'Applying…' : 'Apply for the selected date range' }}
     </button>
   </div>
 
@@ -464,33 +466,15 @@ interface DayGroup {
     /* ── Date/time range bar ───────────────────────── */
     .rpt-range-bar {
       display: flex;
-      flex-wrap: wrap;
-      align-items: flex-end;
+      align-items: center;
       gap: 10px;
       margin-bottom: 14px;
-    }
-    .rpt-dt-group {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .rpt-dt-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .rpt-range-text {
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
     }
     .rpt-dt-btn {
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 7px 10px;
+      gap: 8px;
+      padding: 7px 14px;
       background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
@@ -505,15 +489,63 @@ interface DayGroup {
       background: var(--bg-hover);
       border-color: var(--highlight-selected);
     }
+
+    /* ── Range picker popup extras ─────────────────── */
+    .rpt-range-hint {
+      padding: 8px 16px 4px;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .rpt-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px 16px 4px;
+      border-top: 1px solid var(--border);
+    }
+    .rpt-preset-btn {
+      padding: 5px 12px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .rpt-preset-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--highlight-selected);
+      color: var(--highlight-selected);
+    }
+
+    .rpt-time-row {
+      display: flex;
+      gap: 16px;
+      padding: 10px 16px 4px;
+    }
+    .rpt-time-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .rpt-time-lbl {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
     .rpt-time-input {
-      padding: 7px 8px;
-      background: var(--bg-surface);
+      padding: 6px 8px;
+      background: var(--bg-primary);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text-primary);
       font-size: 13px;
-      width: 110px;
-      height: 34px;
+      width: 120px;
     }
     .rpt-time-input:focus {
       outline: none;
@@ -893,11 +925,12 @@ export class ReportComponent {
   startTimeStr = '00:00';
   endTimeStr   = '23:59';
 
-  // ── Calendar popups ────────────────────────────────────────────────────────
-  showFromCal    = false;
-  showToCal      = false;
-  pendingFromDate!: Date;
-  pendingToDate!: Date;
+  // ── Range picker popup ─────────────────────────────────────────────────────
+  showRangeCal    = false;
+  pendingFromDate: Date | null = null;
+  pendingToDate:   Date | null = null;
+  pendingStartTime = '00:00';
+  pendingEndTime   = '23:59';
 
   // ── List state ─────────────────────────────────────────────────────────────
   logs: ReportEntry[] = [];
@@ -924,11 +957,11 @@ export class ReportComponent {
 
   constructor(private logService: LogService) {
     const today = new Date();
-    this.toDate   = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const weekAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6);
+    today.setHours(0, 0, 0, 0);
+    this.toDate = new Date(today);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 6);
     this.fromDate = weekAgo;
-    this.pendingFromDate = new Date(this.fromDate);
-    this.pendingToDate   = new Date(this.toDate);
   }
 
   // ── Computed date strings ──────────────────────────────────────────────────
@@ -936,13 +969,14 @@ export class ReportComponent {
   get startDateStr(): string { return dateToStr(this.fromDate); }
   get endDateStr():   string { return dateToStr(this.toDate); }
 
-  get fromDateLabel(): string { return this.fmtDateBtn(this.fromDate); }
-  get toDateLabel():   string { return this.fmtDateBtn(this.toDate); }
-
-  private fmtDateBtn(date: Date): string {
+  fmtDateBtn(date: Date): string {
     const dd  = String(date.getDate()).padStart(2, '0');
     const mmm = MONTHS[date.getMonth()];
     return `${dd}-${mmm}-${date.getFullYear()}`;
+  }
+
+  get rangeLabel(): string {
+    return `${this.fmtDateBtn(this.fromDate)} → ${this.fmtDateBtn(this.toDate)}`;
   }
 
   // ── Computed totals ────────────────────────────────────────────────────────
@@ -982,37 +1016,74 @@ export class ReportComponent {
     this.groupedLogs = Array.from(map.values());
   }
 
-  // ── Calendar popup handlers ────────────────────────────────────────────────
+  // ── Range picker handlers ──────────────────────────────────────────────────
 
-  openFromCal(): void {
-    this.pendingFromDate = new Date(this.fromDate);
-    this.showFromCal = true;
+  openRangeCal(): void {
+    this.pendingFromDate  = new Date(this.fromDate);
+    this.pendingToDate    = new Date(this.toDate);
+    this.pendingStartTime = this.startTimeStr;
+    this.pendingEndTime   = this.endTimeStr;
+    this.showRangeCal = true;
   }
 
-  openToCal(): void {
-    this.pendingToDate = new Date(this.toDate);
-    this.showToCal = true;
-  }
-
-  applyFromDate(): void {
-    this.fromDate    = new Date(this.pendingFromDate);
-    this.showFromCal = false;
-  }
-
-  applyToDate(): void {
-    this.toDate    = new Date(this.pendingToDate);
-    this.showToCal = false;
-  }
-
-  onFromOverlay(event: MouseEvent): void {
-    if ((event.target as HTMLElement).classList.contains('rpt-cal-overlay')) {
-      this.showFromCal = false;
+  onRangeDateClick(date: Date): void {
+    if (this.pendingToDate) {
+      // Range already complete — start fresh
+      this.pendingFromDate = date;
+      this.pendingToDate   = null;
+    } else if (!this.pendingFromDate) {
+      this.pendingFromDate = date;
+    } else if (date >= this.pendingFromDate) {
+      this.pendingToDate = date;
+    } else {
+      // Clicked before current start — reset start
+      this.pendingFromDate = date;
     }
   }
 
-  onToOverlay(event: MouseEvent): void {
+  applyRange(): void {
+    if (!this.pendingFromDate || !this.pendingToDate) return;
+    this.fromDate    = new Date(this.pendingFromDate);
+    this.toDate      = new Date(this.pendingToDate);
+    this.startTimeStr = this.pendingStartTime;
+    this.endTimeStr   = this.pendingEndTime;
+    this.showRangeCal = false;
+  }
+
+  setQuick(preset: 'last10' | 'thisWeek' | 'currentMonth' | 'lastMonth'): void {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let from: Date, to: Date = new Date(today);
+
+    switch (preset) {
+      case 'last10':
+        from = new Date(today);
+        from.setDate(today.getDate() - 9);
+        break;
+      case 'thisWeek': {
+        const dow = today.getDay() === 0 ? 6 : today.getDay() - 1;
+        from = new Date(today);
+        from.setDate(today.getDate() - dow);
+        break;
+      }
+      case 'currentMonth':
+        from = new Date(today.getFullYear(), today.getMonth(), 1);
+        break;
+      case 'lastMonth':
+        from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        to   = new Date(today.getFullYear(), today.getMonth(), 0);
+        break;
+    }
+
+    this.pendingFromDate  = from!;
+    this.pendingToDate    = to;
+    this.pendingStartTime = '00:00';
+    this.pendingEndTime   = '23:59';
+  }
+
+  onRangeOverlay(event: MouseEvent): void {
     if ((event.target as HTMLElement).classList.contains('rpt-cal-overlay')) {
-      this.showToCal = false;
+      this.showRangeCal = false;
     }
   }
 

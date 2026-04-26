@@ -1,6 +1,7 @@
 import {
   Component,
   OnInit,
+  OnChanges,
   Output,
   EventEmitter,
   Input,
@@ -16,6 +17,9 @@ interface CalendarDay {
   isSelected: boolean;
   isCurrentMonth: boolean;
   workMins: number | null;
+  isRangeStart: boolean;
+  isRangeEnd: boolean;
+  isInRange: boolean;
 }
 
 @Component({
@@ -48,6 +52,9 @@ interface CalendarDay {
           [class.today]="day.isToday"
           [class.selected]="day.isSelected"
           [class.other-month]="!day.isCurrentMonth && day.date"
+          [class.range-start]="day.isRangeStart"
+          [class.range-end]="day.isRangeEnd"
+          [class.in-range]="day.isInRange"
           (click)="day.date && selectDate(day.date)"
         >
           <ng-container *ngIf="day.date">
@@ -196,10 +203,25 @@ interface CalendarDay {
       background: var(--accent-hover);
       color: var(--text-primary);
     }
+
+    .day-cell.in-range {
+      background: color-mix(in srgb, var(--highlight-selected) 14%, transparent);
+      border-radius: 0;
+    }
+    .day-cell.range-start,
+    .day-cell.range-end {
+      background: color-mix(in srgb, var(--highlight-selected) 14%, transparent);
+      border-radius: 0;
+    }
+    .day-cell.range-start { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+    .day-cell.range-end   { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+    .day-cell.range-start.range-end { border-radius: var(--radius-sm); }
   `]
 })
-export class CalendarComponent implements OnInit {
+export class CalendarComponent implements OnInit, OnChanges {
   @Input() selectedDate: Date = new Date();
+  @Input() rangeFrom: Date | null = null;
+  @Input() rangeTo: Date | null = null;
   @Output() dateSelected = new EventEmitter<Date>();
 
   dayHeaders = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -216,11 +238,16 @@ export class CalendarComponent implements OnInit {
     return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   }
 
+  ngOnChanges(): void {
+    this.buildCalendar();
+  }
+
   ngOnInit(): void {
     this.today = new Date();
     this.today.setHours(0, 0, 0, 0);
-    this.viewYear = this.selectedDate.getFullYear();
-    this.viewMonth = this.selectedDate.getMonth();
+    const anchor = this.rangeFrom ?? this.selectedDate;
+    this.viewYear = anchor.getFullYear();
+    this.viewMonth = anchor.getMonth();
     this.buildCalendar();
     this.loadMonthSummary();
   }
@@ -244,17 +271,29 @@ export class CalendarComponent implements OnInit {
 
     // Fill leading empty cells
     for (let i = 0; i < startDow; i++) {
-      days.push({ date: null, dayNumber: null, isToday: false, isSelected: false, isCurrentMonth: false, workMins: null });
+      days.push({ date: null, dayNumber: null, isToday: false, isSelected: false, isCurrentMonth: false, workMins: null, isRangeStart: false, isRangeEnd: false, isInRange: false });
     }
+
+    // Pre-compute range boundaries (midnight local)
+    const rf = this.rangeFrom ? new Date(this.rangeFrom).setHours(0, 0, 0, 0) : null;
+    const rt = this.rangeTo   ? new Date(this.rangeTo).setHours(0, 0, 0, 0)   : null;
 
     // Fill days of month
     for (let d = 1; d <= lastDay.getDate(); d++) {
       const date = new Date(this.viewYear, this.viewMonth, d);
       date.setHours(0, 0, 0, 0);
-      const isToday = date.getTime() === this.today.getTime();
+      const t = date.getTime();
+      const isToday = t === this.today.getTime();
       const selDate = new Date(this.selectedDate);
       selDate.setHours(0, 0, 0, 0);
-      const isSelected = date.getTime() === selDate.getTime();
+
+      const isRangeStart = rf !== null && t === rf;
+      const isRangeEnd   = rt !== null && t === rt;
+      const isInRange    = rf !== null && rt !== null && t > rf && t < rt;
+      const isSelected   = rf !== null
+        ? (isRangeStart || isRangeEnd)
+        : t === selDate.getTime();
+
       const dateStr = `${this.viewYear}-${String(this.viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const workMins = this.workMinsByDate[dateStr] ?? null;
       days.push({
@@ -263,7 +302,10 @@ export class CalendarComponent implements OnInit {
         isToday,
         isSelected,
         isCurrentMonth: true,
-        workMins
+        workMins,
+        isRangeStart,
+        isRangeEnd,
+        isInRange,
       });
     }
 
@@ -271,7 +313,7 @@ export class CalendarComponent implements OnInit {
     const remaining = days.length % 7;
     if (remaining !== 0) {
       for (let i = 0; i < 7 - remaining; i++) {
-        days.push({ date: null, dayNumber: null, isToday: false, isSelected: false, isCurrentMonth: false, workMins: null });
+        days.push({ date: null, dayNumber: null, isToday: false, isSelected: false, isCurrentMonth: false, workMins: null, isRangeStart: false, isRangeEnd: false, isInRange: false });
       }
     }
 
