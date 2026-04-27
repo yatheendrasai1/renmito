@@ -1,6 +1,7 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnInit, OnChanges, OnDestroy, SimpleChanges, HostListener
+  OnInit, OnChanges, OnDestroy, SimpleChanges, HostListener,
+  ChangeDetectionStrategy, ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
@@ -32,6 +33,7 @@ export interface Enhancement {
   selector: 'app-enhancements-drawer',
   standalone: true,
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <!-- Backdrop -->
     <div
@@ -419,7 +421,7 @@ export class EnhancementsDrawerComponent implements OnInit, OnChanges, OnDestroy
   isLoading = false;
   loadError = false;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
   ngOnDestroy(): void {
     this.destroy$.next();
@@ -450,10 +452,12 @@ export class EnhancementsDrawerComponent implements OnInit, OnChanges, OnDestroy
         // Show newest first
         this.enhancements = [...data.enhancements].reverse();
         this.isLoading = false;
+        this.cdr.markForCheck();
       },
       error: () => {
         this.loadError = true;
         this.isLoading = false;
+        this.cdr.markForCheck();
       }
     });
   }

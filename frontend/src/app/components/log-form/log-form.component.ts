@@ -1,6 +1,7 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnInit, OnChanges, OnDestroy, SimpleChanges
+  OnInit, OnChanges, OnDestroy, SimpleChanges,
+  ChangeDetectionStrategy, ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -18,6 +19,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
   selector: 'app-log-form',
   standalone: true,
   imports: [CommonModule, FormsModule, ConfirmDialogComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="form-overlay" (click)="onOverlayClick($event)">
       <div class="form-panel" role="dialog" aria-modal="true" aria-label="Log entry form">
@@ -799,7 +801,7 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
     return `Delete "${this.deleteConfirmType?.name ?? ''}"?`;
   }
 
-  constructor(private logTypeService: LogTypeService) {}
+  constructor(private logTypeService: LogTypeService, private cdr: ChangeDetectorRef) {}
 
   // ── computed ───────────────────────────────────────────
 
@@ -890,10 +892,12 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
         this.groupedTypes = this.buildGroups(types);
         this.loadingTypes = false;
         this.initForm();
+        this.cdr.markForCheck();
       },
       error: () => {
         this.loadingTypes  = false;
         this.typeLoadError = true;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -966,6 +970,7 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
     this.longPressTimer = setTimeout(() => {
       this.longPressActivated = true;
       this.openCtxMenu(event.clientX, event.clientY, lt);
+      this.cdr.markForCheck();
     }, 500);
   }
 
@@ -1023,10 +1028,12 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
         this.groupedTypes = this.buildGroups(this.logTypes);
         if (this.selectedLogType?._id === updated._id) this.selectedLogType = updated;
         this.cancelEditType();
+        this.cdr.markForCheck();
       },
       error: (err) => {
         this.editTypeSaving = false;
         this.editTypeError  = err?.error?.error ?? 'Failed to rename. Try again.';
+        this.cdr.markForCheck();
       }
     });
   }
@@ -1053,6 +1060,7 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
             this.logTypes.find(lt => lt.domain === 'work')  ??
             this.logTypes[0] ?? null;
         }
+        this.cdr.markForCheck();
       },
       error: () => {}
     });
@@ -1089,10 +1097,12 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
         this.newTypeName  = '';
         this.newTypeColor = '#4A90E2';
         this.newTypeDomain = 'work';
+        this.cdr.markForCheck();
       },
       error: (err) => {
         this.creatingType    = false;
         this.createTypeError = err?.error?.error ?? 'Failed to create log type. Please try again.';
+        this.cdr.markForCheck();
       }
     });
   }

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, OnDestroy, Output, ElementRef } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, OnDestroy, Output, ElementRef, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -176,6 +176,7 @@ export function loadSavedPalette(): ColorPalette | null {
   selector: 'app-theme-editor',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <!-- Floating panel or inline block depending on [inline] input -->
     <div [class.te-panel]="!inline" [class.te-inline]="inline" role="dialog" aria-label="Color palette editor">
@@ -713,7 +714,7 @@ export class ThemeEditorComponent implements OnInit, OnDestroy {
     { label: 'Accent / Highlights', key: 'accent'    },
   ];
 
-  constructor(private prefService: PreferenceService) {}
+  constructor(private prefService: PreferenceService, private cdr: ChangeDetectorRef) {}
 
   ngOnDestroy(): void {
     this.destroy$.next();
@@ -730,6 +731,7 @@ export class ThemeEditorComponent implements OnInit, OnDestroy {
     this.prefService.getPreferences().pipe(takeUntil(this.destroy$)).subscribe(prefs => {
       if (prefs?.customPresets) {
         this.customPresets = prefs.customPresets;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -794,15 +796,16 @@ export class ThemeEditorComponent implements OnInit, OnDestroy {
           this.customPresets = presets;
           this.cancelNamePrompt();
           this.flashSaved('Preset saved ✓');
+          this.cdr.markForCheck();
         }
       },
-      error: () => { this.nameError = 'Failed to save. Please try again.'; }
+      error: () => { this.nameError = 'Failed to save. Please try again.'; this.cdr.markForCheck(); }
     });
   }
 
   deletePreset(p: ColorPalette): void {
     this.prefService.deletePreset(p.name).pipe(takeUntil(this.destroy$)).subscribe(presets => {
-      if (presets !== null) { this.customPresets = presets; }
+      if (presets !== null) { this.customPresets = presets; this.cdr.markForCheck(); }
     });
   }
 
@@ -819,7 +822,7 @@ export class ThemeEditorComponent implements OnInit, OnDestroy {
     this.savedMsg  = msg;
     this.justSaved = true;
     if (this.saveTimer) clearTimeout(this.saveTimer);
-    this.saveTimer = setTimeout(() => (this.justSaved = false), 2000);
+    this.saveTimer = setTimeout(() => { this.justSaved = false; this.cdr.markForCheck(); }, 2000);
   }
 
   trackByName(_i: number, p: ColorPalette): string { return p.name; }

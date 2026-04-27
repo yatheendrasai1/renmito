@@ -1,6 +1,7 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnInit, OnChanges, OnDestroy, SimpleChanges, ViewChildren, QueryList, ElementRef
+  OnInit, OnChanges, OnDestroy, SimpleChanges, ViewChildren, QueryList, ElementRef,
+  ChangeDetectionStrategy, ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -23,6 +24,7 @@ interface LocalNote {
   selector: 'app-notes-sheet',
   standalone: true,
   imports: [CommonModule, FormsModule, ConfirmDialogComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="ns-backdrop" (click)="close.emit()"></div>
     <div class="ns-sheet" (click)="$event.stopPropagation()">
@@ -316,7 +318,7 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  constructor(private notesService: NotesService) {}
+  constructor(private notesService: NotesService, private cdr: ChangeDetectorRef) {}
 
   ngOnDestroy(): void {
     this.destroy$.next();
@@ -338,8 +340,9 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
           saving: false, isNew: false, copied: false, deleting: false
         }));
         this.loading = false;
+        this.cdr.markForCheck();
       },
-      error: () => { this.loading = false; }
+      error: () => { this.loading = false; this.cdr.markForCheck(); }
     });
   }
 
@@ -347,8 +350,8 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (note.content === note.savedContent) return;
     note.saving = true;
     this.notesService.updateNote(this.dateStr, note._id, note.content).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (n) => { note.savedContent = n.content; note.saving = false; },
-      error: ()  => { note.saving = false; }
+      next: (n) => { note.savedContent = n.content; note.saving = false; this.cdr.markForCheck(); },
+      error: ()  => { note.saving = false; this.cdr.markForCheck(); }
     });
   }
 
@@ -358,8 +361,8 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (!note) return;
     note.deleting = true;
     this.notesService.deleteNote(this.dateStr, note._id).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { this.notes = this.notes.filter(n => n._id !== note._id); },
-      error: () => { note.deleting = false; }
+      next: () => { this.notes = this.notes.filter(n => n._id !== note._id); this.cdr.markForCheck(); },
+      error: () => { note.deleting = false; this.cdr.markForCheck(); }
     });
   }
 
@@ -367,7 +370,8 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (!note.content) return;
     navigator.clipboard.writeText(note.content).then(() => {
       note.copied = true;
-      setTimeout(() => { note.copied = false; }, 1500);
+      this.cdr.markForCheck();
+      setTimeout(() => { note.copied = false; this.cdr.markForCheck(); }, 1500);
     });
   }
 
@@ -378,13 +382,14 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
       next: (n) => {
         this.notes.push({ _id: n._id, content: '', savedContent: '', saving: false, isNew: true, copied: false, deleting: false });
         this.adding = false;
+        this.cdr.markForCheck();
         // Focus the new textarea after Angular renders it
         setTimeout(() => {
           const tas = this.noteTAs.toArray();
           tas[tas.length - 1]?.nativeElement.focus();
         }, 50);
       },
-      error: () => { this.adding = false; }
+      error: () => { this.adding = false; this.cdr.markForCheck(); }
     });
   }
 

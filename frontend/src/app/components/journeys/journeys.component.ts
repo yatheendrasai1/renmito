@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -15,6 +15,7 @@ type SubView = 'list' | 'detail';
   selector: 'app-journeys',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="jrn-root">
 
@@ -1699,7 +1700,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
   get personalLogTypes(): any[] { return this.availableLogTypes.filter(lt => lt.domain === 'personal'); }
   get familyLogTypes():   any[] { return this.availableLogTypes.filter(lt => lt.domain === 'family'); }
 
-  constructor(private journeyService: JourneyService) {}
+  constructor(private journeyService: JourneyService, private cdr: ChangeDetectorRef) {}
 
   ngOnDestroy(): void {
     this.destroy$.next();
@@ -1812,17 +1813,19 @@ export class JourneysComponent implements OnInit, OnDestroy {
         this.journeys = this.journeys.map(j => j.id === updated.id ? updated : j);
         this.editingJourney = false;
         this.savingEdit = false;
+        this.cdr.markForCheck();
         if (metricChanged) {
           this.resyncing = true;
           this.journeyService.resyncJourney(updated.id).pipe(takeUntil(this.destroy$)).subscribe({
-            next: (synced) => { this.entries = synced; this.resyncing = false; },
-            error: () => { this.resyncing = false; }
+            next: (synced) => { this.entries = synced; this.resyncing = false; this.cdr.markForCheck(); },
+            error: () => { this.resyncing = false; this.cdr.markForCheck(); }
           });
         }
       },
       error: (err) => {
         this.savingEdit = false;
         this.editError = err?.error?.error ?? 'Failed to save changes.';
+        this.cdr.markForCheck();
       }
     });
   }
@@ -1849,6 +1852,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
     this.journeyService.listJourneys().pipe(takeUntil(this.destroy$)).subscribe(list => {
       this.journeys = list;
       this.loading = false;
+      this.cdr.markForCheck();
     });
   }
 
@@ -1913,18 +1917,20 @@ export class JourneysComponent implements OnInit, OnDestroy {
         this.journeys = [created, ...this.journeys];
         this.showCreateModal = false;
         this.openDetail(created);
+        this.cdr.markForCheck();
         // Auto-resync derived journeys from history
         if (created.trackerType === 'derived') {
           this.resyncing = true;
           this.journeyService.resyncJourney(created.id).pipe(takeUntil(this.destroy$)).subscribe({
-            next: (synced) => { this.entries = synced; this.resyncing = false; },
-            error: () => { this.resyncing = false; }
+            next: (synced) => { this.entries = synced; this.resyncing = false; this.cdr.markForCheck(); },
+            error: () => { this.resyncing = false; this.cdr.markForCheck(); }
           });
         }
       },
       error: (err) => {
         this.saving = false;
         this.createError = err?.error?.error ?? 'Failed to create journey.';
+        this.cdr.markForCheck();
       }
     });
   }
@@ -2046,6 +2052,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
     this.journeyService.listEntries(journeyId).pipe(takeUntil(this.destroy$)).subscribe(list => {
       this.entries = list;
       this.loadingEntries = false;
+      this.cdr.markForCheck();
     });
   }
 
@@ -2078,10 +2085,12 @@ export class JourneysComponent implements OnInit, OnDestroy {
         this.savingEntry = false;
         this.addingEntry = false;
         this.entryForm = { numericValue: null, categoricalValue: '' };
+        this.cdr.markForCheck();
       },
       error: (err) => {
         this.savingEntry = false;
         this.entryError = err?.error?.error ?? 'Failed to save entry.';
+        this.cdr.markForCheck();
       }
     });
   }
@@ -2089,7 +2098,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
   deleteEntry(entry: JourneyEntry) {
     if (!this.selectedJourney) return;
     this.journeyService.deleteEntry(this.selectedJourney.id, entry.id).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { this.entries = this.entries.filter(e => e.id !== entry.id); },
+      next: () => { this.entries = this.entries.filter(e => e.id !== entry.id); this.cdr.markForCheck(); },
       error: () => {}
     });
   }
@@ -2105,8 +2114,9 @@ export class JourneysComponent implements OnInit, OnDestroy {
         this.deleting = false;
         this.showDeleteConfirm = false;
         this.backToList();
+        this.cdr.markForCheck();
       },
-      error: () => { this.deleting = false; }
+      error: () => { this.deleting = false; this.cdr.markForCheck(); }
     });
   }
 
@@ -2114,8 +2124,8 @@ export class JourneysComponent implements OnInit, OnDestroy {
     if (!this.selectedJourney || this.resyncing) return;
     this.resyncing = true;
     this.journeyService.resyncJourney(this.selectedJourney.id).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (synced) => { this.entries = synced; this.resyncing = false; },
-      error: () => { this.resyncing = false; }
+      next: (synced) => { this.entries = synced; this.resyncing = false; this.cdr.markForCheck(); },
+      error: () => { this.resyncing = false; this.cdr.markForCheck(); }
     });
   }
 

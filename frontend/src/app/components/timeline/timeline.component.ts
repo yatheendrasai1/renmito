@@ -9,7 +9,8 @@ import {
   ElementRef,
   HostListener,
   ViewChild,
-  ChangeDetectorRef
+  ChangeDetectorRef,
+  ChangeDetectionStrategy
 } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
@@ -33,6 +34,7 @@ interface TickMark { pos: number; isHalf: boolean; }
   selector: 'app-timeline',
   standalone: true,
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="timeline-wrapper">
 

@@ -1,6 +1,7 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnInit, OnChanges, OnDestroy, SimpleChanges
+  OnInit, OnChanges, OnDestroy, SimpleChanges,
+  ChangeDetectionStrategy, ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject } from 'rxjs';
@@ -42,6 +43,7 @@ const SLOT_CATEGORY: Record<string, string> = {
   selector: 'app-important-logs',
   standalone: true,
   imports: [CommonModule, LogFormComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="il-overlay" (click)="onOverlayClick($event)">
       <div class="il-panel" role="dialog" aria-modal="true" aria-label="Important Logs">
@@ -312,6 +314,7 @@ export class ImportantLogsComponent implements OnInit, OnChanges, OnDestroy {
     private dayLevelService: DayLevelService,
     private logService:      LogService,
     private logTypeService:  LogTypeService,
+    private cdr:             ChangeDetectorRef,
   ) {}
 
   ngOnDestroy(): void {
@@ -322,7 +325,7 @@ export class ImportantLogsComponent implements OnInit, OnChanges, OnDestroy {
   ngOnInit(): void {
     this.loadSurroundingLogs();
     this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe({
-      next:  types => { this.allLogTypes = types; this.buildSlots(); },
+      next:  types => { this.allLogTypes = types; this.buildSlots(); this.cdr.markForCheck(); },
       error: ()    => {}
     });
   }
@@ -360,6 +363,7 @@ export class ImportantLogsComponent implements OnInit, OnChanges, OnDestroy {
       if (--pending === 0) {
         this.loading = false;
         this.buildSlots();
+        this.cdr.markForCheck();
       }
     };
     this.logService.getLogsForDate(this.prevDate()).pipe(takeUntil(this.destroy$)).subscribe({
@@ -551,6 +555,7 @@ export class ImportantLogsComponent implements OnInit, OnChanges, OnDestroy {
       if (--pending === 0) {
         this.loading = false;
         this.buildSlots();
+        this.cdr.markForCheck();
       }
     };
     this.logService.getLogsForDate(this.prevDate()).pipe(takeUntil(this.destroy$)).subscribe({
@@ -575,8 +580,9 @@ export class ImportantLogsComponent implements OnInit, OnChanges, OnDestroy {
           this.metadataChanged.emit(meta);
           this.buildSlots();
         }
+        this.cdr.markForCheck();
       },
-      error: () => { this.capturing = false; }
+      error: () => { this.capturing = false; this.cdr.markForCheck(); }
     });
   }
 

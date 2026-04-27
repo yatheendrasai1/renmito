@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -30,6 +30,7 @@ type IntelStep = 'list' | 'choose' | 'gemini-key';
   selector: 'app-configuration',
   standalone: true,
   imports: [CommonModule, FormsModule, ThemeEditorComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="cfg-page">
       <div class="cfg-page-header">
@@ -664,6 +665,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     private configService: ConfigService,
     private prefService:   PreferenceService,
     private ltService:     LogTypeService,
+    private cdr:           ChangeDetectorRef,
   ) {}
 
   ngOnDestroy(): void {
@@ -673,7 +675,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.configService.getConfig().pipe(takeUntil(this.destroy$)).subscribe({
-      next: cfg => { this.geminiConfigured = cfg.geminiConfigured; },
+      next: cfg => { this.geminiConfigured = cfg.geminiConfigured; this.cdr.markForCheck(); },
       error: () => {}
     });
     this.prefService.getPreferences().pipe(takeUntil(this.destroy$)).subscribe({
@@ -681,6 +683,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
         if (prefs?.daySettings) {
           this.idealDay = { ...DEFAULT_DAY_SETTINGS, ...prefs.daySettings };
         }
+        this.cdr.markForCheck();
       },
       error: () => {}
     });
@@ -726,14 +729,17 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
           this.idealDay      = { ...DEFAULT_DAY_SETTINGS, ...saved };
           this.idealDayDraft = { ...this.idealDay };
           this.idealSuccessMsg = 'Saved.';
-          setTimeout(() => { this.idealSuccessMsg = ''; }, 2500);
+          this.cdr.markForCheck();
+          setTimeout(() => { this.idealSuccessMsg = ''; this.cdr.markForCheck(); }, 2500);
         } else {
           this.idealErrorMsg = 'Could not save. Please try again.';
+          this.cdr.markForCheck();
         }
       },
       error: () => {
         this.savingPreferences = false;
         this.idealErrorMsg = 'Could not save. Please try again.';
+        this.cdr.markForCheck();
       }
     });
   }
@@ -741,7 +747,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   // ── Custom log types ──────────────────────────────────────
   private loadCustomLogTypes(): void {
     this.ltService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe({
-      next: types => { this.customLogTypes = types.filter(t => t.source === 'user'); },
+      next: types => { this.customLogTypes = types.filter(t => t.source === 'user'); this.cdr.markForCheck(); },
       error: () => {}
     });
   }
@@ -760,14 +766,14 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     const name = this.editingLtName.trim();
     if (!name) return;
     this.ltService.updateLogTypeName(lt._id, name).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { lt.name = name; this.cancelEditLt(); },
+      next: () => { lt.name = name; this.cancelEditLt(); this.cdr.markForCheck(); },
       error: () => {}
     });
   }
 
   deleteLt(lt: LogType): void {
     this.ltService.deleteLogType(lt._id).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { this.customLogTypes = this.customLogTypes.filter(t => t._id !== lt._id); },
+      next: () => { this.customLogTypes = this.customLogTypes.filter(t => t._id !== lt._id); this.cdr.markForCheck(); },
       error: () => {}
     });
   }
@@ -783,6 +789,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
       next: lt => {
         this.customLogTypes.push(lt);
         this.showNewLtForm = false;
+        this.cdr.markForCheck();
       },
       error: () => {}
     });
@@ -807,14 +814,17 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
         this.geminiConfigured = true;
         this.intelSuccessMsg  = res.message;
         this.apiKeyInput      = '';
+        this.cdr.markForCheck();
         setTimeout(() => {
           this.intelSuccessMsg = '';
           this.intelStep = 'list';
+          this.cdr.markForCheck();
         }, 2000);
       },
       error: err => {
         this.saving = false;
         this.intelErrorMsg = err.error?.error || 'Failed to verify API key.';
+        this.cdr.markForCheck();
       }
     });
   }

@@ -29,7 +29,7 @@ interface CalendarDay {
   selector: 'app-calendar',
   standalone: true,
   imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.Default,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="calendar-wrapper">
       <div class="calendar-header">

@@ -27,6 +27,10 @@ import { AiService, ParsedLog, RenniMessage, ChatResponse } from './services/ai.
 import { NotesSheetComponent } from './components/notes-sheet/notes-sheet.component';
 import { NotesService } from './services/notes.service';
 import { environment } from '../environments/environment';
+import { ActiveLogBarComponent } from './components/active-log-bar/active-log-bar.component';
+import { DailyEssentialsBarComponent } from './components/daily-essentials-bar/daily-essentials-bar.component';
+import { PaletteSheetComponent } from './components/palette-sheet/palette-sheet.component';
+import { UnifiedSheetComponent } from './components/unified-sheet/unified-sheet.component';
 
 // ── Performance Profiler ─────────────────────────────────────────────────────
 // Tracks startup HTTP calls with performance.mark/measure (visible in DevTools
@@ -106,7 +110,7 @@ const PERF = (() => {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent, JourneysComponent, ReportComponent, ConfigurationComponent, NotesSheetComponent],
+  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent, JourneysComponent, ReportComponent, ConfigurationComponent, NotesSheetComponent, ActiveLogBarComponent, DailyEssentialsBarComponent, PaletteSheetComponent, UnifiedSheetComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -256,49 +260,12 @@ const PERF = (() => {
         </nav>
 
         <!-- ── Palette quick-picker overlay ──────────────── -->
-        <div class="qp-backdrop" *ngIf="showPalettePicker"></div>
-        <div class="qp-panel" *ngIf="showPalettePicker" (click)="$event.stopPropagation()">
-          <div class="qp-header">
-            <span class="qp-title">Theme</span>
-            <button class="qp-close" (click)="showPalettePicker = false" aria-label="Close">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-          <div class="qp-section-label">Built-in</div>
-          <div class="qp-grid">
-            <button class="qp-chip"
-                    *ngFor="let p of builtinPalettePresets; trackBy: trackByName"
-                    [class.qp-chip--active]="isPaletteActive(p)"
-                    (click)="applyQuickPalette(p)"
-                    [title]="p.name">
-              <div class="qp-swatches">
-                <div class="qp-swatch" [style.background]="p.bg"></div>
-                <div class="qp-swatch" [style.background]="p.primary"></div>
-                <div class="qp-swatch" [style.background]="p.secondary"></div>
-                <div class="qp-swatch" [style.background]="p.accent"></div>
-              </div>
-              <span class="qp-name">{{ p.name }}</span>
-            </button>
-          </div>
-          <div class="qp-section-label" *ngIf="navCustomPresets.length > 0">My Presets</div>
-          <div class="qp-grid" *ngIf="navCustomPresets.length > 0">
-            <button class="qp-chip"
-                    *ngFor="let p of navCustomPresets; trackBy: trackByName"
-                    [class.qp-chip--active]="isPaletteActive(p)"
-                    (click)="applyQuickPalette(p)"
-                    [title]="p.name">
-              <div class="qp-swatches">
-                <div class="qp-swatch" [style.background]="p.bg"></div>
-                <div class="qp-swatch" [style.background]="p.primary"></div>
-                <div class="qp-swatch" [style.background]="p.secondary"></div>
-                <div class="qp-swatch" [style.background]="p.accent"></div>
-              </div>
-              <span class="qp-name">{{ p.name }}</span>
-            </button>
-          </div>
-        </div>
+        <app-palette-sheet
+          *ngIf="showPalettePicker"
+          [customPresets]="navCustomPresets"
+          (paletteSelected)="applyQuickPalette($event)"
+          (closed)="showPalettePicker = false">
+        </app-palette-sheet>
 
         <!-- ── View area ───────────────────────────────── -->
         <div class="view-area" (scroll)="onViewAreaScroll($event)">
@@ -409,38 +376,14 @@ const PERF = (() => {
             ></app-metrics>
 
             <!-- ── 1.71: Running Log Banner ───────────────────────── -->
-            <div class="running-log-banner" *ngIf="activeLog">
-              <div class="running-log-left" (click)="openTimerEdit()" title="Edit timer details">
-                <span class="running-log-dot"
-                      [style.background]="activeLogTypeColor"
-                      [class.running-log-dot--pulse]="true"></span>
-                <div class="running-log-info">
-                  <span class="running-log-name">{{ activeLog.title || activeLogTypeName }}</span>
-                  <span class="running-log-sub">{{ activeLogTypeName }}</span>
-                </div>
-                <svg class="running-log-edit-icon" width="11" height="11" viewBox="0 0 16 16" fill="none">
-                  <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                </svg>
-              </div>
-              <div class="running-log-center">
-                <span class="running-log-clock">{{ activeLogElapsedStr }}</span>
-                <!-- 1.72: Planned duration progress bar -->
-                <div class="running-log-progress" *ngIf="activeLog.plannedMins">
-                  <div class="running-log-progress-fill"
-                       [style.width.%]="activeLogPlannedPct"
-                       [class.running-log-progress-fill--done]="activeLogPlannedPct >= 100"></div>
-                </div>
-                <span class="running-log-planned" *ngIf="activeLog.plannedMins">
-                  {{ activeLogPlannedPct >= 100 ? '✓ Done' : 'of ' + activeLog.plannedMins + 'm planned' }}
-                </span>
-              </div>
-              <button class="running-log-stop-btn" (click)="stopRunningLog()" title="Stop and save log">
-                <svg width="11" height="11" viewBox="0 0 14 14" fill="currentColor">
-                  <rect x="2" y="2" width="10" height="10" rx="2"/>
-                </svg>
-                Stop
-              </button>
-            </div>
+            <app-active-log-bar
+              [activeLog]="activeLog"
+              [logTypes]="inlineLogTypes"
+              [elapsedStr]="activeLogElapsedStr"
+              [plannedPct]="activeLogPlannedPct"
+              (editTimer)="openTimerEdit()"
+              (stop)="stopRunningLog()">
+            </app-active-log-bar>
 
             <!-- ── Quick Shortcuts — 1.62 / 1.82 ──────────────── -->
             <div class="shortcuts-bar" *ngIf="isAuthenticated && shortcutDisplayTypes.length > 0"
@@ -492,23 +435,12 @@ const PERF = (() => {
             </div>
 
             <!-- ── Daily Essentials ──────────────────────────── -->
-            <div class="shortcuts-bar essentials-bar" *ngIf="isAuthenticated"
-                 (click)="$event.stopPropagation()">
-              <span class="shortcuts-label">Daily Essentials</span>
-              <div class="essential-chip-wrap"
-                   *ngFor="let e of dailyEssentials; trackBy: trackByName"
-                   (pointerdown)="onEssentialPointerDown(e, $event)"
-                   (pointerup)="onEssentialPointerUp()"
-                   (pointerleave)="onEssentialPointerUp()"
-                   (click)="onEssentialClick(e, $event)">
-                <button class="shortcut-chip essential-chip"
-                        [class.essential-chip--pressing]="essentialPressName === e.name"
-                        style="pointer-events:none; width:100%">
-                  <span class="shortcut-dot" [style.background]="getEssentialColor(e.name)"></span>
-                  {{ e.name }}
-                </button>
-              </div>
-            </div>
+            <app-daily-essentials-bar
+              *ngIf="isAuthenticated"
+              [logTypes]="inlineLogTypes"
+              (stampNow)="onEssentialStamp($event)"
+              (openForm)="onEssentialOpen($event)">
+            </app-daily-essentials-bar>
 
             <!-- ── 1.68: End-of-Day Wrap-Up Banner ───────────── -->
             <div class="wrapup-banner" *ngIf="showWrapUpBanner">
@@ -950,386 +882,18 @@ const PERF = (() => {
       </button>
 
       <!-- ── 1.83: Unified log-creation sheet (Add log / Add point / Start timer) ── -->
-      <div class="log-now-backdrop" *ngIf="unifiedSheetOpen" (click)="closeUnifiedSheet()"></div>
-      <div class="log-now-sheet uni-sheet" *ngIf="unifiedSheetOpen"
-           (touchstart)="onUnifiedSwipeStart($event)"
-           (touchend)="onUnifiedSwipeEnd($event)">
+      <app-unified-sheet
+        *ngIf="unifiedSheetOpen"
+        #unifiedSheetRef
+        [initialTab]="unifiedSheetInitialTab"
+        [selectedDate]="selectedDate"
+        [logs]="logs"
+        (closed)="unifiedSheetOpen = false"
+        (logCreated)="loadLogs()"
+        (timerStarted)="onTimerStarted($event)"
+        (showToast)="onUnifiedSheetToast($event)">
+      </app-unified-sheet>
 
-        <!-- Tab pill header -->
-        <div class="uni-tabs">
-          <button class="uni-tab uni-tab--renni" [class.uni-tab--active]="unifiedSheetTab === 0"
-                  (click)="switchTab(0)">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="margin-right:4px">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            </svg>
-            Renni
-          </button>
-          <button class="uni-tab" [class.uni-tab--active]="unifiedSheetTab === 1"
-                  (click)="switchTab(1)">Add log</button>
-          <button class="uni-tab" [class.uni-tab--active]="unifiedSheetTab === 2"
-                  (click)="switchTab(2)">Add point</button>
-          <button class="uni-tab" [class.uni-tab--active]="unifiedSheetTab === 3"
-                  (click)="switchTab(3)">Start timer</button>
-        </div>
-
-        <!-- ── Tab 1: Add log ── -->
-        <ng-container *ngIf="unifiedSheetTab === 1">
-          <div class="log-now-fields">
-            <!-- 1.81: Work / Personal domain tabs -->
-            <div class="ln-domain-tabs">
-              <button class="ln-domain-tab"
-                      [class.ln-domain-tab--active]="logNowDomain === 'work'"
-                      (click)="setLogNowDomain('work')">Work</button>
-              <button class="ln-domain-tab"
-                      [class.ln-domain-tab--active]="logNowDomain === 'personal'"
-                      (click)="setLogNowDomain('personal')">Personal</button>
-            </div>
-            <!-- 1.81: Log type drum picker -->
-            <div class="ln-type-drum-wrap">
-              <div class="ln-drum-center-band"></div>
-              <div class="ln-drum ln-drum-ln-types" (scroll)="onLogNowTypeScroll($event)">
-                <div class="ln-drum-spacer"></div>
-                <div class="ln-type-drum-item"
-                     *ngFor="let lt of logNowFilteredTypes; let i = index; trackBy: trackByLogTypeId"
-                     [class.ln-type-drum-item--sel]="i === logNowTypeIndex">
-                  <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
-                  {{ lt.name }}
-                </div>
-                <div class="ln-drum-spacer"></div>
-              </div>
-            </div>
-            <textarea class="log-now-input"
-                      placeholder="Title (optional — defaults to type name)"
-                      [(ngModel)]="logNowTitle"></textarea>
-            <!-- 1.78: Drum time pickers for Start and End -->
-            <div class="ln-time-pickers">
-              <div class="ln-time-block">
-                <span class="ln-time-block-label">Start</span>
-                <div class="ln-drum-group">
-                  <div class="ln-drum-col">
-                    <div class="ln-drum-wrapper">
-                      <div class="ln-drum-center-band"></div>
-                      <div class="ln-drum ln-drum-start-h" (scroll)="onLogNowStartHourScroll($event)">
-                        <div class="ln-drum-spacer"></div>
-                        <div class="ln-drum-item"
-                             *ngFor="let h of logNowHours; trackBy: trackByIndex"
-                             [class.ln-drum-item--sel]="h === logNowStartHour">
-                          {{ h | number:'2.0-0' }}
-                        </div>
-                        <div class="ln-drum-spacer"></div>
-                      </div>
-                    </div>
-                    <span class="ln-drum-unit">h</span>
-                  </div>
-                  <div class="ln-drum-colon">:</div>
-                  <div class="ln-drum-col">
-                    <div class="ln-drum-wrapper">
-                      <div class="ln-drum-center-band"></div>
-                      <div class="ln-drum ln-drum-start-m" (scroll)="onLogNowStartMinuteScroll($event)">
-                        <div class="ln-drum-spacer"></div>
-                        <div class="ln-drum-item"
-                             *ngFor="let m of logNowMinutes; trackBy: trackByIndex"
-                             [class.ln-drum-item--sel]="m === logNowStartMinute">
-                          {{ m | number:'2.0-0' }}
-                        </div>
-                        <div class="ln-drum-spacer"></div>
-                      </div>
-                    </div>
-                    <span class="ln-drum-unit">m</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="ln-time-arrow">→</div>
-
-              <div class="ln-time-block">
-                <span class="ln-time-block-label">End</span>
-                <div class="ln-drum-group">
-                  <div class="ln-drum-col">
-                    <div class="ln-drum-wrapper">
-                      <div class="ln-drum-center-band"></div>
-                      <div class="ln-drum ln-drum-end-h" (scroll)="onLogNowEndHourScroll($event)">
-                        <div class="ln-drum-spacer"></div>
-                        <div class="ln-drum-item"
-                             *ngFor="let h of logNowHours; trackBy: trackByIndex"
-                             [class.ln-drum-item--sel]="h === logNowEndHour">
-                          {{ h | number:'2.0-0' }}
-                        </div>
-                        <div class="ln-drum-spacer"></div>
-                      </div>
-                    </div>
-                    <span class="ln-drum-unit">h</span>
-                  </div>
-                  <div class="ln-drum-colon">:</div>
-                  <div class="ln-drum-col">
-                    <div class="ln-drum-wrapper">
-                      <div class="ln-drum-center-band"></div>
-                      <div class="ln-drum ln-drum-end-m" (scroll)="onLogNowEndMinuteScroll($event)">
-                        <div class="ln-drum-spacer"></div>
-                        <div class="ln-drum-item"
-                             *ngFor="let m of logNowMinutes; trackBy: trackByIndex"
-                             [class.ln-drum-item--sel]="m === logNowEndMinute">
-                          {{ m | number:'2.0-0' }}
-                        </div>
-                        <div class="ln-drum-spacer"></div>
-                      </div>
-                    </div>
-                    <span class="ln-drum-unit">m</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="log-now-actions">
-            <button class="log-now-cancel" (click)="closeUnifiedSheet()">Cancel</button>
-            <button class="log-now-save"
-                    (click)="saveLogNow()"
-                    [disabled]="logNowSaving || !logNowTypeId">
-              {{ logNowSaving ? 'Saving…' : 'Save Log' }}
-            </button>
-          </div>
-        </ng-container>
-
-        <!-- ── Tab 2: Add point ── -->
-        <ng-container *ngIf="unifiedSheetTab === 2">
-          <div class="log-now-fields">
-            <!-- Domain tabs -->
-            <div class="ln-domain-tabs">
-              <button class="ln-domain-tab"
-                      [class.ln-domain-tab--active]="addPointDomain === 'work'"
-                      (click)="setAddPointDomain('work')">Work</button>
-              <button class="ln-domain-tab"
-                      [class.ln-domain-tab--active]="addPointDomain === 'personal'"
-                      (click)="setAddPointDomain('personal')">Personal</button>
-            </div>
-            <!-- Log type drum -->
-            <div class="ln-type-drum-wrap">
-              <div class="ln-drum-center-band"></div>
-              <div class="ln-drum ln-drum-ap-types" (scroll)="onAddPointTypeScroll($event)">
-                <div class="ln-drum-spacer"></div>
-                <div class="ln-type-drum-item"
-                     *ngFor="let lt of addPointFilteredTypes; let i = index; trackBy: trackByLogTypeId"
-                     [class.ln-type-drum-item--sel]="i === addPointTypeIndex">
-                  <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
-                  {{ lt.name }}
-                </div>
-                <div class="ln-drum-spacer"></div>
-              </div>
-            </div>
-            <textarea class="log-now-input"
-                      placeholder="Title (optional)"
-                      [(ngModel)]="addPointTitle"></textarea>
-            <!-- Point time: drum picker (H + M, quarters only) -->
-            <div class="ln-time-pickers ln-time-pickers--single">
-              <div class="ln-time-block">
-                <span class="ln-time-block-label">Time</span>
-                <div class="ln-drum-group">
-                  <div class="ln-drum-col">
-                    <div class="ln-drum-wrapper">
-                      <div class="ln-drum-center-band"></div>
-                      <div class="ln-drum ln-drum-ap-h" (scroll)="onAddPointHourScroll($event)">
-                        <div class="ln-drum-spacer"></div>
-                        <div class="ln-drum-item"
-                             *ngFor="let h of logNowHours; trackBy: trackByIndex"
-                             [class.ln-drum-item--sel]="h === addPointHour">
-                          {{ h | number:'2.0-0' }}
-                        </div>
-                        <div class="ln-drum-spacer"></div>
-                      </div>
-                    </div>
-                    <span class="ln-drum-unit">h</span>
-                  </div>
-                  <div class="ln-drum-colon">:</div>
-                  <div class="ln-drum-col">
-                    <div class="ln-drum-wrapper">
-                      <div class="ln-drum-center-band"></div>
-                      <div class="ln-drum ln-drum-ap-m" (scroll)="onAddPointMinuteScroll($event)">
-                        <div class="ln-drum-spacer"></div>
-                        <div class="ln-drum-item"
-                             *ngFor="let m of addPointMinutes; trackBy: trackByIndex"
-                             [class.ln-drum-item--sel]="m === addPointMinute">
-                          {{ m | number:'2.0-0' }}
-                        </div>
-                        <div class="ln-drum-spacer"></div>
-                      </div>
-                    </div>
-                    <span class="ln-drum-unit">m</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="log-now-actions">
-            <button class="log-now-cancel" (click)="closeUnifiedSheet()">Cancel</button>
-            <button class="log-now-save"
-                    (click)="saveAddPoint()"
-                    [disabled]="addPointSaving || !addPointTypeId">
-              {{ addPointSaving ? 'Saving…' : 'Add Point' }}
-            </button>
-          </div>
-        </ng-container>
-
-        <!-- ── Tab 3: Start timer ── -->
-        <ng-container *ngIf="unifiedSheetTab === 3">
-          <div class="log-now-fields">
-            <!-- Domain tabs -->
-            <div class="ln-domain-tabs">
-              <button class="ln-domain-tab"
-                      [class.ln-domain-tab--active]="startLogDomain === 'work'"
-                      (click)="setStartLogDomain('work')">Work</button>
-              <button class="ln-domain-tab"
-                      [class.ln-domain-tab--active]="startLogDomain === 'personal'"
-                      (click)="setStartLogDomain('personal')">Personal</button>
-            </div>
-            <!-- Log type drum -->
-            <div class="ln-type-drum-wrap">
-              <div class="ln-drum-center-band"></div>
-              <div class="ln-drum ln-drum-sl-types" (scroll)="onStartLogTypeScroll($event)">
-                <div class="ln-drum-spacer"></div>
-                <div class="ln-type-drum-item"
-                     *ngFor="let lt of startLogFilteredTypes; let i = index; trackBy: trackByLogTypeId"
-                     [class.ln-type-drum-item--sel]="i === startLogTypeIndex">
-                  <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
-                  {{ lt.name }}
-                </div>
-                <div class="ln-drum-spacer"></div>
-              </div>
-            </div>
-            <textarea class="log-now-input"
-                      placeholder="Title (optional — defaults to type name)"
-                      [(ngModel)]="startLogTitle"></textarea>
-            <!-- 1.72: Planned duration chips -->
-            <div class="start-log-planned-row">
-              <span class="start-log-planned-label">Plan for:</span>
-              <div class="start-log-planned-chips">
-                <button *ngFor="let opt of [{v:'',l:'no time bound'},{v:'15',l:'15m'},{v:'30',l:'30m'},{v:'60',l:'1h'},{v:'90',l:'1.5h'},{v:'120',l:'2h'}]; trackBy: trackByIndex"
-                        class="start-log-chip"
-                        [class.start-log-chip--active]="startLogPlanned === opt.v"
-                        (click)="startLogPlanned = opt.v">
-                  {{ opt.l }}
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="log-now-actions">
-            <button class="log-now-cancel" (click)="closeUnifiedSheet()">Cancel</button>
-            <button class="log-now-save log-now-save--start"
-                    (click)="saveStartLog()"
-                    [disabled]="startLogSaving || !startLogTypeId">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-              {{ startLogSaving ? 'Starting…' : 'Start Timer' }}
-            </button>
-          </div>
-        </ng-container>
-
-        <!-- ── Tab 0: Renni chat ── -->
-        <ng-container *ngIf="unifiedSheetTab === 0">
-          <div class="renni-chat-area">
-            <!-- Message history -->
-            <div class="renni-messages" #renniScroll>
-              <!-- Empty state -->
-              <div class="renni-empty" *ngIf="renniMsgs.length === 0">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" class="renni-star">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-                <p>Hi! I'm Renni. Describe what you did and I'll log it, or ask anything about your day.</p>
-              </div>
-
-              <!-- Messages -->
-              <ng-container *ngFor="let msg of renniMsgs; let i = index; trackBy: trackByIndex">
-                <!-- User bubble -->
-                <div *ngIf="msg.from === 'user'" class="renni-msg renni-msg--user">
-                  <div class="renni-bubble renni-bubble--user">{{ msg.text }}</div>
-                </div>
-
-                <!-- Renni response -->
-                <div *ngIf="msg.from === 'renni'" class="renni-msg renni-msg--renni">
-                  <!-- Thinking indicator -->
-                  <div *ngIf="msg.thinking" class="renni-bubble renni-bubble--renni renni-thinking">
-                    <span class="renni-dot"></span><span class="renni-dot"></span><span class="renni-dot"></span>
-                  </div>
-
-                  <!-- Text answer -->
-                  <div *ngIf="!msg.thinking && msg.text && !msg.logs" class="renni-bubble renni-bubble--renni">
-                    {{ msg.text }}
-                  </div>
-
-                  <!-- Confirmed success -->
-                  <div *ngIf="msg.confirmed" class="renni-bubble renni-bubble--renni renni-confirmed">
-                    ✓ Logged {{ msg.logs?.length }} {{ msg.logs?.length === 1 ? 'entry' : 'entries' }}
-                  </div>
-
-                  <!-- Log cards to review -->
-                  <div *ngIf="!msg.thinking && msg.logs && !msg.confirmed" class="renni-log-card">
-                    <div class="renni-log-card-intro">
-                      Found {{ msg.logs.length }} log{{ msg.logs.length > 1 ? 's' : '' }}. Review &amp; confirm:
-                    </div>
-                    <div class="renni-preview" *ngFor="let log of msg.logs; let j = index; trackBy: trackByIndex">
-                      <div class="renni-card-top">
-                        <span class="renni-card-badge">
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                          </svg>
-                          {{ log.logTypeName }}
-                          <span class="renni-domain-dot" style="text-transform:capitalize">· {{ log.domain }}</span>
-                        </span>
-                        <button class="renni-remove-btn" (click)="removeRenniLogFromMsg(i, j)" title="Remove">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                          </svg>
-                        </button>
-                      </div>
-                      <div class="renni-edit-row">
-                        <span class="renni-preview-label">Title</span>
-                        <input class="renni-edit-input" [(ngModel)]="log.title" placeholder="Title" />
-                      </div>
-                      <div class="renni-edit-row" *ngIf="log.entryType === 'point'">
-                        <span class="renni-preview-label">Time</span>
-                        <input class="renni-edit-input renni-time-input" [(ngModel)]="log.pointTime" placeholder="HH:MM" />
-                      </div>
-                      <div class="renni-edit-row" *ngIf="log.entryType === 'range'">
-                        <span class="renni-preview-label">Time</span>
-                        <input class="renni-edit-input renni-time-input" [(ngModel)]="log.startTime" placeholder="HH:MM" />
-                        <span class="renni-time-sep">–</span>
-                        <input class="renni-edit-input renni-time-input" [(ngModel)]="log.endTime" placeholder="HH:MM" />
-                      </div>
-                    </div>
-                    <div class="renni-log-actions">
-                      <button class="renni-discard-btn" (click)="discardRenniLogs(i)">Discard</button>
-                      <button class="renni-confirm-btn" (click)="confirmRenniLogs(i)" [disabled]="msg.saving">
-                        {{ msg.saving ? 'Saving…' : (msg.logs.length > 1 ? 'Log all (' + msg.logs.length + ')' : 'Log it') }}
-                      </button>
-                    </div>
-                    <div class="renni-error" *ngIf="msg.error">{{ msg.error }}</div>
-                  </div>
-                </div>
-              </ng-container>
-            </div>
-
-            <!-- Input row -->
-            <div class="renni-input-row">
-              <textarea class="renni-input-field"
-                        [(ngModel)]="renniInput"
-                        placeholder="Describe logs or ask anything…"
-                        rows="1"
-                        (keydown)="onRenniKeydown($event)"></textarea>
-              <button class="renni-send-btn"
-                      (click)="sendRenniMessage()"
-                      [disabled]="renniThinking || !renniInput.trim()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="22" y1="2" x2="11" y2="13"/>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </ng-container>
-
-      </div>
 
       <!-- ── Timer-edit sheet: opens immediately when timer starts ── -->
       <div class="log-now-backdrop" *ngIf="timerEditOpen" (click)="closeTimerEdit()"></div>
@@ -3725,8 +3289,9 @@ const PERF = (() => {
   `]
 })
 export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('timelineRef')  timelineRef!:  TimelineComponent;
-  @ViewChild('journeysRef')  journeysRef?:  JourneysComponent;
+  @ViewChild('timelineRef')    timelineRef!:    TimelineComponent;
+  @ViewChild('journeysRef')    journeysRef?:    JourneysComponent;
+  @ViewChild('unifiedSheetRef') unifiedSheetRef?: UnifiedSheetComponent;
 
   isAuthenticated = false;
   currentUser     = this.authService.getUser();
@@ -3851,7 +3416,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── 1.83: Unified log-creation sheet (replaces 3 separate sheets) ──
   unifiedSheetOpen = false;
-  unifiedSheetTab: 0 | 1 | 2 | 3 = 0; // 0=Renni chat, 1=Add log, 2=Add point, 3=Start timer
+  unifiedSheetInitialTab: 0 | 1 | 2 | 3 = 0; // 0=Renni chat, 1=Add log, 2=Add point, 3=Start timer
 
   // ── Renni AI chat ─────────────────────────────────────────────
   renniMsgs: RenniMessage[] = [];
@@ -4870,7 +4435,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   openLogNow(): void {
     this._prepLogNow();  // pre-loads log types for when user switches to Add log tab
-    this.unifiedSheetTab  = 0;  // open to Renni chat
+    this.unifiedSheetInitialTab  = 0;  // open to Renni chat
     this.unifiedSheetOpen = true;
   }
 
@@ -4908,6 +4473,23 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.renniThinking = false;
   }
 
+  onTimerStarted(activeLog: ActiveLog): void {
+    this.activeLog = activeLog;
+    this.startActiveLogTimer();
+    this._syncStartLogUiToActiveLog();
+    this.timerEditOpen = true;
+  }
+
+  onEssentialStamp(name: string): void { this.stampEssentialNow(name); }
+
+  onEssentialOpen(name: string): void { this.openEssentialForm(name); }
+
+  onUnifiedSheetToast(toast: { message: string; logId: string }): void {
+    this.shortcutToast = toast;
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => { this.shortcutToast = null; }, 3000);
+  }
+
   onUnifiedSwipeStart(e: TouchEvent): void {
     this.uniTouchStartX = e.changedTouches[0].clientX;
     this.uniTouchStartY = e.changedTouches[0].clientY;
@@ -4916,23 +4498,23 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     const dx = e.changedTouches[0].clientX - this.uniTouchStartX;
     const dy = e.changedTouches[0].clientY - this.uniTouchStartY;
     if (Math.abs(dx) <= Math.abs(dy)) return; // vertical scroll — don't switch tabs
-    if (dx > 60 && this.unifiedSheetTab > 0) {
-      this.unifiedSheetTab = (this.unifiedSheetTab - 1) as 0|1|2|3;
+    if (dx > 60 && this.unifiedSheetInitialTab > 0) {
+      this.unifiedSheetInitialTab = (this.unifiedSheetInitialTab - 1) as 0|1|2|3;
       this._onTabSwitch();
-    } else if (dx < -60 && this.unifiedSheetTab < 3) {
-      this.unifiedSheetTab = (this.unifiedSheetTab + 1) as 0|1|2|3;
+    } else if (dx < -60 && this.unifiedSheetInitialTab < 3) {
+      this.unifiedSheetInitialTab = (this.unifiedSheetInitialTab + 1) as 0|1|2|3;
       this._onTabSwitch();
     }
   }
   switchTab(tab: 0|1|2|3): void {
-    this.unifiedSheetTab = tab;
+    this.unifiedSheetInitialTab = tab;
     this._onTabSwitch();
   }
   private _onTabSwitch(): void {
     setTimeout(() => {
-      if (this.unifiedSheetTab === 1) { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }
-      if (this.unifiedSheetTab === 2) { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }
-      if (this.unifiedSheetTab === 3) { this.scrollStartLogTypeDrum(); }
+      if (this.unifiedSheetInitialTab === 1) { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }
+      if (this.unifiedSheetInitialTab === 2) { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }
+      if (this.unifiedSheetInitialTab === 3) { this.scrollStartLogTypeDrum(); }
     }, 40);
   }
 
@@ -5139,7 +4721,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   openAddPoint(): void {
     this._prepAddPoint();
-    this.unifiedSheetTab  = 2;
+    this.unifiedSheetInitialTab  = 2;
     this.unifiedSheetOpen = true;
     setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
   }
@@ -5230,7 +4812,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`
       );
       this.addPointTitle    = '';
-      this.unifiedSheetTab  = 2;
+      this.unifiedSheetInitialTab  = 2;
       this.unifiedSheetOpen = true;
       setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
     };

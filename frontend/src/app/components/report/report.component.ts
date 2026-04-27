@@ -1,4 +1,4 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -126,6 +126,7 @@ type Preset = 'last10' | 'thisWeek' | 'currentMonth' | 'lastMonth';
   selector: 'app-report',
   standalone: true,
   imports: [CommonModule, FormsModule, CalendarComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
 <div class="rpt-wrap">
 
@@ -1138,7 +1139,7 @@ export class ReportComponent implements OnDestroy {
   formatDisplay = isoToDisplay;
   fmt = minsToJira;
 
-  constructor(private logService: LogService) {
+  constructor(private logService: LogService, private cdr: ChangeDetectorRef) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     this.toDate = new Date(today);
@@ -1323,10 +1324,12 @@ export class ReportComponent implements OnDestroy {
         this.rebuildGroups();
         this.hasFetched = true;
         this.isFetching = false;
+        this.cdr.markForCheck();
       },
       error: (err) => {
         this.fetchError = err?.error?.error ?? 'Failed to fetch logs.';
         this.isFetching = false;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -1404,10 +1407,12 @@ export class ReportComponent implements OnDestroy {
         this.isSaving   = false;
         this.expandedId = null;
         this.editErrors = {};
+        this.cdr.markForCheck();
       },
       error: (err: any) => {
         this.saveError = err?.error?.error ?? 'Failed to save. Please try again.';
         this.isSaving  = false;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -1426,10 +1431,10 @@ export class ReportComponent implements OnDestroy {
         next: (updated: any) => {
           const idx = this.logs.findIndex(l => l.id === log.id);
           if (idx !== -1) this.logs[idx] = { ...this.logs[idx], ticketId: updated.ticketId ?? ticketId };
-          if (--pending === 0) { this.rebuildGroups(); this.applyingWeek = false; }
+          if (--pending === 0) { this.rebuildGroups(); this.applyingWeek = false; this.cdr.markForCheck(); }
         },
         error: () => {
-          if (--pending === 0) { this.rebuildGroups(); this.applyingWeek = false; }
+          if (--pending === 0) { this.rebuildGroups(); this.applyingWeek = false; this.cdr.markForCheck(); }
         }
       });
     }
@@ -1449,10 +1454,10 @@ export class ReportComponent implements OnDestroy {
         next: (updated: any) => {
           const idx = this.logs.findIndex(l => l.id === log.id);
           if (idx !== -1) this.logs[idx] = { ...this.logs[idx], ticketId: updated.ticketId ?? ticketId };
-          if (--pending === 0) { this.rebuildGroups(); this.applyingDay = null; }
+          if (--pending === 0) { this.rebuildGroups(); this.applyingDay = null; this.cdr.markForCheck(); }
         },
         error: () => {
-          if (--pending === 0) { this.rebuildGroups(); this.applyingDay = null; }
+          if (--pending === 0) { this.rebuildGroups(); this.applyingDay = null; this.cdr.markForCheck(); }
         }
       });
     }

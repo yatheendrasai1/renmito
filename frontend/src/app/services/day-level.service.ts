@@ -4,7 +4,7 @@ import { Observable, of, shareReplay } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
-const devWarn = (...args: unknown[]) => { if (!environment.production) devWarn(...args); };
+const devWarn = (...args: unknown[]) => { if (!environment.production) console.warn(...args); };
 
 export type DayType = 'working' | 'holiday' | 'paid_leave' | 'sick_leave' | 'wfh';
 

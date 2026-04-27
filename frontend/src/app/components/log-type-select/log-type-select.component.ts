@@ -22,7 +22,7 @@ const DOMAIN_LABELS: Record<string, string> = {
   selector: 'app-log-type-select',
   standalone: true,
   imports: [CommonModule],
-  changeDetection: ChangeDetectionStrategy.Default,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="lts-root" [class.lts-root--open]="isOpen">
 

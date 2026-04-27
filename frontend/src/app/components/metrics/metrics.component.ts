@@ -5,7 +5,9 @@ import {
   EventEmitter,
   OnChanges,
   OnDestroy,
-  SimpleChanges
+  SimpleChanges,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -37,6 +39,7 @@ interface MetricCard {
   selector: 'app-metrics',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="metrics-section">
 
@@ -548,6 +551,7 @@ export class MetricsComponent implements OnChanges, OnDestroy {
   constructor(
     private logService:      LogService,
     private dayLevelService: DayLevelService,
+    private cdr:             ChangeDetectorRef,
   ) {}
 
   /* ── Lifecycle ───────────────────────────────────── */
@@ -569,8 +573,8 @@ export class MetricsComponent implements OnChanges, OnDestroy {
     const prev = new Date(this.selectedDate);
     prev.setDate(prev.getDate() - 1);
     this.logService.getLogsForDate(prev).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  logs => this.prevDayLogs = logs,
-      error: ()   => this.prevDayLogs = []
+      next:  logs => { this.prevDayLogs = logs; this.cdr.markForCheck(); },
+      error: ()   => { this.prevDayLogs = []; this.cdr.markForCheck(); }
     });
   }
 
@@ -578,11 +582,11 @@ export class MetricsComponent implements OnChanges, OnDestroy {
     const y = this.selectedDate.getFullYear();
     const m = this.selectedDate.getMonth() + 1;
     this.logService.getMonthWorkSummary(y, m).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  data => this.monthWorkSummary = data,
+      next:  data => { this.monthWorkSummary = data; this.cdr.markForCheck(); },
       error: ()   => {}
     });
     this.dayLevelService.getMonthDayTypes(y, m).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  data => this.monthDayTypes = data,
+      next:  data => { this.monthDayTypes = data; this.cdr.markForCheck(); },
       error: ()   => {}
     });
     // Fetch previous month for streak calculation across month boundaries
@@ -590,11 +594,11 @@ export class MetricsComponent implements OnChanges, OnDestroy {
     prev.setDate(1);
     prev.setMonth(prev.getMonth() - 1);
     this.logService.getMonthWorkSummary(prev.getFullYear(), prev.getMonth() + 1).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  data => this.prevMonthWorkSummary = data,
+      next:  data => { this.prevMonthWorkSummary = data; this.cdr.markForCheck(); },
       error: ()   => {}
     });
     this.dayLevelService.getMonthDayTypes(prev.getFullYear(), prev.getMonth() + 1).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  data => this.prevMonthDayTypes = data,
+      next:  data => { this.prevMonthDayTypes = data; this.cdr.markForCheck(); },
       error: ()   => {}
     });
   }
