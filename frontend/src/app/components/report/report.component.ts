@@ -1,6 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { LogService } from '../../services/log.service';
 import { CalendarComponent } from '../calendar/calendar.component';
 
@@ -1093,7 +1095,9 @@ type Preset = 'last10' | 'thisWeek' | 'currentMonth' | 'lastMonth';
     }
   `]
 })
-export class ReportComponent {
+export class ReportComponent implements OnDestroy {
+
+  private readonly destroy$ = new Subject<void>();
 
   // ── Date/time range ────────────────────────────────────────────────────────
   fromDate: Date;
@@ -1141,6 +1145,11 @@ export class ReportComponent {
     const weekAgo = new Date(today);
     weekAgo.setDate(today.getDate() - 6);
     this.fromDate = weekAgo;
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   // ── Computed date strings ──────────────────────────────────────────────────
@@ -1306,7 +1315,7 @@ export class ReportComponent {
     const startFilter = `${this.startDateStr}T${this.startTimeStr}:00.000Z`;
     const endFilter   = `${this.endDateStr}T${this.endTimeStr}:59.999Z`;
 
-    this.logService.getLogsForDateRange(this.startDateStr, this.endDateStr).subscribe({
+    this.logService.getLogsForDateRange(this.startDateStr, this.endDateStr).pipe(takeUntil(this.destroy$)).subscribe({
       next: (data) => {
         this.logs = (data as ReportEntry[]).filter(log =>
           log.startAtISO >= startFilter && log.startAtISO <= endFilter
@@ -1379,7 +1388,7 @@ export class ReportComponent {
     this.logService.updateLogReport(log.id, {
       title: this.editForm.comment, ticketId: this.editForm.ticketId || null,
       startAtISO, durationMins,
-    }, oldDateStr).subscribe({
+    }, oldDateStr).pipe(takeUntil(this.destroy$)).subscribe({
       next: (updated: any) => {
         const idx = this.logs.findIndex(l => l.id === log.id);
         if (idx !== -1) {
@@ -1413,7 +1422,7 @@ export class ReportComponent {
     let pending = this.logs.length;
 
     for (const log of this.logs) {
-      this.logService.updateLogReport(log.id, { ticketId }, log.startAtISO.slice(0, 10)).subscribe({
+      this.logService.updateLogReport(log.id, { ticketId }, log.startAtISO.slice(0, 10)).pipe(takeUntil(this.destroy$)).subscribe({
         next: (updated: any) => {
           const idx = this.logs.findIndex(l => l.id === log.id);
           if (idx !== -1) this.logs[idx] = { ...this.logs[idx], ticketId: updated.ticketId ?? ticketId };
@@ -1436,7 +1445,7 @@ export class ReportComponent {
     let pending = group.logs.length;
 
     for (const log of group.logs) {
-      this.logService.updateLogReport(log.id, { ticketId }, log.startAtISO.slice(0, 10)).subscribe({
+      this.logService.updateLogReport(log.id, { ticketId }, log.startAtISO.slice(0, 10)).pipe(takeUntil(this.destroy$)).subscribe({
         next: (updated: any) => {
           const idx = this.logs.findIndex(l => l.id === log.id);
           if (idx !== -1) this.logs[idx] = { ...this.logs[idx], ticketId: updated.ticketId ?? ticketId };

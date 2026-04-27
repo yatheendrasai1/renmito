@@ -1,9 +1,11 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnInit, OnChanges, SimpleChanges, ViewChildren, QueryList, ElementRef
+  OnInit, OnChanges, OnDestroy, SimpleChanges, ViewChildren, QueryList, ElementRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { NotesService, NoteItem } from '../../services/notes.service';
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.component';
 
@@ -292,12 +294,13 @@ interface LocalNote {
     .ns-add-btn:disabled { opacity: 0.45; cursor: not-allowed; }
   `]
 })
-export class NotesSheetComponent implements OnInit, OnChanges {
+export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
   @Input() date!: Date;
   @Output() close = new EventEmitter<void>();
 
   @ViewChildren('noteTA') noteTAs!: QueryList<ElementRef<HTMLTextAreaElement>>;
 
+  private readonly destroy$ = new Subject<void>();
   notes:             LocalNote[] = [];
   loading            = false;
   adding             = false;
@@ -315,6 +318,11 @@ export class NotesSheetComponent implements OnInit, OnChanges {
 
   constructor(private notesService: NotesService) {}
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   ngOnInit(): void { this.loadNotes(); }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -323,7 +331,7 @@ export class NotesSheetComponent implements OnInit, OnChanges {
 
   private loadNotes(): void {
     this.loading = true;
-    this.notesService.getNotes(this.dateStr).subscribe({
+    this.notesService.getNotes(this.dateStr).pipe(takeUntil(this.destroy$)).subscribe({
       next: (d) => {
         this.notes = d.notes.map(n => ({
           _id: n._id, content: n.content, savedContent: n.content,
@@ -338,7 +346,7 @@ export class NotesSheetComponent implements OnInit, OnChanges {
   onBlur(note: LocalNote): void {
     if (note.content === note.savedContent) return;
     note.saving = true;
-    this.notesService.updateNote(this.dateStr, note._id, note.content).subscribe({
+    this.notesService.updateNote(this.dateStr, note._id, note.content).pipe(takeUntil(this.destroy$)).subscribe({
       next: (n) => { note.savedContent = n.content; note.saving = false; },
       error: ()  => { note.saving = false; }
     });
@@ -349,7 +357,7 @@ export class NotesSheetComponent implements OnInit, OnChanges {
     this.pendingDeleteNote = null;
     if (!note) return;
     note.deleting = true;
-    this.notesService.deleteNote(this.dateStr, note._id).subscribe({
+    this.notesService.deleteNote(this.dateStr, note._id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => { this.notes = this.notes.filter(n => n._id !== note._id); },
       error: () => { note.deleting = false; }
     });
@@ -366,7 +374,7 @@ export class NotesSheetComponent implements OnInit, OnChanges {
   addNote(): void {
     if (this.adding) return;
     this.adding = true;
-    this.notesService.addNote(this.dateStr).subscribe({
+    this.notesService.addNote(this.dateStr).pipe(takeUntil(this.destroy$)).subscribe({
       next: (n) => {
         this.notes.push({ _id: n._id, content: '', savedContent: '', saving: false, isNew: true, copied: false, deleting: false });
         this.adding = false;

@@ -1,6 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { ConfigService } from '../../services/config.service';
 import { PreferenceService, DaySettings } from '../../services/preference.service';
 import { LogTypeService } from '../../services/log-type.service';
@@ -632,7 +634,8 @@ type IntelStep = 'list' | 'choose' | 'gemini-key';
     }
   `]
 })
-export class ConfigurationComponent implements OnInit {
+export class ConfigurationComponent implements OnInit, OnDestroy {
+  private readonly destroy$ = new Subject<void>();
   openSection: AccordionSection = null;
 
   // ── Preferences ───────────────────────────────────────────
@@ -663,12 +666,17 @@ export class ConfigurationComponent implements OnInit {
     private ltService:     LogTypeService,
   ) {}
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   ngOnInit(): void {
-    this.configService.getConfig().subscribe({
+    this.configService.getConfig().pipe(takeUntil(this.destroy$)).subscribe({
       next: cfg => { this.geminiConfigured = cfg.geminiConfigured; },
       error: () => {}
     });
-    this.prefService.getPreferences().subscribe({
+    this.prefService.getPreferences().pipe(takeUntil(this.destroy$)).subscribe({
       next: prefs => {
         if (prefs?.daySettings) {
           this.idealDay = { ...DEFAULT_DAY_SETTINGS, ...prefs.daySettings };
@@ -711,7 +719,7 @@ export class ConfigurationComponent implements OnInit {
     this.savingPreferences = true;
     this.idealErrorMsg   = '';
     this.idealSuccessMsg = '';
-    this.prefService.updateDaySettings(this.idealDayDraft).subscribe({
+    this.prefService.updateDaySettings(this.idealDayDraft).pipe(takeUntil(this.destroy$)).subscribe({
       next: saved => {
         this.savingPreferences = false;
         if (saved) {
@@ -732,7 +740,7 @@ export class ConfigurationComponent implements OnInit {
 
   // ── Custom log types ──────────────────────────────────────
   private loadCustomLogTypes(): void {
-    this.ltService.getLogTypes().subscribe({
+    this.ltService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe({
       next: types => { this.customLogTypes = types.filter(t => t.source === 'user'); },
       error: () => {}
     });
@@ -751,14 +759,14 @@ export class ConfigurationComponent implements OnInit {
   saveEditLt(lt: LogType): void {
     const name = this.editingLtName.trim();
     if (!name) return;
-    this.ltService.updateLogTypeName(lt._id, name).subscribe({
+    this.ltService.updateLogTypeName(lt._id, name).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => { lt.name = name; this.cancelEditLt(); },
       error: () => {}
     });
   }
 
   deleteLt(lt: LogType): void {
-    this.ltService.deleteLogType(lt._id).subscribe({
+    this.ltService.deleteLogType(lt._id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => { this.customLogTypes = this.customLogTypes.filter(t => t._id !== lt._id); },
       error: () => {}
     });
@@ -771,7 +779,7 @@ export class ConfigurationComponent implements OnInit {
 
   createLt(): void {
     if (!this.newLt.name.trim()) return;
-    this.ltService.createLogType({ name: this.newLt.name.trim(), domain: this.newLt.domain }).subscribe({
+    this.ltService.createLogType({ name: this.newLt.name.trim(), domain: this.newLt.domain }).pipe(takeUntil(this.destroy$)).subscribe({
       next: lt => {
         this.customLogTypes.push(lt);
         this.showNewLtForm = false;
@@ -793,7 +801,7 @@ export class ConfigurationComponent implements OnInit {
     this.saving = true;
     this.intelErrorMsg  = '';
     this.intelSuccessMsg = '';
-    this.configService.saveGeminiKey(this.apiKeyInput.trim()).subscribe({
+    this.configService.saveGeminiKey(this.apiKeyInput.trim()).pipe(takeUntil(this.destroy$)).subscribe({
       next: res => {
         this.saving           = false;
         this.geminiConfigured = true;

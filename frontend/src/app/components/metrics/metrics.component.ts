@@ -4,10 +4,13 @@ import {
   Output,
   EventEmitter,
   OnChanges,
+  OnDestroy,
   SimpleChanges
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { LogEntry } from '../../models/log.model';
 import { LogService } from '../../services/log.service';
 import { DayLevelService } from '../../services/day-level.service';
@@ -524,11 +527,12 @@ interface MetricCard {
     }
   `]
 })
-export class MetricsComponent implements OnChanges {
+export class MetricsComponent implements OnChanges, OnDestroy {
   @Input()  logs:         LogEntry[] = [];
   @Input()  selectedDate: Date = new Date();
   @Output() cardHighlight = new EventEmitter<string[] | null>();
 
+  private readonly destroy$ = new Subject<void>();
   view: MetricView      = 'professional';
   analyticsMode: AnalyticsMode = 'digital';
   modeMenuOpen          = false;
@@ -548,6 +552,11 @@ export class MetricsComponent implements OnChanges {
 
   /* ── Lifecycle ───────────────────────────────────── */
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['selectedDate'] && this.selectedDate) {
       this.fetchPrevDayLogs();
@@ -559,7 +568,7 @@ export class MetricsComponent implements OnChanges {
   private fetchPrevDayLogs(): void {
     const prev = new Date(this.selectedDate);
     prev.setDate(prev.getDate() - 1);
-    this.logService.getLogsForDate(prev).subscribe({
+    this.logService.getLogsForDate(prev).pipe(takeUntil(this.destroy$)).subscribe({
       next:  logs => this.prevDayLogs = logs,
       error: ()   => this.prevDayLogs = []
     });
@@ -568,11 +577,11 @@ export class MetricsComponent implements OnChanges {
   private fetchMonthSummary(): void {
     const y = this.selectedDate.getFullYear();
     const m = this.selectedDate.getMonth() + 1;
-    this.logService.getMonthWorkSummary(y, m).subscribe({
+    this.logService.getMonthWorkSummary(y, m).pipe(takeUntil(this.destroy$)).subscribe({
       next:  data => this.monthWorkSummary = data,
       error: ()   => {}
     });
-    this.dayLevelService.getMonthDayTypes(y, m).subscribe({
+    this.dayLevelService.getMonthDayTypes(y, m).pipe(takeUntil(this.destroy$)).subscribe({
       next:  data => this.monthDayTypes = data,
       error: ()   => {}
     });
@@ -580,11 +589,11 @@ export class MetricsComponent implements OnChanges {
     const prev = new Date(this.selectedDate);
     prev.setDate(1);
     prev.setMonth(prev.getMonth() - 1);
-    this.logService.getMonthWorkSummary(prev.getFullYear(), prev.getMonth() + 1).subscribe({
+    this.logService.getMonthWorkSummary(prev.getFullYear(), prev.getMonth() + 1).pipe(takeUntil(this.destroy$)).subscribe({
       next:  data => this.prevMonthWorkSummary = data,
       error: ()   => {}
     });
-    this.dayLevelService.getMonthDayTypes(prev.getFullYear(), prev.getMonth() + 1).subscribe({
+    this.dayLevelService.getMonthDayTypes(prev.getFullYear(), prev.getMonth() + 1).pipe(takeUntil(this.destroy$)).subscribe({
       next:  data => this.prevMonthDayTypes = data,
       error: ()   => {}
     });

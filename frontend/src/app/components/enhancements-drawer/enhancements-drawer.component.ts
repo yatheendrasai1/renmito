@@ -1,9 +1,11 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnInit, OnChanges, SimpleChanges, HostListener
+  OnInit, OnChanges, OnDestroy, SimpleChanges, HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 export interface Enhancement {
   id: string;
@@ -408,15 +410,21 @@ export interface Enhancement {
     }
   `]
 })
-export class EnhancementsDrawerComponent implements OnInit, OnChanges {
+export class EnhancementsDrawerComponent implements OnInit, OnChanges, OnDestroy {
   @Input()  isOpen = false;
   @Output() close  = new EventEmitter<void>();
 
+  private readonly destroy$ = new Subject<void>();
   enhancements: Enhancement[] = [];
   isLoading = false;
   loadError = false;
 
   constructor(private http: HttpClient) {}
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
   ngOnInit(): void {
     this.loadEnhancements();
@@ -437,7 +445,7 @@ export class EnhancementsDrawerComponent implements OnInit, OnChanges {
   loadEnhancements(): void {
     this.isLoading = true;
     this.loadError = false;
-    this.http.get<{ enhancements: Enhancement[] }>('/assets/enhancements.json').subscribe({
+    this.http.get<{ enhancements: Enhancement[] }>('/assets/enhancements.json').pipe(takeUntil(this.destroy$)).subscribe({
       next: (data) => {
         // Show newest first
         this.enhancements = [...data.enhancements].reverse();

@@ -1,8 +1,10 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnInit, OnChanges, SimpleChanges
+  OnInit, OnChanges, OnDestroy, SimpleChanges
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { LogEntry, CreateLogEntry } from '../../models/log.model';
 import { DayLevelService, DayMetadata, ImportantLogEntry } from '../../services/day-level.service';
 import { LogService } from '../../services/log.service';
@@ -279,7 +281,7 @@ const SLOT_CATEGORY: Record<string, string> = {
     .il-capture-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   `]
 })
-export class ImportantLogsComponent implements OnInit, OnChanges {
+export class ImportantLogsComponent implements OnInit, OnChanges, OnDestroy {
   @Input() selectedDate!: Date;
   @Input() logs:          LogEntry[] = [];  // current day
   @Input() metadata:      DayMetadata | null = null;
@@ -289,6 +291,7 @@ export class ImportantLogsComponent implements OnInit, OnChanges {
   /** Emitted after a log is saved/updated/deleted so parent can reload logs. */
   @Output() logsChanged  = new EventEmitter<void>();
 
+  private readonly destroy$ = new Subject<void>();
   loading    = false;
   capturing  = false;
   prevDayLogs: LogEntry[] = [];
@@ -311,9 +314,14 @@ export class ImportantLogsComponent implements OnInit, OnChanges {
     private logTypeService:  LogTypeService,
   ) {}
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   ngOnInit(): void {
     this.loadSurroundingLogs();
-    this.logTypeService.getLogTypes().subscribe({
+    this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe({
       next:  types => { this.allLogTypes = types; this.buildSlots(); },
       error: ()    => {}
     });
@@ -354,11 +362,11 @@ export class ImportantLogsComponent implements OnInit, OnChanges {
         this.buildSlots();
       }
     };
-    this.logService.getLogsForDate(this.prevDate()).subscribe({
+    this.logService.getLogsForDate(this.prevDate()).pipe(takeUntil(this.destroy$)).subscribe({
       next: logs => { this.prevDayLogs = logs; done(); },
       error: () => { this.prevDayLogs = []; done(); }
     });
-    this.logService.getLogsForDate(this.nextDate()).subscribe({
+    this.logService.getLogsForDate(this.nextDate()).pipe(takeUntil(this.destroy$)).subscribe({
       next: logs => { this.nextDayLogs = logs; done(); },
       error: () => { this.nextDayLogs = []; done(); }
     });
@@ -545,11 +553,11 @@ export class ImportantLogsComponent implements OnInit, OnChanges {
         this.buildSlots();
       }
     };
-    this.logService.getLogsForDate(this.prevDate()).subscribe({
+    this.logService.getLogsForDate(this.prevDate()).pipe(takeUntil(this.destroy$)).subscribe({
       next: logs => { this.prevDayLogs = logs; done(); },
       error: () => { this.prevDayLogs = []; done(); }
     });
-    this.logService.getLogsForDate(this.nextDate()).subscribe({
+    this.logService.getLogsForDate(this.nextDate()).pipe(takeUntil(this.destroy$)).subscribe({
       next: logs => { this.nextDayLogs = logs; done(); },
       error: () => { this.nextDayLogs = []; done(); }
     });
@@ -559,7 +567,7 @@ export class ImportantLogsComponent implements OnInit, OnChanges {
 
   doCapture(): void {
     this.capturing = true;
-    this.dayLevelService.capture(this.selectedDateStr).subscribe({
+    this.dayLevelService.capture(this.selectedDateStr).pipe(takeUntil(this.destroy$)).subscribe({
       next: meta => {
         this.capturing = false;
         if (meta) {

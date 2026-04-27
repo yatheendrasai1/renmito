@@ -1,6 +1,8 @@
-import { Component, EventEmitter, Input, OnInit, Output, ElementRef } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, OnDestroy, Output, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { PreferenceService } from '../../services/preference.service';
 
 // ─────────────────────────────────────────────────────────────
@@ -684,7 +686,7 @@ export function loadSavedPalette(): ColorPalette | null {
     .te-panel::-webkit-scrollbar-thumb { background: #3A3A55; border-radius: 2px; }
   `]
 })
-export class ThemeEditorComponent implements OnInit {
+export class ThemeEditorComponent implements OnInit, OnDestroy {
   @Input()  isOpen = false;
   @Input()  inline = false;
   @Output() close  = new EventEmitter<void>();
@@ -701,6 +703,7 @@ export class ThemeEditorComponent implements OnInit {
 
   justSaved = false;
   savedMsg  = 'Saved ✓';
+  private readonly destroy$ = new Subject<void>();
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
 
   pickerConfigs: { label: string; key: keyof ColorPalette }[] = [
@@ -712,13 +715,19 @@ export class ThemeEditorComponent implements OnInit {
 
   constructor(private prefService: PreferenceService) {}
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    if (this.saveTimer) clearTimeout(this.saveTimer);
+  }
+
   ngOnInit(): void {
     // Populate pickers from localStorage instantly
     const saved = loadSavedPalette();
     if (saved) { this.currentPalette = { ...saved }; }
 
     // Load custom presets from DB
-    this.prefService.getPreferences().subscribe(prefs => {
+    this.prefService.getPreferences().pipe(takeUntil(this.destroy$)).subscribe(prefs => {
       if (prefs?.customPresets) {
         this.customPresets = prefs.customPresets;
       }
@@ -750,7 +759,7 @@ export class ThemeEditorComponent implements OnInit {
   saveToProfile(): void {
     applyPaletteToDOM(this.currentPalette);
     localStorage.setItem(PALETTE_STORAGE_KEY, JSON.stringify(this.currentPalette));
-    this.prefService.savePalette(this.currentPalette).subscribe({
+    this.prefService.savePalette(this.currentPalette).pipe(takeUntil(this.destroy$)).subscribe({
       next:  () => this.flashSaved('Applied ✓'),
       error: () => this.flashSaved('Applied ✓'),
     });
@@ -779,7 +788,7 @@ export class ThemeEditorComponent implements OnInit {
     }
 
     const preset: ColorPalette = { ...this.currentPalette, name };
-    this.prefService.addPreset(preset).subscribe({
+    this.prefService.addPreset(preset).pipe(takeUntil(this.destroy$)).subscribe({
       next: presets => {
         if (presets) {
           this.customPresets = presets;
@@ -792,7 +801,7 @@ export class ThemeEditorComponent implements OnInit {
   }
 
   deletePreset(p: ColorPalette): void {
-    this.prefService.deletePreset(p.name).subscribe(presets => {
+    this.prefService.deletePreset(p.name).pipe(takeUntil(this.destroy$)).subscribe(presets => {
       if (presets !== null) { this.customPresets = presets; }
     });
   }
@@ -802,7 +811,7 @@ export class ThemeEditorComponent implements OnInit {
     this.currentPalette = { ...PALETTE_PRESETS[0] };
     applyPaletteToDOM(this.currentPalette);
     clearPaletteFromDOM();
-    this.prefService.deletePalette().subscribe();
+    this.prefService.deletePalette().pipe(takeUntil(this.destroy$)).subscribe();
     this.flashSaved('Reset ✓');
   }
 

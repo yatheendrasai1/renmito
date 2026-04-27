@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, HostListener, OnInit, ViewChild } from '@angular/core';
+import { Component, AfterViewInit, HostListener, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CalendarComponent } from './components/calendar/calendar.component';
@@ -14,7 +14,8 @@ import { PreferenceService, ActiveLog } from './services/preference.service';
 import { DayLevelService, DayMetadata, DayType } from './services/day-level.service';
 import { LogEntry, CreateLogEntry } from './models/log.model';
 import { LogType } from './models/log-type.model';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { LogTypeSelectComponent } from './components/log-type-select/log-type-select.component';
 import { ImportantLogsComponent } from './components/important-logs/important-logs.component';
@@ -3723,7 +3724,7 @@ const PERF = (() => {
     .quick-prefs-save:hover:not(:disabled) { opacity: 0.88; }
   `]
 })
-export class AppComponent implements OnInit, AfterViewInit {
+export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('timelineRef')  timelineRef!:  TimelineComponent;
   @ViewChild('journeysRef')  journeysRef?:  JourneysComponent;
 
@@ -3798,6 +3799,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   // ── 1.62: Quick Shortcuts Bar ─────────────────────────────────
   shortcutToast: { message: string; logId: string } | null = null;
   shortcutSaving = false;
+  private readonly destroy$ = new Subject<void>();
   private toastTimer: ReturnType<typeof setTimeout> | undefined = undefined;
 
   // ── 1.85: Quick action panel (start/conclude + duration) ──────
@@ -3958,7 +3960,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       this.loadLogs();
       // Pre-load log types for shortcuts bar and Log Now FAB
       PERF.start('api:log-types');
-      this.logTypeService.getLogTypes().subscribe({
+      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe({
         next: (t) => { this.inlineLogTypes = t; PERF.end('api:log-types', `${t.length} types`); },
         error: ()         => { PERF.end('api:log-types', 'ERROR'); }
       });
@@ -3969,6 +3971,15 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     PERF.instant('first-render');
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.stopActiveLogTimer();
+    clearTimeout(this.toastTimer);
+    clearTimeout(this.essentialPressTimer);
+    clearTimeout(this.addPointLongPressTimer);
   }
 
   onLoggedIn(): void {
@@ -3990,7 +4001,7 @@ export class AppComponent implements OnInit, AfterViewInit {
    *  page reload or when the user opens the app on a different device. */
   private syncPaletteFromDB(): void {
     PERF.start('api:preferences');
-    this.prefService.getPreferences().subscribe(prefs => {
+    this.prefService.getPreferences().pipe(takeUntil(this.destroy$)).subscribe(prefs => {
       PERF.end('api:preferences', prefs ? 'ok' : 'null');
       if (prefs?.palette) {
         applyPaletteToDOM(prefs.palette);
@@ -4029,7 +4040,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   applyQuickPalette(p: ColorPalette): void {
     applyPaletteToDOM(p);
     localStorage.setItem('renmito-palette', JSON.stringify(p));
-    this.prefService.savePalette(p).subscribe();
+    this.prefService.savePalette(p).pipe(takeUntil(this.destroy$)).subscribe();
   }
 
   logout(): void {
@@ -4130,7 +4141,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       this.profileError = 'New password must be at least 8 characters.'; return;
     }
     this.profileChanging = true;
-    this.authService.changePassword(this.profilePass.current, this.profilePass.next).subscribe({
+    this.authService.changePassword(this.profilePass.current, this.profilePass.next).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.profileChanging = false;
         this.profileSuccess  = 'Password updated successfully.';
@@ -4212,7 +4223,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   loadLogs(): void {
     this.isLoading = true;
     PERF.start('api:logs');
-    this.logService.getLogsForDate(this.selectedDate).subscribe({
+    this.logService.getLogsForDate(this.selectedDate).pipe(takeUntil(this.destroy$)).subscribe({
       next: (logs) => {
         this.logs = logs.sort((a, b) =>
           this.timeToMinutes(a.startAt) - this.timeToMinutes(b.startAt)
@@ -4232,7 +4243,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   // ── 1.83: Day metadata ────────────────────────────────────
   private loadDayMetadata(): void {
     PERF.start('api:day-metadata');
-    this.dayLevelService.getMetadata(this.selectedDateStr).subscribe({
+    this.dayLevelService.getMetadata(this.selectedDateStr).pipe(takeUntil(this.destroy$)).subscribe({
       next:  meta => { this.dayMetadata = meta; PERF.end('api:day-metadata'); },
       error: ()   => { this.dayMetadata = null; PERF.end('api:day-metadata', 'ERROR'); }
     });
@@ -4242,7 +4253,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   private loadNotesCount(): void {
     const dateStr = this.selectedDateStr;
     this.notesCount = 0;
-    this.notesService.getNotes(dateStr).subscribe({
+    this.notesService.getNotes(dateStr).pipe(takeUntil(this.destroy$)).subscribe({
       next:  d  => { if (this.selectedDateStr === dateStr) this.notesCount = d.notes.length; },
       error: () => { if (this.selectedDateStr === dateStr) this.notesCount = 0; }
     });
@@ -4265,7 +4276,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     if (!this.dayMetadata) return;
     // Optimistic update
     this.dayMetadata = { ...this.dayMetadata, dayType };
-    this.dayLevelService.setDayType(this.selectedDateStr, dayType).subscribe({
+    this.dayLevelService.setDayType(this.selectedDateStr, dayType).pipe(takeUntil(this.destroy$)).subscribe({
       next:  meta  => { if (meta) this.dayMetadata = meta; },
       error: ()    => { this.loadDayMetadata(); } // revert on error
     });
@@ -4303,7 +4314,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.highlightedLogId = log.id;
     this.timelineRef?.scrollToLog(log);
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe(types => this.inlineLogTypes = types);
+      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe(types => this.inlineLogTypes = types);
     }
   }
 
@@ -4379,7 +4390,7 @@ export class AppComponent implements OnInit, AfterViewInit {
           entryType: 'point', pointTime: this.inlineEdit.startAt }
       : { title: this.inlineEdit.title, logTypeId: this.inlineEdit.logTypeId,
           startTime: this.inlineEdit.startAt, endTime: this.inlineEdit.endAt };
-    this.logService.updateLog(this.selectedDate, log.id, payload).subscribe({
+    this.logService.updateLog(this.selectedDate, log.id, payload).pipe(takeUntil(this.destroy$)).subscribe({
       next:  () => { this.inlineSaving = false; this.inlineEditId = null; this.loadLogs(); },
       error: () => { this.inlineSaving = false; alert('Failed to save changes.'); }
     });
@@ -4489,7 +4500,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       logTypeId: lt._id,
       startTime: startStr,
       endTime:   endStr,
-    }).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next: (created) => {
         this.shortcutSaving   = false;
         this.quickActionChip  = null;
@@ -4510,7 +4521,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     const id = this.shortcutToast.logId;
     this.shortcutToast = null;
     clearTimeout(this.toastTimer);
-    this.logService.deleteLog(this.selectedDate, id).subscribe({
+    this.logService.deleteLog(this.selectedDate, id).pipe(takeUntil(this.destroy$)).subscribe({
       next:  () => this.loadLogs(),
       error: () => {}
     });
@@ -4583,7 +4594,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.startLogDomain = 'work';
 
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t) => {
+      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => {
         this.inlineLogTypes = t;
         this._initStartLog();
         this._immediatelyStartTimer();
@@ -4615,6 +4626,7 @@ export class AppComponent implements OnInit, AfterViewInit {
 
     this.startLogSaving = true;
     this.prefService.startActiveLog({ logTypeId: typeId, title: '', plannedMins: null })
+      .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (activeLog) => {
           this.startLogSaving = false;
@@ -4649,7 +4661,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   openTimerEdit(): void {
     if (!this.activeLog) return;
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t) => {
+      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => {
         this.inlineLogTypes = t;
         this._syncStartLogUiToActiveLog();
         this.timerEditOpen = true;
@@ -4710,6 +4722,7 @@ export class AppComponent implements OnInit, AfterViewInit {
 
     this.startLogSaving = true;
     this.prefService.startActiveLog({ logTypeId: this.startLogTypeId, title, plannedMins })
+      .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (activeLog) => {
           this.startLogSaving   = false;
@@ -4752,9 +4765,9 @@ export class AppComponent implements OnInit, AfterViewInit {
       logTypeId: savedLog.logTypeId,
       startTime: startAt,
       endTime:   endAt,
-    }).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
-        this.prefService.stopActiveLog().subscribe();
+        this.prefService.stopActiveLog().pipe(takeUntil(this.destroy$)).subscribe();
         this.loadLogs();
         const diff = this.timeToMinutes(endAt) - this.timeToMinutes(startAt);
         if (diff > 0) {
@@ -4870,7 +4883,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.logNowTypeIndex = 0;
     this.logNowTitle     = '';
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t) => {
+      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => {
         this.inlineLogTypes = t;
         this._initLogNowType();
         setTimeout(() => { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }, 40);
@@ -4957,7 +4970,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       logTypeId: this.logNowTypeId,
       startTime: this.logNowStart,
       endTime:   this.logNowEnd,
-    }).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next:  () => { this.logNowSaving = false; this.unifiedSheetOpen = false; this.loadLogs(); },
       error: () => { this.logNowSaving = false; }
     });
@@ -4982,7 +4995,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.renniMsgs.push({ from: 'renni', thinking: true });
     this._scrollRenniToBottom();
 
-    this.aiService.chat(text, this.selectedDateStr).subscribe({
+    this.aiService.chat(text, this.selectedDateStr).pipe(takeUntil(this.destroy$)).subscribe({
       next: (res: ChatResponse) => {
         this.renniThinking = false;
         if (res.type === 'logs' && res.logs?.length) {
@@ -5042,7 +5055,7 @@ export class AppComponent implements OnInit, AfterViewInit {
         payload.startAtISO = `${dateStr}T${p.startTime}:00.000Z`;
         payload.endAtISO   = `${dateStr}T${p.endTime}:00.000Z`;
       }
-      this.logService.createLog(this.selectedDate, payload).subscribe({
+      this.logService.createLog(this.selectedDate, payload).pipe(takeUntil(this.destroy$)).subscribe({
         next:  () => saveNext(idx + 1),
         error: err => {
           msg.saving = false;
@@ -5068,7 +5081,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       this.addPointMenuOpen = true;
       this.addPointLongPressTimer = undefined;
       if (!this.inlineLogTypes.length) {
-        this.logTypeService.getLogTypes().subscribe((t) => { this.inlineLogTypes = t; });
+        this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => { this.inlineLogTypes = t; });
       }
     }, 500);
   }
@@ -5105,10 +5118,10 @@ export class AppComponent implements OnInit, AfterViewInit {
       this.logService.createLog(this.selectedDate, {
         title, logTypeId: typeId, entryType: 'point',
         pointTime: pt, startTime: pt, endTime: pt,
-      }).subscribe({ next: () => this.loadLogs(), error: () => {} });
+      }).pipe(takeUntil(this.destroy$)).subscribe({ next: () => this.loadLogs(), error: () => {} });
     };
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t) => {
+      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => {
         this.inlineLogTypes = t;
         this.addPointTypeId = t[0]?._id ?? '';
         save();
@@ -5140,7 +5153,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`
     );
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t) => {
+      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => {
         this.inlineLogTypes = t;
         this._initAddPoint();
         setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
@@ -5195,10 +5208,10 @@ export class AppComponent implements OnInit, AfterViewInit {
       this.logService.createLog(this.selectedDate, {
         title: lt.name, logTypeId: lt._id, entryType: 'point',
         pointTime: pt, startTime: pt, endTime: pt,
-      }).subscribe({ next: () => this.loadLogs(), error: () => {} });
+      }).pipe(takeUntil(this.destroy$)).subscribe({ next: () => this.loadLogs(), error: () => {} });
     };
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t) => { this.inlineLogTypes = t; doStamp(); });
+      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => { this.inlineLogTypes = t; doStamp(); });
     } else {
       doStamp();
     }
@@ -5222,7 +5235,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
     };
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t) => { this.inlineLogTypes = t; doOpen(); });
+      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => { this.inlineLogTypes = t; doOpen(); });
     } else {
       doOpen();
     }
@@ -5292,7 +5305,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       pointTime: this.addPointTime,
       startTime: this.addPointTime,
       endTime:   this.addPointTime,
-    }).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next:  () => { this.addPointSaving = false; this.unifiedSheetOpen = false; this.loadLogs(); },
       error: () => { this.addPointSaving = false; }
     });
@@ -5310,7 +5323,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   openQuickPrefs(event: MouseEvent): void {
     event.stopPropagation();
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t) => {
+      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => {
         this.inlineLogTypes = t;
         this._doOpenQuickPrefs();
       });
@@ -5344,7 +5357,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     if (this.quickPrefsSaving) return;
     const shortcuts = [...this.quickPrefsEdit].map(id => ({ logTypeId: id, defaultMins: 30 }));
     this.quickPrefsSaving = true;
-    this.prefService.updateQuickShortcuts(shortcuts).subscribe({
+    this.prefService.updateQuickShortcuts(shortcuts).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.quickPrefsItems  = shortcuts;
         this.quickPrefsSaving = false;
@@ -5381,7 +5394,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       logTypeId: last.logType?.id ?? '',
       startTime: startStr,
       endTime:   now,
-    }).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next: (created) => {
         this.shortcutSaving = false;
         this.loadLogs();
@@ -5463,7 +5476,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       logTypeId: this.wrapUpTypeId,
       startTime: gap.start,
       endTime:   gap.end,
-    }).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next:  () => { this.wrapUpSaving = false; this.loadLogs(); this.advanceWrapUp(); },
       error: () => { this.wrapUpSaving = false; }
     });
@@ -5547,7 +5560,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       targetDate = new Date(y, m - 1, d);
       targetDate.setHours(0, 0, 0, 0);
     }
-    this.logService.createLog(targetDate, entry).subscribe({
+    this.logService.createLog(targetDate, entry).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         const idsToDelete = this.mergeSourceIds;
         this.mergeSourceIds = null;
@@ -5557,7 +5570,7 @@ export class AppComponent implements OnInit, AfterViewInit {
           forkJoin([
             this.logService.deleteLog(this.selectedDate, idsToDelete[0]),
             this.logService.deleteLog(this.selectedDate, idsToDelete[1])
-          ]).subscribe({ next: () => this.loadLogs(), error: () => this.loadLogs() });
+          ]).pipe(takeUntil(this.destroy$)).subscribe({ next: () => this.loadLogs(), error: () => this.loadLogs() });
         } else {
           this.loadLogs();
         }
@@ -5573,14 +5586,14 @@ export class AppComponent implements OnInit, AfterViewInit {
       targetDate = new Date(y, m - 1, d);
       targetDate.setHours(0, 0, 0, 0);
     }
-    this.logService.updateLog(targetDate, event.id, event.entry).subscribe({
+    this.logService.updateLog(targetDate, event.id, event.entry).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => { this.closeForm(); this.loadLogs(); },
       error: () => alert('Failed to update log. Please try again.')
     });
   }
 
   onLogDeleted(id: string): void {
-    this.logService.deleteLog(this.selectedDate, id).subscribe({
+    this.logService.deleteLog(this.selectedDate, id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => { this.closeForm(); this.loadLogs(); },
       error: () => alert('Failed to delete log. Please try again.')
     });

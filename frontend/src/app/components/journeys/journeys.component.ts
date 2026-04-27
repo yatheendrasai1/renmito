@@ -1,6 +1,8 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { JourneyService } from '../../services/journey.service';
 import {
   Journey, CreateJourney, JourneyEntry, CreateJourneyEntry,
@@ -1618,9 +1620,10 @@ type SubView = 'list' | 'detail';
     }
   `]
 })
-export class JourneysComponent implements OnInit {
+export class JourneysComponent implements OnInit, OnDestroy {
   @Input() availableLogTypes: any[] = [];
 
+  private readonly destroy$ = new Subject<void>();
   subView: SubView = 'list';
 
   journeys: Journey[] = [];
@@ -1697,6 +1700,11 @@ export class JourneysComponent implements OnInit {
   get familyLogTypes():   any[] { return this.availableLogTypes.filter(lt => lt.domain === 'family'); }
 
   constructor(private journeyService: JourneyService) {}
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
   ngOnInit() {
     this.loadJourneys();
@@ -1798,7 +1806,7 @@ export class JourneysComponent implements OnInit {
     );
 
     this.savingEdit = true;
-    this.journeyService.updateJourney(this.selectedJourney.id, patch).subscribe({
+    this.journeyService.updateJourney(this.selectedJourney.id, patch).pipe(takeUntil(this.destroy$)).subscribe({
       next: (updated) => {
         this.selectedJourney = updated;
         this.journeys = this.journeys.map(j => j.id === updated.id ? updated : j);
@@ -1806,7 +1814,7 @@ export class JourneysComponent implements OnInit {
         this.savingEdit = false;
         if (metricChanged) {
           this.resyncing = true;
-          this.journeyService.resyncJourney(updated.id).subscribe({
+          this.journeyService.resyncJourney(updated.id).pipe(takeUntil(this.destroy$)).subscribe({
             next: (synced) => { this.entries = synced; this.resyncing = false; },
             error: () => { this.resyncing = false; }
           });
@@ -1838,7 +1846,7 @@ export class JourneysComponent implements OnInit {
 
   loadJourneys() {
     this.loading = true;
-    this.journeyService.listJourneys().subscribe(list => {
+    this.journeyService.listJourneys().pipe(takeUntil(this.destroy$)).subscribe(list => {
       this.journeys = list;
       this.loading = false;
     });
@@ -1899,7 +1907,7 @@ export class JourneysComponent implements OnInit {
     }
 
     this.saving = true;
-    this.journeyService.createJourney(payload).subscribe({
+    this.journeyService.createJourney(payload).pipe(takeUntil(this.destroy$)).subscribe({
       next: (created) => {
         this.saving = false;
         this.journeys = [created, ...this.journeys];
@@ -1908,7 +1916,7 @@ export class JourneysComponent implements OnInit {
         // Auto-resync derived journeys from history
         if (created.trackerType === 'derived') {
           this.resyncing = true;
-          this.journeyService.resyncJourney(created.id).subscribe({
+          this.journeyService.resyncJourney(created.id).pipe(takeUntil(this.destroy$)).subscribe({
             next: (synced) => { this.entries = synced; this.resyncing = false; },
             error: () => { this.resyncing = false; }
           });
@@ -2035,7 +2043,7 @@ export class JourneysComponent implements OnInit {
 
   loadEntries(journeyId: string) {
     this.loadingEntries = true;
-    this.journeyService.listEntries(journeyId).subscribe(list => {
+    this.journeyService.listEntries(journeyId).pipe(takeUntil(this.destroy$)).subscribe(list => {
       this.entries = list;
       this.loadingEntries = false;
     });
@@ -2064,7 +2072,7 @@ export class JourneysComponent implements OnInit {
     };
 
     this.savingEntry = true;
-    this.journeyService.addEntry(this.selectedJourney.id, payload).subscribe({
+    this.journeyService.addEntry(this.selectedJourney.id, payload).pipe(takeUntil(this.destroy$)).subscribe({
       next: (entry) => {
         this.entries = [entry, ...this.entries];
         this.savingEntry = false;
@@ -2080,7 +2088,7 @@ export class JourneysComponent implements OnInit {
 
   deleteEntry(entry: JourneyEntry) {
     if (!this.selectedJourney) return;
-    this.journeyService.deleteEntry(this.selectedJourney.id, entry.id).subscribe({
+    this.journeyService.deleteEntry(this.selectedJourney.id, entry.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => { this.entries = this.entries.filter(e => e.id !== entry.id); },
       error: () => {}
     });
@@ -2091,7 +2099,7 @@ export class JourneysComponent implements OnInit {
   executeDelete() {
     if (!this.selectedJourney) return;
     this.deleting = true;
-    this.journeyService.deleteJourney(this.selectedJourney.id).subscribe({
+    this.journeyService.deleteJourney(this.selectedJourney.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.journeys = this.journeys.filter(j => j.id !== this.selectedJourney!.id);
         this.deleting = false;
@@ -2105,7 +2113,7 @@ export class JourneysComponent implements OnInit {
   resyncJourney(): void {
     if (!this.selectedJourney || this.resyncing) return;
     this.resyncing = true;
-    this.journeyService.resyncJourney(this.selectedJourney.id).subscribe({
+    this.journeyService.resyncJourney(this.selectedJourney.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: (synced) => { this.entries = synced; this.resyncing = false; },
       error: () => { this.resyncing = false; }
     });

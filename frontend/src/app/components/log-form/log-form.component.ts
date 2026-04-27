@@ -1,9 +1,11 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnInit, OnChanges, SimpleChanges
+  OnInit, OnChanges, OnDestroy, SimpleChanges
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { LogTypeService } from '../../services/log-type.service';
 import { LogType } from '../../models/log-type.model';
 import { LogEntry, CreateLogEntry } from '../../models/log.model';
@@ -726,7 +728,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     }
   `]
 })
-export class LogFormComponent implements OnInit, OnChanges {
+export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
   @Input() startTime            = '00:00';
   @Input() endTime              = '01:00';
   @Input() editEntry:            LogEntry | null = null;
@@ -737,6 +739,8 @@ export class LogFormComponent implements OnInit, OnChanges {
   @Output() updated   = new EventEmitter<{ id: string; entry: Partial<CreateLogEntry>; newDate?: string }>();
   @Output() deleted   = new EventEmitter<string>();
   @Output() cancelled = new EventEmitter<void>();
+
+  private readonly destroy$ = new Subject<void>();
 
   // ── log types ─────────────────────────────────────────
   logTypes:     LogType[] = [];
@@ -863,6 +867,11 @@ export class LogFormComponent implements OnInit, OnChanges {
 
   // ── lifecycle ──────────────────────────────────────────
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   ngOnInit(): void { this.loadLogTypes(); }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -875,7 +884,7 @@ export class LogFormComponent implements OnInit, OnChanges {
     this.loadingTypes  = true;
     this.typeLoadError = false;
 
-    this.logTypeService.getLogTypes().subscribe({
+    this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe({
       next: (types) => {
         this.logTypes     = types;
         this.groupedTypes = this.buildGroups(types);
@@ -1007,7 +1016,7 @@ export class LogFormComponent implements OnInit, OnChanges {
     if (!this.editTypeId || !this.editTypeName.trim() || this.editTypeSaving) return;
     this.editTypeSaving = true;
     this.editTypeError  = '';
-    this.logTypeService.updateLogTypeName(this.editTypeId, this.editTypeName.trim()).subscribe({
+    this.logTypeService.updateLogTypeName(this.editTypeId, this.editTypeName.trim()).pipe(takeUntil(this.destroy$)).subscribe({
       next: (updated) => {
         this.editTypeSaving = false;
         this.logTypes     = this.logTypes.map(lt => lt._id === updated._id ? updated : lt);
@@ -1034,7 +1043,7 @@ export class LogFormComponent implements OnInit, OnChanges {
     if (!this.deleteConfirmType) return;
     const id = this.deleteConfirmType._id;
     this.deleteConfirmType = null;
-    this.logTypeService.deleteLogType(id).subscribe({
+    this.logTypeService.deleteLogType(id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.logTypes     = this.logTypes.filter(lt => lt._id !== id);
         this.groupedTypes = this.buildGroups(this.logTypes);
@@ -1061,7 +1070,7 @@ export class LogFormComponent implements OnInit, OnChanges {
       name:   this.newTypeName.trim(),
       domain: this.newTypeDomain,
       color:  this.newTypeColor
-    }).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next: (created) => {
         this.creatingType = false;
 

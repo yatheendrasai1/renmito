@@ -2,12 +2,15 @@ import {
   Component,
   OnInit,
   OnChanges,
+  OnDestroy,
   Output,
   EventEmitter,
   Input,
   ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { LogService } from '../../services/log.service';
 
 interface CalendarDay {
@@ -218,12 +221,13 @@ interface CalendarDay {
     .day-cell.range-start.range-end { border-radius: var(--radius-sm); }
   `]
 })
-export class CalendarComponent implements OnInit, OnChanges {
+export class CalendarComponent implements OnInit, OnChanges, OnDestroy {
   @Input() selectedDate: Date = new Date();
   @Input() rangeFrom: Date | null = null;
   @Input() rangeTo: Date | null = null;
   @Output() dateSelected = new EventEmitter<Date>();
 
+  private readonly destroy$ = new Subject<void>();
   dayHeaders = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   calendarDays: CalendarDay[] = [];
   viewYear: number = 0;
@@ -236,6 +240,11 @@ export class CalendarComponent implements OnInit, OnChanges {
   get monthLabel(): string {
     const d = new Date(this.viewYear, this.viewMonth, 1);
     return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   ngOnChanges(): void {
@@ -254,6 +263,7 @@ export class CalendarComponent implements OnInit, OnChanges {
 
   private loadMonthSummary(): void {
     this.logService.getMonthWorkSummary(this.viewYear, this.viewMonth + 1)
+      .pipe(takeUntil(this.destroy$))
       .subscribe(summary => {
         this.workMinsByDate = summary;
         this.buildCalendar();
