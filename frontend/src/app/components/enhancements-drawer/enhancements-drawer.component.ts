@@ -85,7 +85,7 @@ export interface Enhancement {
 
       <!-- Enhancement list -->
       <div class="drawer-body" *ngIf="!isLoading && !loadError">
-        <div class="drawer-card" *ngFor="let e of enhancements; let last = last">
+        <div class="drawer-card" *ngFor="let e of enhancements; let last = last; trackBy: trackById">
 
           <!-- Card top row -->
           <div class="card-top">
@@ -106,13 +106,13 @@ export interface Enhancement {
 
           <!-- Tags -->
           <div class="card-tags" *ngIf="e.tags.length">
-            <span class="tag" *ngFor="let tag of e.tags">{{ tag }}</span>
+            <span class="tag" *ngFor="let tag of e.tags; trackBy: trackByIndex">{{ tag }}</span>
           </div>
 
           <!-- Related -->
           <div class="card-related" *ngIf="e.relatedTo.length">
             <span class="related-label">Related:</span>
-            <span class="related-id" *ngFor="let rid of e.relatedTo">{{ rid }}</span>
+            <span class="related-id" *ngFor="let rid of e.relatedTo; trackBy: trackByIndex">{{ rid }}</span>
           </div>
 
           <!-- Notes -->
@@ -454,4 +454,7 @@ export class EnhancementsDrawerComponent implements OnInit, OnChanges {
     const d = new Date(iso);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
+
+  trackById(_i: number, e: Enhancement): string { return e.id; }
+  trackByIndex(index: number): number { return index; }
 }

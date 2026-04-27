@@ -3,6 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of, shareReplay } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+
+const devWarn = (...args: unknown[]) => { if (!environment.production) devWarn(...args); };
 import { ColorPalette } from '../components/theme-editor/theme-editor.component';
 import { DaySettings } from './day-level.service';
 
@@ -47,7 +49,7 @@ export class PreferenceService {
           shareReplay(1),
           map(res => res ?? null),
           catchError(err => {
-            console.warn('Could not fetch preferences:', err?.message);
+            devWarn('Could not fetch preferences:', err?.message);
             return of(null);
           })
         );
@@ -67,7 +69,7 @@ export class PreferenceService {
         tap(() => this.clearPrefsCache()),
         map(res => res?.palette ?? null),
         catchError(err => {
-          console.warn('Could not save palette:', err?.message);
+          devWarn('Could not save palette:', err?.message);
           return of(null);
         })
       );
@@ -80,7 +82,7 @@ export class PreferenceService {
       .pipe(
         tap(() => this.clearPrefsCache()),
         catchError(err => {
-          console.warn('Could not delete palette:', err?.message);
+          devWarn('Could not delete palette:', err?.message);
           return of(undefined);
         })
       );
@@ -94,7 +96,7 @@ export class PreferenceService {
         tap(() => this.clearPrefsCache()),
         map(res => res?.customPresets ?? null),
         catchError(err => {
-          console.warn('Could not add preset:', err?.message);
+          devWarn('Could not add preset:', err?.message);
           return of(null);
         })
       );
@@ -110,7 +112,7 @@ export class PreferenceService {
         tap(() => this.clearPrefsCache()),
         map(res => res?.customPresets ?? null),
         catchError(err => {
-          console.warn('Could not delete preset:', err?.message);
+          devWarn('Could not delete preset:', err?.message);
           return of(null);
         })
       );
@@ -132,7 +134,7 @@ export class PreferenceService {
         tap(() => this.clearPrefsCache()),
         map(res => res?.activeLog ?? null),
         catchError(err => {
-          console.warn('Could not start active log:', err?.message);
+          devWarn('Could not start active log:', err?.message);
           return of(null);
         })
       );
@@ -145,7 +147,7 @@ export class PreferenceService {
       .pipe(
         tap(() => this.clearPrefsCache()),
         catchError(err => {
-          console.warn('Could not stop active log:', err?.message);
+          devWarn('Could not stop active log:', err?.message);
           return of(undefined);
         })
       );
@@ -159,7 +161,7 @@ export class PreferenceService {
         tap(() => this.clearPrefsCache()),
         map(res => res?.daySettings ?? null),
         catchError(err => {
-          console.warn('Could not update day settings:', err?.message);
+          devWarn('Could not update day settings:', err?.message);
           return of(null);
         })
       );
@@ -176,7 +178,7 @@ export class PreferenceService {
         tap(() => this.clearPrefsCache()),
         map(res => res?.quickShortcuts ?? null),
         catchError(err => {
-          console.warn('Could not update quick shortcuts:', err?.message);
+          devWarn('Could not update quick shortcuts:', err?.message);
           return of(null);
         })
       );

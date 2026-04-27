@@ -124,7 +124,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
 
             <!-- Loading skeleton -->
             <div class="type-loading" *ngIf="loadingTypes">
-              <div class="skeleton-accordion" *ngFor="let i of [1,2,3]"></div>
+              <div class="skeleton-accordion" *ngFor="let i of [1,2,3]; trackBy: trackByIndex"></div>
             </div>
 
             <!-- Error -->
@@ -140,7 +140,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
             <div class="accordion-list" *ngIf="!loadingTypes && !typeLoadError">
 
               <!-- Domain accordions -->
-              <div *ngFor="let group of groupedTypes" class="accordion-item"
+              <div *ngFor="let group of groupedTypes; trackBy: trackByDomain" class="accordion-item"
                    (click)="toggleAccordion(group.domain)">
                 <button type="button" class="accordion-header"
                         [class.accordion-header--open]="isAccordionOpen(group.domain)"
@@ -163,7 +163,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                     <button
                       type="button"
                       class="activity-chip"
-                      *ngFor="let lt of group.types"
+                      *ngFor="let lt of group.types; trackBy: trackByLogTypeId"
                       [class.activity-chip--active]="isActive(lt)"
                       [style.border-color]="lt.color"
                       [style.background-color]="isActive(lt) ? lt.color + '28' : 'transparent'"
@@ -224,7 +224,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                     <div class="create-field create-field--color">
                       <label class="create-label">Color</label>
                       <div class="swatch-grid">
-                        <button *ngFor="let c of paletteColors" type="button"
+                        <button *ngFor="let c of paletteColors; trackBy: trackByColor" type="button"
                           class="swatch-btn"
                           [class.swatch-btn--active]="newTypeColor === c"
                           [style.background]="c"
@@ -1201,4 +1201,9 @@ export class LogFormComponent implements OnInit, OnChanges {
     const [h, m] = time.split(':').map(Number);
     return h * 60 + m;
   }
+
+  trackByIndex(index: number): number { return index; }
+  trackByDomain(_i: number, g: { domain: string }): string { return g.domain; }
+  trackByLogTypeId(_i: number, lt: LogType): string { return lt._id; }
+  trackByColor(_i: number, c: string): string { return c; }
 }

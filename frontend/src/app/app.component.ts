@@ -13,6 +13,7 @@ import { LogTypeService } from './services/log-type.service';
 import { PreferenceService, ActiveLog } from './services/preference.service';
 import { DayLevelService, DayMetadata, DayType } from './services/day-level.service';
 import { LogEntry, CreateLogEntry } from './models/log.model';
+import { LogType } from './models/log-type.model';
 import { forkJoin } from 'rxjs';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { LogTypeSelectComponent } from './components/log-type-select/log-type-select.component';
@@ -24,6 +25,7 @@ import { ConfigurationComponent } from './components/configuration/configuration
 import { AiService, ParsedLog, RenniMessage, ChatResponse } from './services/ai.service';
 import { NotesSheetComponent } from './components/notes-sheet/notes-sheet.component';
 import { NotesService } from './services/notes.service';
+import { environment } from '../environments/environment';
 
 // ── Performance Profiler ─────────────────────────────────────────────────────
 // Tracks startup HTTP calls with performance.mark/measure (visible in DevTools
@@ -49,13 +51,15 @@ const PERF = (() => {
           verdict: e.duration < 200 ? '✅ fast' : e.duration < 600 ? '⚠️  slow' : '🔴 very slow',
         }))
         .sort((a, b) => b['ms'] - a['ms']);
-      console.groupCollapsed('%c[Renmito Perf] Startup summary', 'color:#a78bfa;font-weight:bold');
-      console.table(entries);
-      const worst = entries[0];
-      if (worst?.['ms'] > 600) {
-        console.warn(`[Renmito Perf] Bottleneck: "${worst.operation}" took ${worst['ms']}ms — check network tab for that request.`);
+      if (!environment.production) {
+        console.groupCollapsed('%c[Renmito Perf] Startup summary', 'color:#a78bfa;font-weight:bold');
+        console.table(entries);
+        const worst = entries[0];
+        if (worst?.['ms'] > 600) {
+          console.warn(`[Renmito Perf] Bottleneck: "${worst.operation}" took ${worst['ms']}ms — check network tab for that request.`);
+        }
+        console.groupEnd();
       }
-      console.groupEnd();
     }, 0);
   }
 
@@ -75,10 +79,12 @@ const PERF = (() => {
       try { performance.measure(`renmito:${label}`, startMark, endMark); } catch { /* mark may not exist */ }
       const elapsed = performance.now() - (marks.get(label) ?? performance.now());
       const badge   = elapsed < 200 ? '🟢' : elapsed < 600 ? '🟡' : '🔴';
-      console.debug(
-        `%c[Renmito Perf]%c ${badge} ${label}${detail ? ' · ' + detail : ''} — ${elapsed.toFixed(1)} ms`,
-        'color:#a78bfa;font-weight:bold', 'color:inherit'
-      );
+      if (!environment.production) {
+        console.debug(
+          `%c[Renmito Perf]%c ${badge} ${label}${detail ? ' · ' + detail : ''} — ${elapsed.toFixed(1)} ms`,
+          'color:#a78bfa;font-weight:bold', 'color:inherit'
+        );
+      }
       pendingCalls = Math.max(0, pendingCalls - 1);
       tryPrintSummary();
     },
@@ -86,10 +92,12 @@ const PERF = (() => {
     /** Mark a one-shot instant event (no duration). */
     instant(label: string): void {
       performance.mark(`renmito:${label}`);
-      console.debug(
-        `%c[Renmito Perf]%c ⚡ ${label} @ ${performance.now().toFixed(1)} ms`,
-        'color:#a78bfa;font-weight:bold', 'color:inherit'
-      );
+      if (!environment.production) {
+        console.debug(
+          `%c[Renmito Perf]%c ⚡ ${label} @ ${performance.now().toFixed(1)} ms`,
+          'color:#a78bfa;font-weight:bold', 'color:inherit'
+        );
+      }
     },
   };
 })();
@@ -260,7 +268,7 @@ const PERF = (() => {
           <div class="qp-section-label">Built-in</div>
           <div class="qp-grid">
             <button class="qp-chip"
-                    *ngFor="let p of builtinPalettePresets"
+                    *ngFor="let p of builtinPalettePresets; trackBy: trackByName"
                     [class.qp-chip--active]="isPaletteActive(p)"
                     (click)="applyQuickPalette(p)"
                     [title]="p.name">
@@ -276,7 +284,7 @@ const PERF = (() => {
           <div class="qp-section-label" *ngIf="navCustomPresets.length > 0">My Presets</div>
           <div class="qp-grid" *ngIf="navCustomPresets.length > 0">
             <button class="qp-chip"
-                    *ngFor="let p of navCustomPresets"
+                    *ngFor="let p of navCustomPresets; trackBy: trackByName"
                     [class.qp-chip--active]="isPaletteActive(p)"
                     (click)="applyQuickPalette(p)"
                     [title]="p.name">
@@ -370,7 +378,7 @@ const PERF = (() => {
                   </svg>
                 </button>
                 <div class="dt-panel" *ngIf="dayTypeDropdownOpen" (click)="$event.stopPropagation()">
-                  <button *ngFor="let opt of dayTypeOptions"
+                  <button *ngFor="let opt of dayTypeOptions; trackBy: trackByValue"
                           class="dt-option"
                           [class.dt-option--active]="dayMetadata!.dayType === opt.value"
                           (click)="setDayType(opt.value); dayTypeDropdownOpen = false">
@@ -449,7 +457,7 @@ const PERF = (() => {
                 </button>
               </span>
               <button class="shortcut-chip"
-                      *ngFor="let lt of shortcutDisplayTypes"
+                      *ngFor="let lt of shortcutDisplayTypes; trackBy: trackByLogTypeId"
                       [class.shortcut-chip--active]="quickActionChip?._id === lt._id"
                       [disabled]="shortcutSaving"
                       (click)="onShortcutTap(lt)"
@@ -470,7 +478,7 @@ const PERF = (() => {
                 </div>
                 <div class="quick-action-row">
                   <button class="quick-dur-chip"
-                          *ngFor="let d of quickDurations"
+                          *ngFor="let d of quickDurations; trackBy: trackByIndex"
                           [class.quick-dur-chip--active]="quickActionDuration === d.mins"
                           (click)="quickActionDuration = d.mins">{{ d.label }}</button>
                 </div>
@@ -487,7 +495,7 @@ const PERF = (() => {
                  (click)="$event.stopPropagation()">
               <span class="shortcuts-label">Daily Essentials</span>
               <div class="essential-chip-wrap"
-                   *ngFor="let e of dailyEssentials"
+                   *ngFor="let e of dailyEssentials; trackBy: trackByName"
                    (pointerdown)="onEssentialPointerDown(e, $event)"
                    (pointerup)="onEssentialPointerUp()"
                    (pointerleave)="onEssentialPointerUp()"
@@ -620,7 +628,7 @@ const PERF = (() => {
 
               <!-- ── Timeline skeleton ── -->
               <div class="log-list-skeleton" *ngIf="isLoading">
-                <div class="tl-skeleton-row" *ngFor="let i of [1,2,3]">
+                <div class="tl-skeleton-row" *ngFor="let i of [1,2,3]; trackBy: trackByIndex">
                   <div class="tl-sk-time"></div>
                   <div class="tl-sk-spine">
                     <div class="tl-sk-line"></div>
@@ -635,7 +643,7 @@ const PERF = (() => {
               <div class="log-list" *ngIf="!isLoading && logs.length > 0">
                 <div
                   class="tl-item"
-                  *ngFor="let log of sortedLogs; let i = index"
+                  *ngFor="let log of sortedLogs; let i = index; trackBy: trackByLogId"
                   [class.tl-item--active]="log.id === highlightedLogId && !metricLogIds && inlineEditId !== log.id"
                   [class.tl-item--metric-active]="metricLogIds?.has(log.id) && inlineEditId !== log.id"
                   [class.tl-item--dimmed]="metricLogIds && !metricLogIds.has(log.id) && inlineEditId !== log.id"
@@ -861,7 +869,7 @@ const PERF = (() => {
                   </svg>
                 </button>
                 <div class="dt-panel" *ngIf="dayTypeDropdownOpen" (click)="$event.stopPropagation()">
-                  <button *ngFor="let opt of dayTypeOptions"
+                  <button *ngFor="let opt of dayTypeOptions; trackBy: trackByValue"
                           class="dt-option"
                           [class.dt-option--active]="dayMetadata!.dayType === opt.value"
                           (click)="setDayType(opt.value); dayTypeDropdownOpen = false">
@@ -981,7 +989,7 @@ const PERF = (() => {
               <div class="ln-drum ln-drum-ln-types" (scroll)="onLogNowTypeScroll($event)">
                 <div class="ln-drum-spacer"></div>
                 <div class="ln-type-drum-item"
-                     *ngFor="let lt of logNowFilteredTypes; let i = index"
+                     *ngFor="let lt of logNowFilteredTypes; let i = index; trackBy: trackByLogTypeId"
                      [class.ln-type-drum-item--sel]="i === logNowTypeIndex">
                   <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
                   {{ lt.name }}
@@ -1003,7 +1011,7 @@ const PERF = (() => {
                       <div class="ln-drum ln-drum-start-h" (scroll)="onLogNowStartHourScroll($event)">
                         <div class="ln-drum-spacer"></div>
                         <div class="ln-drum-item"
-                             *ngFor="let h of logNowHours"
+                             *ngFor="let h of logNowHours; trackBy: trackByIndex"
                              [class.ln-drum-item--sel]="h === logNowStartHour">
                           {{ h | number:'2.0-0' }}
                         </div>
@@ -1019,7 +1027,7 @@ const PERF = (() => {
                       <div class="ln-drum ln-drum-start-m" (scroll)="onLogNowStartMinuteScroll($event)">
                         <div class="ln-drum-spacer"></div>
                         <div class="ln-drum-item"
-                             *ngFor="let m of logNowMinutes"
+                             *ngFor="let m of logNowMinutes; trackBy: trackByIndex"
                              [class.ln-drum-item--sel]="m === logNowStartMinute">
                           {{ m | number:'2.0-0' }}
                         </div>
@@ -1042,7 +1050,7 @@ const PERF = (() => {
                       <div class="ln-drum ln-drum-end-h" (scroll)="onLogNowEndHourScroll($event)">
                         <div class="ln-drum-spacer"></div>
                         <div class="ln-drum-item"
-                             *ngFor="let h of logNowHours"
+                             *ngFor="let h of logNowHours; trackBy: trackByIndex"
                              [class.ln-drum-item--sel]="h === logNowEndHour">
                           {{ h | number:'2.0-0' }}
                         </div>
@@ -1058,7 +1066,7 @@ const PERF = (() => {
                       <div class="ln-drum ln-drum-end-m" (scroll)="onLogNowEndMinuteScroll($event)">
                         <div class="ln-drum-spacer"></div>
                         <div class="ln-drum-item"
-                             *ngFor="let m of logNowMinutes"
+                             *ngFor="let m of logNowMinutes; trackBy: trackByIndex"
                              [class.ln-drum-item--sel]="m === logNowEndMinute">
                           {{ m | number:'2.0-0' }}
                         </div>
@@ -1099,7 +1107,7 @@ const PERF = (() => {
               <div class="ln-drum ln-drum-ap-types" (scroll)="onAddPointTypeScroll($event)">
                 <div class="ln-drum-spacer"></div>
                 <div class="ln-type-drum-item"
-                     *ngFor="let lt of addPointFilteredTypes; let i = index"
+                     *ngFor="let lt of addPointFilteredTypes; let i = index; trackBy: trackByLogTypeId"
                      [class.ln-type-drum-item--sel]="i === addPointTypeIndex">
                   <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
                   {{ lt.name }}
@@ -1121,7 +1129,7 @@ const PERF = (() => {
                       <div class="ln-drum ln-drum-ap-h" (scroll)="onAddPointHourScroll($event)">
                         <div class="ln-drum-spacer"></div>
                         <div class="ln-drum-item"
-                             *ngFor="let h of logNowHours"
+                             *ngFor="let h of logNowHours; trackBy: trackByIndex"
                              [class.ln-drum-item--sel]="h === addPointHour">
                           {{ h | number:'2.0-0' }}
                         </div>
@@ -1137,7 +1145,7 @@ const PERF = (() => {
                       <div class="ln-drum ln-drum-ap-m" (scroll)="onAddPointMinuteScroll($event)">
                         <div class="ln-drum-spacer"></div>
                         <div class="ln-drum-item"
-                             *ngFor="let m of addPointMinutes"
+                             *ngFor="let m of addPointMinutes; trackBy: trackByIndex"
                              [class.ln-drum-item--sel]="m === addPointMinute">
                           {{ m | number:'2.0-0' }}
                         </div>
@@ -1178,7 +1186,7 @@ const PERF = (() => {
               <div class="ln-drum ln-drum-sl-types" (scroll)="onStartLogTypeScroll($event)">
                 <div class="ln-drum-spacer"></div>
                 <div class="ln-type-drum-item"
-                     *ngFor="let lt of startLogFilteredTypes; let i = index"
+                     *ngFor="let lt of startLogFilteredTypes; let i = index; trackBy: trackByLogTypeId"
                      [class.ln-type-drum-item--sel]="i === startLogTypeIndex">
                   <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
                   {{ lt.name }}
@@ -1193,7 +1201,7 @@ const PERF = (() => {
             <div class="start-log-planned-row">
               <span class="start-log-planned-label">Plan for:</span>
               <div class="start-log-planned-chips">
-                <button *ngFor="let opt of [{v:'',l:'no time bound'},{v:'15',l:'15m'},{v:'30',l:'30m'},{v:'60',l:'1h'},{v:'90',l:'1.5h'},{v:'120',l:'2h'}]"
+                <button *ngFor="let opt of [{v:'',l:'no time bound'},{v:'15',l:'15m'},{v:'30',l:'30m'},{v:'60',l:'1h'},{v:'90',l:'1.5h'},{v:'120',l:'2h'}]; trackBy: trackByIndex"
                         class="start-log-chip"
                         [class.start-log-chip--active]="startLogPlanned === opt.v"
                         (click)="startLogPlanned = opt.v">
@@ -1231,7 +1239,7 @@ const PERF = (() => {
               </div>
 
               <!-- Messages -->
-              <ng-container *ngFor="let msg of renniMsgs; let i = index">
+              <ng-container *ngFor="let msg of renniMsgs; let i = index; trackBy: trackByIndex">
                 <!-- User bubble -->
                 <div *ngIf="msg.from === 'user'" class="renni-msg renni-msg--user">
                   <div class="renni-bubble renni-bubble--user">{{ msg.text }}</div>
@@ -1259,7 +1267,7 @@ const PERF = (() => {
                     <div class="renni-log-card-intro">
                       Found {{ msg.logs.length }} log{{ msg.logs.length > 1 ? 's' : '' }}. Review &amp; confirm:
                     </div>
-                    <div class="renni-preview" *ngFor="let log of msg.logs; let j = index">
+                    <div class="renni-preview" *ngFor="let log of msg.logs; let j = index; trackBy: trackByIndex">
                       <div class="renni-card-top">
                         <span class="renni-card-badge">
                           <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
@@ -1352,7 +1360,7 @@ const PERF = (() => {
             <div class="ln-drum ln-drum-sl-types" (scroll)="onStartLogTypeScroll($event)">
               <div class="ln-drum-spacer"></div>
               <div class="ln-type-drum-item"
-                   *ngFor="let lt of startLogFilteredTypes; let i = index"
+                   *ngFor="let lt of startLogFilteredTypes; let i = index; trackBy: trackByLogTypeId"
                    [class.ln-type-drum-item--sel]="i === startLogTypeIndex">
                 <span class="ln-type-dot-sm" [style.background]="lt.color"></span>
                 {{ lt.name }}
@@ -1407,7 +1415,7 @@ const PERF = (() => {
         <div class="wrapup-header-left">
           <span class="log-now-title">Fill Gap {{ wrapUpIdx + 1 }} / {{ wrapUpGaps.length }}</span>
           <div class="wrapup-step-dots">
-            <span *ngFor="let g of wrapUpGaps; let i = index"
+            <span *ngFor="let g of wrapUpGaps; let i = index; trackBy: trackByIndex"
                   class="wrapup-step-dot"
                   [class.wrapup-step-dot--done]="i < wrapUpIdx"
                   [class.wrapup-step-dot--active]="i === wrapUpIdx"></span>
@@ -1432,7 +1440,7 @@ const PERF = (() => {
       <div class="log-now-fields">
         <select class="log-now-select" [(ngModel)]="wrapUpTypeId">
           <option value="" disabled>Select type…</option>
-          <option *ngFor="let lt of inlineLogTypes" [value]="lt._id">{{ lt.name }}</option>
+          <option *ngFor="let lt of inlineLogTypes; trackBy: trackByLogTypeId" [value]="lt._id">{{ lt.name }}</option>
         </select>
         <input class="log-now-input" type="text"
                placeholder="Title (optional — defaults to type name)"
@@ -1548,7 +1556,7 @@ const PERF = (() => {
       <div class="quick-prefs-body">
         <!-- Work types -->
         <div class="quick-prefs-domain-label">Work</div>
-        <ng-container *ngFor="let lt of quickPrefsWorkTypes">
+        <ng-container *ngFor="let lt of quickPrefsWorkTypes; trackBy: trackByLogTypeId">
           <div class="quick-pref-item"
                [class.quick-pref-item--on]="isInQuickPrefs(lt._id)"
                (click)="toggleQuickPref(lt._id)">
@@ -1567,7 +1575,7 @@ const PERF = (() => {
         </ng-container>
         <!-- Personal types -->
         <div class="quick-prefs-domain-label" style="margin-top:10px">Personal</div>
-        <ng-container *ngFor="let lt of quickPrefsPersonalTypes">
+        <ng-container *ngFor="let lt of quickPrefsPersonalTypes; trackBy: trackByLogTypeId">
           <div class="quick-pref-item"
                [class.quick-pref-item--on]="isInQuickPrefs(lt._id)"
                (click)="toggleQuickPref(lt._id)">
@@ -3781,7 +3789,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   private swipeStartY = 0;
   private swipeIsHorizontal: boolean | null = null;
   inlineSaving = false;
-  inlineLogTypes: any[] = [];
+  inlineLogTypes: LogType[] = [];
   logSortOrder: 'asc' | 'desc' = 'desc';
 
   // ── 1.84: Footer scroll visibility (mobile only) ─────────────
@@ -3790,10 +3798,10 @@ export class AppComponent implements OnInit, AfterViewInit {
   // ── 1.62: Quick Shortcuts Bar ─────────────────────────────────
   shortcutToast: { message: string; logId: string } | null = null;
   shortcutSaving = false;
-  private toastTimer: any = null;
+  private toastTimer: ReturnType<typeof setTimeout> | undefined = undefined;
 
   // ── 1.85: Quick action panel (start/conclude + duration) ──────
-  quickActionChip:     any | null = null;
+  quickActionChip:     LogType | null = null;
   quickActionAnchor:   'start' | 'conclude' = 'conclude';
   quickActionDuration: number = 30; // minutes
 
@@ -3805,7 +3813,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     { name: 'Sleep' },
     { name: 'Woke Up' },
   ];
-  private essentialPressTimer: any = null;
+  private essentialPressTimer: ReturnType<typeof setTimeout> | undefined = undefined;
   private essentialPressTriggered = false;
   essentialPressName: string | null = null;
   readonly quickDurations = [
@@ -3877,13 +3885,13 @@ export class AppComponent implements OnInit, AfterViewInit {
   // ── 1.71/1.72/1.73: Running Log ──────────────────────────────
   activeLog:     ActiveLog | null = null;
   activeLogTick  = 0;            // seconds elapsed since startedAt
-  private activeLogTimerRef: any = null;
+  private activeLogTimerRef: ReturnType<typeof setInterval> | undefined = undefined;
 
   // Start-timer sheet state
   startLogOpen          = false;
   timerEditOpen         = false;         // timer-edit sheet (opens immediately on Start activity)
   addPointMenuOpen      = false;
-  private addPointLongPressTimer: any = null;
+  private addPointLongPressTimer: ReturnType<typeof setTimeout> | undefined = undefined;
   private addPointLongPressTriggered  = false;
   startLogDomain: 'work' | 'personal' = 'work';
   startLogTypeIndex = 0;
@@ -3951,7 +3959,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       // Pre-load log types for shortcuts bar and Log Now FAB
       PERF.start('api:log-types');
       this.logTypeService.getLogTypes().subscribe({
-        next: (t: any[]) => { this.inlineLogTypes = t; PERF.end('api:log-types', `${t.length} types`); },
+        next: (t) => { this.inlineLogTypes = t; PERF.end('api:log-types', `${t.length} types`); },
         error: ()         => { PERF.end('api:log-types', 'ERROR'); }
       });
       // Sync palette from DB (may differ if the user changed it on another device)
@@ -4270,7 +4278,7 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   // ── 1.54: Inline list editing ────────────────────────────
   get inlineCurrentColor(): string | null {
-    const t = this.inlineLogTypes.find((t: any) => t._id === this.inlineEdit.logTypeId);
+    const t = this.inlineLogTypes.find((t) => t._id === this.inlineEdit.logTypeId);
     return t?.color ?? null;
   }
 
@@ -4295,7 +4303,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.highlightedLogId = log.id;
     this.timelineRef?.scrollToLog(log);
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((types: any[]) => this.inlineLogTypes = types);
+      this.logTypeService.getLogTypes().subscribe(types => this.inlineLogTypes = types);
     }
   }
 
@@ -4406,12 +4414,12 @@ export class AppComponent implements OnInit, AfterViewInit {
   // ── 1.62: Quick Shortcuts ─────────────────────────────────────
 
   /** Top log types for the shortcuts bar — uses configured list if set, else smart defaults. */
-  get shortcutDisplayTypes(): any[] {
+  get shortcutDisplayTypes(): LogType[] {
     if (!this.inlineLogTypes.length) return [];
     if (this.quickPrefsItems.length > 0) {
       return this.quickPrefsItems
-        .map(p => this.inlineLogTypes.find((lt: any) => lt._id === p.logTypeId))
-        .filter(Boolean);
+        .map(p => this.inlineLogTypes.find(lt => lt._id === p.logTypeId))
+        .filter((lt): lt is LogType => !!lt);
     }
     const usedIds = new Set(this.logs.map(l => l.logType?.id).filter(Boolean));
     return [...this.inlineLogTypes]
@@ -4437,7 +4445,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     if (this.quickActionChip) this.quickActionChip = null;
   }
 
-  onShortcutTap(lt: any): void {
+  onShortcutTap(lt: LogType): void {
     if (this.shortcutSaving) return;
     // Deselect if same chip tapped again
     if (this.quickActionChip?._id === lt._id) {
@@ -4531,14 +4539,14 @@ export class AppComponent implements OnInit, AfterViewInit {
   /** Display name for the running log type. */
   get activeLogTypeName(): string {
     if (!this.activeLog) return '';
-    const lt = this.inlineLogTypes.find((t: any) => t._id === this.activeLog!.logTypeId);
+    const lt = this.inlineLogTypes.find((t) => t._id === this.activeLog!.logTypeId);
     return lt?.name ?? 'Running Log';
   }
 
   /** Color for the running log dot. */
   get activeLogTypeColor(): string {
     if (!this.activeLog) return '#9B9B9B';
-    const lt = this.inlineLogTypes.find((t: any) => t._id === this.activeLog!.logTypeId);
+    const lt = this.inlineLogTypes.find((t) => t._id === this.activeLog!.logTypeId);
     return lt?.color ?? '#9B9B9B';
   }
 
@@ -4556,7 +4564,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   private stopActiveLogTimer(): void {
     if (this.activeLogTimerRef) {
       clearInterval(this.activeLogTimerRef);
-      this.activeLogTimerRef = null;
+      this.activeLogTimerRef = undefined;
     }
   }
 
@@ -4575,7 +4583,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.startLogDomain = 'work';
 
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t: any[]) => {
+      this.logTypeService.getLogTypes().subscribe((t) => {
         this.inlineLogTypes = t;
         this._initStartLog();
         this._immediatelyStartTimer();
@@ -4591,7 +4599,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       ? (this.logs[this.logs.length - 1].logType?.id ?? null)
       : null;
     const filtered = this.startLogFilteredTypes;
-    const idx = lastTypeId ? filtered.findIndex((t: any) => t._id === lastTypeId) : -1;
+    const idx = lastTypeId ? filtered.findIndex((t) => t._id === lastTypeId) : -1;
     this.startLogTypeIndex = idx >= 0 ? idx : 0;
     this.startLogTypeId    = filtered[this.startLogTypeIndex]?._id ?? this.inlineLogTypes[0]?._id ?? '';
     this.startLogTitle     = '';
@@ -4627,11 +4635,11 @@ export class AppComponent implements OnInit, AfterViewInit {
   /** Syncs the sheet drum/domain UI to match a currently running timer. */
   private _syncStartLogUiToActiveLog(): void {
     if (!this.activeLog) return;
-    const lt = this.inlineLogTypes.find((t: any) => t._id === this.activeLog!.logTypeId);
+    const lt = this.inlineLogTypes.find((t) => t._id === this.activeLog!.logTypeId);
     if (lt) {
-      this.startLogDomain = lt.domain ?? 'work';
+      this.startLogDomain = (lt.domain === 'work' ? 'work' : 'personal') as 'work' | 'personal';
       const filtered = this.startLogFilteredTypes;
-      const idx = filtered.findIndex((t: any) => t._id === this.activeLog!.logTypeId);
+      const idx = filtered.findIndex((t) => t._id === this.activeLog!.logTypeId);
       this.startLogTypeIndex = idx >= 0 ? idx : 0;
       this.startLogTypeId    = this.activeLog.logTypeId;
     }
@@ -4641,7 +4649,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   openTimerEdit(): void {
     if (!this.activeLog) return;
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t: any[]) => {
+      this.logTypeService.getLogTypes().subscribe((t) => {
         this.inlineLogTypes = t;
         this._syncStartLogUiToActiveLog();
         this.timerEditOpen = true;
@@ -4661,8 +4669,8 @@ export class AppComponent implements OnInit, AfterViewInit {
     if (this.activeLog) this.activeLog = { ...this.activeLog, title };
   }
 
-  get startLogFilteredTypes(): any[] {
-    return this.inlineLogTypes.filter((lt: any) => lt.domain === this.startLogDomain);
+  get startLogFilteredTypes(): LogType[] {
+    return this.inlineLogTypes.filter(lt => lt.domain === this.startLogDomain);
   }
 
   setStartLogDomain(domain: 'work' | 'personal'): void {
@@ -4696,7 +4704,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   /** Legacy — kept for the Tab 2 "Start Timer" button in the unified sheet. */
   saveStartLog(): void {
     if (this.startLogSaving || !this.startLogTypeId) return;
-    const lt          = this.inlineLogTypes.find((t: any) => t._id === this.startLogTypeId);
+    const lt          = this.inlineLogTypes.find(t => t._id === this.startLogTypeId);
     const title       = this.startLogTitle.trim() || (lt?.name ?? 'Log');
     const plannedMins = this.startLogPlanned ? parseInt(this.startLogPlanned, 10) : null;
 
@@ -4731,7 +4739,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     const startAt = `${String(effectiveStart.getHours()).padStart(2, '0')}:${String(effectiveStart.getMinutes()).padStart(2, '0')}`;
     const endAt   = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-    const lt    = this.inlineLogTypes.find((t: any) => t._id === this.activeLog!.logTypeId);
+    const lt    = this.inlineLogTypes.find((t) => t._id === this.activeLog!.logTypeId);
     const title = this.activeLog.title || (lt?.name ?? 'Log');
 
     // Optimistically clear local state for instant UI feedback
@@ -4862,7 +4870,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.logNowTypeIndex = 0;
     this.logNowTitle     = '';
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t: any[]) => {
+      this.logTypeService.getLogTypes().subscribe((t) => {
         this.inlineLogTypes = t;
         this._initLogNowType();
         setTimeout(() => { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }, 40);
@@ -4873,7 +4881,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   }
 
   private _initLogNowType(): void {
-    const workTypes = this.inlineLogTypes.filter((lt: any) => lt.domain === 'work');
+    const workTypes = this.inlineLogTypes.filter((lt) => lt.domain === 'work');
     this.logNowTypeId    = workTypes[0]?._id ?? this.inlineLogTypes[0]?._id ?? '';
     this.logNowTypeIndex = 0;
     this.logNowDomain    = 'work';
@@ -4915,8 +4923,8 @@ export class AppComponent implements OnInit, AfterViewInit {
     }, 40);
   }
 
-  get logNowFilteredTypes(): any[] {
-    return this.inlineLogTypes.filter((lt: any) => lt.domain === this.logNowDomain);
+  get logNowFilteredTypes(): LogType[] {
+    return this.inlineLogTypes.filter(lt => lt.domain === this.logNowDomain);
   }
 
   setLogNowDomain(domain: 'work' | 'personal'): void {
@@ -4941,7 +4949,7 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   saveLogNow(): void {
     if (this.logNowSaving || !this.logNowTypeId) return;
-    const lt    = this.inlineLogTypes.find((t: any) => t._id === this.logNowTypeId);
+    const lt    = this.inlineLogTypes.find((t) => t._id === this.logNowTypeId);
     const title = this.logNowTitle.trim() || (lt?.name ?? 'Log');
     this.logNowSaving = true;
     this.logService.createLog(this.selectedDate, {
@@ -5022,16 +5030,17 @@ export class AppComponent implements OnInit, AfterViewInit {
         this._scrollRenniToBottom();
         return;
       }
-      const p: any = logs[idx];
-      const payload: any = { title: p.title, logTypeId: p.logTypeId, entryType: p.entryType, source: 'ai' };
+      const p = logs[idx];
+      const payload: CreateLogEntry & { pointAtISO?: string; startAtISO?: string; endAtISO?: string } = {
+        title: p.title, logTypeId: p.logTypeId, entryType: p.entryType,
+        source: 'ai', startTime: p.startTime ?? '', endTime: p.endTime ?? '',
+      };
       if (p.entryType === 'point') {
         payload.pointAtISO = `${dateStr}T${p.pointTime}:00.000Z`;
-        payload.pointTime  = p.pointTime;
+        payload.pointTime  = p.pointTime ?? '';
       } else {
         payload.startAtISO = `${dateStr}T${p.startTime}:00.000Z`;
         payload.endAtISO   = `${dateStr}T${p.endTime}:00.000Z`;
-        payload.startTime  = p.startTime;
-        payload.endTime    = p.endTime;
       }
       this.logService.createLog(this.selectedDate, payload).subscribe({
         next:  () => saveNext(idx + 1),
@@ -5057,9 +5066,9 @@ export class AppComponent implements OnInit, AfterViewInit {
     this.addPointLongPressTimer = setTimeout(() => {
       this.addPointLongPressTriggered = true;
       this.addPointMenuOpen = true;
-      this.addPointLongPressTimer = null;
+      this.addPointLongPressTimer = undefined;
       if (!this.inlineLogTypes.length) {
-        this.logTypeService.getLogTypes().subscribe((t: any[]) => { this.inlineLogTypes = t; });
+        this.logTypeService.getLogTypes().subscribe((t) => { this.inlineLogTypes = t; });
       }
     }, 500);
   }
@@ -5067,7 +5076,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   onAddPointPointerUp(): void {
     if (this.addPointLongPressTimer) {
       clearTimeout(this.addPointLongPressTimer);
-      this.addPointLongPressTimer = null;
+      this.addPointLongPressTimer = undefined;
     }
   }
 
@@ -5091,7 +5100,7 @@ export class AppComponent implements OnInit, AfterViewInit {
     const save = () => {
       const typeId = this.addPointTypeId || this.inlineLogTypes[0]?._id;
       if (!typeId) return;
-      const lt    = this.inlineLogTypes.find((t: any) => t._id === typeId);
+      const lt    = this.inlineLogTypes.find((t) => t._id === typeId);
       const title = lt?.name ?? 'Point';
       this.logService.createLog(this.selectedDate, {
         title, logTypeId: typeId, entryType: 'point',
@@ -5099,7 +5108,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       }).subscribe({ next: () => this.loadLogs(), error: () => {} });
     };
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t: any[]) => {
+      this.logTypeService.getLogTypes().subscribe((t) => {
         this.inlineLogTypes = t;
         this.addPointTypeId = t[0]?._id ?? '';
         save();
@@ -5111,8 +5120,8 @@ export class AppComponent implements OnInit, AfterViewInit {
   }
 
   // ── 1.80: Add Point ──────────────────────────────────────────
-  get addPointFilteredTypes(): any[] {
-    return this.inlineLogTypes.filter((lt: any) => lt.domain === this.addPointDomain);
+  get addPointFilteredTypes(): LogType[] {
+    return this.inlineLogTypes.filter(lt => lt.domain === this.addPointDomain);
   }
 
   openAddPoint(): void {
@@ -5131,7 +5140,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`
     );
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t: any[]) => {
+      this.logTypeService.getLogTypes().subscribe((t) => {
         this.inlineLogTypes = t;
         this._initAddPoint();
         setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
@@ -5151,7 +5160,7 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   // ── Daily Essentials ──────────────────────────────────────────
   getEssentialColor(name: string): string {
-    const lt = this.inlineLogTypes.find((t: any) => t.name.toLowerCase() === name.toLowerCase());
+    const lt = this.inlineLogTypes.find((t) => t.name.toLowerCase() === name.toLowerCase());
     return lt?.color ?? '#888888';
   }
 
@@ -5181,7 +5190,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   stampEssentialNow(name: string): void {
     const pt = this.currentTimeStr();
     const doStamp = () => {
-      const lt = this.inlineLogTypes.find((t: any) => t.name.toLowerCase() === name.toLowerCase());
+      const lt = this.inlineLogTypes.find((t) => t.name.toLowerCase() === name.toLowerCase());
       if (!lt) return;
       this.logService.createLog(this.selectedDate, {
         title: lt.name, logTypeId: lt._id, entryType: 'point',
@@ -5189,7 +5198,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       }).subscribe({ next: () => this.loadLogs(), error: () => {} });
     };
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t: any[]) => { this.inlineLogTypes = t; doStamp(); });
+      this.logTypeService.getLogTypes().subscribe((t) => { this.inlineLogTypes = t; doStamp(); });
     } else {
       doStamp();
     }
@@ -5197,11 +5206,11 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   openEssentialForm(name: string): void {
     const doOpen = () => {
-      const lt = this.inlineLogTypes.find((t: any) => t.name.toLowerCase() === name.toLowerCase());
+      const lt = this.inlineLogTypes.find((t) => t.name.toLowerCase() === name.toLowerCase());
       if (!lt) { this.openAddPoint(); return; }
-      this.addPointDomain    = lt.domain ?? 'personal';
-      const types = this.inlineLogTypes.filter((t: any) => t.domain === this.addPointDomain);
-      this.addPointTypeIndex = Math.max(0, types.findIndex((t: any) => t._id === lt._id));
+      this.addPointDomain    = (lt.domain === 'work' ? 'work' : 'personal') as 'work' | 'personal';
+      const types = this.inlineLogTypes.filter((t) => t.domain === this.addPointDomain);
+      this.addPointTypeIndex = Math.max(0, types.findIndex((t) => t._id === lt._id));
       this.addPointTypeId    = lt._id;
       const n = new Date();
       this.addPointTime = this.snapToQuarter(
@@ -5213,7 +5222,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
     };
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t: any[]) => { this.inlineLogTypes = t; doOpen(); });
+      this.logTypeService.getLogTypes().subscribe((t) => { this.inlineLogTypes = t; doOpen(); });
     } else {
       doOpen();
     }
@@ -5273,7 +5282,7 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   saveAddPoint(): void {
     if (this.addPointSaving || !this.addPointTypeId) return;
-    const lt    = this.inlineLogTypes.find((t: any) => t._id === this.addPointTypeId);
+    const lt    = this.inlineLogTypes.find((t) => t._id === this.addPointTypeId);
     const title = this.addPointTitle.trim() || (lt?.name ?? 'Point');
     this.addPointSaving = true;
     this.logService.createLog(this.selectedDate, {
@@ -5291,17 +5300,17 @@ export class AppComponent implements OnInit, AfterViewInit {
 
   // ── 1.82: Quick Prefs ─────────────────────────────────────────
 
-  get quickPrefsWorkTypes(): any[] {
-    return this.inlineLogTypes.filter((lt: any) => lt.domain === 'work');
+  get quickPrefsWorkTypes(): LogType[] {
+    return this.inlineLogTypes.filter(lt => lt.domain === 'work');
   }
-  get quickPrefsPersonalTypes(): any[] {
-    return this.inlineLogTypes.filter((lt: any) => lt.domain === 'personal');
+  get quickPrefsPersonalTypes(): LogType[] {
+    return this.inlineLogTypes.filter(lt => lt.domain === 'personal');
   }
 
   openQuickPrefs(event: MouseEvent): void {
     event.stopPropagation();
     if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().subscribe((t: any[]) => {
+      this.logTypeService.getLogTypes().subscribe((t) => {
         this.inlineLogTypes = t;
         this._doOpenQuickPrefs();
       });
@@ -5446,7 +5455,7 @@ export class AppComponent implements OnInit, AfterViewInit {
   wrapUpSave(): void {
     const gap = this.wrapUpCurrentGap;
     if (!gap || this.wrapUpSaving || !this.wrapUpTypeId) return;
-    const lt    = this.inlineLogTypes.find((t: any) => t._id === this.wrapUpTypeId);
+    const lt    = this.inlineLogTypes.find((t) => t._id === this.wrapUpTypeId);
     const title = this.wrapUpTitle.trim() || (lt?.name ?? 'Log');
     this.wrapUpSaving = true;
     this.logService.createLog(this.selectedDate, {
@@ -5651,4 +5660,11 @@ export class AppComponent implements OnInit, AfterViewInit {
     const [h, m] = time.split(':').map(Number);
     return h * 60 + m;
   }
+
+  // ── TrackBy helpers ───────────────────────────────────────────
+  trackByIndex(index: number): number { return index; }
+  trackByLogId(_i: number, log: LogEntry): string { return log.id; }
+  trackByLogTypeId(_i: number, lt: LogType): string { return lt._id; }
+  trackByName(_i: number, item: { name: string }): string { return item.name; }
+  trackByValue(_i: number, item: { value: string }): string { return item.value; }
 }

@@ -64,7 +64,7 @@ const SLOT_CATEGORY: Record<string, string> = {
 
         <!-- Slots -->
         <div class="il-slots" *ngIf="!loading">
-          <div class="il-slot" *ngFor="let slot of slots">
+          <div class="il-slot" *ngFor="let slot of slots; trackBy: trackByKey">
             <div class="il-slot-left">
               <div class="il-slot-info">
                 <span class="il-slot-label">{{ slot.label }}</span>
@@ -571,4 +571,6 @@ export class ImportantLogsComponent implements OnInit, OnChanges {
       error: () => { this.capturing = false; }
     });
   }
+
+  trackByKey(_i: number, slot: LiveSlot): string { return slot.key; }
 }

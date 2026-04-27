@@ -51,7 +51,7 @@ type SubView = 'list' | 'detail';
 
         <!-- Journey cards -->
         <div class="jrn-card-list" *ngIf="journeys.length > 0">
-          <div class="jrn-journey-card" *ngFor="let j of journeys" (click)="openDetail(j)">
+          <div class="jrn-journey-card" *ngFor="let j of journeys; trackBy: trackByJourneyId" (click)="openDetail(j)">
             <div class="jrn-journey-card-body">
               <div class="jrn-journey-card-top">
                 <span class="jrn-journey-name">{{ j.name }}</span>
@@ -159,7 +159,7 @@ type SubView = 'list' | 'detail';
           <div class="jrn-field">
             <label class="jrn-label">Status</label>
             <div class="jrn-seg">
-              <button type="button" class="jrn-seg-opt" *ngFor="let s of statusOptions"
+              <button type="button" class="jrn-seg-opt" *ngFor="let s of statusOptions; trackBy: trackByValue"
                       [class.jrn-seg-opt--active]="editForm.status === s.value"
                       (click)="editForm.status = s.value">{{ s.label }}</button>
             </div>
@@ -208,13 +208,13 @@ type SubView = 'list' | 'detail';
               <select class="jrn-input" [(ngModel)]="editForm.derivedLogTypeId" name="editDerivedLogType">
                 <option value="" disabled>Select a log type…</option>
                 <optgroup label="Work" *ngIf="workLogTypes.length > 0">
-                  <option *ngFor="let lt of workLogTypes" [value]="lt._id">{{ lt.name }}</option>
+                  <option *ngFor="let lt of workLogTypes; trackBy: trackByLogTypeId" [value]="lt._id">{{ lt.name }}</option>
                 </optgroup>
                 <optgroup label="Personal" *ngIf="personalLogTypes.length > 0">
-                  <option *ngFor="let lt of personalLogTypes" [value]="lt._id">{{ lt.name }}</option>
+                  <option *ngFor="let lt of personalLogTypes; trackBy: trackByLogTypeId" [value]="lt._id">{{ lt.name }}</option>
                 </optgroup>
                 <optgroup label="Family" *ngIf="familyLogTypes.length > 0">
-                  <option *ngFor="let lt of familyLogTypes" [value]="lt._id">{{ lt.name }}</option>
+                  <option *ngFor="let lt of familyLogTypes; trackBy: trackByLogTypeId" [value]="lt._id">{{ lt.name }}</option>
                 </optgroup>
               </select>
             </div>
@@ -222,7 +222,7 @@ type SubView = 'list' | 'detail';
               <label class="jrn-label">Value to track</label>
               <div class="jrn-metric-grid">
                 <button type="button" class="jrn-metric-opt"
-                        *ngFor="let m of valueMetricOptions"
+                        *ngFor="let m of valueMetricOptions; trackBy: trackByValue"
                         [class.jrn-metric-opt--active]="editForm.derivedValueMetric === m.value"
                         (click)="editForm.derivedValueMetric = m.value">
                   <span class="jrn-metric-icon">{{ m.icon }}</span>
@@ -299,7 +299,7 @@ type SubView = 'list' | 'detail';
                     <div class="jrn-drum-center-band"></div>
                     <div class="jrn-drum jrn-drum-h" (scroll)="onEntryHourScroll($event)">
                       <div class="jrn-drum-spacer"></div>
-                      <div class="jrn-drum-item" *ngFor="let h of entryHours"
+                      <div class="jrn-drum-item" *ngFor="let h of entryHours; trackBy: trackByIndex"
                            [class.jrn-drum-item--sel]="h === entryFormHour">
                         {{ h | number:'2.0-0' }}
                       </div>
@@ -314,7 +314,7 @@ type SubView = 'list' | 'detail';
                     <div class="jrn-drum-center-band"></div>
                     <div class="jrn-drum jrn-drum-m" (scroll)="onEntryMinuteScroll($event)">
                       <div class="jrn-drum-spacer"></div>
-                      <div class="jrn-drum-item" *ngFor="let m of entryMinutes"
+                      <div class="jrn-drum-item" *ngFor="let m of entryMinutes; trackBy: trackByIndex"
                            [class.jrn-drum-item--sel]="m === entryFormMinute">
                         {{ m | number:'2.0-0' }}
                       </div>
@@ -334,7 +334,7 @@ type SubView = 'list' | 'detail';
               <label class="jrn-label">{{ selectedJourney.config.metricName || 'Value' }}</label>
               <select class="jrn-input" [(ngModel)]="entryForm.categoricalValue" name="entryCategorical">
                 <option value="" disabled>Select…</option>
-                <option *ngFor="let v of selectedJourney.config.allowedValues" [value]="v">{{ v }}</option>
+                <option *ngFor="let v of selectedJourney.config.allowedValues; trackBy: trackByIndex" [value]="v">{{ v }}</option>
               </select>
             </div>
           </div>
@@ -372,7 +372,7 @@ type SubView = 'list' | 'detail';
 
           <!-- Derived: grouped by day -->
           <ng-container *ngIf="selectedJourney.trackerType === 'derived'">
-            <div class="jrn-day-group" *ngFor="let group of dayGroups">
+            <div class="jrn-day-group" *ngFor="let group of dayGroups; trackBy: trackByDateStr">
               <div class="jrn-day-row" (click)="toggleDay(group.date)">
                 <div class="jrn-entry-left">
                   <span class="jrn-entry-date">{{ group.displayDate }}</span>
@@ -386,7 +386,7 @@ type SubView = 'list' | 'detail';
                 </svg>
               </div>
               <div class="jrn-day-sub-entries" *ngIf="group.expanded">
-                <div class="jrn-sub-entry" *ngFor="let e of group.entries">
+                <div class="jrn-sub-entry" *ngFor="let e of group.entries; trackBy: trackByEntryId">
                   <span class="jrn-sub-time">{{ e.timestamp | date:'h:mm a' }}</span>
                   <span class="jrn-entry-value jrn-sub-value">
                     <ng-container *ngIf="selectedJourney.derivedFrom?.valueMetric === 'duration'">{{ e.numericValue }}m</ng-container>
@@ -407,7 +407,7 @@ type SubView = 'list' | 'detail';
 
           <!-- Point-log: flat list -->
           <ng-container *ngIf="selectedJourney.trackerType !== 'derived'">
-            <div class="jrn-entry-card" *ngFor="let e of entries">
+            <div class="jrn-entry-card" *ngFor="let e of entries; trackBy: trackByEntryId">
               <div class="jrn-entry-left">
                 <span class="jrn-entry-date">{{ e.timestamp | date:'MMM d, y' }}</span>
                 <span class="jrn-entry-time">{{ e.timestamp | date:'h:mm a' }}</span>
@@ -555,7 +555,7 @@ type SubView = 'list' | 'detail';
               <div class="jrn-field" *ngIf="form.config.valueType === 'categorical'">
                 <label class="jrn-label">Allowed Values</label>
                 <div class="jrn-tags" *ngIf="form.config.allowedValues.length > 0">
-                  <span class="jrn-tag" *ngFor="let v of form.config.allowedValues; let i = index">
+                  <span class="jrn-tag" *ngFor="let v of form.config.allowedValues; let i = index; trackBy: trackByIndex">
                     {{ v }}
                     <button type="button" class="jrn-tag-remove" (click)="removeAllowedValue(i)">×</button>
                   </span>
@@ -580,13 +580,13 @@ type SubView = 'list' | 'detail';
                 <select class="jrn-input" [(ngModel)]="form.derivedLogTypeId" name="derivedLogTypeId">
                   <option value="" disabled>Select a log type…</option>
                   <optgroup label="Work" *ngIf="workLogTypes.length > 0">
-                    <option *ngFor="let lt of workLogTypes" [value]="lt._id">{{ lt.name }}</option>
+                    <option *ngFor="let lt of workLogTypes; trackBy: trackByLogTypeId" [value]="lt._id">{{ lt.name }}</option>
                   </optgroup>
                   <optgroup label="Personal" *ngIf="personalLogTypes.length > 0">
-                    <option *ngFor="let lt of personalLogTypes" [value]="lt._id">{{ lt.name }}</option>
+                    <option *ngFor="let lt of personalLogTypes; trackBy: trackByLogTypeId" [value]="lt._id">{{ lt.name }}</option>
                   </optgroup>
                   <optgroup label="Family" *ngIf="familyLogTypes.length > 0">
-                    <option *ngFor="let lt of familyLogTypes" [value]="lt._id">{{ lt.name }}</option>
+                    <option *ngFor="let lt of familyLogTypes; trackBy: trackByLogTypeId" [value]="lt._id">{{ lt.name }}</option>
                   </optgroup>
                 </select>
               </div>
@@ -595,7 +595,7 @@ type SubView = 'list' | 'detail';
                 <label class="jrn-label">Value to track</label>
                 <div class="jrn-metric-grid">
                   <button type="button" class="jrn-metric-opt"
-                          *ngFor="let m of valueMetricOptions"
+                          *ngFor="let m of valueMetricOptions; trackBy: trackByValue"
                           [class.jrn-metric-opt--active]="form.derivedValueMetric === m.value"
                           (click)="form.derivedValueMetric = m.value">
                     <span class="jrn-metric-icon">{{ m.icon }}</span>
@@ -2110,4 +2110,11 @@ export class JourneysComponent implements OnInit {
       error: () => { this.resyncing = false; }
     });
   }
+
+  trackByJourneyId(_i: number, j: Journey): string { return j.id; }
+  trackByEntryId(_i: number, e: JourneyEntry): string { return e.id; }
+  trackByDateStr(_i: number, g: { date: string }): string { return g.date; }
+  trackByIndex(index: number): number { return index; }
+  trackByLogTypeId(_i: number, lt: { _id: string }): string { return lt._id; }
+  trackByValue(_i: number, item: { value: string }): string { return item.value; }
 }

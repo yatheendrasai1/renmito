@@ -5,6 +5,8 @@ import { catchError, tap } from 'rxjs/operators';
 import { Journey, CreateJourney, JourneyEntry, CreateJourneyEntry } from '../models/journey.model';
 import { environment } from '../../environments/environment';
 
+const devLog = (...args: unknown[]) => { if (!environment.production) console.error(...args); };
+
 @Injectable({ providedIn: 'root' })
 export class JourneyService {
   private readonly apiBase = `${environment.apiBase}/journeys`;
@@ -18,7 +20,7 @@ export class JourneyService {
     if (!this.journeys$) {
       this.journeys$ = this.http.get<Journey[]>(this.apiBase).pipe(
         shareReplay(1),
-        catchError(err => { console.error('Failed to fetch journeys:', err); return of([]); })
+        catchError(err => { devLog('Failed to fetch journeys:', err); return of([]); })
       );
     }
     return this.journeys$;
@@ -26,7 +28,7 @@ export class JourneyService {
 
   getJourney(id: string): Observable<Journey | null> {
     return this.http.get<Journey>(`${this.apiBase}/${id}`).pipe(
-      catchError(err => { console.error('Failed to fetch journey:', err); return of(null); })
+      catchError(err => { devLog('Failed to fetch journey:', err); return of(null); })
     );
   }
 
@@ -52,7 +54,7 @@ export class JourneyService {
     if (!this.entries$.has(journeyId)) {
       const entries$ = this.http.get<JourneyEntry[]>(`${this.apiBase}/${journeyId}/entries`).pipe(
         shareReplay(1),
-        catchError(err => { console.error('Failed to fetch entries:', err); return of([]); })
+        catchError(err => { devLog('Failed to fetch entries:', err); return of([]); })
       );
       this.entries$.set(journeyId, entries$);
     }

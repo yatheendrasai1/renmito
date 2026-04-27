@@ -4,6 +4,8 @@ import { Observable, of, shareReplay } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
+const devWarn = (...args: unknown[]) => { if (!environment.production) devWarn(...args); };
+
 export type DayType = 'working' | 'holiday' | 'paid_leave' | 'sick_leave' | 'wfh';
 
 export interface ImportantLogEntry {
@@ -58,7 +60,7 @@ export class DayLevelService {
         shareReplay(1),
         map(res => res ?? null),
         catchError(err => {
-          console.warn('Could not fetch day metadata:', err?.message);
+          devWarn('Could not fetch day metadata:', err?.message);
           return of(null);
         })
       );
@@ -73,7 +75,7 @@ export class DayLevelService {
       tap(() => this.invalidateDate(date)),
       map(res => res ?? null),
       catchError(err => {
-        console.warn('Could not set day type:', err?.message);
+        devWarn('Could not set day type:', err?.message);
         return of(null);
       })
     );
@@ -85,7 +87,7 @@ export class DayLevelService {
       tap(() => this.invalidateDate(date)),
       map(res => res ?? null),
       catchError(err => {
-        console.warn('Could not capture important logs:', err?.message);
+        devWarn('Could not capture important logs:', err?.message);
         return of(null);
       })
     );

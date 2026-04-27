@@ -205,7 +205,7 @@ export function loadSavedPalette(): ColorPalette | null {
         <div class="te-section-label">Built-in Presets</div>
         <div class="te-presets">
           <button
-            *ngFor="let p of builtinPresets"
+            *ngFor="let p of builtinPresets; trackBy: trackByName"
             class="te-preset-chip"
             [class.te-preset-chip--active]="isActivePreset(p)"
             (click)="selectPreset(p)"
@@ -230,7 +230,7 @@ export function loadSavedPalette(): ColorPalette | null {
         </div>
         <div class="te-presets">
           <div
-            *ngFor="let p of customPresets"
+            *ngFor="let p of customPresets; trackBy: trackByName"
             class="te-preset-chip te-preset-chip--custom"
             [class.te-preset-chip--active]="isActivePreset(p)"
           >
@@ -259,7 +259,7 @@ export function loadSavedPalette(): ColorPalette | null {
       <div class="te-section">
         <div class="te-section-label">Customize</div>
         <div class="te-pickers">
-          <div class="te-picker-row" *ngFor="let cfg of pickerConfigs">
+          <div class="te-picker-row" *ngFor="let cfg of pickerConfigs; trackBy: trackByLabel">
             <label class="te-picker-label">{{ cfg.label }}</label>
             <div class="te-picker-wrap">
               <div class="te-color-preview" [style.background]="currentPalette[cfg.key]"></div>
@@ -812,4 +812,7 @@ export class ThemeEditorComponent implements OnInit {
     if (this.saveTimer) clearTimeout(this.saveTimer);
     this.saveTimer = setTimeout(() => (this.justSaved = false), 2000);
   }
+
+  trackByName(_i: number, p: ColorPalette): string { return p.name; }
+  trackByLabel(_i: number, cfg: { label: string }): string { return cfg.label; }
 }

@@ -5,6 +5,8 @@ import { catchError, tap } from 'rxjs/operators';
 import { LogEntry, CreateLogEntry } from '../models/log.model';
 import { environment } from '../../environments/environment';
 
+const devLog = (...args: unknown[]) => { if (!environment.production) console.error(...args); };
+
 @Injectable({
   providedIn: 'root'
 })
@@ -29,7 +31,7 @@ export class LogService {
       const obs$ = this.http.get<LogEntry[]>(`${this.apiBase}/${dateStr}`).pipe(
         shareReplay(1),
         catchError(err => {
-          console.error('Failed to fetch logs:', err);
+          devLog('Failed to fetch logs:', err);
           return of([]);
         })
       );

@@ -13,7 +13,10 @@ import { AuthService } from '../services/auth.service';
       <!-- ── Left panel: hero image ──────────────────────── -->
       <div class="login-left">
         <div class="hero-frame">
-          <img src="/assets/hero.jpeg" alt="Renmito hero" class="hero-img"/>
+          <picture>
+            <source srcset="/assets/hero.webp" type="image/webp"/>
+            <img src="/assets/hero.jpeg" alt="Renmito hero" class="hero-img" loading="lazy"/>
+          </picture>
         </div>
       </div>
 

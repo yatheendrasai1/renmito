@@ -129,7 +129,7 @@ interface MetricCard {
       <!-- ── Digital: metric cards ────────────────────── -->
       <div class="metrics-cards" *ngIf="isExpanded && analyticsMode === 'digital'">
         <div class="metric-card"
-             *ngFor="let card of activeCards; let i = index"
+             *ngFor="let card of activeCards; let i = index; trackBy: trackByLabel"
              [class.metric-card--selected]="selectedCardIdx === i"
              (click)="selectCard(i)">
           <span class="metric-label">{{ card.label }}</span>
@@ -151,7 +151,7 @@ interface MetricCard {
                 <circle cx="100" cy="100" r="80" [attr.fill]="workPieSlices[0].color"/>
               </ng-container>
               <ng-container *ngIf="workPieSlices.length > 1">
-                <path *ngFor="let s of workPieSlices"
+                <path *ngFor="let s of workPieSlices; trackBy: trackByName"
                       [attr.d]="s.path"
                       [attr.fill]="s.color"
                       class="pie-slice"/>
@@ -164,7 +164,7 @@ interface MetricCard {
             </svg>
             <!-- Legend -->
             <div class="pie-legend">
-              <div class="pie-legend-row" *ngFor="let s of workPieSlices">
+              <div class="pie-legend-row" *ngFor="let s of workPieSlices; trackBy: trackByName">
                 <span class="pie-legend-dot" [style.background]="s.color"></span>
                 <span class="pie-legend-name">{{ s.name }}</span>
                 <span class="pie-legend-val">{{ fmtHPublic(s.hours) }}</span>
@@ -886,4 +886,7 @@ export class MetricsComponent implements OnChanges {
     if (!total) return null;
     return (part / total * 100).toFixed(0) + '%';
   }
+
+  trackByLabel(_i: number, card: MetricCard): string { return card.label; }
+  trackByName(_i: number, s: PieSlice): string { return s.name; }
 }

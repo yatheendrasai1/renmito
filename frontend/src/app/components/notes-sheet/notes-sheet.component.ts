@@ -57,7 +57,7 @@ interface LocalNote {
         <div class="ns-list" *ngIf="!loading">
 
           <div class="ns-note-wrap"
-               *ngFor="let note of notes; let i = index"
+               *ngFor="let note of notes; let i = index; trackBy: trackById"
                [class.ns-note-wrap--new]="note.isNew">
             <button class="ns-delete-btn" (click)="pendingDeleteNote = note" [disabled]="note.deleting" title="Delete note">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -379,4 +379,6 @@ export class NotesSheetComponent implements OnInit, OnChanges {
       error: () => { this.adding = false; }
     });
   }
+
+  trackById(_i: number, note: LocalNote): string { return note._id; }
 }

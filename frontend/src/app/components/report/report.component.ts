@@ -233,7 +233,7 @@ type Preset = 'last10' | 'thisWeek' | 'currentMonth' | 'lastMonth';
     <div class="rpt-breakdown" *ngIf="logTypeBreakdown.length > 0">
       <div class="rpt-breakdown-title">Time by log type</div>
       <div class="rpt-breakdown-list">
-        <div class="rpt-breakdown-item" *ngFor="let bt of logTypeBreakdown">
+        <div class="rpt-breakdown-item" *ngFor="let bt of logTypeBreakdown; trackBy: trackByBreakdownId">
           <div class="rpt-breakdown-row">
             <span class="rpt-breakdown-dot" [style.background]="bt.color || '#9B9B9B'"></span>
             <span class="rpt-breakdown-name">{{ bt.name }}</span>
@@ -266,7 +266,7 @@ type Preset = 'last10' | 'thisWeek' | 'currentMonth' | 'lastMonth';
 
   <!-- ── Accordion list grouped by day ─────────────── -->
   <div class="rpt-list" *ngIf="logs.length > 0">
-    <div class="rpt-day-group" *ngFor="let group of groupedLogs">
+    <div class="rpt-day-group" *ngFor="let group of groupedLogs; trackBy: trackByDateStr">
 
       <!-- Day header -->
       <div class="rpt-day-hdr">
@@ -290,7 +290,7 @@ type Preset = 'last10' | 'thisWeek' | 'currentMonth' | 'lastMonth';
       <!-- Logs in this day -->
       <div class="rpt-day-items">
         <div class="rpt-item"
-             *ngFor="let log of group.logs"
+             *ngFor="let log of group.logs; trackBy: trackByLogId"
              [class.rpt-item--expanded]="expandedId === log.id">
 
           <!-- Collapsed header -->
@@ -1472,4 +1472,8 @@ export class ReportComponent {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
+
+  trackByDateStr(_i: number, g: DayGroup): string { return g.dateStr; }
+  trackByLogId(_i: number, log: ReportEntry): string { return log.id; }
+  trackByBreakdownId(_i: number, bt: LogTypeBreakdown): string { return bt.id; }
 }

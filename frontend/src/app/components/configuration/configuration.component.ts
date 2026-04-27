@@ -110,7 +110,7 @@ type IntelStep = 'list' | 'choose' | 'gemini-key';
           <div class="pref-section">
             <div class="pref-section-label">Custom Log Types</div>
             <div class="lt-list" *ngIf="customLogTypes.length > 0">
-              <div class="lt-row" *ngFor="let lt of customLogTypes">
+              <div class="lt-row" *ngFor="let lt of customLogTypes; trackBy: trackByLogTypeId">
                 <div class="lt-color-dot" [style.background]="lt.color || '#888'"></div>
                 <span class="lt-name" *ngIf="editingLtId !== lt._id">{{ lt.name }}</span>
                 <input *ngIf="editingLtId === lt._id" class="lt-name-input"
@@ -810,4 +810,6 @@ export class ConfigurationComponent implements OnInit {
       }
     });
   }
+
+  trackByLogTypeId(_i: number, lt: LogType): string { return lt._id; }
 }

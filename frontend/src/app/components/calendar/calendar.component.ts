@@ -44,9 +44,9 @@ interface CalendarDay {
       </div>
 
       <div class="calendar-grid">
-        <div class="day-header" *ngFor="let d of dayHeaders">{{ d }}</div>
+        <div class="day-header" *ngFor="let d of dayHeaders; trackBy: trackByIndex">{{ d }}</div>
         <div
-          *ngFor="let day of calendarDays"
+          *ngFor="let day of calendarDays; trackBy: trackByDate"
           class="day-cell"
           [class.empty]="!day.date"
           [class.today]="day.isToday"
@@ -362,4 +362,7 @@ export class CalendarComponent implements OnInit, OnChanges {
     this.selectDate(now);
     this.loadMonthSummary();
   }
+
+  trackByIndex(index: number): number { return index; }
+  trackByDate(_i: number, day: CalendarDay): number { return day.date?.getTime() ?? _i; }
 }

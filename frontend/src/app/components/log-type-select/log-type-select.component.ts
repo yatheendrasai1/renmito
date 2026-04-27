@@ -38,7 +38,7 @@ const DOMAIN_LABELS: Record<string, string> = {
 
       <!-- ── Dropdown panel ────────────────────────────── -->
       <div class="lts-panel" *ngIf="isOpen" (click)="$event.stopPropagation()">
-        <ng-container *ngFor="let group of groups">
+        <ng-container *ngFor="let group of groups; trackBy: trackByDomain">
           <!-- Domain header -->
           <div class="lts-group-header">
             <span class="lts-group-dot" [style.background]="group.color"></span>
@@ -46,7 +46,7 @@ const DOMAIN_LABELS: Record<string, string> = {
           </div>
           <!-- Types in this domain -->
           <button
-            *ngFor="let lt of group.types"
+            *ngFor="let lt of group.types; trackBy: trackByLogTypeId"
             type="button"
             class="lts-option"
             [class.lts-option--active]="lt._id === selectedId"
@@ -234,4 +234,7 @@ export class LogTypeSelectComponent {
 
   @HostListener('document:keydown.escape')
   onEsc(): void { this.isOpen = false; }
+
+  trackByDomain(_i: number, g: LogTypeGroup): string { return g.domain; }
+  trackByLogTypeId(_i: number, lt: { _id: string }): string { return lt._id; }
 }

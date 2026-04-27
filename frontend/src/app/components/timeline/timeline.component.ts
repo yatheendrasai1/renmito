@@ -102,7 +102,7 @@ interface TickMark { pos: number; isHalf: boolean; }
         >
           <!-- Hour labels (left column) -->
           <div class="hour-label"
-               *ngFor="let hour of hours"
+               *ngFor="let hour of hours; trackBy: trackByIndex"
                [style.top.px]="hour * hourHeight">
             {{ formatHour(hour) }}
           </div>
@@ -110,13 +110,13 @@ interface TickMark { pos: number; isHalf: boolean; }
 
           <!-- Hour grid lines (full width from strip rightward) -->
           <div class="hour-line"
-               *ngFor="let hour of hours"
+               *ngFor="let hour of hours; trackBy: trackByIndex"
                [style.top.px]="hour * hourHeight"></div>
           <div class="hour-line" [style.top.px]="24 * hourHeight"></div>
 
           <!-- 10-minute tick marks -->
           <div class="tick-line"
-               *ngFor="let tick of tickMarks"
+               *ngFor="let tick of tickMarks; trackBy: trackByPos"
                [class.tick-line--half]="tick.isHalf"
                [style.top.px]="tick.pos"></div>
 
@@ -132,7 +132,7 @@ interface TickMark { pos: number; isHalf: boolean; }
           <!-- Log entry bars -->
           <div
             class="log-bar"
-            *ngFor="let log of rangeLogs"
+            *ngFor="let log of rangeLogs; trackBy: trackByLogId"
             [class.log-bar--highlighted]="isBarHighlighted(log)"
             [class.log-bar--dimmed]="isBarDimmed(log)"
             [style.top.px]="timeToPixels(log.startAt)"
@@ -148,7 +148,7 @@ interface TickMark { pos: number; isHalf: boolean; }
           <!-- Point log markers -->
           <div
             class="point-marker"
-            *ngFor="let log of pointLogs"
+            *ngFor="let log of pointLogs; trackBy: trackByLogId"
             [class.point-marker--highlighted]="isBarHighlighted(log)"
             [class.point-marker--dimmed]="isBarDimmed(log)"
             [class.point-marker--selected]="selectedPointLog?.id === log.id && !mergeMode"
@@ -1283,4 +1283,8 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
       this.createLogClicked.emit({ startTime: '09:00', endTime: '10:00', startMinutes: 540, endMinutes: 600 });
     }
   }
+
+  trackByIndex(index: number): number { return index; }
+  trackByLogId(_i: number, log: LogEntry): string { return log.id; }
+  trackByPos(_i: number, tick: TickMark): number { return tick.pos; }
 }
