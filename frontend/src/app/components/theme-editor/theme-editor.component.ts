@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PreferenceService } from '../../services/preference.service';
@@ -175,8 +175,8 @@ export function loadSavedPalette(): ColorPalette | null {
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <!-- Floating panel — no full-screen backdrop so the app stays usable -->
-    <div class="te-panel" role="dialog" aria-label="Color palette editor">
+    <!-- Floating panel or inline block depending on [inline] input -->
+    <div [class.te-panel]="!inline" [class.te-inline]="inline" role="dialog" aria-label="Color palette editor">
 
       <!-- ── Header ─── -->
       <div class="te-header">
@@ -344,6 +344,19 @@ export function loadSavedPalette(): ColorPalette | null {
       font-size: 13px;
       animation: teSlideIn 0.2s ease;
     }
+
+    /* Inline mode — embedded inside a page section, not floating */
+    .te-inline {
+      display: block;
+      width: 100%;
+      background: #1E1E2E;
+      border-radius: 10px;
+      color: #E0E4F0;
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 13px;
+    }
+    .te-inline .te-header { border-radius: 10px 10px 0 0; }
+    .te-inline .te-close-btn { display: none; }
     @keyframes teSlideIn {
       from { opacity: 0; transform: translateY(-8px) scale(0.97); }
       to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -673,6 +686,7 @@ export function loadSavedPalette(): ColorPalette | null {
 })
 export class ThemeEditorComponent implements OnInit {
   @Input()  isOpen = false;
+  @Input()  inline = false;
   @Output() close  = new EventEmitter<void>();
 
   readonly builtinPresets = PALETTE_PRESETS;

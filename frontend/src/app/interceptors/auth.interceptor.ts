@@ -1,8 +1,8 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  // Skip adding token for auth endpoints themselves
-  if (req.url.includes('/api/auth/')) {
+  // Skip token for public auth endpoints (login/signup only)
+  if (req.url.includes('/api/auth/login') || req.url.includes('/api/auth/signup')) {
     return next(req);
   }
 

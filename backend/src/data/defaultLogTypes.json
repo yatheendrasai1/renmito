@@ -136,6 +136,15 @@
   },
   {
     "domain": "personal",
+    "category": "sleep",
+    "name": "Woke Up",
+    "color": "#7B9EA8",
+    "icon": "sun",
+    "isBuiltIn": true,
+    "isActive": true
+  },
+  {
+    "domain": "personal",
     "category": "learning",
     "name": "Learning",
     "color": "#574964",

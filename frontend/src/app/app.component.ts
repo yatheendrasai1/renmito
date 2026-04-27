@@ -6,7 +6,7 @@ import { TimelineComponent, DragSelection } from './components/timeline/timeline
 import { LogFormComponent } from './components/log-form/log-form.component';
 import { LoginComponent } from './auth/login.component';
 import { MetricsComponent } from './components/metrics/metrics.component';
-import { ThemeEditorComponent, applyPaletteToDOM, loadSavedPalette, clearPaletteFromDOM } from './components/theme-editor/theme-editor.component';
+import { ThemeEditorComponent, applyPaletteToDOM, loadSavedPalette, clearPaletteFromDOM, PALETTE_PRESETS, ColorPalette } from './components/theme-editor/theme-editor.component';
 import { LogService } from './services/log.service';
 import { AuthService } from './services/auth.service';
 import { LogTypeService } from './services/log-type.service';
@@ -97,7 +97,7 @@ const PERF = (() => {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ThemeEditorComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent, JourneysComponent, ReportComponent, ConfigurationComponent, NotesSheetComponent],
+  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent, JourneysComponent, ReportComponent, ConfigurationComponent, NotesSheetComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -133,21 +133,6 @@ const PERF = (() => {
         <div class="header-actions">
           <span class="header-date">{{ todayLabel }}</span>
           <button class="header-user" *ngIf="currentUser" (click)="openProfile()" title="My profile">{{ currentUser.userName }}</button>
-
-          <!-- Palette editor toggle -->
-          <button class="header-icon-btn"
-                  (click)="showThemeEditor = !showThemeEditor"
-                  [class.header-icon-btn--active]="showThemeEditor"
-                  title="Color palette editor"
-                  aria-label="Open color palette editor">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="13.5" cy="6.5" r="2.5"/>
-              <circle cx="19"   cy="13"  r="2.5"/>
-              <circle cx="6"    cy="13"  r="2.5"/>
-              <circle cx="10"   cy="19"  r="2.5"/>
-            </svg>
-          </button>
 
           <!-- Logout — far right -->
           <button class="header-icon-btn" (click)="logout()" title="Log out" aria-label="Log out">
@@ -226,7 +211,7 @@ const PERF = (() => {
             </button>
           </div>
 
-          <!-- Configurations section -->
+          <!-- Settings section -->
           <div class="nav-group">
             <span class="nav-group-label">Settings</span>
             <button
@@ -241,8 +226,70 @@ const PERF = (() => {
               </svg>
               <span>Configurations</span>
             </button>
+
+            <!-- Ink-pen palette quick-picker -->
+            <button
+              class="left-nav-item"
+              [class.left-nav-item--active]="showPalettePicker"
+              (click)="$event.stopPropagation(); togglePalettePicker()"
+              title="Quick theme"
+              aria-label="Quick theme switcher"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/>
+                <line x1="16" y1="8" x2="2" y2="22"/>
+                <line x1="17.5" y1="15" x2="9" y2="15"/>
+              </svg>
+              <span>Theme</span>
+            </button>
           </div>
         </nav>
+
+        <!-- ── Palette quick-picker overlay ──────────────── -->
+        <div class="qp-backdrop" *ngIf="showPalettePicker"></div>
+        <div class="qp-panel" *ngIf="showPalettePicker" (click)="$event.stopPropagation()">
+          <div class="qp-header">
+            <span class="qp-title">Theme</span>
+            <button class="qp-close" (click)="showPalettePicker = false" aria-label="Close">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div class="qp-section-label">Built-in</div>
+          <div class="qp-grid">
+            <button class="qp-chip"
+                    *ngFor="let p of builtinPalettePresets"
+                    [class.qp-chip--active]="isPaletteActive(p)"
+                    (click)="applyQuickPalette(p)"
+                    [title]="p.name">
+              <div class="qp-swatches">
+                <div class="qp-swatch" [style.background]="p.bg"></div>
+                <div class="qp-swatch" [style.background]="p.primary"></div>
+                <div class="qp-swatch" [style.background]="p.secondary"></div>
+                <div class="qp-swatch" [style.background]="p.accent"></div>
+              </div>
+              <span class="qp-name">{{ p.name }}</span>
+            </button>
+          </div>
+          <div class="qp-section-label" *ngIf="navCustomPresets.length > 0">My Presets</div>
+          <div class="qp-grid" *ngIf="navCustomPresets.length > 0">
+            <button class="qp-chip"
+                    *ngFor="let p of navCustomPresets"
+                    [class.qp-chip--active]="isPaletteActive(p)"
+                    (click)="applyQuickPalette(p)"
+                    [title]="p.name">
+              <div class="qp-swatches">
+                <div class="qp-swatch" [style.background]="p.bg"></div>
+                <div class="qp-swatch" [style.background]="p.primary"></div>
+                <div class="qp-swatch" [style.background]="p.secondary"></div>
+                <div class="qp-swatch" [style.background]="p.accent"></div>
+              </div>
+              <span class="qp-name">{{ p.name }}</span>
+            </button>
+          </div>
+        </div>
 
         <!-- ── View area ───────────────────────────────── -->
         <div class="view-area" (scroll)="onViewAreaScroll($event)">
@@ -296,19 +343,6 @@ const PERF = (() => {
                     <line x1="3"  y1="10" x2="21" y2="10"/>
                   </svg>
                 </button>
-                <!-- Download icon -->
-                <button class="date-bar-btn" (click)="downloadCSV()"
-                        [disabled]="logs.length === 0"
-                        [title]="logs.length === 0 ? 'No logs to download' : 'Download CSV for ' + dateShortLabel"
-                        aria-label="Download CSV">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                </button>
-
                 <!-- 1.83: Important Logs button -->
                 <button class="date-bar-btn"
                         (click)="openImportantLogs()"
@@ -445,6 +479,25 @@ const PERF = (() => {
                           (click)="commitQuickLog()"
                           [disabled]="shortcutSaving">Log</button>
                 </div>
+              </div>
+            </div>
+
+            <!-- ── Daily Essentials ──────────────────────────── -->
+            <div class="shortcuts-bar essentials-bar" *ngIf="isAuthenticated"
+                 (click)="$event.stopPropagation()">
+              <span class="shortcuts-label">Daily Essentials</span>
+              <div class="essential-chip-wrap"
+                   *ngFor="let e of dailyEssentials"
+                   (pointerdown)="onEssentialPointerDown(e, $event)"
+                   (pointerup)="onEssentialPointerUp()"
+                   (pointerleave)="onEssentialPointerUp()"
+                   (click)="onEssentialClick(e, $event)">
+                <button class="shortcut-chip essential-chip"
+                        [class.essential-chip--pressing]="essentialPressName === e.name"
+                        style="pointer-events:none; width:100%">
+                  <span class="shortcut-dot" [style.background]="getEssentialColor(e.name)"></span>
+                  {{ e.name }}
+                </button>
               </div>
             </div>
 
@@ -1410,12 +1463,6 @@ const PERF = (() => {
       (cancelled)="closeForm()"
     ></app-log-form>
 
-    <!-- ── Theme / Palette Editor — 1.42 ───────────── -->
-    <app-theme-editor
-      *ngIf="showThemeEditor"
-      (close)="showThemeEditor = false"
-    ></app-theme-editor>
-
     <!-- ── Profile popup — 1.50 ─────────────────────── -->
     <div class="profile-overlay" *ngIf="showProfile" (click)="onProfileOverlayClick($event)">
       <div class="profile-popup">
@@ -2150,6 +2197,67 @@ const PERF = (() => {
       white-space: nowrap;
     }
 
+    /* ── Palette quick-picker ─────────────────────────── */
+    .qp-backdrop {
+      position: fixed; inset: 0; z-index: 490;
+    }
+    .qp-panel {
+      position: fixed;
+      bottom: 80px;
+      left: 12px;
+      width: 260px;
+      background: #1E1E2E;
+      border: 1px solid #3A3A55;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+      z-index: 495;
+      color: #E0E4F0;
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 13px;
+      padding: 0 0 10px;
+      animation: qpIn 0.18s ease;
+    }
+    @keyframes qpIn {
+      from { opacity: 0; transform: translateY(6px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .qp-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid #2E2E45;
+    }
+    .qp-title { font-size: 12px; font-weight: 700; color: #C8D0E8; letter-spacing: 0.3px; }
+    .qp-close {
+      width: 24px; height: 24px; border-radius: 5px;
+      background: rgba(255,255,255,0.06); border: none;
+      color: #8090A8; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: background 0.12s;
+    }
+    .qp-close:hover { background: rgba(255,255,255,0.14); color: #E0E4F0; }
+    .qp-section-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase;
+      color: #5A6A88; padding: 10px 14px 6px;
+    }
+    .qp-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 6px; padding: 0 10px;
+    }
+    .qp-chip {
+      background: #252535; border: 1.5px solid #2E2E45;
+      border-radius: 7px; padding: 7px 8px;
+      cursor: pointer; display: flex; flex-direction: column; gap: 5px;
+      text-align: left; transition: border-color 0.15s, background 0.15s;
+    }
+    .qp-chip:hover { border-color: #5A6A88; background: #2C2C42; }
+    .qp-chip--active { border-color: #7A8AC8 !important; background: #2C2C48 !important; }
+    .qp-swatches { display: flex; gap: 3px; }
+    .qp-swatch {
+      width: 14px; height: 14px; border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;
+    }
+    .qp-name { font-size: 10px; font-weight: 600; color: #8090A8; line-height: 1; }
+    .qp-chip--active .qp-name { color: #C0CFEF; }
+
     /* ── Profile popup — 1.50 ──────────────────────────── */
     .profile-overlay {
       position: fixed; inset: 0;
@@ -2307,6 +2415,20 @@ const PERF = (() => {
       height: 8px;
       border-radius: 50%;
       flex-shrink: 0;
+    }
+
+    .essentials-bar { margin-top: 4px; }
+
+    .essential-chip-wrap {
+      position: relative;
+      flex-shrink: 0;
+      touch-action: none;
+      user-select: none;
+    }
+    .essential-chip--pressing {
+      outline: 2px solid var(--nav-bg);
+      outline-offset: 1px;
+      transition: outline 0.1s;
     }
 
     /* ── 1.85: Quick action panel ─────────────────────────────── */
@@ -3610,8 +3732,10 @@ export class AppComponent implements OnInit, AfterViewInit {
   private navEdgeSwipeStartY = 0;
   private navEdgeIsHorizontal: boolean | null = null;
 
-  // ── 1.42: Palette / theme editor ─────────────────────────
-  showThemeEditor = false;
+  // ── Palette quick-picker (nav ink-pen button) ─────────────
+  showPalettePicker    = false;
+  readonly builtinPalettePresets = PALETTE_PRESETS;
+  navCustomPresets: ColorPalette[] = [];
 
   // ── 1.50: Profile popup ───────────────────────────────────
   showProfile    = false;
@@ -3672,6 +3796,18 @@ export class AppComponent implements OnInit, AfterViewInit {
   quickActionChip:     any | null = null;
   quickActionAnchor:   'start' | 'conclude' = 'conclude';
   quickActionDuration: number = 30; // minutes
+
+  // ── Daily Essentials ──────────────────────────────────────────
+  readonly dailyEssentials = [
+    { name: 'Breakfast' },
+    { name: 'Lunch' },
+    { name: 'Dinner' },
+    { name: 'Sleep' },
+    { name: 'Woke Up' },
+  ];
+  private essentialPressTimer: any = null;
+  private essentialPressTriggered = false;
+  essentialPressName: string | null = null;
   readonly quickDurations = [
     { mins: 15, label: '15m' },
     { mins: 30, label: '30m' },
@@ -3854,6 +3990,7 @@ export class AppComponent implements OnInit, AfterViewInit {
       } else {
         clearPaletteFromDOM();
       }
+      if (prefs?.customPresets) { this.navCustomPresets = prefs.customPresets; }
       // 1.71: Resume running log ticker if one was already active
       if (prefs?.activeLog) {
         this.activeLog = prefs.activeLog;
@@ -3865,6 +4002,26 @@ export class AppComponent implements OnInit, AfterViewInit {
       // 1.82: Load quick shortcuts
       this.quickPrefsItems = prefs?.quickShortcuts ?? [];
     });
+  }
+
+  togglePalettePicker(): void {
+    this.showPalettePicker = !this.showPalettePicker;
+    if (this.showPalettePicker) { this.navOverlayOpen = false; }
+  }
+
+  isPaletteActive(p: ColorPalette): boolean {
+    const active = loadSavedPalette();
+    return !!active &&
+      active.bg        === p.bg        &&
+      active.primary   === p.primary   &&
+      active.secondary === p.secondary &&
+      active.accent    === p.accent;
+  }
+
+  applyQuickPalette(p: ColorPalette): void {
+    applyPaletteToDOM(p);
+    localStorage.setItem('renmito-palette', JSON.stringify(p));
+    this.prefService.savePalette(p).subscribe();
   }
 
   logout(): void {
@@ -4991,6 +5148,76 @@ export class AppComponent implements OnInit, AfterViewInit {
   }
 
   closeAddPoint(): void { this.unifiedSheetOpen = false; }
+
+  // ── Daily Essentials ──────────────────────────────────────────
+  getEssentialColor(name: string): string {
+    const lt = this.inlineLogTypes.find((t: any) => t.name.toLowerCase() === name.toLowerCase());
+    return lt?.color ?? '#888888';
+  }
+
+  onEssentialPointerDown(e: { name: string }, event: PointerEvent): void {
+    this.essentialPressTriggered = false;
+    this.essentialPressName = e.name;
+    this.essentialPressTimer = setTimeout(() => {
+      this.essentialPressTriggered = true;
+      this.essentialPressName = null;
+      this.stampEssentialNow(e.name);
+    }, 2000);
+  }
+
+  onEssentialPointerUp(): void {
+    clearTimeout(this.essentialPressTimer);
+    this.essentialPressName = null;
+  }
+
+  onEssentialClick(e: { name: string }, event: MouseEvent): void {
+    if (this.essentialPressTriggered) {
+      this.essentialPressTriggered = false;
+      return;
+    }
+    this.openEssentialForm(e.name);
+  }
+
+  stampEssentialNow(name: string): void {
+    const pt = this.currentTimeStr();
+    const doStamp = () => {
+      const lt = this.inlineLogTypes.find((t: any) => t.name.toLowerCase() === name.toLowerCase());
+      if (!lt) return;
+      this.logService.createLog(this.selectedDate, {
+        title: lt.name, logTypeId: lt._id, entryType: 'point',
+        pointTime: pt, startTime: pt, endTime: pt,
+      }).subscribe({ next: () => this.loadLogs(), error: () => {} });
+    };
+    if (!this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((t: any[]) => { this.inlineLogTypes = t; doStamp(); });
+    } else {
+      doStamp();
+    }
+  }
+
+  openEssentialForm(name: string): void {
+    const doOpen = () => {
+      const lt = this.inlineLogTypes.find((t: any) => t.name.toLowerCase() === name.toLowerCase());
+      if (!lt) { this.openAddPoint(); return; }
+      this.addPointDomain    = lt.domain ?? 'personal';
+      const types = this.inlineLogTypes.filter((t: any) => t.domain === this.addPointDomain);
+      this.addPointTypeIndex = Math.max(0, types.findIndex((t: any) => t._id === lt._id));
+      this.addPointTypeId    = lt._id;
+      const n = new Date();
+      this.addPointTime = this.snapToQuarter(
+        `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`
+      );
+      this.addPointTitle    = '';
+      this.unifiedSheetTab  = 2;
+      this.unifiedSheetOpen = true;
+      setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
+    };
+    if (!this.inlineLogTypes.length) {
+      this.logTypeService.getLogTypes().subscribe((t: any[]) => { this.inlineLogTypes = t; doOpen(); });
+    } else {
+      doOpen();
+    }
+  }
 
   setAddPointDomain(domain: 'work' | 'personal'): void {
     this.addPointDomain    = domain;
