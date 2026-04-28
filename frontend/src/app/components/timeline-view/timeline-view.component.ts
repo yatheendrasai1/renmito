@@ -16,6 +16,7 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, TimelineComponent],
+  styles: [`:host { display: flex; flex-direction: column; gap: 14px; min-width: 0; overflow: hidden; }`],
   template: `
     <!-- ── Date bar ────────────────────────────────────── -->
     <div class="date-bar">

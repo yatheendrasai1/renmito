@@ -33,6 +33,7 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
     DailyEssentialsBarComponent,
     LogTypeSelectComponent,
   ],
+  styles: [`:host { display: flex; flex-direction: column; gap: 14px; min-width: 0; overflow: hidden; }`],
   template: `
     <!-- ── Date bar ────────────────────────────────────── -->
     <div class="date-bar">
