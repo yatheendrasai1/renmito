@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, HostListener, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { Component, AfterViewInit, HostListener, OnInit, OnDestroy, ViewChild, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
@@ -105,6 +105,7 @@ const PERF = (() => {
 @Component({
   selector: 'app-root',
   standalone: true,
+  encapsulation: ViewEncapsulation.None,
   imports: [CommonModule, FormsModule, RouterOutlet, RouterLink, RouterLinkActive, CalendarComponent, LogFormComponent, LoginComponent, ConfirmDialogComponent, ImportantLogsComponent, NotesSheetComponent, PaletteSheetComponent, UnifiedSheetComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
