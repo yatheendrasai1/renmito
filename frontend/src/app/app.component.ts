@@ -264,7 +264,7 @@ const PERF = (() => {
         </app-palette-sheet>
 
         <!-- ── View area ───────────────────────────────── -->
-        <div class="view-area content-area">
+        <div class="view-area content-area" (scroll)="onViewScroll($event)">
           <router-outlet></router-outlet>
         </div><!-- /view-area -->
       <!-- 1.93: Mobile nav overlay backdrop -->
@@ -2680,6 +2680,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Footer scroll visibility ──────────────────────────────────
   footerVisible = false;
+
+  onViewScroll(event: Event): void {
+    const el = event.target as HTMLElement;
+    this.footerVisible = el.scrollTop + el.clientHeight >= el.scrollHeight - 40;
+  }
 
   // ── Shortcut toast (shown from logger shortcuts + unified sheet)
   shortcutToast: { message: string; logId: string } | null = null;
