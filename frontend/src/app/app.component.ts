@@ -686,7 +686,7 @@ const PERF = (() => {
     /* ── Content area (full width now — no calendar panel) ─ */
     .content-area {
       display: flex; flex-direction: column;
-      gap: 14px; min-width: 0; overflow: hidden;
+      gap: 14px; min-width: 0;
     }
 
     /* ── Date bar — 1.23 ─────────────────────────────────── */
