@@ -1,11 +1,11 @@
 import { Component, AfterViewInit, HostListener, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CalendarComponent } from './components/calendar/calendar.component';
 import { TimelineComponent, DragSelection } from './components/timeline/timeline.component';
 import { LogFormComponent } from './components/log-form/log-form.component';
 import { LoginComponent } from './auth/login.component';
-import { MetricsComponent } from './components/metrics/metrics.component';
 import { ThemeEditorComponent, applyPaletteToDOM, loadSavedPalette, clearPaletteFromDOM, PALETTE_PRESETS, ColorPalette } from './components/theme-editor/theme-editor.component';
 import { LogService } from './services/log.service';
 import { AuthService } from './services/auth.service';
@@ -17,20 +17,15 @@ import { LogType } from './models/log-type.model';
 import { forkJoin, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
-import { LogTypeSelectComponent } from './components/log-type-select/log-type-select.component';
 import { ImportantLogsComponent } from './components/important-logs/important-logs.component';
-import { JourneysComponent } from './components/journeys/journeys.component';
-import { ReportComponent } from './components/report/report.component';
 import { JourneyService } from './services/journey.service';
-import { ConfigurationComponent } from './components/configuration/configuration.component';
 import { AiService, ParsedLog, RenniMessage, ChatResponse } from './services/ai.service';
 import { NotesSheetComponent } from './components/notes-sheet/notes-sheet.component';
 import { NotesService } from './services/notes.service';
 import { environment } from '../environments/environment';
-import { ActiveLogBarComponent } from './components/active-log-bar/active-log-bar.component';
-import { DailyEssentialsBarComponent } from './components/daily-essentials-bar/daily-essentials-bar.component';
 import { PaletteSheetComponent } from './components/palette-sheet/palette-sheet.component';
 import { UnifiedSheetComponent } from './components/unified-sheet/unified-sheet.component';
+import { AppStateService, OpenLogFormParams, ConfirmDialogParams } from './services/app-state.service';
 
 // ── Performance Profiler ─────────────────────────────────────────────────────
 // Tracks startup HTTP calls with performance.mark/measure (visible in DevTools
@@ -110,7 +105,7 @@ const PERF = (() => {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, CalendarComponent, TimelineComponent, LogFormComponent, LoginComponent, MetricsComponent, ConfirmDialogComponent, LogTypeSelectComponent, ImportantLogsComponent, JourneysComponent, ReportComponent, ConfigurationComponent, NotesSheetComponent, ActiveLogBarComponent, DailyEssentialsBarComponent, PaletteSheetComponent, UnifiedSheetComponent],
+  imports: [CommonModule, FormsModule, RouterOutlet, RouterLink, RouterLinkActive, CalendarComponent, LogFormComponent, LoginComponent, ConfirmDialogComponent, ImportantLogsComponent, NotesSheetComponent, PaletteSheetComponent, UnifiedSheetComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -169,10 +164,10 @@ const PERF = (() => {
              (click)="navOverlayOpen = false">
           <div class="nav-group">
             <span class="nav-group-label">Main</span>
-            <button
+            <a
               class="left-nav-item"
-              [class.left-nav-item--active]="activeView === 'logger'"
-              (click)="activeView = 'logger'"
+              routerLink="/logger"
+              routerLinkActive="left-nav-item--active"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -180,11 +175,11 @@ const PERF = (() => {
                 <polyline points="12 6 12 12 16 14"/>
               </svg>
               <span>Logger</span>
-            </button>
-            <button
+            </a>
+            <a
               class="left-nav-item"
-              [class.left-nav-item--active]="activeView === 'timeline'"
-              (click)="activeView = 'timeline'"
+              routerLink="/timeline"
+              routerLinkActive="left-nav-item--active"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -196,11 +191,11 @@ const PERF = (() => {
                 <circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/>
               </svg>
               <span>Time Line</span>
-            </button>
-            <button
+            </a>
+            <a
               class="left-nav-item"
-              [class.left-nav-item--active]="activeView === 'journeys'"
-              (click)="activeView = 'journeys'"
+              routerLink="/journeys"
+              routerLinkActive="left-nav-item--active"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -208,11 +203,11 @@ const PERF = (() => {
                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
               </svg>
               <span>Journey Logs</span>
-            </button>
-            <button
+            </a>
+            <a
               class="left-nav-item"
-              [class.left-nav-item--active]="activeView === 'report'"
-              (click)="activeView = 'report'"
+              routerLink="/report"
+              routerLinkActive="left-nav-item--active"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -221,16 +216,16 @@ const PERF = (() => {
                 <line x1="9" y1="21" x2="9" y2="9"/>
               </svg>
               <span>Reports</span>
-            </button>
+            </a>
           </div>
 
           <!-- Settings section -->
           <div class="nav-group">
             <span class="nav-group-label">Settings</span>
-            <button
+            <a
               class="left-nav-item"
-              [class.left-nav-item--active]="activeView === 'configuration'"
-              (click)="activeView = 'configuration'"
+              routerLink="/configuration"
+              routerLinkActive="left-nav-item--active"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -238,7 +233,7 @@ const PERF = (() => {
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
               </svg>
               <span>Configurations</span>
-            </button>
+            </a>
 
             <!-- Ink-pen palette quick-picker -->
             <button
@@ -268,595 +263,8 @@ const PERF = (() => {
         </app-palette-sheet>
 
         <!-- ── View area ───────────────────────────────── -->
-        <div class="view-area" (scroll)="onViewAreaScroll($event)">
-
-          <!-- Logger view -->
-          <div class="content-area" *ngIf="activeView === 'logger'">
-
-            <!-- ── Date bar — 1.23 ─────────────────────── -->
-            <div class="date-bar">
-              <span class="date-bar-text">{{ dateShortLabel }}</span>
-              <div class="date-bar-actions">
-
-                <!-- Previous day — 1.31 -->
-                <button class="date-bar-btn" (click)="prevDay()"
-                        title="Previous day" aria-label="Previous day">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6"/>
-                  </svg>
-                </button>
-
-                <!-- Next day — 1.31 -->
-                <button class="date-bar-btn" (click)="nextDay()"
-                        [disabled]="isToday"
-                        title="Next day" aria-label="Next day">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
-                </button>
-
-                <!-- Today — 1.31 -->
-                <button class="date-bar-btn" (click)="goToToday()"
-                        [disabled]="isToday"
-                        title="Go to today" aria-label="Go to today">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="9"/>
-                    <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
-                  </svg>
-                </button>
-
-                <!-- Calendar icon -->
-                <button class="date-bar-btn" (click)="openCalendarPopup()"
-                        title="Pick a date" aria-label="Open calendar">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/>
-                    <line x1="8"  y1="2" x2="8"  y2="6"/>
-                    <line x1="3"  y1="10" x2="21" y2="10"/>
-                  </svg>
-                </button>
-                <!-- 1.83: Important Logs button -->
-                <button class="date-bar-btn"
-                        (click)="openImportantLogs()"
-                        title="Important Logs"
-                        aria-label="Important Logs">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="9"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <circle cx="12" cy="16" r="0.5" fill="currentColor" stroke="currentColor" stroke-width="1"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- 1.83: Day type selector dropdown -->
-            <div class="day-type-bar" *ngIf="dayMetadata">
-              <div class="dt-select" [class.dt-select--open]="dayTypeDropdownOpen">
-                <button class="dt-trigger"
-                        (click)="dayTypeDropdownOpen = !dayTypeDropdownOpen; $event.stopPropagation()">
-                  <span class="dt-trigger-label">{{ selectedDayTypeLabel }}</span>
-                  <svg class="dt-chevron" width="11" height="11" viewBox="0 0 12 12" fill="none">
-                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
-                          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </button>
-                <div class="dt-panel" *ngIf="dayTypeDropdownOpen" (click)="$event.stopPropagation()">
-                  <button *ngFor="let opt of dayTypeOptions; trackBy: trackByValue"
-                          class="dt-option"
-                          [class.dt-option--active]="dayMetadata!.dayType === opt.value"
-                          (click)="setDayType(opt.value); dayTypeDropdownOpen = false">
-                    {{ opt.label }}
-                  </button>
-                </div>
-              </div>
-              <button class="dt-notes-btn" (click)="showNotesSheet = true" title="Day notes">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <line x1="16" y1="13" x2="8" y2="13"/>
-                  <line x1="16" y1="17" x2="8" y2="17"/>
-                  <polyline points="10 9 9 9 8 9"/>
-                </svg>
-                Notes<span class="dt-notes-count" *ngIf="notesCount > 0">{{ notesCount }}</span>
-              </button>
-            </div>
-            <div class="dt-backdrop" *ngIf="dayTypeDropdownOpen" (click)="dayTypeDropdownOpen = false"></div>
-
-            <!-- ── Metrics — 1.30 ─────────────────────────── -->
-            <app-metrics
-              [logs]="logs"
-              [selectedDate]="selectedDate"
-              (cardHighlight)="onCardHighlight($event)"
-            ></app-metrics>
-
-            <!-- ── 1.71: Running Log Banner ───────────────────────── -->
-            <app-active-log-bar
-              [activeLog]="activeLog"
-              [logTypes]="inlineLogTypes"
-              [elapsedStr]="activeLogElapsedStr"
-              [plannedPct]="activeLogPlannedPct"
-              (editTimer)="openTimerEdit()"
-              (stop)="stopRunningLog()">
-            </app-active-log-bar>
-
-            <!-- ── Quick Shortcuts — 1.62 / 1.82 ──────────────── -->
-            <div class="shortcuts-bar" *ngIf="isAuthenticated && shortcutDisplayTypes.length > 0"
-                 (click)="$event.stopPropagation()">
-              <span class="shortcuts-label">
-                Quick
-                <button class="shortcuts-edit-btn"
-                        (click)="openQuickPrefs($event)"
-                        title="Configure quick shortcuts"
-                        aria-label="Configure quick bar">
-                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
-                    <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
-                          stroke-width="1.5" stroke-linejoin="round"/>
-                  </svg>
-                </button>
-              </span>
-              <button class="shortcut-chip"
-                      *ngFor="let lt of shortcutDisplayTypes; trackBy: trackByLogTypeId"
-                      [class.shortcut-chip--active]="quickActionChip?._id === lt._id"
-                      [disabled]="shortcutSaving"
-                      (click)="onShortcutTap(lt)"
-                      [title]="'Log ' + lt.name">
-                <span class="shortcut-dot" [style.background]="lt.color"></span>
-                {{ lt.name }}
-              </button>
-
-              <!-- ── 1.85: Quick action panel ─────────────────── -->
-              <div class="quick-action-panel" *ngIf="quickActionChip">
-                <div class="quick-action-row">
-                  <button class="quick-anchor-btn"
-                          [class.quick-anchor-btn--active]="quickActionAnchor === 'start'"
-                          (click)="quickActionAnchor = 'start'">start</button>
-                  <button class="quick-anchor-btn"
-                          [class.quick-anchor-btn--active]="quickActionAnchor === 'conclude'"
-                          (click)="quickActionAnchor = 'conclude'">conclude</button>
-                </div>
-                <div class="quick-action-row">
-                  <button class="quick-dur-chip"
-                          *ngFor="let d of quickDurations; trackBy: trackByIndex"
-                          [class.quick-dur-chip--active]="quickActionDuration === d.mins"
-                          (click)="quickActionDuration = d.mins">{{ d.label }}</button>
-                </div>
-                <div class="quick-action-row quick-action-row--log">
-                  <button class="quick-log-btn"
-                          (click)="commitQuickLog()"
-                          [disabled]="shortcutSaving">Log</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- ── Daily Essentials ──────────────────────────── -->
-            <app-daily-essentials-bar
-              *ngIf="isAuthenticated"
-              [logTypes]="inlineLogTypes"
-              (stampNow)="onEssentialStamp($event)"
-              (openForm)="onEssentialOpen($event)">
-            </app-daily-essentials-bar>
-
-            <!-- ── 1.68: End-of-Day Wrap-Up Banner ───────────── -->
-            <div class="wrapup-banner" *ngIf="showWrapUpBanner">
-              <svg class="wrapup-banner-icon" width="14" height="14" viewBox="0 0 24 24"
-                   fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M12 6v6l4 2"/>
-              </svg>
-              <span class="wrapup-banner-text">
-                <strong>{{ todayGaps.length }} gap{{ todayGaps.length > 1 ? 's' : '' }}</strong>
-                &nbsp;· {{ totalGapLabel }} unlogged today
-              </span>
-              <button class="wrapup-start-btn" (click)="openWrapUp()">Wrap Up</button>
-              <button class="wrapup-dismiss-btn" (click)="dismissWrapUp()" aria-label="Dismiss">✕</button>
-            </div>
-
-            <!-- ── Log List (full width in logger view) ── -->
-            <div class="logger-split">
-
-              <!-- Log List -->
-              <div class="split-logs split-logs--full">
-                <div class="content-header">
-                  <h2 class="section-title">Logs for the day</h2>
-                  <span class="log-count" *ngIf="logs.length > 0">
-                    {{ logs.length }} entr{{ logs.length === 1 ? 'y' : 'ies' }}
-                  </span>
-                  <button type="button" class="btn-sort"
-                          *ngIf="!isLoading && logs.length > 1"
-                          (click)="toggleLogSort()"
-                          [title]="logSortOrder === 'asc' ? 'Earliest first — click for latest first' : 'Latest first — click for earliest first'">
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                      <path d="M4 2v12M4 14l-2.5-3M4 14l2.5-3" stroke="currentColor"
-                            stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
-                            [attr.opacity]="logSortOrder === 'desc' ? '1' : '0.35'"/>
-                      <path d="M12 14V2M12 2l-2.5 3M12 2l2.5 3" stroke="currentColor"
-                            stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
-                            [attr.opacity]="logSortOrder === 'asc' ? '1' : '0.35'"/>
-                    </svg>
-                    <span>{{ logSortOrder === 'asc' ? 'Earliest' : 'Latest' }}</span>
-                  </button>
-                </div>
-
-            <div class="log-list-section">
-
-              <!-- ── Add log row — 1.80: three action buttons ──────── -->
-              <div class="log-list-add-row" *ngIf="!isLoading">
-                <div class="add-log-btn-group">
-                  <button class="btn-add-entry" (click)="openLogNow()">
-                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                      <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                    Add log
-                  </button>
-                  <!-- 1.90: long-press for quick options -->
-                  <div class="add-point-wrap"
-                       (pointerdown)="onAddPointPointerDown($event)"
-                       (pointerup)="onAddPointPointerUp()"
-                       (pointerleave)="onAddPointPointerUp()"
-                       (click)="onAddPointClick($event)">
-                    <button class="btn-add-entry" style="pointer-events:none; width:100%">
-                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                        <circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.6"/>
-                        <circle cx="6" cy="6" r="1.5" fill="currentColor"/>
-                      </svg>
-                      Add point
-                    </button>
-                    <!-- Long-press dropdown -->
-                    <div class="add-point-backdrop" *ngIf="addPointMenuOpen" (click)="closeAddPointMenu(); $event.stopPropagation()"></div>
-                    <div class="add-point-menu" *ngIf="addPointMenuOpen" (click)="$event.stopPropagation()">
-                      <button class="add-point-menu-item" (click)="addPointLogNow(); closeAddPointMenu(); $event.stopPropagation()">
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                          <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/>
-                          <path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                        </svg>
-                        <div class="add-point-menu-text">
-                          <span>Log now</span>
-                          <span class="add-point-menu-sub">Stamp at {{ currentTimeStr() }}</span>
-                        </div>
-                      </button>
-                      <button class="add-point-menu-item" (click)="openAddPoint(); closeAddPointMenu(); $event.stopPropagation()">
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                          <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
-                          <path d="M5 3V1.5M11 3V1.5M2 7h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                        </svg>
-                        <div class="add-point-menu-text">
-                          <span>Log time</span>
-                          <span class="add-point-menu-sub">Pick a time</span>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                  <button class="btn-add-entry btn-add-entry--activity" (click)="openStartLog()">
-                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                      <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/>
-                      <path d="M4.5 3.5l5 2.5-5 2.5V3.5z" fill="currentColor"/>
-                    </svg>
-                    Start activity
-                  </button>
-                </div>
-              </div>
-
-              <!-- ── 1.80: Continue Last Log ── -->
-              <div class="continue-log-row"
-                   *ngIf="isToday && lastRangeLog && !inlineEditId">
-                <button class="continue-log-btn"
-                        [disabled]="shortcutSaving"
-                        (click)="continueLastLog()">
-                  <span class="continue-dot"
-                        [style.background]="lastRangeLog.logType?.color ?? '#9B9B9B'"></span>
-                  <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor">
-                    <path d="M2 1.5l6 3.5-6 3.5V1.5z"/>
-                  </svg>
-                  Continue
-                  <strong>{{ lastRangeLog.logType?.name ?? 'last log' }}</strong>
-                  <span class="continue-since">since {{ lastRangeLog.endAt }}</span>
-                </button>
-              </div>
-
-              <!-- ── Timeline skeleton ── -->
-              <div class="log-list-skeleton" *ngIf="isLoading">
-                <div class="tl-skeleton-row" *ngFor="let i of [1,2,3]; trackBy: trackByIndex">
-                  <div class="tl-sk-time"></div>
-                  <div class="tl-sk-spine">
-                    <div class="tl-sk-line"></div>
-                    <div class="tl-sk-dot"></div>
-                    <div class="tl-sk-line"></div>
-                  </div>
-                  <div class="tl-sk-card"></div>
-                </div>
-              </div>
-
-              <!-- ── Log cards ── -->
-              <div class="log-list" *ngIf="!isLoading && logs.length > 0">
-                <div
-                  class="tl-item"
-                  *ngFor="let log of sortedLogs; let i = index; trackBy: trackByLogId"
-                  [class.tl-item--active]="log.id === highlightedLogId && !metricLogIds && inlineEditId !== log.id"
-                  [class.tl-item--metric-active]="metricLogIds?.has(log.id) && inlineEditId !== log.id"
-                  [class.tl-item--dimmed]="metricLogIds && !metricLogIds.has(log.id) && inlineEditId !== log.id"
-                  [class.tl-item--editing]="inlineEditId === log.id"
-                  (click)="onLogItemClick(log, $event)"
-                >
-                  <!-- Swipe wrapper -->
-                  <div class="swipe-wrap"
-                       (touchstart)="onSwipeStart(log, $event)"
-                       (touchmove)="onSwipeMove(log, $event)"
-                       (touchend)="onSwipeEnd(log, $event)">
-
-                    <!-- Swipe-right reveal: Edit -->
-                    <div class="swipe-reveal swipe-reveal--edit"
-                         [class.swipe-reveal--active]="swipeLogId === log.id && swipeTranslateX > 20"
-                         [class.swipe-reveal--ready]="swipeLogId === log.id && swipeTranslateX > 72">
-                      <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                        <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                      </svg>
-                      Edit
-                    </div>
-
-                    <!-- Swipe-left reveal: Delete -->
-                    <div class="swipe-reveal swipe-reveal--delete"
-                         [class.swipe-reveal--active]="swipeLogId === log.id && swipeTranslateX < -20"
-                         [class.swipe-reveal--ready]="swipeLogId === log.id && swipeTranslateX < -72">
-                      Delete
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                        <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"
-                              stroke="currentColor" stroke-width="1.4"
-                              stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </div>
-
-                    <!-- Card -->
-                    <div class="tl-card"
-                         [style.transform]="swipeLogId === log.id ? 'translateX(' + swipeTranslateX + 'px)' : ''"
-                         [class.tl-card--snapping]="swipeLogId === log.id && swipeSnapping">
-
-                    <!-- ── View mode ── -->
-                    <ng-container *ngIf="inlineEditId !== log.id">
-                      <div class="tl-card-header">
-                        <div class="tl-card-body">
-                          <div class="log-list-label">{{ log.title }}</div>
-                          <div class="log-list-meta">
-                            <span class="log-list-time">
-                              <ng-container *ngIf="log.entryType === 'point'">⏱ {{ log.startAt }}</ng-container>
-                              <ng-container *ngIf="log.entryType !== 'point'">
-                                <span *ngIf="log.date !== selectedDateStr" class="log-prev-day-date">{{ shortDate(log.date) }}, </span>{{ log.startAt }} – <span *ngIf="log.endDate && log.endDate !== log.date && log.endDate !== selectedDateStr" class="log-prev-day-date">{{ shortDate(log.endDate) }}, </span>{{ log.endAt }}
-                              </ng-container>
-                            </span>
-                            <span class="log-list-type-badge"
-                                  [style.background]="(log.logType?.color ?? '#9B9B9B') + '22'"
-                                  [style.color]="log.logType?.color ?? '#9B9B9B'">
-                              {{ log.logType?.name ?? '—' }}
-                            </span>
-                            <span class="log-list-duration" *ngIf="getDuration(log)">{{ getDuration(log) }}</span>
-                            <span class="log-ai-badge" *ngIf="log.source === 'ai'" title="Created by Renni AI">
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                              </svg>
-                              AI
-                            </span>
-                          </div>
-                        </div>
-                        <div class="tl-card-actions">
-                          <button type="button" class="log-list-edit-btn"
-                                  (click)="editLog(log); $event.stopPropagation()"
-                                  aria-label="Edit">
-                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                              <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
-                                    stroke-width="1.5" stroke-linejoin="round"/>
-                            </svg>
-                          </button>
-                          <button type="button" class="log-list-delete-btn"
-                                  (click)="confirmDeleteLog(log); $event.stopPropagation()"
-                                  aria-label="Delete">
-                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                              <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"
-                                    stroke="currentColor" stroke-width="1.4"
-                                    stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </ng-container>
-
-                    <!-- ── Inline edit mode ── -->
-                    <div class="log-list-inline" *ngIf="inlineEditId === log.id"
-                         (click)="$event.stopPropagation()">
-                      <input class="inline-title-input" type="text"
-                             [(ngModel)]="inlineEdit.title"
-                             maxlength="300"
-                             placeholder="Activity description"
-                             (keydown)="onInlineKeydown($event, log)">
-                      <app-log-type-select
-                        [logTypes]="inlineLogTypes"
-                        [selectedId]="inlineEdit.logTypeId"
-                        (selectedIdChange)="inlineEdit.logTypeId = $event">
-                      </app-log-type-select>
-                      <div class="inline-time-row">
-                        <span class="inline-time-label">Start</span>
-                        <button type="button" class="btn-time-step"
-                                (click)="adjustTime('startAt', -10); $event.stopPropagation()">−10m</button>
-                        <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.startAt">
-                        <button type="button" class="btn-time-step"
-                                (click)="adjustTime('startAt', 10); $event.stopPropagation()">+10m</button>
-                      </div>
-                      <div class="inline-time-row" *ngIf="log.entryType !== 'point'">
-                        <span class="inline-time-label">End</span>
-                        <button type="button" class="btn-time-step"
-                                (click)="adjustTime('endAt', -10); $event.stopPropagation()">−10m</button>
-                        <input class="inline-time-input" type="time" [(ngModel)]="inlineEdit.endAt">
-                        <button type="button" class="btn-time-step"
-                                (click)="adjustTime('endAt', 10); $event.stopPropagation()">+10m</button>
-                      </div>
-                      <div class="inline-action-row">
-                        <button type="button" class="btn-inline-save"
-                                (click)="saveInlineEdit(log); $event.stopPropagation()"
-                                [disabled]="inlineSaving">
-                          {{ inlineSaving ? '…' : '✓ Save' }}
-                        </button>
-                        <button type="button" class="btn-inline-cancel"
-                                (click)="cancelInlineEdit(); $event.stopPropagation()">✕ Cancel</button>
-                        <button type="button" class="btn-inline-fullform"
-                                (click)="editLog(log); cancelInlineEdit(); $event.stopPropagation()"
-                                title="Open full edit form">
-                          <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
-                            <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
-                                  stroke-width="1.5" stroke-linejoin="round"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    </div><!-- /tl-card -->
-                  </div><!-- /swipe-wrap -->
-                </div><!-- /tl-item -->
-              </div><!-- /log-list -->
-
-              <div class="log-list-empty" *ngIf="!isLoading && logs.length === 0">
-                <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-                  <circle cx="18" cy="18" r="15" stroke="var(--text-muted)"
-                          stroke-width="1.5" stroke-dasharray="4 3"/>
-                  <path d="M18 11v7l4 3" stroke="var(--text-muted)"
-                        stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <p>No logs recorded for this day.</p>
-                <span>Use the Time Line view or Log Now to get started.</span>
-              </div>
-
-            </div><!-- /log-list-section -->
-            </div><!-- /split-logs -->
-
-            </div><!-- /logger-split -->
-
-          </div><!-- /content-area (logger) -->
-
-          <!-- ── Time Line view — 1.76 ─────────────────────── -->
-          <div class="content-area timeline-view" *ngIf="activeView === 'timeline'">
-
-            <!-- Date bar (same as logger) -->
-            <div class="date-bar">
-              <span class="date-bar-text">{{ dateShortLabel }}</span>
-              <div class="date-bar-actions">
-                <button class="date-bar-btn" (click)="prevDay()"
-                        title="Previous day" aria-label="Previous day">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="15 18 9 12 15 6"/>
-                  </svg>
-                </button>
-                <button class="date-bar-btn" (click)="nextDay()"
-                        [disabled]="isToday"
-                        title="Next day" aria-label="Next day">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
-                </button>
-                <button class="date-bar-btn" (click)="goToToday()"
-                        [disabled]="isToday"
-                        title="Go to today" aria-label="Go to today">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="9"/>
-                    <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
-                  </svg>
-                </button>
-                <button class="date-bar-btn" (click)="openCalendarPopup()"
-                        title="Pick a date" aria-label="Open calendar">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/>
-                    <line x1="8"  y1="2" x2="8"  y2="6"/>
-                    <line x1="3"  y1="10" x2="21" y2="10"/>
-                  </svg>
-                </button>
-                <!-- 1.83: Important Logs button -->
-                <button class="date-bar-btn"
-                        (click)="openImportantLogs()"
-                        title="Important Logs"
-                        aria-label="Important Logs">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="9"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <circle cx="12" cy="16" r="0.5" fill="currentColor" stroke="currentColor" stroke-width="1"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <!-- 1.83: Day type selector dropdown -->
-            <div class="day-type-bar" *ngIf="dayMetadata">
-              <div class="dt-select" [class.dt-select--open]="dayTypeDropdownOpen">
-                <button class="dt-trigger"
-                        (click)="dayTypeDropdownOpen = !dayTypeDropdownOpen; $event.stopPropagation()">
-                  <span class="dt-trigger-label">{{ selectedDayTypeLabel }}</span>
-                  <svg class="dt-chevron" width="11" height="11" viewBox="0 0 12 12" fill="none">
-                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
-                          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </button>
-                <div class="dt-panel" *ngIf="dayTypeDropdownOpen" (click)="$event.stopPropagation()">
-                  <button *ngFor="let opt of dayTypeOptions; trackBy: trackByValue"
-                          class="dt-option"
-                          [class.dt-option--active]="dayMetadata!.dayType === opt.value"
-                          (click)="setDayType(opt.value); dayTypeDropdownOpen = false">
-                    {{ opt.label }}
-                  </button>
-                </div>
-              </div>
-              <button class="dt-notes-btn" (click)="showNotesSheet = true" title="Day notes">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <line x1="16" y1="13" x2="8" y2="13"/>
-                  <line x1="16" y1="17" x2="8" y2="17"/>
-                  <polyline points="10 9 9 9 8 9"/>
-                </svg>
-                Notes<span class="dt-notes-count" *ngIf="notesCount > 0">{{ notesCount }}</span>
-              </button>
-            </div>
-            <div class="dt-backdrop" *ngIf="dayTypeDropdownOpen" (click)="dayTypeDropdownOpen = false"></div>
-
-            <!-- Full-width timeline (no accordion) -->
-            <div class="timeline-view-container">
-              <app-timeline
-                #timelineRef
-                [logs]="logs"
-                [selectedDate]="selectedDate"
-                [highlightedLogId]="highlightedLogId"
-                [metricLogIds]="metricLogIds"
-                [collapsible]="false"
-                (selectionMade)="onSelectionChanged($event)"
-                (createLogClicked)="onCreateLogClicked($event)"
-                (logClicked)="editLog($event)"
-                (mergePointsSelected)="onMergePointsSelected($event)"
-              ></app-timeline>
-            </div>
-
-          </div><!-- /content-area (timeline) -->
-
-          <!-- ── Journey Logs view ─────────────────────────── -->
-          <div class="content-area" *ngIf="activeView === 'journeys'">
-            <app-journeys #journeysRef [availableLogTypes]="inlineLogTypes"></app-journeys>
-          </div><!-- /content-area (journeys) -->
-
-          <!-- ── Reports view ────────────────────────────────── -->
-          <div class="content-area" *ngIf="activeView === 'report'">
-            <app-report></app-report>
-          </div><!-- /content-area (report) -->
-
-          <!-- ── Configurations view ───────────────────────── -->
-          <div class="content-area" *ngIf="activeView === 'configuration'">
-            <app-configuration></app-configuration>
-          </div><!-- /content-area (configuration) -->
-
+        <div class="view-area content-area">
+          <router-outlet></router-outlet>
         </div><!-- /view-area -->
       <!-- 1.93: Mobile nav overlay backdrop -->
       <div class="nav-dim-backdrop" *ngIf="navOverlayOpen" (click)="navOverlayOpen = false"></div>
@@ -869,11 +277,11 @@ const PERF = (() => {
         <button class="shortcut-toast-undo" (click)="undoShortcut()">Undo</button>
       </div>
 
-      <!-- ── 1.61: Log Now FAB / Journey New FAB ── -->
+      <!-- ── 1.61: Log Now FAB ── -->
       <button class="log-now-fab"
               *ngIf="isAuthenticated"
-              (click)="activeView === 'journeys' ? journeysRef?.openCreate() : openLogNow()"
-              [title]="activeView === 'journeys' ? 'New Journey' : 'Log Now — tap to record what you just did'">
+              (click)="isJourneysRoute ? appState.createJourneyRequested$.next() : openLogNow()"
+              [title]="isJourneysRoute ? 'New Journey' : 'Log Now — tap to record what you just did'">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
           <line x1="12" y1="5" x2="12" y2="19"/>
@@ -886,10 +294,10 @@ const PERF = (() => {
         *ngIf="unifiedSheetOpen"
         #unifiedSheetRef
         [initialTab]="unifiedSheetInitialTab"
-        [selectedDate]="selectedDate"
-        [logs]="logs"
+        [selectedDate]="appState.selectedDate"
+        [logs]="appState.logs$.value"
         (closed)="unifiedSheetOpen = false"
-        (logCreated)="loadLogs()"
+        (logCreated)="appState.reloadLogs()"
         (timerStarted)="onTimerStarted($event)"
         (showToast)="onUnifiedSheetToast($event)">
       </app-unified-sheet>
@@ -1100,89 +508,21 @@ const PERF = (() => {
       </div>
     </div>
 
-    <!-- ── 1.82: Quick Prefs popup ──────────────────────────── -->
-    <div class="quick-prefs-overlay" *ngIf="quickPrefsOpen"
-         (click)="closeQuickPrefs()"></div>
-    <div class="quick-prefs-popup" *ngIf="quickPrefsOpen"
-         (click)="$event.stopPropagation()">
-      <div class="quick-prefs-header">
-        <div class="quick-prefs-title-row">
-          <span class="quick-prefs-title">Quick Bar</span>
-          <span class="quick-prefs-sub">Select log types to pin in the quick bar</span>
-        </div>
-        <button class="quick-prefs-close" (click)="closeQuickPrefs()" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="18" y1="6"  x2="6"  y2="18"/>
-            <line x1="6"  y1="6"  x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-      <div class="quick-prefs-body">
-        <!-- Work types -->
-        <div class="quick-prefs-domain-label">Work</div>
-        <ng-container *ngFor="let lt of quickPrefsWorkTypes; trackBy: trackByLogTypeId">
-          <div class="quick-pref-item"
-               [class.quick-pref-item--on]="isInQuickPrefs(lt._id)"
-               (click)="toggleQuickPref(lt._id)">
-            <span class="quick-pref-dot" [style.background]="lt.color"></span>
-            <span class="quick-pref-name">{{ lt.name }}</span>
-            <span class="quick-pref-badge" *ngIf="isInQuickPrefs(lt._id)">30m</span>
-            <span class="quick-pref-toggle-icon">
-              <svg *ngIf="isInQuickPrefs(lt._id)" width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M2 7l4 4 6-6" stroke="#4A90E2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <svg *ngIf="!isInQuickPrefs(lt._id)" width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M7 3v8M3 7h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-              </svg>
-            </span>
-          </div>
-        </ng-container>
-        <!-- Personal types -->
-        <div class="quick-prefs-domain-label" style="margin-top:10px">Personal</div>
-        <ng-container *ngFor="let lt of quickPrefsPersonalTypes; trackBy: trackByLogTypeId">
-          <div class="quick-pref-item"
-               [class.quick-pref-item--on]="isInQuickPrefs(lt._id)"
-               (click)="toggleQuickPref(lt._id)">
-            <span class="quick-pref-dot" [style.background]="lt.color"></span>
-            <span class="quick-pref-name">{{ lt.name }}</span>
-            <span class="quick-pref-badge" *ngIf="isInQuickPrefs(lt._id)">30m</span>
-            <span class="quick-pref-toggle-icon">
-              <svg *ngIf="isInQuickPrefs(lt._id)" width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M2 7l4 4 6-6" stroke="#4A90E2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <svg *ngIf="!isInQuickPrefs(lt._id)" width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M7 3v8M3 7h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-              </svg>
-            </span>
-          </div>
-        </ng-container>
-      </div>
-      <div class="quick-prefs-footer">
-        <button class="quick-prefs-reset" (click)="resetQuickPrefs()"
-                title="Reset to smart defaults">Reset</button>
-        <button class="quick-prefs-save" (click)="saveQuickPrefs()"
-                [disabled]="quickPrefsSaving">
-          {{ quickPrefsSaving ? 'Saving…' : 'Save' }}
-        </button>
-      </div>
-    </div>
-
     <!-- ── 1.83: Important Logs popup ─────────────────────── -->
     <app-important-logs
       *ngIf="showImportantLogs"
-      [selectedDate]="selectedDate"
-      [logs]="logs"
-      [metadata]="dayMetadata"
+      [selectedDate]="appState.selectedDate"
+      [logs]="appState.logs$.value"
+      [metadata]="appState.dayMetadata$.value"
       (close)="showImportantLogs = false"
-      (metadataChanged)="dayMetadata = $event"
-      (logsChanged)="loadLogs()"
+      (metadataChanged)="appState.dayMetadata$.next($event)"
+      (logsChanged)="appState.reloadLogs()"
     ></app-important-logs>
 
     <!-- Notes bottom sheet -->
     <app-notes-sheet
       *ngIf="showNotesSheet"
-      [date]="selectedDate"
+      [date]="appState.selectedDate"
       (close)="closeNotesSheet()"
     ></app-notes-sheet>
 
@@ -3289,16 +2629,17 @@ const PERF = (() => {
   `]
 })
 export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('timelineRef')    timelineRef!:    TimelineComponent;
-  @ViewChild('journeysRef')    journeysRef?:    JourneysComponent;
   @ViewChild('unifiedSheetRef') unifiedSheetRef?: UnifiedSheetComponent;
 
   isAuthenticated = false;
   currentUser     = this.authService.getUser();
 
-  activeView: 'logger' | 'timeline' | 'journeys' | 'report' | 'configuration' = 'logger';
   theme: 'dark' | 'light' = 'dark';
   readonly currentYear = new Date().getFullYear();
+
+  get isJourneysRoute(): boolean { return this.router.url === '/journeys'; }
+  get activeLog() { return this.appState.activeLog$.value; }
+  get inlineLogTypes() { return this.appState.inlineLogTypes$.value; }
 
   navOverlayOpen = false;
   private navEdgeSwipeTracking = false;
@@ -3318,165 +2659,63 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   profileSuccess = '';
   profilePass    = { current: '', next: '', confirm: '' };
 
-  // ── 1.45/1.47: Merge state ─────────────────────────────────────
+  // ── Merge state (for timeline merge action) ───────────────────
   private mergeSourceIds: [string, string] | null = null;
   formLogTypeId: string | null = null;
 
-  // ── 1.47: Global confirm dialog ────────────────────────────────
+  // ── Global confirm dialog ─────────────────────────────────────
   confirmDialog: { title: string; message: string; detail?: string; okLabel?: string; onConfirm: () => void } | null = null;
   private pendingMerge: DragSelection | null = null;
 
-  selectedDate: Date = new Date();
-  logs:         LogEntry[] = [];
-  isLoading     = false;
-  highlightedLogId: string | null = null;
-
+  // ── Log form modal ────────────────────────────────────────────
   showForm      = false;
   formStartTime = '09:00';
   formEndTime   = '10:00';
   editingEntry: LogEntry | null = null;
 
-  // ── 1.23: Calendar popup ─────────────────────────────────
+  // ── Calendar popup ────────────────────────────────────────────
   showCalendarPopup = false;
   pendingDate: Date = new Date();
 
-  // ── 1.30: Metric card highlight ──────────────────────────
-  metricLogIds: Set<string> | null = null;
-
-  // ── 1.54: Inline edit + quick-add + sort ─────────────────
-  inlineEditId: string | null = null;
-  inlineEdit = { title: '', startAt: '', endAt: '', logTypeId: '' };
-
-  // ── Swipe-to-action state ──────────────────────────────────
-  swipeLogId: string | null = null;
-  swipeTranslateX = 0;
-  swipeSnapping   = false;
-  private swipeStartX = 0;
-  private swipeStartY = 0;
-  private swipeIsHorizontal: boolean | null = null;
-  inlineSaving = false;
-  inlineLogTypes: LogType[] = [];
-  logSortOrder: 'asc' | 'desc' = 'desc';
-
-  // ── 1.84: Footer scroll visibility (mobile only) ─────────────
+  // ── Footer scroll visibility ──────────────────────────────────
   footerVisible = false;
 
-  // ── 1.62: Quick Shortcuts Bar ─────────────────────────────────
+  // ── Shortcut toast (shown from logger shortcuts + unified sheet)
   shortcutToast: { message: string; logId: string } | null = null;
-  shortcutSaving = false;
   private readonly destroy$ = new Subject<void>();
   private toastTimer: ReturnType<typeof setTimeout> | undefined = undefined;
 
-  // ── 1.85: Quick action panel (start/conclude + duration) ──────
-  quickActionChip:     LogType | null = null;
-  quickActionAnchor:   'start' | 'conclude' = 'conclude';
-  quickActionDuration: number = 30; // minutes
-
-  // ── Daily Essentials ──────────────────────────────────────────
-  readonly dailyEssentials = [
-    { name: 'Breakfast' },
-    { name: 'Lunch' },
-    { name: 'Dinner' },
-    { name: 'Sleep' },
-    { name: 'Woke Up' },
-  ];
-  private essentialPressTimer: ReturnType<typeof setTimeout> | undefined = undefined;
-  private essentialPressTriggered = false;
-  essentialPressName: string | null = null;
-  readonly quickDurations = [
-    { mins: 15, label: '15m' },
-    { mins: 30, label: '30m' },
-    { mins: 45, label: '45m' },
-    { mins: 60, label: '1h'  },
-  ];
-
-  // ── 1.61: Log Now FAB ─────────────────────────────────────────
-  logNowOpen   = false;
-  logNowTypeId = '';
-  logNowTitle  = '';
-  logNowStart  = '09:00';
-  logNowEnd    = '09:00';
-  logNowSaving = false;
-  readonly logNowHours    = Array.from({ length: 24 }, (_, i) => i);
-  readonly logNowMinutes  = [15, 30, 45, 0]; // quarter-hour steps only
-  readonly addPointMinutes = [0, 15, 30, 45]; // quarter-hour steps for Add Point
-
-  // ── 1.81: Log Now domain + type drum ─────────────────────────
-  logNowDomain: 'work' | 'personal' = 'work';
-  logNowTypeIndex = 0;
-
-  // ── 1.80: Add Point sheet ────────────────────────────────────
-  addPointOpen      = false;
-  addPointDomain: 'work' | 'personal' = 'work';
-  addPointTypeIndex = 0;
-  addPointTypeId    = '';
-  addPointTitle     = '';
-  addPointTime      = '09:00';
-  addPointSaving    = false;
-
-  // ── 1.83: Unified log-creation sheet (replaces 3 separate sheets) ──
+  // ── Unified log-creation sheet ────────────────────────────────
   unifiedSheetOpen = false;
-  unifiedSheetInitialTab: 0 | 1 | 2 | 3 = 0; // 0=Renni chat, 1=Add log, 2=Add point, 3=Start timer
+  unifiedSheetInitialTab: 0 | 1 | 2 | 3 = 0;
 
-  // ── Renni AI chat ─────────────────────────────────────────────
-  renniMsgs: RenniMessage[] = [];
-  renniInput    = '';
-  renniThinking = false;
+  // ── Renni AI chat (used inside UnifiedSheetComponent) ─────────
   private uniTouchStartX = 0;
   private uniTouchStartY = 0;
 
-  // ── 1.82: Quick Prefs ─────────────────────────────────────────
-  quickPrefsOpen    = false;
-  quickPrefsSaving  = false;
-  quickPrefsItems:  { logTypeId: string; defaultMins: number }[] = [];
-  quickPrefsEdit    = new Set<string>();
+  // ── Important Logs / Notes sheet ──────────────────────────────
+  showImportantLogs = false;
+  showNotesSheet    = false;
 
-  // ── 1.83: Day-level metadata ──────────────────────────────────
-  dayMetadata:       DayMetadata | null = null;
-  showImportantLogs  = false;
-  showNotesSheet     = false;
-  notesCount         = 0;
-
-  readonly dayTypeOptions: { value: DayType; label: string }[] = [
-    { value: 'working',    label: 'Working Day' },
-    { value: 'wfh',        label: 'WFH'         },
-    { value: 'holiday',    label: 'Holiday'      },
-    { value: 'paid_leave', label: 'Paid Leave'   },
-    { value: 'sick_leave', label: 'Sick Leave'   },
-  ];
-  dayTypeDropdownOpen = false;
-
-  // ── 1.63: Continue Last Log ───────────────────────────────────
-  // (reuses shortcutSaving / shortcutToast / toastTimer)
-
-  // ── 1.71/1.72/1.73: Running Log ──────────────────────────────
-  activeLog:     ActiveLog | null = null;
-  activeLogTick  = 0;            // seconds elapsed since startedAt
-  private activeLogTimerRef: ReturnType<typeof setInterval> | undefined = undefined;
-
-  // Start-timer sheet state
-  startLogOpen          = false;
-  timerEditOpen         = false;         // timer-edit sheet (opens immediately on Start activity)
-  addPointMenuOpen      = false;
-  private addPointLongPressTimer: ReturnType<typeof setTimeout> | undefined = undefined;
-  private addPointLongPressTriggered  = false;
+  // ── Running Log / Timer-edit sheet ───────────────────────────
+  timerEditOpen     = false;
   startLogDomain: 'work' | 'personal' = 'work';
   startLogTypeIndex = 0;
   startLogTypeId    = '';
   startLogTitle     = '';
-  startLogPlanned   = '';           // '' | '15' | '30' | '60' | '90' | '120'
+  startLogPlanned   = '';
   startLogSaving    = false;
 
-  // ── 1.68: End-of-Day Wrap-Up ──────────────────────────────────
+  // ── Wrap-Up sheet ─────────────────────────────────────────────
   wrapUpOpen    = false;
   wrapUpGaps:   Array<{ start: string; end: string; mins: number }> = [];
   wrapUpIdx     = 0;
   wrapUpTypeId  = '';
   wrapUpTitle   = '';
   wrapUpSaving  = false;
-  private wrapUpDismissedDate = '';
 
   constructor(
+    public  appState:        AppStateService,
     private logService:      LogService,
     private authService:     AuthService,
     private logTypeService:  LogTypeService,
@@ -3485,6 +2724,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private journeyService:  JourneyService,
     private aiService:       AiService,
     private notesService:    NotesService,
+    private router:          Router,
   ) {}
 
   get todayLabel(): string {
@@ -3493,16 +2733,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  get selectedDateStr(): string {
-    const d = this.selectedDate;
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
+  get selectedDateStr(): string { return this.appState.selectedDateStr; }
 
-  get dateShortLabel(): string {
-    return this.selectedDate.toLocaleDateString('en-US', {
-      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
-    });
-  }
+  get dateShortLabel(): string { return this.appState.dateShortLabel; }
 
   ngOnInit(): void {
     PERF.instant('ngOnInit:start');
@@ -3511,27 +2744,77 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.theme = savedTheme ?? 'dark';
     document.documentElement.setAttribute('data-theme', this.theme);
 
-    // ── 1.42: Apply localStorage palette instantly (zero-flicker fast path) ─
     const cachedPalette = loadSavedPalette();
     if (cachedPalette) { applyPaletteToDOM(cachedPalette); }
 
-    // Default is collapsed; only expand if explicitly saved as 'false'
     this.isAuthenticated = this.authService.isLoggedIn();
+    this.appState.isAuthenticated$.next(this.isAuthenticated);
     if (this.isAuthenticated) {
       this.currentUser = this.authService.getUser();
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      this.selectedDate = today;
-      this.loadLogs();
-      // Pre-load log types for shortcuts bar and Log Now FAB
+      this.appState.selectedDate$.next(today);
+      this.appState.reloadLogs();
       PERF.start('api:log-types');
       this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe({
-        next: (t) => { this.inlineLogTypes = t; PERF.end('api:log-types', `${t.length} types`); },
-        error: ()         => { PERF.end('api:log-types', 'ERROR'); }
+        next: (t) => { this.appState.inlineLogTypes$.next(t); PERF.end('api:log-types', `${t.length} types`); },
+        error: ()  => { PERF.end('api:log-types', 'ERROR'); }
       });
-      // Sync palette from DB (may differ if the user changed it on another device)
       this.syncPaletteFromDB();
     }
+
+    // ── Subscribe to UI action signals from routed views ─────────
+    this.appState.openCalendarRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.pendingDate = new Date(this.appState.selectedDate);
+      this.showCalendarPopup = true;
+    });
+    this.appState.openImportantLogsRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.showImportantLogs = true;
+    });
+    this.appState.openNotesRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.showNotesSheet = true;
+    });
+    this.appState.openLogFormRequested$.pipe(takeUntil(this.destroy$)).subscribe(params => {
+      this.formStartTime    = params.startTime;
+      this.formEndTime      = params.endTime;
+      this.editingEntry     = params.editEntry ?? null;
+      this.formLogTypeId    = params.logTypeId ?? null;
+      this.mergeSourceIds   = params.mergeSourceIds ?? null;
+      this.showForm         = true;
+    });
+    this.appState.openUnifiedSheetRequested$.pipe(takeUntil(this.destroy$)).subscribe(params => {
+      this.unifiedSheetInitialTab = params.tab;
+      this.unifiedSheetOpen       = true;
+      if (params.prepDomain && params.prepTypeId) {
+        setTimeout(() => this.unifiedSheetRef?.prepForAddPoint(
+          params.prepDomain!, params.prepTypeId!, params.prepTime ?? this._currentTimeStr()
+        ), 20);
+      }
+    });
+    this.appState.openTimerEditRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this._syncStartLogUiToActiveLog();
+      this.timerEditOpen = true;
+    });
+    this.appState.stopRunningLogRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.stopRunningLog();
+    });
+    this.appState.startTimerRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.openStartLog();
+    });
+    this.appState.showToastRequested$.pipe(takeUntil(this.destroy$)).subscribe(toast => {
+      this.shortcutToast = toast;
+      clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(() => { this.shortcutToast = null; }, 3000);
+    });
+    this.appState.confirmDialogRequested$.pipe(takeUntil(this.destroy$)).subscribe(params => {
+      this.confirmDialog = params;
+    });
+    this.appState.openWrapUpRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.openWrapUp();
+    });
+    this.appState.createJourneyRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      // JourneysComponent handles this via its own subscription when it is active
+    });
   }
 
   ngAfterViewInit(): void {
@@ -3541,21 +2824,24 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.stopActiveLogTimer();
+    this.appState.stopTimer();
     clearTimeout(this.toastTimer);
-    clearTimeout(this.essentialPressTimer);
-    clearTimeout(this.addPointLongPressTimer);
   }
 
   onLoggedIn(): void {
     this.isAuthenticated = true;
-    this.currentUser     = this.authService.getUser();
+    this.appState.isAuthenticated$.next(true);
+    this.currentUser = this.authService.getUser();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    this.selectedDate = today;
-    this.loadLogs();
-    // Always fetch the freshest palette from DB right after login
+    this.appState.selectedDate$.next(today);
+    this.appState.reloadLogs();
     this.syncPaletteFromDB();
+  }
+
+  private _currentTimeStr(): string {
+    const n = new Date();
+    return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
   }
 
   /** Fetch preferences from DB — apply palette + restore any running log.
@@ -3576,15 +2862,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       }
       if (prefs?.customPresets) { this.navCustomPresets = prefs.customPresets; }
       // 1.71: Resume running log ticker if one was already active
-      if (prefs?.activeLog) {
-        this.activeLog = prefs.activeLog;
-        this.startActiveLogTimer();
-      } else {
-        this.stopActiveLogTimer();
-        this.activeLog = null;
-      }
+      this.appState.setActiveLog(prefs?.activeLog ?? null);
       // 1.82: Load quick shortcuts
-      this.quickPrefsItems = prefs?.quickShortcuts ?? [];
+      this.appState.quickShortcuts$.next(prefs?.quickShortcuts ?? []);
     });
   }
 
@@ -3626,11 +2906,10 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         localStorage.removeItem('renmito-theme');
         this.theme = 'dark';
         document.documentElement.setAttribute('data-theme', 'dark');
-        this.stopActiveLogTimer();
-        this.activeLog       = null;
+        this.appState.setActiveLog(null);
+        this.appState.logs$.next([]);
         this.isAuthenticated = false;
         this.currentUser     = null;
-        this.logs            = [];
       }
     };
   }
@@ -3720,48 +2999,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // ── 1.31: Day navigation ────────────────────────────────
-  get isToday(): boolean {
-    const t = new Date();
-    return this.selectedDate.getFullYear() === t.getFullYear() &&
-           this.selectedDate.getMonth()    === t.getMonth()    &&
-           this.selectedDate.getDate()     === t.getDate();
-  }
+  get isToday(): boolean { return this.appState.isToday; }
 
-  prevDay(): void {
-    const d = new Date(this.selectedDate);
-    d.setDate(d.getDate() - 1);
-    d.setHours(0, 0, 0, 0);
-    this.selectedDate     = d;
-    this.highlightedLogId = null;
-    this.metricLogIds     = null;
-    this.loadLogs();
-  }
 
-  nextDay(): void {
-    if (this.isToday) return;
-    const d = new Date(this.selectedDate);
-    d.setDate(d.getDate() + 1);
-    d.setHours(0, 0, 0, 0);
-    this.selectedDate     = d;
-    this.highlightedLogId = null;
-    this.metricLogIds     = null;
-    this.loadLogs();
-  }
-
-  goToToday(): void {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    this.selectedDate     = today;
-    this.highlightedLogId = null;
-    this.metricLogIds     = null;
-    this.loadLogs();
-  }
-
-  // ── 1.23 ────────────────────────────────────────────────
-  openCalendarPopup(): void {
-    this.pendingDate = new Date(this.selectedDate);
-    this.showCalendarPopup = true;
-  }
 
   closeCalendarPopup(): void {
     this.showCalendarPopup = false;
@@ -3772,9 +3012,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   applyPendingDate(): void {
-    this.selectedDate    = this.pendingDate;
-    this.highlightedLogId = null;
-    this.loadLogs();
+    this.appState.selectDate(this.pendingDate);
     this.closeCalendarPopup();
   }
 
@@ -3784,333 +3022,36 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  // ── Log loading ──────────────────────────────────────────
-  loadLogs(): void {
-    this.isLoading = true;
-    PERF.start('api:logs');
-    this.logService.getLogsForDate(this.selectedDate).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (logs) => {
-        this.logs = logs.sort((a, b) =>
-          this.timeToMinutes(a.startAt) - this.timeToMinutes(b.startAt)
-        );
-        this.isLoading = false;
-        PERF.end('api:logs', `${logs.length} entries`);
-      },
-      error: () => {
-        this.logs      = [];
-        this.isLoading = false;
-        PERF.end('api:logs', 'ERROR');
-      }
-    });
-    this.loadDayMetadata();
-  }
 
-  // ── 1.83: Day metadata ────────────────────────────────────
-  private loadDayMetadata(): void {
-    PERF.start('api:day-metadata');
-    this.dayLevelService.getMetadata(this.selectedDateStr).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  meta => { this.dayMetadata = meta; PERF.end('api:day-metadata'); },
-      error: ()   => { this.dayMetadata = null; PERF.end('api:day-metadata', 'ERROR'); }
-    });
-    this.loadNotesCount();
-  }
 
-  private loadNotesCount(): void {
-    const dateStr = this.selectedDateStr;
-    this.notesCount = 0;
-    this.notesService.getNotes(dateStr).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  d  => { if (this.selectedDateStr === dateStr) this.notesCount = d.notes.length; },
-      error: () => { if (this.selectedDateStr === dateStr) this.notesCount = 0; }
-    });
-  }
+
 
   closeNotesSheet(): void {
     this.showNotesSheet = false;
-    this.loadNotesCount();
+    this.appState.reloadNotesCount();
   }
 
-  openImportantLogs(): void {
-    this.showImportantLogs = true;
-  }
 
-  get selectedDayTypeLabel(): string {
-    return this.dayTypeOptions.find(o => o.value === this.dayMetadata?.dayType)?.label ?? 'Day Type';
-  }
 
-  setDayType(dayType: DayType): void {
-    if (!this.dayMetadata) return;
-    // Optimistic update
-    this.dayMetadata = { ...this.dayMetadata, dayType };
-    this.dayLevelService.setDayType(this.selectedDateStr, dayType).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  meta  => { if (meta) this.dayMetadata = meta; },
-      error: ()    => { this.loadDayMetadata(); } // revert on error
-    });
-  }
 
-  focusLog(log: LogEntry): void {
-    this.highlightedLogId = log.id;
-    this.timelineRef?.scrollToLog(log);
-  }
 
-  // ── 1.54: Inline list editing ────────────────────────────
-  get inlineCurrentColor(): string | null {
-    const t = this.inlineLogTypes.find((t) => t._id === this.inlineEdit.logTypeId);
-    return t?.color ?? null;
-  }
 
-  get sortedLogs(): LogEntry[] {
-    return this.logSortOrder === 'asc' ? this.logs : [...this.logs].reverse();
-  }
-
-  toggleLogSort(): void {
-    this.logSortOrder = this.logSortOrder === 'asc' ? 'desc' : 'asc';
-  }
-
-  onLogItemClick(log: LogEntry, event: MouseEvent): void {
-    event.stopPropagation();
-    if (this.inlineEditId === log.id) return;
-    this.inlineEditId = log.id;
-    this.inlineEdit = {
-      title:     log.title,
-      startAt:   log.startAt,
-      endAt:     log.endAt ?? '',
-      logTypeId: log.logType?.id ?? ''
-    };
-    this.highlightedLogId = log.id;
-    this.timelineRef?.scrollToLog(log);
-    if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe(types => this.inlineLogTypes = types);
-    }
-  }
-
-  cancelInlineEdit(): void { this.inlineEditId = null; }
-
-  // ── Swipe-to-action ────────────────────────────────────────
-  onSwipeStart(log: LogEntry, e: TouchEvent): void {
-    if (this.inlineEditId) return;
-    this.swipeLogId        = log.id;
-    this.swipeStartX       = e.touches[0].clientX;
-    this.swipeStartY       = e.touches[0].clientY;
-    this.swipeTranslateX   = 0;
-    this.swipeSnapping     = false;
-    this.swipeIsHorizontal = null;
-  }
-
-  onSwipeMove(log: LogEntry, e: TouchEvent): void {
-    if (this.swipeLogId !== log.id) return;
-    const dx = e.touches[0].clientX - this.swipeStartX;
-    const dy = e.touches[0].clientY - this.swipeStartY;
-
-    // Lock direction on first 8px of movement
-    if (this.swipeIsHorizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
-      this.swipeIsHorizontal = Math.abs(dx) > Math.abs(dy);
-    }
-    if (!this.swipeIsHorizontal) return;
-
-    e.preventDefault(); // block page scroll while swiping horizontally
-    // Clamp to ±120 px with slight resistance near the edge
-    const max = 120;
-    this.swipeTranslateX = Math.max(-max, Math.min(max, dx));
-  }
-
-  onSwipeEnd(log: LogEntry, _e: TouchEvent): void {
-    if (this.swipeLogId !== log.id || !this.swipeIsHorizontal) {
-      this.swipeLogId = null;
-      return;
-    }
-
-    const threshold = 72;
-    const action = this.swipeTranslateX >  threshold ? 'edit'
-                 : this.swipeTranslateX < -threshold ? 'delete'
-                 : null;
-
-    // Snap back first, then fire action
-    this.swipeSnapping   = true;
-    this.swipeTranslateX = 0;
-    setTimeout(() => {
-      this.swipeLogId    = null;
-      this.swipeSnapping = false;
-      if (action === 'edit')   this.onLogItemClick(log, new MouseEvent('click'));
-      if (action === 'delete') this.confirmDeleteLog(log);
-    }, 240);
-  }
-
-  confirmDeleteLog(log: LogEntry): void {
-    this.cancelInlineEdit();
-    const label = log.title || log.logType?.name || 'this log';
-    this.confirmDialog = {
-      title:   'Delete log',
-      message: `Delete "${label}"?`,
-      detail:  'This action cannot be undone.',
-      okLabel: 'Delete',
-      onConfirm: () => this.onLogDeleted(log.id)
-    };
-  }
-
-  saveInlineEdit(log: LogEntry): void {
-    if (this.inlineSaving) return;
-    this.inlineSaving = true;
-    const payload: Partial<CreateLogEntry> = log.entryType === 'point'
-      ? { title: this.inlineEdit.title, logTypeId: this.inlineEdit.logTypeId,
-          entryType: 'point', pointTime: this.inlineEdit.startAt }
-      : { title: this.inlineEdit.title, logTypeId: this.inlineEdit.logTypeId,
-          startTime: this.inlineEdit.startAt, endTime: this.inlineEdit.endAt };
-    this.logService.updateLog(this.selectedDate, log.id, payload).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  () => { this.inlineSaving = false; this.inlineEditId = null; this.loadLogs(); },
-      error: () => { this.inlineSaving = false; alert('Failed to save changes.'); }
-    });
-  }
-
-  onInlineKeydown(event: KeyboardEvent, log: LogEntry): void {
-    if (event.key === 'Enter')  { event.preventDefault(); this.saveInlineEdit(log); }
-    if (event.key === 'Escape') { this.cancelInlineEdit(); }
-  }
-
-  /** Shift a time field by deltaMins (±10), clamped to 00:00–23:59. */
-  adjustTime(field: 'startAt' | 'endAt', deltaMins: number): void {
-    const val = this.inlineEdit[field];
-    if (!val) return;
-    const [h, m] = val.split(':').map(Number);
-    const clamped = Math.max(0, Math.min(1439, h * 60 + m + deltaMins));
-    this.inlineEdit[field] = `${String(Math.floor(clamped / 60)).padStart(2, '0')}:${String(clamped % 60).padStart(2, '0')}`;
-  }
-
-  openAddLogForm(): void {
-    const lastLog = this.logs[this.logs.length - 1];
-    const rawStart  = lastLog
-      ? this.timeToMinutes(lastLog.endAt ?? lastLog.startAt)
-      : this.timeToMinutes('09:00');
-    const startMins = Math.min(rawStart, 22 * 60 + 30);
-    this.formStartTime = this.minsToTimeStr(startMins);
-    this.formEndTime   = this.minsToTimeStr(Math.min(startMins + 60, 23 * 60 + 59));
-    this.editingEntry  = null;
-    this.showForm      = true;
-  }
-
-  // ── 1.62: Quick Shortcuts ─────────────────────────────────────
-
-  /** Top log types for the shortcuts bar — uses configured list if set, else smart defaults. */
-  get shortcutDisplayTypes(): LogType[] {
-    if (!this.inlineLogTypes.length) return [];
-    if (this.quickPrefsItems.length > 0) {
-      return this.quickPrefsItems
-        .map(p => this.inlineLogTypes.find(lt => lt._id === p.logTypeId))
-        .filter((lt): lt is LogType => !!lt);
-    }
-    const usedIds = new Set(this.logs.map(l => l.logType?.id).filter(Boolean));
-    return [...this.inlineLogTypes]
-      .sort((a, b) => {
-        const aUsed = usedIds.has(a._id) ? 0 : 1;
-        const bUsed = usedIds.has(b._id) ? 0 : 1;
-        if (aUsed !== bUsed) return aUsed - bUsed;
-        if (a.domain === 'work' && b.domain !== 'work') return -1;
-        if (a.domain !== 'work' && b.domain === 'work') return 1;
-        return 0;
-      })
-      .slice(0, 6);
-  }
-
-  // ── 1.84: Show footer only when view-area is scrolled to bottom (mobile) ──
-  onViewAreaScroll(e: Event): void {
-    const el = e.target as HTMLElement;
-    this.footerVisible = el.scrollHeight - el.scrollTop <= el.clientHeight + 24;
-  }
-
-  @HostListener('document:click')
-  onDocumentClick(): void {
-    if (this.quickActionChip) this.quickActionChip = null;
-  }
-
-  onShortcutTap(lt: LogType): void {
-    if (this.shortcutSaving) return;
-    // Deselect if same chip tapped again
-    if (this.quickActionChip?._id === lt._id) {
-      this.quickActionChip = null;
-      return;
-    }
-    // Select chip and populate defaults
-    this.quickActionChip   = lt;
-    this.quickActionAnchor = 'conclude';
-    const pref = this.quickPrefsItems.find(p => p.logTypeId === lt._id);
-    const rawMins = pref?.defaultMins ?? 30;
-    // Snap to nearest supported duration
-    const durations = [15, 30, 45, 60];
-    this.quickActionDuration = durations.reduce((prev, curr) =>
-      Math.abs(curr - rawMins) < Math.abs(prev - rawMins) ? curr : prev
-    );
-  }
-
-  commitQuickLog(): void {
-    if (!this.quickActionChip || this.shortcutSaving) return;
-    const lt      = this.quickActionChip;
-    const nowMins = this.timeToMinutes(this.currentTimeStr());
-    let startMins: number, endMins: number;
-    if (this.quickActionAnchor === 'start') {
-      startMins = nowMins;
-      endMins   = nowMins + this.quickActionDuration;
-    } else {
-      endMins   = nowMins;
-      startMins = nowMins - this.quickActionDuration;
-    }
-    if (startMins < 0)          startMins = 0;
-    if (endMins   > 24 * 60)    endMins   = 24 * 60;
-    if (endMins   <= startMins) return;
-
-    const startStr = this.minsToTimeStr(startMins);
-    const endStr   = this.minsToTimeStr(endMins);
-
-    this.shortcutSaving = true;
-    this.logService.createLog(this.selectedDate, {
-      title:     lt.name,
-      logTypeId: lt._id,
-      startTime: startStr,
-      endTime:   endStr,
-    }).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (created) => {
-        this.shortcutSaving   = false;
-        this.quickActionChip  = null;
-        this.loadLogs();
-        const diff = endMins - startMins;
-        const h = Math.floor(diff / 60), m = diff % 60;
-        const dur = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-        this.shortcutToast = { message: `${lt.name} · ${dur}`, logId: created.id };
-        clearTimeout(this.toastTimer);
-        this.toastTimer = setTimeout(() => this.shortcutToast = null, 3000);
-      },
-      error: () => { this.shortcutSaving = false; }
-    });
-  }
-
-  undoShortcut(): void {
+    undoShortcut(): void {
     if (!this.shortcutToast) return;
     const id = this.shortcutToast.logId;
     this.shortcutToast = null;
     clearTimeout(this.toastTimer);
-    this.logService.deleteLog(this.selectedDate, id).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  () => this.loadLogs(),
+    this.logService.deleteLog(this.appState.selectedDate, id).pipe(takeUntil(this.destroy$)).subscribe({
+      next:  () => this.appState.reloadLogs(),
       error: () => {}
     });
   }
 
   // ── 1.71/1.72/1.73: Running Log ──────────────────────────────
 
-  /** MM:SS or H:MM:SS elapsed since the running log was started. */
-  get activeLogElapsedStr(): string {
-    const s   = this.activeLogTick;
-    const h   = Math.floor(s / 3600);
-    const m   = Math.floor((s % 3600) / 60);
-    const sec = s % 60;
-    if (h > 0) {
-      return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-    }
-    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  }
+  get activeLogElapsedStr(): string { return this.appState.activeLogElapsedStr; }
 
-  /** 0–100 progress through the planned duration. 0 if no plan set. */
-  get activeLogPlannedPct(): number {
-    if (!this.activeLog?.plannedMins) return 0;
-    return Math.min(100, (this.activeLogTick / (this.activeLog.plannedMins * 60)) * 100);
-  }
+  get activeLogPlannedPct(): number { return this.appState.activeLogPlannedPct; }
 
   /** Display name for the running log type. */
   get activeLogTypeName(): string {
@@ -4126,23 +3067,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     return lt?.color ?? '#9B9B9B';
   }
 
-  private startActiveLogTimer(): void {
-    this.stopActiveLogTimer();
-    if (!this.activeLog) return;
-    const update = () => {
-      const elapsed = Date.now() - new Date(this.activeLog!.startedAt).getTime();
-      this.activeLogTick = Math.max(0, Math.floor(elapsed / 1000));
-    };
-    update();
-    this.activeLogTimerRef = setInterval(update, 1000);
-  }
 
-  private stopActiveLogTimer(): void {
-    if (this.activeLogTimerRef) {
-      clearInterval(this.activeLogTimerRef);
-      this.activeLogTimerRef = undefined;
-    }
-  }
 
   /** Starts the timer immediately and opens the edit sheet. */
   openStartLog(): void {
@@ -4160,7 +3085,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (!this.inlineLogTypes.length) {
       this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => {
-        this.inlineLogTypes = t;
+        this.appState.inlineLogTypes$.next(t);
         this._initStartLog();
         this._immediatelyStartTimer();
       });
@@ -4171,8 +3096,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private _initStartLog(): void {
-    const lastTypeId = this.logs.length
-      ? (this.logs[this.logs.length - 1].logType?.id ?? null)
+    const _logs = this.appState.logs$.value;
+    const lastTypeId = _logs.length
+      ? (_logs[_logs.length - 1].logType?.id ?? null)
       : null;
     const filtered = this.startLogFilteredTypes;
     const idx = lastTypeId ? filtered.findIndex((t) => t._id === lastTypeId) : -1;
@@ -4197,12 +3123,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
           this.startLogSaving = false;
           if (activeLog) {
             // Merge any type/title the user may have already updated in the sheet
-            this.activeLog = {
+            this.appState.setActiveLog({
               ...activeLog,
               logTypeId: this.startLogTypeId || activeLog.logTypeId,
               title:     this.startLogTitle.trim()
-            };
-            this.startActiveLogTimer();
+            });
           }
         },
         error: () => { this.startLogSaving = false; }
@@ -4227,7 +3152,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.activeLog) return;
     if (!this.inlineLogTypes.length) {
       this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => {
-        this.inlineLogTypes = t;
+        this.appState.inlineLogTypes$.next(t);
         this._syncStartLogUiToActiveLog();
         this.timerEditOpen = true;
         setTimeout(() => this.scrollStartLogTypeDrum(), 40);
@@ -4243,7 +3168,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Called by ngModelChange on the description textarea — keeps activeLog in sync. */
   onTimerTitleChange(title: string): void {
-    if (this.activeLog) this.activeLog = { ...this.activeLog, title };
+    if (this.appState.activeLog$.value) {
+      this.appState.setActiveLog({ ...this.appState.activeLog$.value, title });
+    }
   }
 
   get startLogFilteredTypes(): LogType[] {
@@ -4255,8 +3182,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.startLogTypeIndex = 0;
     this.startLogTypeId    = this.startLogFilteredTypes[0]?._id ?? '';
     // Keep running timer in sync
-    if (this.activeLog && this.startLogTypeId) {
-      this.activeLog = { ...this.activeLog, logTypeId: this.startLogTypeId };
+    if (this.appState.activeLog$.value && this.startLogTypeId) {
+      this.appState.setActiveLog({ ...this.appState.activeLog$.value, logTypeId: this.startLogTypeId });
     }
     setTimeout(() => this.scrollStartLogTypeDrum(), 20);
   }
@@ -4268,8 +3195,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.startLogTypeIndex = idx;
     this.startLogTypeId    = this.startLogFilteredTypes[idx]?._id ?? '';
     // Keep running timer in sync
-    if (this.activeLog && this.startLogTypeId) {
-      this.activeLog = { ...this.activeLog, logTypeId: this.startLogTypeId };
+    if (this.appState.activeLog$.value && this.startLogTypeId) {
+      this.appState.setActiveLog({ ...this.appState.activeLog$.value, logTypeId: this.startLogTypeId });
     }
   }
 
@@ -4293,8 +3220,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
           this.startLogSaving   = false;
           this.unifiedSheetOpen = false;
           if (activeLog) {
-            this.activeLog = activeLog;
-            this.startActiveLogTimer();
+            this.appState.setActiveLog(activeLog);
           }
         },
         error: () => { this.startLogSaving = false; }
@@ -4321,11 +3247,10 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     const title = this.activeLog.title || (lt?.name ?? 'Log');
 
     // Optimistically clear local state for instant UI feedback
-    this.stopActiveLogTimer();
-    const savedLog = { ...this.activeLog };
-    this.activeLog = null;
+    const savedLog = { ...this.activeLog! };
+    this.appState.setActiveLog(null);
 
-    this.logService.createLog(this.selectedDate, {
+    this.logService.createLog(this.appState.selectedDate, {
       title,
       logTypeId: savedLog.logTypeId,
       startTime: startAt,
@@ -4333,7 +3258,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.prefService.stopActiveLog().pipe(takeUntil(this.destroy$)).subscribe();
-        this.loadLogs();
+        this.appState.reloadLogs();
         const diff = this.timeToMinutes(endAt) - this.timeToMinutes(startAt);
         if (diff > 0) {
           const h = Math.floor(diff / 60), m = diff % 60;
@@ -4345,663 +3270,26 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: () => {
         // Restore if save failed
-        this.activeLog = savedLog;
-        this.startActiveLogTimer();
+        this.appState.setActiveLog(savedLog);
         alert('Failed to save the running log. Timer has been resumed.');
       }
     });
   }
 
-  // ── 1.61: Log Now FAB ─────────────────────────────────────────
 
-  /**
-   * Smart default start: end of last log, capped to now - 30 min if
-   * the last log ended more than 30 min ago.
-   */
-  private get smartDefaultStart(): string {
-    const last    = this.logs[this.logs.length - 1];
-    const nowMins = this.timeToMinutes(this.currentTimeStr());
-    if (!last) return this.minsToTimeStr(Math.max(0, nowMins - 30));
-    const lastEndMins = this.timeToMinutes(last.endAt ?? last.startAt);
-    return this.minsToTimeStr(
-      nowMins - lastEndMins > 30 ? Math.max(0, nowMins - 30) : lastEndMins
-    );
-  }
-
-  // ── 1.78: Log Now drum picker getters ──────────────────────
-  get logNowStartHour():   number { return +this.logNowStart.split(':')[0]; }
-  get logNowStartMinute(): number { return +this.logNowStart.split(':')[1]; }
-  get logNowEndHour():     number { return +this.logNowEnd.split(':')[0]; }
-  get logNowEndMinute():   number { return +this.logNowEnd.split(':')[1]; }
-
-  /** Map a raw minute (0-59) to the nearest quarter-hour index in logNowMinutes ([15,30,45,0]). */
-  private minuteToQtrIndex(m: number): number {
-    // snap to 0, 15, 30, 45 → find index in [15,30,45,0]
-    const snapped = Math.round(m / 15) * 15 % 60;
-    const idx = this.logNowMinutes.indexOf(snapped);
-    return idx >= 0 ? idx : 0;
-  }
-
-  /** Scroll all four Log Now drums to match the current start/end times. */
-  private scrollLogNowDrums(): void {
-    const item = 25; // px per drum row
-    const sh = document.querySelector('.ln-drum-start-h') as HTMLElement | null;
-    const sm = document.querySelector('.ln-drum-start-m') as HTMLElement | null;
-    const eh = document.querySelector('.ln-drum-end-h')   as HTMLElement | null;
-    const em = document.querySelector('.ln-drum-end-m')   as HTMLElement | null;
-    if (sh) sh.scrollTop = this.logNowStartHour                           * item;
-    if (sm) sm.scrollTop = this.minuteToQtrIndex(this.logNowStartMinute)  * item;
-    if (eh) eh.scrollTop = this.logNowEndHour                             * item;
-    if (em) em.scrollTop = this.minuteToQtrIndex(this.logNowEndMinute)    * item;
-  }
-
-  onLogNowStartHourScroll(event: Event): void {
-    const el = event.target as HTMLElement;
-    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 25)));
-    if (h === this.logNowStartHour) return;
-    this.logNowStart = `${String(h).padStart(2, '0')}:${this.logNowStart.split(':')[1]}`;
-  }
-  onLogNowStartMinuteScroll(event: Event): void {
-    const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.logNowMinutes.length - 1, Math.round(el.scrollTop / 25)));
-    const m   = this.logNowMinutes[idx];
-    if (m === this.logNowStartMinute) return;
-    this.logNowStart = `${this.logNowStart.split(':')[0]}:${String(m).padStart(2, '0')}`;
-  }
-  onLogNowEndHourScroll(event: Event): void {
-    const el = event.target as HTMLElement;
-    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 25)));
-    if (h === this.logNowEndHour) return;
-    this.logNowEnd = `${String(h).padStart(2, '0')}:${this.logNowEnd.split(':')[1]}`;
-  }
-  onLogNowEndMinuteScroll(event: Event): void {
-    const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.logNowMinutes.length - 1, Math.round(el.scrollTop / 25)));
-    const m   = this.logNowMinutes[idx];
-    if (m === this.logNowEndMinute) return;
-    this.logNowEnd = `${this.logNowEnd.split(':')[0]}:${String(m).padStart(2, '0')}`;
-  }
-
-  /** Snap a HH:MM string to the nearest quarter-hour. */
-  private snapToQuarter(time: string): string {
-    const [h, m] = time.split(':').map(Number);
-    const snapped = Math.round(m / 15) * 15;
-    if (snapped === 60) {
-      const newH = Math.min(23, h + 1);
-      return `${String(newH).padStart(2, '0')}:00`;
-    }
-    return `${String(h).padStart(2, '0')}:${String(snapped).padStart(2, '0')}`;
-  }
 
   openLogNow(): void {
-    this._prepLogNow();  // pre-loads log types for when user switches to Add log tab
-    this.unifiedSheetInitialTab  = 0;  // open to Renni chat
+    this.unifiedSheetInitialTab = 0;
     this.unifiedSheetOpen = true;
-  }
-
-  private _prepLogNow(): void {
-    const now      = this.snapToQuarter(this.currentTimeStr());
-    const startStr = this.snapToQuarter(this.smartDefaultStart);
-    this.logNowStart     = startStr;
-    this.logNowEnd       = now;
-    this.logNowDomain    = 'work';
-    this.logNowTypeIndex = 0;
-    this.logNowTitle     = '';
-    if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => {
-        this.inlineLogTypes = t;
-        this._initLogNowType();
-        setTimeout(() => { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }, 40);
-      });
-    } else {
-      this._initLogNowType();
-    }
-  }
-
-  private _initLogNowType(): void {
-    const workTypes = this.inlineLogTypes.filter((lt) => lt.domain === 'work');
-    this.logNowTypeId    = workTypes[0]?._id ?? this.inlineLogTypes[0]?._id ?? '';
-    this.logNowTypeIndex = 0;
-    this.logNowDomain    = 'work';
-  }
-
-  closeLogNow(): void { this.unifiedSheetOpen = false; this._resetRenni(); }
-  closeUnifiedSheet(): void { this.unifiedSheetOpen = false; this._resetRenni(); }
-  private _resetRenni(): void {
-    this.renniMsgs    = [];
-    this.renniInput   = '';
-    this.renniThinking = false;
-  }
-
-  onTimerStarted(activeLog: ActiveLog): void {
-    this.activeLog = activeLog;
-    this.startActiveLogTimer();
-    this._syncStartLogUiToActiveLog();
-    this.timerEditOpen = true;
-  }
-
-  onEssentialStamp(name: string): void { this.stampEssentialNow(name); }
-
-  onEssentialOpen(name: string): void { this.openEssentialForm(name); }
-
-  onUnifiedSheetToast(toast: { message: string; logId: string }): void {
-    this.shortcutToast = toast;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => { this.shortcutToast = null; }, 3000);
-  }
-
-  onUnifiedSwipeStart(e: TouchEvent): void {
-    this.uniTouchStartX = e.changedTouches[0].clientX;
-    this.uniTouchStartY = e.changedTouches[0].clientY;
-  }
-  onUnifiedSwipeEnd(e: TouchEvent): void {
-    const dx = e.changedTouches[0].clientX - this.uniTouchStartX;
-    const dy = e.changedTouches[0].clientY - this.uniTouchStartY;
-    if (Math.abs(dx) <= Math.abs(dy)) return; // vertical scroll — don't switch tabs
-    if (dx > 60 && this.unifiedSheetInitialTab > 0) {
-      this.unifiedSheetInitialTab = (this.unifiedSheetInitialTab - 1) as 0|1|2|3;
-      this._onTabSwitch();
-    } else if (dx < -60 && this.unifiedSheetInitialTab < 3) {
-      this.unifiedSheetInitialTab = (this.unifiedSheetInitialTab + 1) as 0|1|2|3;
-      this._onTabSwitch();
-    }
-  }
-  switchTab(tab: 0|1|2|3): void {
-    this.unifiedSheetInitialTab = tab;
-    this._onTabSwitch();
-  }
-  private _onTabSwitch(): void {
-    setTimeout(() => {
-      if (this.unifiedSheetInitialTab === 1) { this.scrollLogNowDrums(); this.scrollLogNowTypeDrum(); }
-      if (this.unifiedSheetInitialTab === 2) { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }
-      if (this.unifiedSheetInitialTab === 3) { this.scrollStartLogTypeDrum(); }
-    }, 40);
-  }
-
-  get logNowFilteredTypes(): LogType[] {
-    return this.inlineLogTypes.filter(lt => lt.domain === this.logNowDomain);
-  }
-
-  setLogNowDomain(domain: 'work' | 'personal'): void {
-    this.logNowDomain    = domain;
-    this.logNowTypeIndex = 0;
-    this.logNowTypeId    = this.logNowFilteredTypes[0]?._id ?? '';
-    setTimeout(() => this.scrollLogNowTypeDrum(), 20);
-  }
-
-  onLogNowTypeScroll(event: Event): void {
-    const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.logNowFilteredTypes.length - 1, Math.round(el.scrollTop / 25)));
-    if (idx === this.logNowTypeIndex) return;
-    this.logNowTypeIndex = idx;
-    this.logNowTypeId    = this.logNowFilteredTypes[idx]?._id ?? '';
-  }
-
-  private scrollLogNowTypeDrum(): void {
-    const el = document.querySelector('.ln-drum-ln-types') as HTMLElement | null;
-    if (el) el.scrollTop = this.logNowTypeIndex * 25;
-  }
-
-  saveLogNow(): void {
-    if (this.logNowSaving || !this.logNowTypeId) return;
-    const lt    = this.inlineLogTypes.find((t) => t._id === this.logNowTypeId);
-    const title = this.logNowTitle.trim() || (lt?.name ?? 'Log');
-    this.logNowSaving = true;
-    this.logService.createLog(this.selectedDate, {
-      title,
-      logTypeId: this.logNowTypeId,
-      startTime: this.logNowStart,
-      endTime:   this.logNowEnd,
-    }).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  () => { this.logNowSaving = false; this.unifiedSheetOpen = false; this.loadLogs(); },
-      error: () => { this.logNowSaving = false; }
-    });
-  }
-
-  // ── Renni AI chat ─────────────────────────────────────────────
-  onRenniKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      this.sendRenniMessage();
-    }
-  }
-
-  sendRenniMessage(): void {
-    const text = this.renniInput.trim();
-    if (!text || this.renniThinking) return;
-    this.renniInput   = '';
-    this.renniThinking = true;
-
-    this.renniMsgs.push({ from: 'user', text });
-    const thinkingIdx = this.renniMsgs.length;
-    this.renniMsgs.push({ from: 'renni', thinking: true });
-    this._scrollRenniToBottom();
-
-    this.aiService.chat(text, this.selectedDateStr).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (res: ChatResponse) => {
-        this.renniThinking = false;
-        if (res.type === 'logs' && res.logs?.length) {
-          this.renniMsgs[thinkingIdx] = { from: 'renni', logs: res.logs };
-        } else {
-          this.renniMsgs[thinkingIdx] = { from: 'renni', text: res.text || 'Done!' };
-        }
-        this._scrollRenniToBottom();
-      },
-      error: err => {
-        this.renniThinking = false;
-        this.renniMsgs[thinkingIdx] = {
-          from: 'renni',
-          text: err.error?.error || 'Something went wrong. Try again.',
-        };
-        this._scrollRenniToBottom();
-      },
-    });
-  }
-
-  removeRenniLogFromMsg(msgIdx: number, logIdx: number): void {
-    const msg = this.renniMsgs[msgIdx];
-    if (!msg?.logs) return;
-    msg.logs.splice(logIdx, 1);
-    if (msg.logs.length === 0) this.renniMsgs.splice(msgIdx, 1);
-  }
-
-  discardRenniLogs(msgIdx: number): void {
-    this.renniMsgs.splice(msgIdx, 1);
-  }
-
-  confirmRenniLogs(msgIdx: number): void {
-    const msg = this.renniMsgs[msgIdx];
-    if (!msg?.logs?.length || msg.saving) return;
-    msg.saving = true;
-    msg.error  = undefined;
-    const logs    = [...msg.logs];
-    const dateStr = this.selectedDateStr;
-
-    const saveNext = (idx: number) => {
-      if (idx >= logs.length) {
-        msg.saving    = false;
-        msg.confirmed = true;
-        this.loadLogs();
-        this._scrollRenniToBottom();
-        return;
-      }
-      const p = logs[idx];
-      const payload: CreateLogEntry & { pointAtISO?: string; startAtISO?: string; endAtISO?: string } = {
-        title: p.title, logTypeId: p.logTypeId, entryType: p.entryType,
-        source: 'ai', startTime: p.startTime ?? '', endTime: p.endTime ?? '',
-      };
-      if (p.entryType === 'point') {
-        payload.pointAtISO = `${dateStr}T${p.pointTime}:00.000Z`;
-        payload.pointTime  = p.pointTime ?? '';
-      } else {
-        payload.startAtISO = `${dateStr}T${p.startTime}:00.000Z`;
-        payload.endAtISO   = `${dateStr}T${p.endTime}:00.000Z`;
-      }
-      this.logService.createLog(this.selectedDate, payload).pipe(takeUntil(this.destroy$)).subscribe({
-        next:  () => saveNext(idx + 1),
-        error: err => {
-          msg.saving = false;
-          msg.error  = `Failed on "${p.title}": ${err.error?.error || 'Save error'}`;
-        },
-      });
-    };
-    saveNext(0);
-  }
-
-  private _scrollRenniToBottom(): void {
-    setTimeout(() => {
-      const el = document.querySelector('.renni-messages');
-      if (el) el.scrollTop = el.scrollHeight;
-    }, 50);
-  }
-
-  // ── 1.90: Add Point long-press ───────────────────────────────
-  onAddPointPointerDown(_e: PointerEvent): void {
-    this.addPointLongPressTriggered = false;
-    this.addPointLongPressTimer = setTimeout(() => {
-      this.addPointLongPressTriggered = true;
-      this.addPointMenuOpen = true;
-      this.addPointLongPressTimer = undefined;
-      if (!this.inlineLogTypes.length) {
-        this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => { this.inlineLogTypes = t; });
-      }
-    }, 500);
-  }
-
-  onAddPointPointerUp(): void {
-    if (this.addPointLongPressTimer) {
-      clearTimeout(this.addPointLongPressTimer);
-      this.addPointLongPressTimer = undefined;
-    }
-  }
-
-  onAddPointClick(e: MouseEvent): void {
-    if (this.addPointLongPressTriggered) {
-      this.addPointLongPressTriggered = false;
-      return; // long press already handled
-    }
-    if (this.addPointMenuOpen) {
-      this.addPointMenuOpen = false;
-      return;
-    }
-    this.openAddPoint();
-  }
-
-  closeAddPointMenu(): void { this.addPointMenuOpen = false; }
-
-  /** Instantly stamp a point log at the current time using the default/last log type. */
-  addPointLogNow(): void {
-    const pt = this.currentTimeStr();
-    const save = () => {
-      const typeId = this.addPointTypeId || this.inlineLogTypes[0]?._id;
-      if (!typeId) return;
-      const lt    = this.inlineLogTypes.find((t) => t._id === typeId);
-      const title = lt?.name ?? 'Point';
-      this.logService.createLog(this.selectedDate, {
-        title, logTypeId: typeId, entryType: 'point',
-        pointTime: pt, startTime: pt, endTime: pt,
-      }).pipe(takeUntil(this.destroy$)).subscribe({ next: () => this.loadLogs(), error: () => {} });
-    };
-    if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => {
-        this.inlineLogTypes = t;
-        this.addPointTypeId = t[0]?._id ?? '';
-        save();
-      });
-    } else {
-      if (!this.addPointTypeId) this.addPointTypeId = this.inlineLogTypes[0]?._id ?? '';
-      save();
-    }
-  }
-
-  // ── 1.80: Add Point ──────────────────────────────────────────
-  get addPointFilteredTypes(): LogType[] {
-    return this.inlineLogTypes.filter(lt => lt.domain === this.addPointDomain);
-  }
-
-  openAddPoint(): void {
-    this._prepAddPoint();
-    this.unifiedSheetInitialTab  = 2;
-    this.unifiedSheetOpen = true;
-    setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
-  }
-
-  private _prepAddPoint(): void {
-    this.addPointDomain    = 'work';
-    this.addPointTypeIndex = 0;
-    this.addPointTitle     = '';
-    const n = new Date();
-    this.addPointTime = this.snapToQuarter(
-      `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`
-    );
-    if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => {
-        this.inlineLogTypes = t;
-        this._initAddPoint();
-        setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
-      });
-    } else {
-      this._initAddPoint();
-    }
-  }
-
-  private _initAddPoint(): void {
-    const types = this.addPointFilteredTypes;
-    this.addPointTypeId    = types[0]?._id ?? '';
-    this.addPointTypeIndex = 0;
-  }
-
-  closeAddPoint(): void { this.unifiedSheetOpen = false; }
-
-  // ── Daily Essentials ──────────────────────────────────────────
-  getEssentialColor(name: string): string {
-    const lt = this.inlineLogTypes.find((t) => t.name.toLowerCase() === name.toLowerCase());
-    return lt?.color ?? '#888888';
-  }
-
-  onEssentialPointerDown(e: { name: string }, event: PointerEvent): void {
-    this.essentialPressTriggered = false;
-    this.essentialPressName = e.name;
-    this.essentialPressTimer = setTimeout(() => {
-      this.essentialPressTriggered = true;
-      this.essentialPressName = null;
-      this.stampEssentialNow(e.name);
-    }, 2000);
-  }
-
-  onEssentialPointerUp(): void {
-    clearTimeout(this.essentialPressTimer);
-    this.essentialPressName = null;
-  }
-
-  onEssentialClick(e: { name: string }, event: MouseEvent): void {
-    if (this.essentialPressTriggered) {
-      this.essentialPressTriggered = false;
-      return;
-    }
-    this.openEssentialForm(e.name);
-  }
-
-  stampEssentialNow(name: string): void {
-    const pt = this.currentTimeStr();
-    const doStamp = () => {
-      const lt = this.inlineLogTypes.find((t) => t.name.toLowerCase() === name.toLowerCase());
-      if (!lt) return;
-      this.logService.createLog(this.selectedDate, {
-        title: lt.name, logTypeId: lt._id, entryType: 'point',
-        pointTime: pt, startTime: pt, endTime: pt,
-      }).pipe(takeUntil(this.destroy$)).subscribe({ next: () => this.loadLogs(), error: () => {} });
-    };
-    if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => { this.inlineLogTypes = t; doStamp(); });
-    } else {
-      doStamp();
-    }
-  }
-
-  openEssentialForm(name: string): void {
-    const doOpen = () => {
-      const lt = this.inlineLogTypes.find((t) => t.name.toLowerCase() === name.toLowerCase());
-      if (!lt) { this.openAddPoint(); return; }
-      this.addPointDomain    = (lt.domain === 'work' ? 'work' : 'personal') as 'work' | 'personal';
-      const types = this.inlineLogTypes.filter((t) => t.domain === this.addPointDomain);
-      this.addPointTypeIndex = Math.max(0, types.findIndex((t) => t._id === lt._id));
-      this.addPointTypeId    = lt._id;
-      const n = new Date();
-      this.addPointTime = this.snapToQuarter(
-        `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`
-      );
-      this.addPointTitle    = '';
-      this.unifiedSheetInitialTab  = 2;
-      this.unifiedSheetOpen = true;
-      setTimeout(() => { this.scrollAddPointTypeDrum(); this.scrollAddPointTimeDrums(); }, 40);
-    };
-    if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => { this.inlineLogTypes = t; doOpen(); });
-    } else {
-      doOpen();
-    }
-  }
-
-  setAddPointDomain(domain: 'work' | 'personal'): void {
-    this.addPointDomain    = domain;
-    this.addPointTypeIndex = 0;
-    this.addPointTypeId    = this.addPointFilteredTypes[0]?._id ?? '';
-    setTimeout(() => this.scrollAddPointTypeDrum(), 20);
-  }
-
-  onAddPointTypeScroll(event: Event): void {
-    const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.addPointFilteredTypes.length - 1, Math.round(el.scrollTop / 25)));
-    if (idx === this.addPointTypeIndex) return;
-    this.addPointTypeIndex = idx;
-    this.addPointTypeId    = this.addPointFilteredTypes[idx]?._id ?? '';
-  }
-
-  private scrollAddPointTypeDrum(): void {
-    const el = document.querySelector('.ln-drum-ap-types') as HTMLElement | null;
-    if (el) el.scrollTop = this.addPointTypeIndex * 25;
-  }
-
-  get addPointHour():   number { return +this.addPointTime.split(':')[0]; }
-  get addPointMinute(): number { return +this.addPointTime.split(':')[1]; }
-
-  private addPointMinuteToIdx(m: number): number {
-    const snapped = Math.round(m / 15) * 15 % 60;
-    const idx = this.addPointMinutes.indexOf(snapped);
-    return idx >= 0 ? idx : 0;
-  }
-
-  private scrollAddPointTimeDrums(): void {
-    const item = 25;
-    const ah = document.querySelector('.ln-drum-ap-h') as HTMLElement | null;
-    const am = document.querySelector('.ln-drum-ap-m') as HTMLElement | null;
-    if (ah) ah.scrollTop = this.addPointHour * item;
-    if (am) am.scrollTop = this.addPointMinuteToIdx(this.addPointMinute) * item;
-  }
-
-  onAddPointHourScroll(event: Event): void {
-    const el = event.target as HTMLElement;
-    const h  = Math.max(0, Math.min(23, Math.round(el.scrollTop / 25)));
-    if (h === this.addPointHour) return;
-    this.addPointTime = `${String(h).padStart(2, '0')}:${this.addPointTime.split(':')[1]}`;
-  }
-
-  onAddPointMinuteScroll(event: Event): void {
-    const el  = event.target as HTMLElement;
-    const idx = Math.max(0, Math.min(this.addPointMinutes.length - 1, Math.round(el.scrollTop / 25)));
-    const m   = this.addPointMinutes[idx];
-    if (m === this.addPointMinute) return;
-    this.addPointTime = `${this.addPointTime.split(':')[0]}:${String(m).padStart(2, '0')}`;
-  }
-
-  saveAddPoint(): void {
-    if (this.addPointSaving || !this.addPointTypeId) return;
-    const lt    = this.inlineLogTypes.find((t) => t._id === this.addPointTypeId);
-    const title = this.addPointTitle.trim() || (lt?.name ?? 'Point');
-    this.addPointSaving = true;
-    this.logService.createLog(this.selectedDate, {
-      title,
-      logTypeId: this.addPointTypeId,
-      entryType: 'point',
-      pointTime: this.addPointTime,
-      startTime: this.addPointTime,
-      endTime:   this.addPointTime,
-    }).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  () => { this.addPointSaving = false; this.unifiedSheetOpen = false; this.loadLogs(); },
-      error: () => { this.addPointSaving = false; }
-    });
-  }
-
-  // ── 1.82: Quick Prefs ─────────────────────────────────────────
-
-  get quickPrefsWorkTypes(): LogType[] {
-    return this.inlineLogTypes.filter(lt => lt.domain === 'work');
-  }
-  get quickPrefsPersonalTypes(): LogType[] {
-    return this.inlineLogTypes.filter(lt => lt.domain === 'personal');
-  }
-
-  openQuickPrefs(event: MouseEvent): void {
-    event.stopPropagation();
-    if (!this.inlineLogTypes.length) {
-      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe((t) => {
-        this.inlineLogTypes = t;
-        this._doOpenQuickPrefs();
-      });
-    } else {
-      this._doOpenQuickPrefs();
-    }
-  }
-
-  private _doOpenQuickPrefs(): void {
-    this.quickPrefsEdit = new Set(this.quickPrefsItems.map(p => p.logTypeId));
-    this.quickPrefsOpen = true;
-  }
-
-  closeQuickPrefs(): void { this.quickPrefsOpen = false; }
-
-  isInQuickPrefs(logTypeId: string): boolean {
-    return this.quickPrefsEdit.has(logTypeId);
-  }
-
-  toggleQuickPref(logTypeId: string): void {
-    if (this.quickPrefsEdit.has(logTypeId)) {
-      this.quickPrefsEdit.delete(logTypeId);
-    } else {
-      this.quickPrefsEdit.add(logTypeId);
-    }
-    // Force Angular change detection
-    this.quickPrefsEdit = new Set(this.quickPrefsEdit);
-  }
-
-  saveQuickPrefs(): void {
-    if (this.quickPrefsSaving) return;
-    const shortcuts = [...this.quickPrefsEdit].map(id => ({ logTypeId: id, defaultMins: 30 }));
-    this.quickPrefsSaving = true;
-    this.prefService.updateQuickShortcuts(shortcuts).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => {
-        this.quickPrefsItems  = shortcuts;
-        this.quickPrefsSaving = false;
-        this.quickPrefsOpen   = false;
-      },
-      error: () => { this.quickPrefsSaving = false; }
-    });
-  }
-
-  resetQuickPrefs(): void {
-    this.quickPrefsEdit = new Set<string>();
-  }
-
-  // ── 1.63: Continue Last Log ──────────────────────────────────
-
-  /** Last range log that has an end time — used by the Continue chip. */
-  get lastRangeLog(): LogEntry | null {
-    const range = this.logs.filter(l => l.entryType === 'range' && !!l.endAt);
-    return range.length ? range[range.length - 1] : null;
-  }
-
-  continueLastLog(): void {
-    const last = this.lastRangeLog;
-    if (!last || this.shortcutSaving) return;
-    const now       = this.currentTimeStr();
-    const startStr  = last.endAt!;
-    const startMins = this.timeToMinutes(startStr);
-    const endMins   = this.timeToMinutes(now);
-    if (endMins <= startMins) return;
-
-    this.shortcutSaving = true;
-    this.logService.createLog(this.selectedDate, {
-      title:     last.title || (last.logType?.name ?? 'Log'),
-      logTypeId: last.logType?.id ?? '',
-      startTime: startStr,
-      endTime:   now,
-    }).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (created) => {
-        this.shortcutSaving = false;
-        this.loadLogs();
-        const diff = endMins - startMins;
-        const h = Math.floor(diff / 60), m = diff % 60;
-        const dur = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-        const name = last.logType?.name ?? 'Log';
-        this.shortcutToast = { message: `${name} continued · ${dur}`, logId: created.id };
-        clearTimeout(this.toastTimer);
-        this.toastTimer = setTimeout(() => this.shortcutToast = null, 3000);
-      },
-      error: () => { this.shortcutSaving = false; }
-    });
   }
 
   // ── 1.68: End-of-Day Wrap-Up ─────────────────────────────────
 
-  private localDateKey(d: Date): string {
-    const p = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-  }
+
 
   /** Unlogged gaps ≥15 min between consecutive range logs for the selected day. */
   get todayGaps(): Array<{ start: string; end: string; mins: number }> {
-    const sorted = this.logs
+    const sorted = this.appState.logs$.value
       .filter(l => l.entryType === 'range' && l.startAt && l.endAt)
       .sort((a, b) => this.timeToMinutes(a.startAt) - this.timeToMinutes(b.startAt));
     const gaps: Array<{ start: string; end: string; mins: number }> = [];
@@ -5014,16 +3302,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     return gaps;
   }
 
-  /** Show the wrap-up banner after 5 PM on today's date when gaps exist. */
-  get showWrapUpBanner(): boolean {
-    return this.isToday
-      && !this.wrapUpOpen
-      && new Date().getHours() >= 17
-      && this.wrapUpDismissedDate !== this.localDateKey(new Date())
-      && this.todayGaps.length > 0;
-  }
 
-  get totalGapLabel(): string { return this.formatGapMins(this.todayGaps.reduce((s, g) => s + g.mins, 0)); }
   get wrapUpCurrentGap() { return this.wrapUpGaps[this.wrapUpIdx] ?? null; }
 
   formatGapMins(mins: number): string {
@@ -5043,8 +3322,6 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   closeWrapUp(): void { this.wrapUpOpen = false; }
 
-  dismissWrapUp(): void { this.wrapUpDismissedDate = this.localDateKey(new Date()); }
-
   wrapUpSkip(): void { this.advanceWrapUp(); }
 
   wrapUpSave(): void {
@@ -5053,13 +3330,13 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     const lt    = this.inlineLogTypes.find((t) => t._id === this.wrapUpTypeId);
     const title = this.wrapUpTitle.trim() || (lt?.name ?? 'Log');
     this.wrapUpSaving = true;
-    this.logService.createLog(this.selectedDate, {
+    this.logService.createLog(this.appState.selectedDate, {
       title,
       logTypeId: this.wrapUpTypeId,
       startTime: gap.start,
       endTime:   gap.end,
     }).pipe(takeUntil(this.destroy$)).subscribe({
-      next:  () => { this.wrapUpSaving = false; this.loadLogs(); this.advanceWrapUp(); },
+      next:  () => { this.wrapUpSaving = false; this.appState.reloadLogs(); this.advanceWrapUp(); },
       error: () => { this.wrapUpSaving = false; }
     });
   }
@@ -5070,8 +3347,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       this.wrapUpTypeId = this.inlineLogTypes[0]?._id ?? '';
       this.wrapUpTitle  = '';
     } else {
-      this.wrapUpOpen          = false;
-      this.wrapUpDismissedDate = this.localDateKey(new Date());
+      this.wrapUpOpen = false;
     }
   }
 
@@ -5084,60 +3360,13 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
   }
 
-  getDuration(log: LogEntry): string {
-    if (log.entryType === 'point' || !log.endAt) return '';
-    const mins = log.durationMins ?? (this.timeToMinutes(log.endAt) - this.timeToMinutes(log.startAt));
-    if (mins <= 0) return '';
-    const h = Math.floor(mins / 60), m = mins % 60;
-    if (h === 0) return `${m}m`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
-  }
 
-  shortDate(dateStr: string): string {
-    const [y, mo, d] = dateStr.split('-').map(Number);
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return `${months[mo - 1]} ${d}`;
-  }
 
-  getLogIconKey(log: LogEntry): string {
-    if (log.entryType === 'point') return 'point';
-    const n = (log.logType?.name ?? '').toLowerCase();
-    if (/sleep|rest|nap/.test(n)) return 'sleep';
-    if (/wake|woke|morning|rise|alarm/.test(n)) return 'wake';
-    if (/walk|run|jog|hike|step/.test(n)) return 'walk';
-    if (/gym|lift|workout|exercise|strength|weight|train|pull|push|squat|dumbbell|kettlebell/.test(n)) return 'exercise';
-    if (/food|eat|meal|lunch|dinner|breakfast|cook|diet|snack|calori|suppl|protein|creatine/.test(n)) return 'food';
-    if (/work|focus|code|dev|project|meeting|call|task|office/.test(n)) return 'work';
-    if (/read|study|learn|book|course|lecture/.test(n)) return 'read';
-    if (/meditat|mindful|breath|yoga|stretch|sauna|shower|bath/.test(n)) return 'meditate';
-    return 'default';
-  }
 
-  onSelectionChanged(_selection: DragSelection): void { /* no-op */ }
-
-  // ── 1.30 ────────────────────────────────────────────────
-  onCardHighlight(ids: string[] | null): void {
-    this.metricLogIds = ids ? new Set(ids) : null;
-  }
-
-  onCreateLogClicked(selection: DragSelection): void {
-    this.formStartTime = selection.startTime;
-    this.formEndTime   = selection.endTime;
-    this.editingEntry  = null;
-    this.showForm      = true;
-  }
-
-  editLog(log: LogEntry): void {
-    this.formStartTime = log.startAt;
-    this.formEndTime   = log.endAt ?? '01:00';
-    this.editingEntry  = log;
-    this.showForm      = true;
-  }
 
   onLogSaved(entry: CreateLogEntry): void {
-    let targetDate = this.selectedDate;
-    if (entry.date && entry.date !== this.selectedDateStr) {
+    let targetDate = this.appState.selectedDate;
+    if (entry.date && entry.date !== this.appState.selectedDateStr) {
       const [y, m, d] = entry.date.split('-').map(Number);
       targetDate = new Date(y, m - 1, d);
       targetDate.setHours(0, 0, 0, 0);
@@ -5150,11 +3379,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
         if (idsToDelete) {
           // Destructive merge: delete both source point logs then reload
           forkJoin([
-            this.logService.deleteLog(this.selectedDate, idsToDelete[0]),
-            this.logService.deleteLog(this.selectedDate, idsToDelete[1])
-          ]).pipe(takeUntil(this.destroy$)).subscribe({ next: () => this.loadLogs(), error: () => this.loadLogs() });
+            this.logService.deleteLog(this.appState.selectedDate, idsToDelete[0]),
+            this.logService.deleteLog(this.appState.selectedDate, idsToDelete[1])
+          ]).pipe(takeUntil(this.destroy$)).subscribe({ next: () => this.appState.reloadLogs(), error: () => this.appState.reloadLogs() });
         } else {
-          this.loadLogs();
+          this.appState.reloadLogs();
         }
       },
       error: () => alert('Failed to save log. Please try again.')
@@ -5162,80 +3391,33 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onLogUpdated(event: { id: string; entry: Partial<CreateLogEntry>; newDate?: string }): void {
-    let targetDate = this.selectedDate;
+    let targetDate = this.appState.selectedDate;
     if (event.newDate) {
       const [y, m, d] = event.newDate.split('-').map(Number);
       targetDate = new Date(y, m - 1, d);
       targetDate.setHours(0, 0, 0, 0);
     }
     this.logService.updateLog(targetDate, event.id, event.entry).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { this.closeForm(); this.loadLogs(); },
+      next: () => { this.closeForm(); this.appState.reloadLogs(); },
       error: () => alert('Failed to update log. Please try again.')
     });
   }
 
   onLogDeleted(id: string): void {
-    this.logService.deleteLog(this.selectedDate, id).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { this.closeForm(); this.loadLogs(); },
+    this.logService.deleteLog(this.appState.selectedDate, id).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => { this.closeForm(); this.appState.reloadLogs(); },
       error: () => alert('Failed to delete log. Please try again.')
     });
   }
 
-  downloadCSV(): void {
-    if (this.logs.length === 0) return;
-    const dateStr = this.selectedDate.toISOString().split('T')[0];
-    const header  = ['Date', 'Start Time', 'End Time', 'Duration', 'Activity Type', 'Title'];
-    const rows    = this.logs.map(log => [
-      dateStr,
-      log.startAt,
-      log.endAt ?? '',
-      this.getDuration(log),
-      log.logType?.name ?? '',
-      `"${log.title.replace(/"/g, '""')}"`
-    ]);
-    const csv  = [header, ...rows].map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `renmito-${dateStr}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 
   closeForm(): void {
-    this.showForm         = false;
-    this.editingEntry     = null;
-    this.highlightedLogId = null;
-    this.formLogTypeId    = null;
-    // Always reset any in-progress merge state on the timeline
-    this.timelineRef?.cancelMerge();
+    this.showForm      = false;
+    this.editingEntry  = null;
+    this.formLogTypeId = null;
   }
 
-  /** Two point logs were paired — confirm then open the Create form pre-filled. */
-  onMergePointsSelected(selection: DragSelection): void {
-    const diff = selection.endMinutes - selection.startMinutes;
-    const h = Math.floor(diff / 60), m = diff % 60;
-    const durStr = h && m ? `${h}h ${m}m` : h ? `${h}h` : `${m}m`;
 
-    this.pendingMerge  = selection;
-    this.confirmDialog = {
-      title:   'Merge into time range?',
-      message: 'The two point logs will be deleted after the new entry is saved.',
-      detail:  `${selection.startTime} – ${selection.endTime}  (${durStr})`,
-      okLabel: 'Merge',
-      onConfirm: () => {
-        const s = this.pendingMerge!;
-        this.pendingMerge    = null;
-        this.formStartTime   = s.startTime;
-        this.formEndTime     = s.endTime;
-        this.editingEntry    = null;
-        this.mergeSourceIds  = s.mergeSourceIds ?? null;
-        this.formLogTypeId   = s.mergeLogTypeId ?? null;
-        this.showForm        = true;
-      }
-    };
-  }
 
   onGlobalConfirm(): void {
     const fn = this.confirmDialog?.onConfirm;
@@ -5244,10 +3426,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onGlobalCancel(): void {
-    if (this.pendingMerge) {
-      this.timelineRef?.cancelMerge();
-      this.pendingMerge = null;
-    }
+    this.pendingMerge = null;
     this.confirmDialog = null;
   }
 
@@ -5257,6 +3436,18 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // ── TrackBy helpers ───────────────────────────────────────────
+  onTimerStarted(activeLog: ActiveLog): void {
+    this.appState.setActiveLog(activeLog);
+    this._syncStartLogUiToActiveLog();
+    this.timerEditOpen = true;
+  }
+
+  onUnifiedSheetToast(toast: { message: string; logId: string }): void {
+    this.shortcutToast = toast;
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => { this.shortcutToast = null; }, 3000);
+  }
+
   trackByIndex(index: number): number { return index; }
   trackByLogId(_i: number, log: LogEntry): string { return log.id; }
   trackByLogTypeId(_i: number, lt: LogType): string { return lt._id; }
