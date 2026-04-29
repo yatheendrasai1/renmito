@@ -64,13 +64,11 @@ import {
   `,
   styles: [`
     .qp-backdrop {
-      position: fixed; inset: 0; z-index: 490;
+      display: none;
     }
     .qp-panel {
-      position: fixed;
-      bottom: 80px;
-      left: 12px;
-      width: 260px;
+      position: relative;
+      width: 300px;
       background: #1E1E2E;
       border: 1px solid #3A3A55;
       border-radius: 12px;

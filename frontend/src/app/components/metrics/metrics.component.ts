@@ -41,163 +41,253 @@ interface MetricCard {
   imports: [CommonModule, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="metrics-section">
+    <div class="metrics-wrapper">
 
-      <!-- ── 1.65: Coverage ring — always visible ─────── -->
-      <div class="coverage-row">
-        <div class="coverage-ring-wrap">
-          <svg viewBox="0 0 56 56" class="coverage-svg" aria-hidden="true">
-            <!-- Track — 1.85: text-primary at low opacity always contrasts any bg -->
-            <circle cx="28" cy="28" r="20" fill="none"
-              class="ring-track" stroke-width="5"/>
-            <!-- Filled arc — green at 100%, accent-bright otherwise (1.85) -->
-            <circle cx="28" cy="28" r="20" fill="none"
-              [attr.stroke]="coveragePct >= 100 ? '#5BAD6F' : 'var(--accent-bright)'"
-              stroke-width="5" stroke-linecap="round"
-              [attr.stroke-dasharray]="coverageDash"
-              transform="rotate(-90 28 28)"/>
-          </svg>
-          <span class="coverage-center-text">{{ coveragePct }}%</span>
-        </div>
-        <div class="coverage-stats">
-          <span class="coverage-big">{{ coveredHoursLabel }}</span>
-          <span class="coverage-of">of 8h today</span>
-        </div>
-        <div class="streak-block">
-          <div class="streak-text-col">
-            <span class="streak-count">{{ streak }}</span>
-            <span class="streak-label">{{ streak === 1 ? 'day' : 'days' }} streak</span>
-          </div>
-        </div>
-      </div>
+      <!-- ── Summary cards: free-floating, no shared border ── -->
+      <div class="summary-cards">
 
-      <!-- ── Section header ───────────────────────────── -->
-      <div class="metrics-header" (click)="toggleExpanded()">
-        <button class="metrics-toggle" [attr.aria-expanded]="isExpanded" tabindex="-1">
-          <svg class="metrics-chevron" width="13" height="13" viewBox="0 0 12 12" fill="none">
-            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8"
-                  stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <h2 class="metrics-title">Metrics</h2>
-        </button>
-        <div class="metrics-header-right" *ngIf="isExpanded" (click)="$event.stopPropagation()">
-          <button class="metrics-clear-btn"
-                  *ngIf="selectedCardIdx !== null && analyticsMode === 'digital'"
-                  (click)="clearSelection()"
-                  aria-label="Clear metric filter">
-            <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-              <path d="M9 3L3 9M3 3l6 6" stroke="currentColor" stroke-width="1.8"
-                    stroke-linecap="round"/>
-            </svg>
-            Clear
-          </button>
-          <select class="metrics-view-select"
-                  *ngIf="analyticsMode === 'digital'"
-                  [ngModel]="view"
-                  (ngModelChange)="onViewChange($event)">
-            <option value="professional">Professional</option>
-            <option value="personal">Personal</option>
-          </select>
-          <!-- 1.91: Mode selector -->
-          <div class="mode-wrap">
-            <button class="mode-btn" (click)="toggleModeMenu(); $event.stopPropagation()">
-              Mode
-              <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5"
-                      stroke-linecap="round" stroke-linejoin="round"/>
+        <div class="summary-card">
+          <span class="summary-label">Coverage</span>
+          <div class="summary-ring-body">
+            <div class="coverage-ring-wrap">
+              <svg viewBox="0 0 56 56" class="coverage-svg" aria-hidden="true">
+                <circle cx="28" cy="28" r="20" fill="none"
+                  class="ring-track" stroke-width="5"/>
+                <circle cx="28" cy="28" r="20" fill="none"
+                  [attr.stroke]="coveragePct >= 100 ? '#5BAD6F' : 'var(--accent-bright)'"
+                  stroke-width="5" stroke-linecap="round"
+                  [attr.stroke-dasharray]="coverageDash"
+                  transform="rotate(-90 28 28)"/>
               </svg>
-            </button>
-            <div class="mode-menu" *ngIf="modeMenuOpen">
-              <button class="mode-menu-item"
-                      [class.mode-menu-item--active]="analyticsMode === 'digital'"
-                      (click)="setMode('digital')">
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                  <rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
-                  <path d="M4 7h6M4 9.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                </svg>
-                Digital
-              </button>
-              <button class="mode-menu-item"
-                      [class.mode-menu-item--active]="analyticsMode === 'visual'"
-                      (click)="setMode('visual')">
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                  <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/>
-                  <path d="M7 7L7 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                  <path d="M7 7L11.5 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                </svg>
-                Visual
-              </button>
+              <span class="coverage-center-text">{{ coveragePct }}%</span>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- ── Digital: metric cards ────────────────────── -->
-      <div class="metrics-cards" *ngIf="isExpanded && analyticsMode === 'digital'">
-        <div class="metric-card"
-             *ngFor="let card of activeCards; let i = index; trackBy: trackByLabel"
-             [class.metric-card--selected]="selectedCardIdx === i"
-             (click)="selectCard(i)">
-          <span class="metric-label">{{ card.label }}</span>
-          <div class="metric-body">
-            <span class="metric-main">{{ card.main }}</span>
-            <span class="metric-side" *ngIf="card.side">{{ card.side }}</span>
-          </div>
+        <div class="summary-card">
+          <span class="summary-label">Logged</span>
+          <span class="summary-val">{{ coveredHoursLabel }}</span>
+          <span class="summary-sub">of 8h today</span>
         </div>
+
+        <div class="summary-card">
+          <span class="summary-label">Streak</span>
+          <span class="summary-val">{{ streak }}</span>
+          <span class="summary-sub">{{ streak === 1 ? 'day' : 'days' }}</span>
+        </div>
+
       </div>
 
-      <!-- ── Visual: pie chart ─────────────────────────── -->
-      <div class="metrics-visual" *ngIf="isExpanded && analyticsMode === 'visual'">
-        <ng-container *ngIf="workPieSlices.length > 0; else noPieData">
-          <div class="pie-wrap">
-            <!-- Donut pie chart -->
-            <svg viewBox="0 0 200 200" class="pie-svg" aria-label="Work domain breakdown">
-              <ng-container *ngIf="workPieSlices.length === 1">
-                <!-- Full circle for single type -->
-                <circle cx="100" cy="100" r="80" [attr.fill]="workPieSlices[0].color"/>
-              </ng-container>
-              <ng-container *ngIf="workPieSlices.length > 1">
-                <path *ngFor="let s of workPieSlices; trackBy: trackByName"
-                      [attr.d]="s.path"
-                      [attr.fill]="s.color"
-                      class="pie-slice"/>
-              </ng-container>
-              <!-- Donut hole -->
-              <circle cx="100" cy="100" r="52" fill="var(--bg-surface)"/>
-              <!-- Center label -->
-              <text x="100" y="94" text-anchor="middle" class="pie-center-top">Work</text>
-              <text x="100" y="112" text-anchor="middle" class="pie-center-bot">{{ workTotalLabel }}</text>
+      <!-- ── Metrics accordion — separate card ────────── -->
+      <div class="metrics-section">
+
+        <div class="metrics-header" (click)="toggleExpanded()">
+          <button class="metrics-toggle" [attr.aria-expanded]="isExpanded" tabindex="-1">
+            <svg class="metrics-chevron" width="13" height="13" viewBox="0 0 12 12" fill="none">
+              <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8"
+                    stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <!-- Legend -->
-            <div class="pie-legend">
-              <div class="pie-legend-row" *ngFor="let s of workPieSlices; trackBy: trackByName">
-                <span class="pie-legend-dot" [style.background]="s.color"></span>
-                <span class="pie-legend-name">{{ s.name }}</span>
-                <span class="pie-legend-val">{{ fmtHPublic(s.hours) }}</span>
-                <span class="pie-legend-pct">{{ s.pct }}%</span>
+            <h2 class="metrics-title">Metrics</h2>
+          </button>
+          <div class="metrics-header-right" *ngIf="isExpanded" (click)="$event.stopPropagation()">
+            <button class="metrics-clear-btn"
+                    *ngIf="selectedCardIdx !== null && analyticsMode === 'digital'"
+                    (click)="clearSelection()"
+                    aria-label="Clear metric filter">
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                <path d="M9 3L3 9M3 3l6 6" stroke="currentColor" stroke-width="1.8"
+                      stroke-linecap="round"/>
+              </svg>
+              Clear
+            </button>
+            <select class="metrics-view-select"
+                    *ngIf="analyticsMode === 'digital'"
+                    [ngModel]="view"
+                    (ngModelChange)="onViewChange($event)">
+              <option value="professional">Professional</option>
+              <option value="personal">Personal</option>
+            </select>
+            <div class="mode-wrap">
+              <button class="mode-btn" (click)="toggleModeMenu(); $event.stopPropagation()">
+                Mode
+                <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                  <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="mode-menu" *ngIf="modeMenuOpen">
+                <button class="mode-menu-item"
+                        [class.mode-menu-item--active]="analyticsMode === 'digital'"
+                        (click)="setMode('digital')">
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                    <rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M4 7h6M4 9.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  </svg>
+                  Digital
+                </button>
+                <button class="mode-menu-item"
+                        [class.mode-menu-item--active]="analyticsMode === 'visual'"
+                        (click)="setMode('visual')">
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                    <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M7 7L7 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    <path d="M7 7L11.5 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  </svg>
+                  Visual
+                </button>
               </div>
             </div>
           </div>
-        </ng-container>
-        <ng-template #noPieData>
-          <div class="pie-empty">No work logs for today.</div>
-        </ng-template>
+        </div>
+
+        <!-- Animated body -->
+        <div class="metrics-body-grid" [class.metrics-body-grid--open]="isExpanded">
+        <div class="metrics-body">
+
+          <!-- Digital: metric cards -->
+          <div class="metrics-cards" *ngIf="analyticsMode === 'digital'">
+            <div class="metric-card"
+                 *ngFor="let card of activeCards; let i = index; trackBy: trackByLabel"
+                 [class.metric-card--selected]="selectedCardIdx === i"
+                 (click)="selectCard(i)">
+              <span class="metric-label">{{ card.label }}</span>
+              <div class="metric-body-row">
+                <span class="metric-main">{{ card.main }}</span>
+                <span class="metric-side" *ngIf="card.side">{{ card.side }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Visual: pie chart -->
+          <div class="metrics-visual" *ngIf="analyticsMode === 'visual'">
+            <ng-container *ngIf="workPieSlices.length > 0; else noPieData">
+              <div class="pie-wrap">
+                <svg viewBox="0 0 200 200" class="pie-svg" aria-label="Work domain breakdown">
+                  <ng-container *ngIf="workPieSlices.length === 1">
+                    <circle cx="100" cy="100" r="80" [attr.fill]="workPieSlices[0].color"/>
+                  </ng-container>
+                  <ng-container *ngIf="workPieSlices.length > 1">
+                    <path *ngFor="let s of workPieSlices; trackBy: trackByName"
+                          [attr.d]="s.path"
+                          [attr.fill]="s.color"
+                          class="pie-slice"/>
+                  </ng-container>
+                  <circle cx="100" cy="100" r="52" fill="var(--bg-surface)"/>
+                  <text x="100" y="94" text-anchor="middle" class="pie-center-top">Work</text>
+                  <text x="100" y="112" text-anchor="middle" class="pie-center-bot">{{ workTotalLabel }}</text>
+                </svg>
+                <div class="pie-legend">
+                  <div class="pie-legend-row" *ngFor="let s of workPieSlices; trackBy: trackByName">
+                    <span class="pie-legend-dot" [style.background]="s.color"></span>
+                    <span class="pie-legend-name">{{ s.name }}</span>
+                    <span class="pie-legend-val">{{ fmtHPublic(s.hours) }}</span>
+                    <span class="pie-legend-pct">{{ s.pct }}%</span>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+            <ng-template #noPieData>
+              <div class="pie-empty">No work logs for today.</div>
+            </ng-template>
+          </div>
+
+        </div>
+        </div>
+
       </div>
 
     </div>
   `,
   styles: [`
-    /* ── Section wrapper ─────────────────────────────── */
+    /* ── Outer wrapper: stacks summary cards + metrics accordion ── */
+    .metrics-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* ── Summary cards: free-floating row ───────────── */
+    .summary-cards {
+      display: flex;
+      gap: 8px;
+    }
+
+    .summary-card {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .summary-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .summary-val {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .summary-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .summary-ring-body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 0;
+    }
+
+    /* ── Coverage ring ───────────────────────────────── */
+    .coverage-ring-wrap {
+      position: relative;
+      flex-shrink: 0;
+      width: 56px;
+      height: 56px;
+    }
+
+    .coverage-svg { width: 56px; height: 56px; }
+
+    .ring-track {
+      stroke: var(--text-primary);
+      stroke-opacity: 0.18;
+    }
+
+    .coverage-center-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* ── Metrics accordion card ──────────────────────── */
     .metrics-section {
       background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 0;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
 
-    /* ── Header ──────────────────────────────────────── */
     .metrics-header {
       display: flex;
       align-items: center;
@@ -205,6 +295,7 @@ interface MetricCard {
       gap: 8px;
       padding: 10px 14px;
       cursor: pointer;
+      user-select: none;
     }
 
     .metrics-toggle {
@@ -222,7 +313,7 @@ interface MetricCard {
       flex-shrink: 0;
       color: var(--text-muted);
       transform: rotate(-90deg);
-      transition: transform 0.2s ease;
+      transition: transform 0.25s ease;
     }
     .metrics-toggle[aria-expanded="true"] .metrics-chevron {
       transform: rotate(0deg);
@@ -243,6 +334,86 @@ interface MetricCard {
       gap: 8px;
     }
 
+    /* ── Animated body ───────────────────────────────── */
+    .metrics-body-grid {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.28s ease;
+    }
+    .metrics-body-grid--open {
+      grid-template-rows: 1fr;
+    }
+    .metrics-body {
+      overflow: hidden;
+    }
+
+    /* ── Inner metric cards row ──────────────────────── */
+    .metrics-cards {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 0 14px 14px;
+    }
+    .metrics-cards::-webkit-scrollbar { height: 4px; }
+    .metrics-cards::-webkit-scrollbar-track { background: transparent; }
+    .metrics-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .metric-card {
+      flex: 1;
+      min-width: 120px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .metric-card:hover {
+      background: var(--accent-hover);
+      border-color: var(--border-light);
+    }
+    .metric-card--selected {
+      border-color: var(--highlight-selected);
+      background: rgba(74,144,226,0.1);
+      box-shadow: 0 0 0 1px var(--highlight-selected);
+    }
+
+    .metric-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+    }
+
+    .metric-body-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .metric-main {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    .metric-side {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+
+    /* ── Controls ────────────────────────────────────── */
     .metrics-clear-btn {
       display: flex;
       align-items: center;
@@ -277,74 +448,6 @@ interface MetricCard {
     }
     .metrics-view-select:focus { border-color: var(--highlight-selected); }
 
-    /* ── Cards row ───────────────────────────────────── */
-    .metrics-cards {
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      padding: 0 14px 14px;
-    }
-    .metrics-cards::-webkit-scrollbar { height: 4px; }
-    .metrics-cards::-webkit-scrollbar-track { background: transparent; }
-    .metrics-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-    /* ── Individual card ─────────────────────────────── */
-    .metric-card {
-      flex: 1;
-      min-width: 120px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      white-space: nowrap;
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
-    }
-    .metric-card:hover {
-      background: var(--accent-hover);
-      border-color: var(--border-light);
-    }
-    .metric-card--selected {
-      border-color: var(--highlight-selected);
-      background: rgba(74,144,226,0.1);
-      box-shadow: 0 0 0 1px var(--highlight-selected);
-    }
-
-    .metric-label {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.7px;
-    }
-
-    .metric-body {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-
-    .metric-main {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--text-primary);
-      font-variant-numeric: tabular-nums;
-      line-height: 1;
-    }
-
-    .metric-side {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-      background: var(--bg-surface);
-      padding: 2px 7px;
-      border-radius: 10px;
-    }
-
-    /* ── 1.91: Mode toggle ──────────────────────────── */
     .mode-wrap { position: relative; }
 
     .mode-btn {
@@ -382,54 +485,22 @@ interface MetricCard {
     .mode-menu-item--active { color: var(--highlight-selected); font-weight: 700; }
     .mode-menu-item svg { flex-shrink: 0; }
 
-    /* ── 1.91: Visual / pie chart ────────────────── */
-    .metrics-visual {
-      padding: 8px 14px 16px;
-    }
-    .pie-wrap {
-      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
-    }
-    .pie-svg {
-      width: 160px; height: 160px; flex-shrink: 0;
-    }
+    /* ── Visual / pie chart ──────────────────────────── */
+    .metrics-visual { padding: 8px 14px 16px; }
+    .pie-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .pie-svg { width: 160px; height: 160px; flex-shrink: 0; }
     .pie-slice { transition: opacity 0.15s; }
     .pie-slice:hover { opacity: 0.82; }
-    .pie-center-top {
-      font-size: 12px; font-weight: 700;
-      fill: var(--text-muted);
-    }
-    .pie-center-bot {
-      font-size: 18px; font-weight: 800;
-      fill: var(--text-primary);
-    }
-    .pie-legend {
-      flex: 1; min-width: 140px;
-      display: flex; flex-direction: column; gap: 7px;
-    }
-    .pie-legend-row {
-      display: flex; align-items: center; gap: 7px;
-    }
-    .pie-legend-dot {
-      width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
-    }
-    .pie-legend-name {
-      flex: 1; font-size: 12px; color: var(--text-secondary);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .pie-legend-val {
-      font-size: 11px; font-weight: 600; color: var(--text-primary);
-      font-variant-numeric: tabular-nums;
-    }
-    .pie-legend-pct {
-      font-size: 10px; color: var(--text-muted);
-      background: var(--bg-card);
-      padding: 1px 5px; border-radius: 6px;
-      font-variant-numeric: tabular-nums;
-    }
-    .pie-empty {
-      padding: 20px 0; text-align: center;
-      font-size: 12px; color: var(--text-muted);
-    }
+    .pie-center-top { font-size: 12px; font-weight: 700; fill: var(--text-muted); }
+    .pie-center-bot { font-size: 18px; font-weight: 800; fill: var(--text-primary); }
+    .pie-legend { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 7px; }
+    .pie-legend-row { display: flex; align-items: center; gap: 7px; }
+    .pie-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .pie-legend-name { flex: 1; font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pie-legend-val { font-size: 11px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .pie-legend-pct { font-size: 10px; color: var(--text-muted); background: var(--bg-card); padding: 1px 5px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+    .pie-empty { padding: 20px 0; text-align: center; font-size: 12px; color: var(--text-muted); }
+
     @keyframes slideDown {
       from { opacity: 0; transform: translateY(-5px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -446,87 +517,6 @@ interface MetricCard {
         min-width: unset;
         white-space: normal;
       }
-    }
-
-    /* ── 1.65: Coverage ring ─────────────────────────── */
-    .coverage-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .coverage-ring-wrap {
-      position: relative;
-      flex-shrink: 0;
-      width: 56px;
-      height: 56px;
-    }
-
-    .coverage-svg { width: 56px; height: 56px; }
-
-    /* 1.85: track always visible — text-primary at 18% opacity contrasts any bg */
-    .ring-track {
-      stroke: var(--text-primary);
-      stroke-opacity: 0.18;
-    }
-
-    .coverage-center-text {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .coverage-stats {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .coverage-big {
-      font-size: 20px;
-      font-weight: 800;
-      color: var(--text-primary);
-      line-height: 1;
-    }
-
-    .coverage-of {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .streak-block {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-
-    .streak-fire { font-size: 22px; }
-
-    .streak-text-col {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .streak-count {
-      font-size: 22px;
-      font-weight: 800;
-      color: var(--text-primary);
-      line-height: 1;
-    }
-
-    .streak-label {
-      font-size: 10px;
-      color: var(--text-muted);
     }
   `]
 })

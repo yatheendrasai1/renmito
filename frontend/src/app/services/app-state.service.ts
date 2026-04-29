@@ -59,6 +59,7 @@ export class AppStateService {
   private activeLogTimerRef: ReturnType<typeof setInterval> | undefined;
 
   // ── UI action signals (routed views → AppComponent shell) ─────────
+  readonly openNavRequested$           = new Subject<void>();
   readonly openCalendarRequested$      = new Subject<void>();
   readonly openImportantLogsRequested$ = new Subject<void>();
   readonly openNotesRequested$         = new Subject<void>();

@@ -115,45 +115,19 @@ const PERF = (() => {
     <ng-container *ngIf="isAuthenticated">
     <div class="app-shell">
 
-      <!-- ── Top Header ─────────────────────────────────── -->
-      <header class="app-header">
-        <div class="header-left">
-          <!-- Hamburger — 1.22 -->
-          <button class="hamburger-btn" (click)="toggleNav()"
-                  title="Toggle navigation" aria-label="Toggle navigation">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <line x1="3" y1="6"  x2="21" y2="6"/>
-              <line x1="3" y1="12" x2="21" y2="12"/>
-              <line x1="3" y1="18" x2="21" y2="18"/>
-            </svg>
-          </button>
-          <div class="header-logo">
-            <svg width="26" height="26" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-              <circle cx="14" cy="14" r="12" stroke="rgba(255,255,255,0.9)" stroke-width="2"/>
-              <path d="M14 8v6l4 3" stroke="rgba(255,255,255,0.9)" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="14" cy="14" r="2" fill="rgba(255,255,255,0.7)"/>
-            </svg>
-            <span class="app-title">Renmito</span>
-          </div>
-        </div>
-
-        <div class="header-actions">
-          <span class="header-date">{{ todayLabel }}</span>
-          <button class="header-user" *ngIf="currentUser" (click)="openProfile()" title="My profile">{{ currentUser.userName }}</button>
-
-          <!-- Logout — far right -->
-          <button class="header-icon-btn" (click)="logout()" title="Log out" aria-label="Log out">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-          </button>
-        </div>
-      </header>
+      <!-- ── Top strip ─────────────────────────────────── -->
+      <div class="top-strip">
+        <button class="top-strip-menu" (click)="appState.openNavRequested$.next()"
+                title="Menu" aria-label="Open menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="3" y1="6"  x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <span class="top-strip-title">Renmito</span>
+      </div>
 
       <!-- ── Body ───────────────────────────────────────── -->
       <div class="app-body">
@@ -164,65 +138,19 @@ const PERF = (() => {
              [class.left-nav--overlay]="navOverlayOpen"
              (click)="navOverlayOpen = false">
           <div class="nav-group">
-            <span class="nav-group-label">Main</span>
-            <a
-              class="left-nav-item"
-              routerLink="/logger"
-              routerLinkActive="left-nav-item--active"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-              <span>Logger</span>
-            </a>
-            <a
-              class="left-nav-item"
-              routerLink="/timeline"
-              routerLinkActive="left-nav-item--active"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="3" y1="6" x2="21" y2="6"/>
-                <line x1="3" y1="12" x2="21" y2="12"/>
-                <line x1="3" y1="18" x2="21" y2="18"/>
-                <circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/>
-                <circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/>
-                <circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/>
-              </svg>
-              <span>Time Line</span>
-            </a>
-            <a
-              class="left-nav-item"
-              routerLink="/journeys"
-              routerLinkActive="left-nav-item--active"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 20h9"/>
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-              </svg>
-              <span>Journey Logs</span>
-            </a>
-            <a
-              class="left-nav-item"
-              routerLink="/report"
-              routerLinkActive="left-nav-item--active"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <line x1="3" y1="9" x2="21" y2="9"/>
-                <line x1="9" y1="21" x2="9" y2="9"/>
-              </svg>
-              <span>Reports</span>
-            </a>
-          </div>
+            <span class="nav-group-label">Renmito</span>
 
-          <!-- Settings section -->
-          <div class="nav-group">
-            <span class="nav-group-label">Settings</span>
+            <!-- Profile -->
+            <button class="left-nav-item" *ngIf="currentUser" (click)="openProfile(); navOverlayOpen = false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span>{{ currentUser.userName }}</span>
+            </button>
+
+            <!-- Configurations -->
             <a
               class="left-nav-item"
               routerLink="/configuration"
@@ -236,7 +164,7 @@ const PERF = (() => {
               <span>Configurations</span>
             </a>
 
-            <!-- Ink-pen palette quick-picker -->
+            <!-- Theme -->
             <button
               class="left-nav-item"
               [class.left-nav-item--active]="showPalettePicker"
@@ -252,16 +180,19 @@ const PERF = (() => {
               </svg>
               <span>Theme</span>
             </button>
+
+            <!-- Log out -->
+            <button class="left-nav-item nav-logout" (click)="logout()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              <span>Log out</span>
+            </button>
           </div>
         </nav>
-
-        <!-- ── Palette quick-picker overlay ──────────────── -->
-        <app-palette-sheet
-          *ngIf="showPalettePicker"
-          [customPresets]="navCustomPresets"
-          (paletteSelected)="applyQuickPalette($event)"
-          (closed)="showPalettePicker = false">
-        </app-palette-sheet>
 
         <!-- ── View area ───────────────────────────────── -->
         <div class="view-area content-area" (scroll)="onViewScroll($event)">
@@ -380,7 +311,57 @@ const PERF = (() => {
         </p>
         <span class="footer-copy">© {{ currentYear }} Renmito</span>
       </footer>
+
+      <!-- ── Bottom Tab Bar ── -->
+      <nav class="bottom-tab-bar" (click)="navOverlayOpen = false">
+        <a class="bottom-tab" routerLink="/logger" routerLinkActive="bottom-tab--active">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span class="bottom-tab-label">Logger</span>
+        </a>
+        <a class="bottom-tab" routerLink="/timeline" routerLinkActive="bottom-tab--active">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+            <circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/>
+            <circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/>
+            <circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/>
+          </svg>
+          <span class="bottom-tab-label">Timeline</span>
+        </a>
+        <a class="bottom-tab" routerLink="/journeys" routerLinkActive="bottom-tab--active">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span class="bottom-tab-label">Journeys</span>
+        </a>
+        <a class="bottom-tab" routerLink="/report" routerLinkActive="bottom-tab--active">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <line x1="3" y1="9" x2="21" y2="9"/>
+            <line x1="9" y1="21" x2="9" y2="9"/>
+          </svg>
+          <span class="bottom-tab-label">Reports</span>
+        </a>
+      </nav>
     </div><!-- /app-shell -->
+
+    <!-- ── Theme picker — centered modal ─────────────────── -->
+    <div class="palette-modal-backdrop" *ngIf="showPalettePicker" (click)="showPalettePicker = false"></div>
+    <div class="palette-modal-wrap" *ngIf="showPalettePicker" (click)="$event.stopPropagation()">
+      <app-palette-sheet
+        [customPresets]="navCustomPresets"
+        (paletteSelected)="applyQuickPalette($event)"
+        (closed)="showPalettePicker = false">
+      </app-palette-sheet>
+    </div>
 
     <!-- ── 1.68: End-of-Day Wrap-Up Sheet ───────────────── -->
     <div class="log-now-backdrop" *ngIf="wrapUpOpen" (click)="closeWrapUp()"></div>
@@ -551,75 +532,123 @@ const PERF = (() => {
       background: var(--bg-primary);
     }
 
-    /* ── Header ─────────────────────────────────────────── */
-    .app-header {
-      height: 60px;
-      flex-shrink: 0;
-      background: var(--header-bg);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 20px 0 16px;
-      z-index: 200;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-    }
-
-    .header-left {
+    /* ── Top strip (hamburger + Renmito) ─────────────────── */
+    .top-strip {
       display: flex;
       align-items: center;
       gap: 10px;
+      padding: 8px 14px 2px;
+      flex-shrink: 0;
     }
-
-    /* Hamburger — 1.22 */
-    .hamburger-btn {
-      width: 34px; height: 34px;
+    .top-strip-menu {
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
       border-radius: var(--radius-sm);
-      background: var(--header-icon-bg);
-      color: rgba(255,255,255,0.9);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      transition: background 0.2s;
-    }
-    .hamburger-btn:hover { background: var(--header-icon-hover); color: #fff; }
-
-    .header-logo { display: flex; align-items: center; gap: 10px; }
-    .app-title { font-size: 20px; font-weight: 700; color: var(--header-text); letter-spacing: -0.3px; font-family: 'Google Sans Flex', sans-serif; }
-
-    .header-actions { display: flex; align-items: center; gap: 14px; }
-    .header-date { font-size: 12px; color: rgba(255,255,255,0.78); }
-
-    .header-icon-btn,
-    .theme-toggle-btn {
-      width: 34px; height: 34px;
-      border-radius: 50%;
-      background: var(--header-icon-bg);
-      color: rgba(255,255,255,0.9);
-      display: flex; align-items: center; justify-content: center;
-      transition: background 0.2s, color 0.2s;
+      color: var(--text-secondary);
+      transition: background 0.15s, color 0.15s;
       flex-shrink: 0;
     }
-    .header-icon-btn:hover, .theme-toggle-btn:hover {
-      background: var(--header-icon-hover); color: #fff;
-    }
-    .header-icon-btn--active {
-      background: var(--header-icon-hover) !important;
-      color: #fff !important;
-      box-shadow: 0 0 0 2px rgba(255,255,255,0.25);
+    .top-strip-menu:hover { background: var(--accent-hover); color: var(--text-primary); }
+    .top-strip-title {
+      font-size: 24px; font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+      font-family: 'Google Sans Flex', sans-serif;
     }
 
-    .header-user {
-      font-size: 11px; font-weight: 600;
-      color: rgba(255,255,255,0.75);
-      background: rgba(255,255,255,0.1);
-      border-radius: 12px;
-      padding: 3px 10px;
-      letter-spacing: 0.3px;
-      max-width: 120px;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    /* ── Notes + Important Logs row (logger view, below metrics) */
+    .notes-important-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .notes-col {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      text-align: left;
+      width: 100%;
+    }
+    .notes-col:hover { border-color: var(--accent); color: var(--text-primary); }
+    .notes-col-label { flex: 1; }
+    .notes-row-count {
+      min-width: 18px; height: 18px;
+      padding: 0 5px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px; font-weight: 700;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── Day-type pill (in date-bar) ────────────────────── */
+    .hdr-dt { position: relative; }
+
+    .hdr-dt-trigger {
+      display: flex; align-items: center; gap: 5px;
+      padding: 4px 7px;
+      background: var(--bg-card);
+      border-radius: 20px;
+      color: var(--text-secondary);
+      font-size: 12px; font-weight: 600;
       cursor: pointer;
       transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
     }
-    .header-user:hover { background: rgba(255,255,255,0.2); color: #fff; }
+    .hdr-dt-trigger:hover { background: var(--accent-hover); color: var(--text-primary); }
+
+    .hdr-dt-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .hdr-dt-chevron {
+      opacity: 0.7;
+      transition: transform 0.15s;
+      flex-shrink: 0;
+    }
+
+    .hdr-dt-panel {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      min-width: 140px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+      z-index: 500;
+      padding: 4px;
+      animation: dtPanelIn 0.14s ease;
+    }
+    @keyframes dtPanelIn {
+      from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .hdr-dt-option {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 8px 10px;
+      border-radius: calc(var(--radius) - 2px);
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 12px; font-weight: 500;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+      text-align: left;
+    }
+    .hdr-dt-option:hover { background: var(--nav-item-hover); color: var(--text-primary); }
+    .hdr-dt-option--active { color: var(--text-primary); font-weight: 600; }
 
     /* ── Body ────────────────────────────────────────────── */
     .app-body { display: flex; flex: 1; overflow: hidden; }
@@ -629,7 +658,7 @@ const PERF = (() => {
        Hidden off-screen by default; slides in via transform when overlay is open. */
     .left-nav {
       position: fixed;
-      top: 60px;
+      top: 0;
       left: 0;
       bottom: 0;
       width: 210px;
@@ -665,8 +694,8 @@ const PERF = (() => {
       background: transparent; color: var(--nav-text);
       font-size: 13px; font-weight: 500;
       text-align: left;
-      border-left: 3px solid transparent;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      text-decoration: none;
+      transition: background 0.15s, color 0.15s;
       white-space: nowrap; overflow: hidden;
     }
     .left-nav-item svg { flex-shrink: 0; }
@@ -674,14 +703,17 @@ const PERF = (() => {
     .left-nav-item--active {
       background: var(--nav-item-active) !important;
       color: var(--nav-item-active-border) !important;
-      border-left-color: var(--nav-item-active-border) !important;
       font-weight: 600;
     }
+
+    .nav-group--bottom { margin-top: auto; }
+    .nav-logout { color: var(--text-muted) !important; }
+    .nav-logout:hover { color: #f87171 !important; background: rgba(248,113,113,0.08) !important; }
 
     /* ── View area ──────────────────────────────────────── */
     /* 1.53: scrollbar-gutter:stable reserves scrollbar lane so it never
              causes a layout shift when it appears / disappears            */
-    .view-area { flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: 20px 24px; min-width: 0; }
+    .view-area { flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: 10px 24px calc(58px + env(safe-area-inset-bottom, 0px) + 20px); min-width: 0; }
 
     /* ── Content area (full width now — no calendar panel) ─ */
     .content-area {
@@ -700,10 +732,10 @@ const PERF = (() => {
       padding: 10px 16px;
     }
     .date-bar-text {
-      font-size: 15px; font-weight: 700;
+      font-size: 9px; font-weight: 700;
       color: var(--text-primary);
     }
-    .date-bar-actions { display: flex; align-items: center; gap: 6px; }
+    .date-bar-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
     .date-bar-btn {
       width: 34px; height: 34px;
       background: var(--bg-card);
@@ -714,6 +746,7 @@ const PERF = (() => {
     }
     .date-bar-btn:hover:not(:disabled) { background: var(--accent-hover); color: var(--text-primary); }
     .date-bar-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .date-bar-btn--today { color: var(--accent) !important; }
 
     /* ── 1.83: Day type dropdown ────────────────────────────── */
     .day-type-bar { padding: 8px 4px 2px; position: relative; display: flex; align-items: center; gap: 8px; }
@@ -1029,6 +1062,21 @@ const PERF = (() => {
     .log-list-empty span { font-size: 11px; color: var(--text-muted); }
 
     /* ── Calendar popup — 1.23 ──────────────────────────── */
+    /* ── Palette centered modal ─────────────────────────── */
+    .palette-modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 600;
+      backdrop-filter: blur(2px);
+    }
+    .palette-modal-wrap {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 601;
+      pointer-events: none;
+    }
+    .palette-modal-wrap > * { pointer-events: auto; }
+
     .cal-overlay {
       position: fixed; inset: 0;
       background: rgba(0,0,0,0.55);
@@ -1109,6 +1157,44 @@ const PERF = (() => {
       color: var(--nav-text-muted);
       flex-shrink: 0;
       white-space: nowrap;
+    }
+
+    /* ── Bottom Tab Bar ─────────────────────────────────── */
+    .bottom-tab-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: calc(58px + env(safe-area-inset-bottom, 0px));
+      background: var(--nav-bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      padding-top: 8px;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      z-index: 150;
+    }
+
+    .bottom-tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 0;
+      color: var(--nav-text-muted);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .bottom-tab--active {
+      color: var(--accent);
+    }
+
+    .bottom-tab-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
     }
 
     /* ── Palette quick-picker ─────────────────────────── */
@@ -1238,7 +1324,6 @@ const PERF = (() => {
     .nav-dim-backdrop {
       position: fixed;
       inset: 0;
-      top: 60px;
       background: rgba(0,0,0,0.5);
       z-index: 99;
     }
@@ -1248,22 +1333,9 @@ const PERF = (() => {
       .header-date { display: none; }
       .timeline-view-container { padding: 10px; }
 
-      /* ── 1.84: Footer — thin + only at bottom of scroll ─── */
-      .app-footer {
-        display: flex;
-        padding: 5px 12px;
-        padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px));
-        gap: 10px;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.2s ease;
-      }
-      .app-footer.footer-visible { opacity: 1; pointer-events: auto; }
-      .footer-brand svg { display: none; }
-      .footer-brand { gap: 4px; }
-      .footer-logo-text { font-size: 10px; }
-      .footer-tagline { font-size: 8px; min-width: 0; }
-      .footer-copy { font-size: 8px; }
+      /* Footer is replaced by the bottom tab bar on mobile */
+      .app-footer { display: none; }
+
     }
 
     /* ── 1.62: Quick Shortcuts Bar / 1.84: wrap to 2 rows ───── */
@@ -1428,7 +1500,7 @@ const PERF = (() => {
     /* Toast */
     .shortcut-toast {
       position: fixed;
-      bottom: 84px;
+      bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 26px);
       left: 50%;
       transform: translateX(-50%);
       z-index: 400;
@@ -1466,7 +1538,7 @@ const PERF = (() => {
     /* ── 1.61: Log Now FAB ───────────────────────────────────── */
     .log-now-fab {
       position: fixed;
-      bottom: 72px;
+      bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 16px);
       right: 20px;
       z-index: 250;
       width: 52px;
@@ -2639,8 +2711,13 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly currentYear = new Date().getFullYear();
 
   get isJourneysRoute(): boolean { return this.router.url === '/journeys'; }
+  get isDateNavRoute(): boolean {
+    return this.router.url === '/logger' || this.router.url === '/timeline';
+  }
   get activeLog() { return this.appState.activeLog$.value; }
   get inlineLogTypes() { return this.appState.inlineLogTypes$.value; }
+
+  setDayType(dt: DayType): void { this.appState.setDayType(dt); }
 
   navOverlayOpen = false;
   private navEdgeSwipeTracking = false;
@@ -2770,6 +2847,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     // ── Subscribe to UI action signals from routed views ─────────
+    this.appState.openNavRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.navOverlayOpen = true;
+    });
     this.appState.openCalendarRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.pendingDate = new Date(this.appState.selectedDate);
       this.showCalendarPopup = true;
@@ -2876,7 +2956,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   togglePalettePicker(): void {
     this.showPalettePicker = !this.showPalettePicker;
-    if (this.showPalettePicker) { this.navOverlayOpen = false; }
+    if (this.showPalettePicker) { this.navOverlayOpen = false; } // close nav when picker opens
   }
 
   isPaletteActive(p: ColorPalette): boolean {
@@ -2930,15 +3010,12 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.navOverlayOpen = !this.navOverlayOpen;
   }
 
-  // Swipe-left on the main view-area (excluding log cards/journal lists) opens the nav overlay
+  // Swipe-right from left edge opens the nav overlay
   @HostListener('document:touchstart', ['$event'])
   onDocTouchStart(e: TouchEvent): void {
     if (this.navOverlayOpen) return;
-    const target = e.target as HTMLElement;
-    if (!target.closest('.view-area')) return;
-    if (target.closest('.swipe-wrap') || target.closest('.log-list') ||
-        target.closest('.jrn-card-list') || target.closest('.jrn-entries')) return;
     const t = e.touches[0];
+    if (t.clientX > 40) return; // must start from the left edge
     this.navEdgeSwipeTracking = true;
     this.navEdgeSwipeStartX = t.clientX;
     this.navEdgeSwipeStartY = t.clientY;
@@ -2955,7 +3032,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       this.navEdgeIsHorizontal = Math.abs(dx) > Math.abs(dy);
     }
     if (this.navEdgeIsHorizontal === false) { this.navEdgeSwipeTracking = false; return; }
-    if (dx < -60) {
+    if (dx > 60) {
       this.navOverlayOpen = true;
       this.navEdgeSwipeTracking = false;
     }

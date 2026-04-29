@@ -1,5 +1,5 @@
 import {
-  Component, OnInit, OnDestroy, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef,
+  Component, OnInit, OnDestroy, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef, HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject } from 'rxjs';
@@ -16,11 +16,35 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, TimelineComponent],
-  styles: [`:host { display: flex; flex-direction: column; gap: 14px; min-width: 0; }`],
+  styles: [`:host { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .date-title-row { display: flex; align-items: center; gap: 8px; }
+    .date-above-bar { font-size: 17px; font-weight: 700; color: var(--text-primary); line-height: 1; cursor: pointer; text-decoration: none; }
+  `],
   template: `
-    <!-- ── Date bar ────────────────────────────────────── -->
-    <div class="date-bar">
-      <span class="date-bar-text">{{ appState.dateShortLabel }}</span>
+    <!-- ── Day-type pill · Date · Nav buttons ───────────── -->
+    <div class="date-title-row">
+      <div class="hdr-dt" *ngIf="dayMetadata">
+        <button class="hdr-dt-trigger"
+                (click)="dayTypeDropdownOpen = !dayTypeDropdownOpen; $event.stopPropagation()"
+                [attr.aria-expanded]="dayTypeDropdownOpen">
+          <span class="hdr-dt-dot" [style.background]="dayTypeColor"></span>
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" class="hdr-dt-chevron"
+               [style.transform]="dayTypeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'">
+            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="hdr-dt-panel" *ngIf="dayTypeDropdownOpen" (click)="$event.stopPropagation()">
+          <button *ngFor="let opt of dayTypeOptions"
+                  class="hdr-dt-option"
+                  [class.hdr-dt-option--active]="dayMetadata?.dayType === opt.value"
+                  (click)="setDayType(opt.value); dayTypeDropdownOpen = false">
+            <span class="hdr-dt-dot" [style.background]="opt.color"></span>
+            {{ opt.label }}
+          </button>
+        </div>
+      </div>
+      <span class="date-above-bar" (click)="appState.openCalendarRequested$.next()">{{ appState.dateShortLabel }}</span>
       <div class="date-bar-actions">
         <button class="date-bar-btn" (click)="appState.prevDay()"
                 title="Previous day" aria-label="Previous day">
@@ -37,23 +61,16 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
             <polyline points="9 18 15 12 9 6"/>
           </svg>
         </button>
-        <button class="date-bar-btn" (click)="appState.goToToday()"
+        <button class="date-bar-btn date-bar-btn--today"
                 [disabled]="appState.isToday"
-                title="Go to today" aria-label="Go to today">
+                (click)="appState.goToToday()" title="Go to today" aria-label="Go to today">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9"/>
-            <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
-          </svg>
-        </button>
-        <button class="date-bar-btn" (click)="appState.openCalendarRequested$.next()"
-                title="Pick a date" aria-label="Open calendar">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
             <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8"  y1="2" x2="8"  y2="6"/>
-            <line x1="3"  y1="10" x2="21" y2="10"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+            <circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none"/>
           </svg>
         </button>
         <button class="date-bar-btn"
@@ -61,47 +78,11 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
                 title="Important Logs" aria-label="Important Logs">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <circle cx="12" cy="16" r="0.5" fill="currentColor" stroke="currentColor" stroke-width="1"/>
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
           </svg>
         </button>
       </div>
     </div>
-
-    <!-- Day type selector -->
-    <div class="day-type-bar" *ngIf="dayMetadata">
-      <div class="dt-select" [class.dt-select--open]="dayTypeDropdownOpen">
-        <button class="dt-trigger"
-                (click)="dayTypeDropdownOpen = !dayTypeDropdownOpen; $event.stopPropagation()">
-          <span class="dt-trigger-label">{{ selectedDayTypeLabel }}</span>
-          <svg class="dt-chevron" width="11" height="11" viewBox="0 0 12 12" fill="none">
-            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
-                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-        <div class="dt-panel" *ngIf="dayTypeDropdownOpen" (click)="$event.stopPropagation()">
-          <button *ngFor="let opt of dayTypeOptions"
-                  class="dt-option"
-                  [class.dt-option--active]="dayMetadata!.dayType === opt.value"
-                  (click)="setDayType(opt.value); dayTypeDropdownOpen = false">
-            {{ opt.label }}
-          </button>
-        </div>
-      </div>
-      <button class="dt-notes-btn" (click)="appState.openNotesRequested$.next()" title="Day notes">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
-        Notes<span class="dt-notes-count" *ngIf="notesCount > 0">{{ notesCount }}</span>
-      </button>
-    </div>
-    <div class="dt-backdrop" *ngIf="dayTypeDropdownOpen" (click)="dayTypeDropdownOpen = false"></div>
 
     <!-- Timeline -->
     <div class="timeline-view-container">
@@ -133,16 +114,20 @@ export class TimelineViewComponent implements OnInit, OnDestroy {
   metricLogIds:     Set<string> | null = null;
   dayTypeDropdownOpen = false;
 
-  readonly dayTypeOptions: { value: DayType; label: string }[] = [
-    { value: 'working',    label: 'Working Day' },
-    { value: 'wfh',        label: 'WFH'         },
-    { value: 'holiday',    label: 'Holiday'      },
-    { value: 'paid_leave', label: 'Paid Leave'   },
-    { value: 'sick_leave', label: 'Sick Leave'   },
+  readonly dayTypeOptions: { value: DayType; label: string; color: string }[] = [
+    { value: 'working',    label: 'Working Day', color: '#4ade80' },
+    { value: 'wfh',        label: 'WFH',         color: '#facc15' },
+    { value: 'holiday',    label: 'Holiday',      color: '#60a5fa' },
+    { value: 'paid_leave', label: 'Paid Leave',   color: '#fb923c' },
+    { value: 'sick_leave', label: 'Sick Leave',   color: '#f87171' },
   ];
 
   get selectedDayTypeLabel(): string {
     return this.dayTypeOptions.find(o => o.value === this.dayMetadata?.dayType)?.label ?? 'Day Type';
+  }
+
+  get dayTypeColor(): string {
+    return this.dayTypeOptions.find(o => o.value === this.dayMetadata?.dayType)?.color ?? '#4ade80';
   }
 
   setDayType(dayType: DayType): void { this.appState.setDayType(dayType); }
@@ -172,6 +157,11 @@ export class TimelineViewComponent implements OnInit, OnDestroy {
     this.appState.metricLogIds$.pipe(takeUntil(this.destroy$)).subscribe(v => {
       this.metricLogIds = v; this.cdr.markForCheck();
     });
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.dayTypeDropdownOpen) { this.dayTypeDropdownOpen = false; this.cdr.markForCheck(); }
   }
 
   ngOnDestroy(): void {

@@ -151,10 +151,18 @@ button {
   font-weight: 500;
   border-radius: var(--radius-sm);
   transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
 }
+button:focus { outline: none; }
 button:focus-visible {
   outline: 2px solid var(--highlight-selected);
   outline-offset: 2px;
+}
+
+*, *::before, *::after {
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Input / Select base */
