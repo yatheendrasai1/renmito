@@ -1,8 +1,9 @@
 const https = require('https');
-const configSvc    = require('./config.service');
-const DefaultLogType = require('../models/DefaultLogType');
-const LogType        = require('../models/LogType');
-const TimeLog        = require('../models/TimeLog');
+const configSvc       = require('./config.service');
+const promptLibrarySvc = require('./promptLibrary.service');
+const DefaultLogType  = require('../models/DefaultLogType');
+const LogType         = require('../models/LogType');
+const TimeLog         = require('../models/TimeLog');
 
 // ── Structured logger ──────────────────────────────────────────────────────
 function aiLog(level, op, msg, extra) {
@@ -42,23 +43,11 @@ async function parseLogPrompt(userId, prompt, date) {
   // Compact representation to keep prompt small
   const typesCompact = allTypes.map(t => `${t.id}|${t.name}|${t.domain}`).join('\n');
 
-  const systemPrompt = `Time log parser. Return ONLY a compact JSON array, no markdown, no explanation.
-
-Log types (format: id|name|domain):
-${typesCompact}
-
-Rules:
-- One array element per activity mentioned.
-- Match activity to closest log type name. Use the exact id from above.
-- entryType: "point" = single time, "range" = start+end.
-- Times in HH:MM 24h. Infer missing times logically from context.
-- title: use specific detail from input (e.g. "Maggi with chicken", "Break with Phani and Rajiv"), not just the type name.
-- Date context: ${date}.
-
-Output schema (array, even for one item):
-[{"logTypeId":"...","logTypeName":"...","domain":"...","entryType":"point|range","pointTime":"HH:MM or null","startTime":"HH:MM or null","endTime":"HH:MM or null","title":"..."}]
-
-Input: "${prompt}"`;
+  const systemPrompt = await promptLibrarySvc.getPrompt('parse-log', {
+    logTypes: typesCompact,
+    date,
+    input: prompt,
+  });
 
   const t0 = Date.now();
   const { text: responseText, finishReason } = await _callGemini(apiKey, systemPrompt, op);
@@ -313,29 +302,12 @@ async function chatWithRenni(userId, message, date) {
 
   const logsContext = logs.length > 0 ? logs.map(formatLog).join('\n') : 'No logs recorded yet.';
 
-  const systemPrompt = `You are Renni, a friendly AI assistant inside Renmito time tracker.
-
-Today's date: ${date}
-User's recent logs:
-${logsContext}
-
-Available log types (id|name|domain):
-${typesCompact}
-
-Rules:
-- If user describes activities to log, return type "logs".
-- If user asks a question about their time or logs, return type "answer" with a short friendly text.
-- For greetings or general chat, return type "answer".
-- Times in HH:MM 24h. title: use specific detail from input.
-- Be concise and warm in answers (1-2 sentences max).
-
-Return ONLY valid JSON, no markdown, no explanation:
-
-For logging: {"type":"logs","logs":[{"logTypeId":"...","logTypeName":"...","domain":"...","entryType":"point|range","pointTime":"HH:MM or null","startTime":"HH:MM or null","endTime":"HH:MM or null","title":"..."}]}
-
-For answering: {"type":"answer","text":"..."}
-
-User message: "${message}"`;
+  const systemPrompt = await promptLibrarySvc.getPrompt('chat-renni', {
+    date,
+    logsContext,
+    logTypes: typesCompact,
+    message,
+  });
 
   const t0 = Date.now();
   const { text: responseText, finishReason } = await _callGemini(apiKey, systemPrompt, op);

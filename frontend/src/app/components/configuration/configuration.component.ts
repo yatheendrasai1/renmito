@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { ConfigService } from '../../services/config.service';
 import { PreferenceService, DaySettings } from '../../services/preference.service';
 import { LogTypeService } from '../../services/log-type.service';
 import { LogType } from '../../models/log-type.model';
@@ -23,8 +22,7 @@ const DEFAULT_DAY_SETTINGS: DaySettings = {
   bedtimeTarget:   '23:00',
 };
 
-type AccordionSection = 'preferences' | 'intelligence' | 'theming' | null;
-type IntelStep = 'list' | 'choose' | 'gemini-key';
+type AccordionSection = 'preferences' | 'theming' | null;
 
 @Component({
   selector: 'app-configuration',
@@ -178,142 +176,6 @@ type IntelStep = 'list' | 'choose' | 'gemini-key';
         </div>
       </div>
 
-      <!-- ── Intelligence accordion ─────────────────────────────── -->
-      <div class="acc" [class.acc--open]="openSection === 'intelligence'">
-        <button class="acc-head" (click)="toggleSection('intelligence')" type="button">
-          <div class="acc-icon acc-icon--intel">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 8v4M12 16h.01"/>
-            </svg>
-          </div>
-          <div class="acc-meta">
-            <span class="acc-title">Intelligence</span>
-            <span class="acc-sub">AI integrations for log assistance</span>
-          </div>
-          <span class="acc-badge acc-badge--ok" *ngIf="geminiConfigured">Connected</span>
-          <svg class="acc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </button>
-
-        <div class="acc-body" *ngIf="openSection === 'intelligence'">
-
-          <!-- No integrations yet -->
-          <div class="intel-empty" *ngIf="!geminiConfigured && intelStep === 'list'">
-            <div class="intel-empty-icon">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M12 8v4M12 16h.01"/>
-              </svg>
-            </div>
-            <p class="intel-empty-text">No intelligence configured</p>
-            <button class="intel-add-btn" (click)="intelStep = 'choose'" type="button">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              Add Intelligence
-            </button>
-          </div>
-
-          <!-- Already connected -->
-          <div class="intel-connected" *ngIf="geminiConfigured && intelStep === 'list'">
-            <div class="intel-item">
-              <div class="intel-item-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                  <path d="M2 17l10 5 10-5"/>
-                  <path d="M2 12l10 5 10-5"/>
-                </svg>
-              </div>
-              <div class="intel-item-info">
-                <span class="intel-item-name">Google Gemini</span>
-                <span class="intel-item-desc">Powers the Renni AI assistant</span>
-              </div>
-              <span class="acc-badge acc-badge--ok">Connected</span>
-              <button class="intel-update-btn" (click)="intelStep = 'gemini-key'" type="button">Update key</button>
-            </div>
-          </div>
-
-          <!-- Choose provider -->
-          <div class="intel-choose" *ngIf="intelStep === 'choose'">
-            <div class="intel-choose-label">Choose a provider</div>
-            <button class="intel-provider-card" (click)="intelStep = 'gemini-key'" type="button">
-              <div class="intel-provider-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                  <path d="M2 17l10 5 10-5"/>
-                  <path d="M2 12l10 5 10-5"/>
-                </svg>
-              </div>
-              <div class="intel-provider-info">
-                <span class="intel-provider-name">Google Gemini</span>
-                <span class="intel-provider-desc">Fast, multimodal AI from Google</span>
-              </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.4">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
-            </button>
-            <button class="intel-back-btn" (click)="intelStep = 'list'" type="button">← Back</button>
-          </div>
-
-          <!-- Gemini key entry -->
-          <div class="intel-key-form" *ngIf="intelStep === 'gemini-key'">
-            <div class="intel-key-header">
-              <div class="intel-item-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                  <path d="M2 17l10 5 10-5"/>
-                  <path d="M2 12l10 5 10-5"/>
-                </svg>
-              </div>
-              <span class="intel-key-title">Gemini API Key</span>
-            </div>
-            <div class="cfg-key-row">
-              <input class="cfg-key-input"
-                     [type]="showKey ? 'text' : 'password'"
-                     [(ngModel)]="apiKeyInput"
-                     placeholder="AIza…"
-                     autocomplete="off"
-                     spellcheck="false"/>
-              <button class="cfg-key-toggle" (click)="showKey = !showKey" type="button">
-                <svg *ngIf="!showKey" width="15" height="15" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                <svg *ngIf="showKey" width="15" height="15" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              </button>
-            </div>
-            <p class="cfg-hint">
-              Get your key from
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="cfg-link">Google AI Studio</a>.
-              The key is verified before saving.
-            </p>
-            <div class="cfg-feedback cfg-feedback--error" *ngIf="intelErrorMsg">{{ intelErrorMsg }}</div>
-            <div class="cfg-feedback cfg-feedback--ok"    *ngIf="intelSuccessMsg">{{ intelSuccessMsg }}</div>
-            <div class="acc-footer">
-              <button class="acc-cancel-btn" (click)="cancelIntelKey()" type="button">Cancel</button>
-              <button class="acc-save-btn" (click)="saveKey()"
-                      [disabled]="saving || !apiKeyInput.trim()" type="button">
-                {{ saving ? 'Verifying…' : 'Verify & Save' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- ── Theming accordion ───────────────────────────────────── -->
       <div class="acc" [class.acc--open]="openSection === 'theming'">
         <button class="acc-head" (click)="toggleSection('theming')" type="button">
@@ -391,7 +253,6 @@ type IntelStep = 'list' | 'choose' | 'gemini-key';
       flex-shrink: 0;
     }
     .acc-icon--pref  { background: rgba(99,179,237,0.12); color: #63b3ed; }
-    .acc-icon--intel { background: rgba(154,230,180,0.12); color: #68d391; }
     .acc-icon--theme { background: rgba(183,148,244,0.12); color: #b794f4; }
 
     .acc-meta { flex: 1; min-width: 0; }
@@ -504,76 +365,6 @@ type IntelStep = 'list' | 'choose' | 'gemini-key';
     }
     .lt-add-btn:hover { background: var(--bg-surface, rgba(255,255,255,0.05)); color: var(--text-primary, #E0E4F0); }
 
-    /* ── Intelligence states ─────────────────────────────────── */
-    .intel-empty {
-      padding: 28px 16px;
-      display: flex; flex-direction: column; align-items: center; gap: 10px;
-      text-align: center;
-    }
-    .intel-empty-icon { opacity: 0.5; }
-    .intel-empty-text { font-size: 0.84rem; color: var(--text-muted, #6A7290); margin: 0; }
-    .intel-add-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 8px 16px; border-radius: 8px; font-size: 0.83rem; font-weight: 600;
-      background: rgba(99,179,237,0.1); border: 1px solid rgba(99,179,237,0.25);
-      color: #63b3ed; cursor: pointer; transition: background 0.15s;
-    }
-    .intel-add-btn:hover { background: rgba(99,179,237,0.18); }
-
-    .intel-connected { padding: 12px 16px; }
-    .intel-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 12px; border-radius: 9px;
-      background: var(--bg-surface, rgba(255,255,255,0.04));
-      border: 1px solid var(--border-light, rgba(255,255,255,0.07));
-    }
-    .intel-item-icon {
-      width: 34px; height: 34px; border-radius: 8px;
-      background: rgba(154,230,180,0.1);
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-      color: #68d391;
-    }
-    .intel-item-info { flex: 1; min-width: 0; }
-    .intel-item-name { display: block; font-size: 0.86rem; font-weight: 600; }
-    .intel-item-desc { display: block; font-size: 0.73rem; color: var(--text-muted, #6A7290); }
-    .intel-update-btn {
-      padding: 5px 10px; border-radius: 6px; font-size: 0.76rem; font-weight: 500;
-      background: none; border: 1px solid var(--border, rgba(255,255,255,0.15));
-      color: var(--text-secondary, #8090A8); cursor: pointer; transition: background 0.12s;
-    }
-    .intel-update-btn:hover { background: var(--bg-surface, rgba(255,255,255,0.08)); }
-
-    .intel-choose { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .intel-choose-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted, #6A7290); }
-    .intel-provider-card {
-      display: flex; align-items: center; gap: 12px;
-      padding: 12px 14px; border-radius: 10px; cursor: pointer;
-      background: var(--bg-surface, rgba(255,255,255,0.04));
-      border: 1px solid var(--border-light, rgba(255,255,255,0.1));
-      color: inherit; text-align: left;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .intel-provider-card:hover { background: var(--bg-card, rgba(255,255,255,0.07)); border-color: var(--border, rgba(255,255,255,0.2)); }
-    .intel-provider-icon {
-      width: 40px; height: 40px; border-radius: 10px;
-      background: rgba(154,230,180,0.1);
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-      color: #68d391;
-    }
-    .intel-provider-info { flex: 1; }
-    .intel-provider-name { display: block; font-size: 0.88rem; font-weight: 600; }
-    .intel-provider-desc { display: block; font-size: 0.74rem; color: var(--text-muted, #6A7290); margin-top: 2px; }
-    .intel-back-btn {
-      background: none; border: none; color: var(--text-muted, #6A7290);
-      font-size: 0.78rem; cursor: pointer; padding: 0;
-      align-self: flex-start;
-    }
-    .intel-back-btn:hover { color: var(--text-primary, #E0E4F0); }
-
-    .intel-key-form { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-    .intel-key-header { display: flex; align-items: center; gap: 10px; }
-    .intel-key-title { font-size: 0.9rem; font-weight: 600; }
-
     /* ── Shared form elements ────────────────────────────────── */
     .cfg-key-row { display: flex; gap: 6px; }
     .cfg-key-input {
@@ -652,20 +443,10 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   showNewLtForm = false;
   newLt = { name: '', domain: 'personal' as 'work' | 'personal' | 'family' };
 
-  // ── Intelligence ──────────────────────────────────────────
-  geminiConfigured = false;
-  intelStep: IntelStep = 'list';
-  apiKeyInput  = '';
-  showKey      = false;
-  saving       = false;
-  intelErrorMsg   = '';
-  intelSuccessMsg = '';
-
   constructor(
-    private configService: ConfigService,
-    private prefService:   PreferenceService,
-    private ltService:     LogTypeService,
-    private cdr:           ChangeDetectorRef,
+    private prefService: PreferenceService,
+    private ltService:   LogTypeService,
+    private cdr:         ChangeDetectorRef,
   ) {}
 
   ngOnDestroy(): void {
@@ -674,10 +455,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.configService.getConfig().pipe(takeUntil(this.destroy$)).subscribe({
-      next: cfg => { this.geminiConfigured = cfg.geminiConfigured; this.cdr.markForCheck(); },
-      error: () => {}
-    });
     this.prefService.getPreferences().pipe(takeUntil(this.destroy$)).subscribe({
       next: prefs => {
         if (prefs?.daySettings) {
@@ -700,12 +477,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
       this.idealDayDraft = { ...this.idealDay };
       this.idealErrorMsg   = '';
       this.idealSuccessMsg = '';
-    }
-    if (section === 'intelligence') {
-      this.intelStep      = 'list';
-      this.apiKeyInput    = '';
-      this.intelErrorMsg  = '';
-      this.intelSuccessMsg = '';
     }
   }
 
@@ -792,40 +563,6 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       },
       error: () => {}
-    });
-  }
-
-  // ── Intelligence ──────────────────────────────────────────
-  cancelIntelKey(): void {
-    this.intelStep   = this.geminiConfigured ? 'list' : 'list';
-    this.apiKeyInput = '';
-    this.intelErrorMsg  = '';
-    this.intelSuccessMsg = '';
-  }
-
-  saveKey(): void {
-    if (this.saving || !this.apiKeyInput.trim()) return;
-    this.saving = true;
-    this.intelErrorMsg  = '';
-    this.intelSuccessMsg = '';
-    this.configService.saveGeminiKey(this.apiKeyInput.trim()).pipe(takeUntil(this.destroy$)).subscribe({
-      next: res => {
-        this.saving           = false;
-        this.geminiConfigured = true;
-        this.intelSuccessMsg  = res.message;
-        this.apiKeyInput      = '';
-        this.cdr.markForCheck();
-        setTimeout(() => {
-          this.intelSuccessMsg = '';
-          this.intelStep = 'list';
-          this.cdr.markForCheck();
-        }, 2000);
-      },
-      error: err => {
-        this.saving = false;
-        this.intelErrorMsg = err.error?.error || 'Failed to verify API key.';
-        this.cdr.markForCheck();
-      }
     });
   }
 

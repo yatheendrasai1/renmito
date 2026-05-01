@@ -27,4 +27,9 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./components/configuration/configuration.component').then(m => m.ConfigurationComponent),
   },
+  {
+    path: 'intelligence',
+    loadComponent: () =>
+      import('./components/intelligence/intelligence.component').then(m => m.IntelligenceComponent),
+  },
 ];

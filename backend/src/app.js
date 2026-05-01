@@ -15,6 +15,7 @@ const notesRouter            = require('./routes/notes.route');
 const authMiddleware       = require('./middleware/authMiddleware');
 const seedDefaultLogTypes  = require('./utils/seedDefaults');
 const seedEnhancements     = require('./utils/seedEnhancements');
+const seedPrompts          = require('./utils/seedPrompts');
 
 const app = express();
 
@@ -39,6 +40,7 @@ async function ensureConnection() {
         console.log('Connected to MongoDB Atlas');
         await seedDefaultLogTypes();
         await seedEnhancements();
+        await seedPrompts();
       })
       .catch(err => {
         _connectionPromise = null;
