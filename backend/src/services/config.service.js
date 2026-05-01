@@ -8,7 +8,10 @@ async function getConfig(userId) {
 }
 
 async function verifyAndSaveGeminiKey(userId, apiKey) {
+  console.log(`[Config] verifying Gemini key for user ...${userId.toString().slice(-6)}`);
+  const t0 = Date.now();
   await _verifyGeminiKey(apiKey);
+  console.log(`[Config] key verified ok in ${Date.now() - t0}ms`);
   await AccountConfig.findOneAndUpdate(
     { userId },
     { $set: { geminiApiKey: apiKey, geminiVerified: true } },
@@ -30,7 +33,7 @@ function _verifyGeminiKey(apiKey) {
     });
     const req = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path: `/v1beta/models/gemini-flash-latest:generateContent`,
+      path: `/v1beta/models/gemini-2.5-flash-lite:generateContent`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), 'X-goog-api-key': apiKey }
     }, (res) => {
@@ -40,8 +43,11 @@ function _verifyGeminiKey(apiKey) {
         if (res.statusCode === 200) return resolve();
         try {
           const parsed = JSON.parse(data);
-          reject(new Error(parsed.error?.message || 'Invalid API key'));
+          const msg = parsed.error?.message || 'Invalid API key';
+          console.error(`[Config] key verification failed (${res.statusCode}): ${msg}`);
+          reject(new Error(msg));
         } catch {
+          console.error(`[Config] key verification failed (${res.statusCode}): unparseable response`);
           reject(new Error('Invalid API key'));
         }
       });

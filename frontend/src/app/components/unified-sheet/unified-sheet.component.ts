@@ -10,7 +10,7 @@ import { takeUntil } from 'rxjs/operators';
 import { LogService } from '../../services/log.service';
 import { LogTypeService } from '../../services/log-type.service';
 import { PreferenceService, ActiveLog } from '../../services/preference.service';
-import { AiService, RenniMessage, ChatResponse } from '../../services/ai.service';
+import { AiService, AiError, RenniMessage, ChatResponse } from '../../services/ai.service';
 import { LogType } from '../../models/log-type.model';
 import { LogEntry, CreateLogEntry } from '../../models/log.model';
 
@@ -286,8 +286,14 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
                 <div *ngIf="msg.thinking" class="renni-bubble renni-bubble--renni renni-thinking">
                   <span class="renni-dot"></span><span class="renni-dot"></span><span class="renni-dot"></span>
                 </div>
-                <div *ngIf="!msg.thinking && msg.text && !msg.logs" class="renni-bubble renni-bubble--renni">
+                <div *ngIf="!msg.thinking && msg.text && !msg.logs && !msg.isError" class="renni-bubble renni-bubble--renni">
                   {{ msg.text }}
+                </div>
+                <div *ngIf="!msg.thinking && msg.text && msg.isError" class="renni-bubble renni-bubble--error">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <span>{{ msg.text }}</span>
                 </div>
                 <div *ngIf="msg.confirmed" class="renni-bubble renni-bubble--renni renni-confirmed">
                   ✓ Logged {{ msg.logs?.length }} {{ msg.logs?.length === 1 ? 'entry' : 'entries' }}
@@ -525,6 +531,7 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
     .renni-bubble { padding: 9px 13px; border-radius: 16px; font-size: 0.86rem; line-height: 1.45; word-break: break-word; }
     .renni-bubble--user { background: var(--accent, #6366f1); color: #fff; border-radius: 16px 16px 4px 16px; }
     .renni-bubble--renni { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px 16px 16px 4px; }
+    .renni-bubble--error { display: flex; align-items: flex-start; gap: 7px; padding: 9px 13px; border-radius: 16px 16px 16px 4px; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); color: #fca5a5; font-size: 0.86rem; line-height: 1.45; word-break: break-word; }
     .renni-confirmed { background: rgba(167,139,250,0.15); border-color: rgba(167,139,250,0.3); color: #a78bfa; font-weight: 500; }
     .renni-thinking { display: flex; gap: 5px; padding: 12px 16px; align-items: center; }
     .renni-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.5; animation: renniPulse 1.2s ease-in-out infinite; }
@@ -892,9 +899,14 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
         this._scrollRenniToBottom();
         this.cd.markForCheck();
       },
-      error: err => {
+      error: (err: AiError) => {
         this.renniThinking = false;
-        this.renniMsgs[thinkingIdx] = { from: 'renni', text: err.error?.error || 'Something went wrong. Try again.' };
+        this.renniMsgs[thinkingIdx] = {
+          from: 'renni',
+          text: err.message || 'Something went wrong. Try again.',
+          isError: true,
+          errorCode: err.code,
+        };
         this._scrollRenniToBottom();
         this.cd.markForCheck();
       },
