@@ -17,22 +17,11 @@ import { LogEntry } from '../../models/log.model';
 import { LogService } from '../../services/log.service';
 import { DayLevelService } from '../../services/day-level.service';
 
-type MetricView    = 'professional' | 'personal';
-type AnalyticsMode = 'digital' | 'visual';
-
-interface PieSlice {
-  name:  string;
-  color: string;
-  hours: number;
-  pct:   number;
-  path:  string;   // SVG path for the slice
-}
-
-interface MetricCard {
-  label:   string;
-  main:    string;        // e.g. "4h 50min"
-  side:    string | null; // e.g. "43%"  or null
-  logIds:  string[];      // IDs of contributing logs on the selected day
+interface LogTypeBreakdown {
+  id:        string;
+  name:      string;
+  color:     string;
+  totalMins: number;
 }
 
 @Component({
@@ -48,18 +37,11 @@ interface MetricCard {
 
         <div class="summary-card">
           <span class="summary-label">Coverage</span>
-          <div class="summary-ring-body">
-            <div class="coverage-ring-wrap">
-              <svg viewBox="0 0 56 56" class="coverage-svg" aria-hidden="true">
-                <circle cx="28" cy="28" r="20" fill="none"
-                  class="ring-track" stroke-width="5"/>
-                <circle cx="28" cy="28" r="20" fill="none"
-                  [attr.stroke]="coveragePct >= 100 ? '#5BAD6F' : 'var(--accent-bright)'"
-                  stroke-width="5" stroke-linecap="round"
-                  [attr.stroke-dasharray]="coverageDash"
-                  transform="rotate(-90 28 28)"/>
-              </svg>
-              <span class="coverage-center-text">{{ coveragePct }}%</span>
+          <span class="summary-val">{{ coveragePct }}%</span>
+          <div class="coverage-bar-track">
+            <div class="coverage-bar-fill"
+              [style.width.%]="coveragePct"
+              [style.background]="coveragePct >= 100 ? '#a3d4ac' : '#93b8de'">
             </div>
           </div>
         </div>
@@ -67,13 +49,6 @@ interface MetricCard {
         <div class="summary-card">
           <span class="summary-label">Logged</span>
           <span class="summary-val">{{ coveredHoursLabel }}</span>
-          <span class="summary-sub">of 8h today</span>
-        </div>
-
-        <div class="summary-card">
-          <span class="summary-label">Streak</span>
-          <span class="summary-val">{{ streak }}</span>
-          <span class="summary-sub">{{ streak === 1 ? 'day' : 'days' }}</span>
         </div>
 
       </div>
@@ -89,107 +64,49 @@ interface MetricCard {
             </svg>
             <h2 class="metrics-title">Metrics</h2>
           </button>
-          <div class="metrics-header-right" *ngIf="isExpanded" (click)="$event.stopPropagation()">
-            <button class="metrics-clear-btn"
-                    *ngIf="selectedCardIdx !== null && analyticsMode === 'digital'"
-                    (click)="clearSelection()"
-                    aria-label="Clear metric filter">
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                <path d="M9 3L3 9M3 3l6 6" stroke="currentColor" stroke-width="1.8"
-                      stroke-linecap="round"/>
-              </svg>
-              Clear
-            </button>
-            <select class="metrics-view-select"
-                    *ngIf="analyticsMode === 'digital'"
-                    [ngModel]="view"
-                    (ngModelChange)="onViewChange($event)">
-              <option value="professional">Professional</option>
-              <option value="personal">Personal</option>
-            </select>
-            <div class="mode-wrap">
-              <button class="mode-btn" (click)="toggleModeMenu(); $event.stopPropagation()">
-                Mode
-                <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-                  <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5"
-                        stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <div class="mode-menu" *ngIf="modeMenuOpen">
-                <button class="mode-menu-item"
-                        [class.mode-menu-item--active]="analyticsMode === 'digital'"
-                        (click)="setMode('digital')">
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                    <rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
-                    <path d="M4 7h6M4 9.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                  </svg>
-                  Digital
-                </button>
-                <button class="mode-menu-item"
-                        [class.mode-menu-item--active]="analyticsMode === 'visual'"
-                        (click)="setMode('visual')">
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                    <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/>
-                    <path d="M7 7L7 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                    <path d="M7 7L11.5 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                  </svg>
-                  Visual
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- Animated body -->
         <div class="metrics-body-grid" [class.metrics-body-grid--open]="isExpanded">
         <div class="metrics-body">
 
-          <!-- Digital: metric cards -->
-          <div class="metrics-cards" *ngIf="analyticsMode === 'digital'">
-            <div class="metric-card"
-                 *ngFor="let card of activeCards; let i = index; trackBy: trackByLabel"
-                 [class.metric-card--selected]="selectedCardIdx === i"
-                 (click)="selectCard(i)">
-              <span class="metric-label">{{ card.label }}</span>
-              <div class="metric-body-row">
-                <span class="metric-main">{{ card.main }}</span>
-                <span class="metric-side" *ngIf="card.side">{{ card.side }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Visual: pie chart -->
-          <div class="metrics-visual" *ngIf="analyticsMode === 'visual'">
-            <ng-container *ngIf="workPieSlices.length > 0; else noPieData">
-              <div class="pie-wrap">
-                <svg viewBox="0 0 200 200" class="pie-svg" aria-label="Work domain breakdown">
-                  <ng-container *ngIf="workPieSlices.length === 1">
-                    <circle cx="100" cy="100" r="80" [attr.fill]="workPieSlices[0].color"/>
-                  </ng-container>
-                  <ng-container *ngIf="workPieSlices.length > 1">
-                    <path *ngFor="let s of workPieSlices; trackBy: trackByName"
-                          [attr.d]="s.path"
-                          [attr.fill]="s.color"
-                          class="pie-slice"/>
-                  </ng-container>
-                  <circle cx="100" cy="100" r="52" fill="var(--bg-surface)"/>
-                  <text x="100" y="94" text-anchor="middle" class="pie-center-top">Work</text>
-                  <text x="100" y="112" text-anchor="middle" class="pie-center-bot">{{ workTotalLabel }}</text>
-                </svg>
-                <div class="pie-legend">
-                  <div class="pie-legend-row" *ngFor="let s of workPieSlices; trackBy: trackByName">
-                    <span class="pie-legend-dot" [style.background]="s.color"></span>
-                    <span class="pie-legend-name">{{ s.name }}</span>
-                    <span class="pie-legend-val">{{ fmtHPublic(s.hours) }}</span>
-                    <span class="pie-legend-pct">{{ s.pct }}%</span>
-                  </div>
+          <ng-container *ngIf="logTypeBreakdown.length > 0; else noBreakdown">
+            <div class="breakdown-list">
+              <div class="breakdown-item"
+                   *ngFor="let bt of visibleBreakdown; trackBy: trackByBreakdownId">
+                <div class="breakdown-row">
+                  <span class="breakdown-dot" [style.background]="bt.color || '#9B9B9B'"></span>
+                  <span class="breakdown-name">{{ bt.name }}</span>
+                  <span class="breakdown-time">{{ fmtMins(bt.totalMins) }}</span>
+                  <span class="breakdown-pct">{{ breakdownPct(bt.totalMins) }}%</span>
+                </div>
+                <div class="breakdown-track">
+                  <div class="breakdown-fill"
+                       [style.width]="breakdownPct(bt.totalMins) + '%'"
+                       [style.background]="bt.color || '#9B9B9B'"></div>
                 </div>
               </div>
-            </ng-container>
-            <ng-template #noPieData>
-              <div class="pie-empty">No work logs for today.</div>
-            </ng-template>
-          </div>
+            </div>
+            <button class="breakdown-expand-btn"
+                    *ngIf="logTypeBreakdown.length > 4"
+                    (click)="breakdownExpanded = !breakdownExpanded; $event.stopPropagation()">
+              <ng-container *ngIf="!breakdownExpanded">
+                Show {{ logTypeBreakdown.length - 4 }} more
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                  <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </ng-container>
+              <ng-container *ngIf="breakdownExpanded">
+                Show less
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                  <path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </ng-container>
+            </button>
+          </ng-container>
+          <ng-template #noBreakdown>
+            <div class="breakdown-empty">No logs for this day.</div>
+          </ng-template>
 
         </div>
         </div>
@@ -217,15 +134,15 @@ interface MetricCard {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 10px 12px;
+      padding: 7px 9px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
       min-width: 0;
     }
 
     .summary-label {
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 700;
       color: var(--text-muted);
       text-transform: uppercase;
@@ -233,49 +150,27 @@ interface MetricCard {
     }
 
     .summary-val {
-      font-size: 22px;
+      font-size: 16px;
       font-weight: 800;
       color: var(--text-primary);
       line-height: 1;
       font-variant-numeric: tabular-nums;
     }
 
-    .summary-sub {
-      font-size: 11px;
-      color: var(--text-muted);
+    /* ── Coverage progress bar ───────────────────────── */
+    .coverage-bar-track {
+      height: 4px;
+      background: color-mix(in srgb, var(--text-primary) 15%, transparent);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 4px;
     }
 
-    .summary-ring-body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2px 0;
-    }
-
-    /* ── Coverage ring ───────────────────────────────── */
-    .coverage-ring-wrap {
-      position: relative;
-      flex-shrink: 0;
-      width: 56px;
-      height: 56px;
-    }
-
-    .coverage-svg { width: 56px; height: 56px; }
-
-    .ring-track {
-      stroke: var(--text-primary);
-      stroke-opacity: 0.18;
-    }
-
-    .coverage-center-text {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--text-primary);
+    .coverage-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      max-width: 100%;
+      transition: width 0.35s ease;
     }
 
     /* ── Metrics accordion card ──────────────────────── */
@@ -347,177 +242,25 @@ interface MetricCard {
       overflow: hidden;
     }
 
-    /* ── Inner metric cards row ──────────────────────── */
-    .metrics-cards {
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      padding: 0 14px 14px;
+    /* ── Breakdown list ──────────────────────────────── */
+    .breakdown-list { display: flex; flex-direction: column; gap: 10px; padding: 4px 14px 14px; }
+    .breakdown-item { display: flex; flex-direction: column; gap: 5px; }
+    .breakdown-row { display: flex; align-items: center; gap: 8px; }
+    .breakdown-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .breakdown-name { flex: 1; font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .breakdown-time { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .breakdown-pct { font-size: 12px; color: var(--text-muted); white-space: nowrap; min-width: 36px; text-align: right; }
+    .breakdown-track { height: 4px; background: var(--bg-hover); border-radius: 2px; overflow: hidden; }
+    .breakdown-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; opacity: 0.75; }
+    .breakdown-empty { padding: 16px 14px; font-size: 12px; color: var(--text-muted); }
+    .breakdown-expand-btn {
+      display: flex; align-items: center; gap: 4px; justify-content: center;
+      width: 100%; padding: 7px 14px;
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      background: none; border: none; border-top: 1px solid var(--border);
+      cursor: pointer; transition: color 0.15s, background 0.15s;
     }
-    .metrics-cards::-webkit-scrollbar { height: 4px; }
-    .metrics-cards::-webkit-scrollbar-track { background: transparent; }
-    .metrics-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-    .metric-card {
-      flex: 1;
-      min-width: 120px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 12px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      white-space: nowrap;
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
-    }
-    .metric-card:hover {
-      background: var(--accent-hover);
-      border-color: var(--border-light);
-    }
-    .metric-card--selected {
-      border-color: var(--highlight-selected);
-      background: rgba(74,144,226,0.1);
-      box-shadow: 0 0 0 1px var(--highlight-selected);
-    }
-
-    .metric-label {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.7px;
-    }
-
-    .metric-body-row {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-
-    .metric-main {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--text-primary);
-      font-variant-numeric: tabular-nums;
-      line-height: 1;
-    }
-
-    .metric-side {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-      background: var(--bg-surface);
-      padding: 2px 7px;
-      border-radius: 10px;
-    }
-
-    /* ── Controls ────────────────────────────────────── */
-    .metrics-clear-btn {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--highlight-selected);
-      background: rgba(74,144,226,0.1);
-      border: 1px solid rgba(74,144,226,0.35);
-      border-radius: var(--radius-sm);
-      padding: 4px 9px;
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
-      white-space: nowrap;
-    }
-    .metrics-clear-btn:hover {
-      background: rgba(74,144,226,0.18);
-      border-color: var(--highlight-selected);
-    }
-
-    .metrics-view-select {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-primary);
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 5px 10px;
-      cursor: pointer;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-    .metrics-view-select:focus { border-color: var(--highlight-selected); }
-
-    .mode-wrap { position: relative; }
-
-    .mode-btn {
-      display: flex; align-items: center; gap: 4px;
-      font-size: 11px; font-weight: 600;
-      color: var(--text-muted);
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 5px 9px; cursor: pointer;
-      transition: border-color 0.15s, color 0.15s;
-    }
-    .mode-btn:hover { border-color: var(--accent); color: var(--text-primary); }
-
-    .mode-menu {
-      position: absolute; top: calc(100% + 5px); right: 0;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: 0 6px 20px rgba(0,0,0,0.28);
-      min-width: 130px; z-index: 50;
-      overflow: hidden;
-      animation: slideDown 0.14s ease;
-    }
-    .mode-menu-item {
-      display: flex; align-items: center; gap: 8px;
-      width: 100%; padding: 9px 13px;
-      background: none; border: none;
-      color: var(--text-secondary); font-size: 12px; font-weight: 500;
-      cursor: pointer; text-align: left;
-      transition: background 0.12s, color 0.12s;
-    }
-    .mode-menu-item:not(:last-child) { border-bottom: 1px solid var(--border); }
-    .mode-menu-item:hover { background: var(--accent-hover); color: var(--text-primary); }
-    .mode-menu-item--active { color: var(--highlight-selected); font-weight: 700; }
-    .mode-menu-item svg { flex-shrink: 0; }
-
-    /* ── Visual / pie chart ──────────────────────────── */
-    .metrics-visual { padding: 8px 14px 16px; }
-    .pie-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-    .pie-svg { width: 160px; height: 160px; flex-shrink: 0; }
-    .pie-slice { transition: opacity 0.15s; }
-    .pie-slice:hover { opacity: 0.82; }
-    .pie-center-top { font-size: 12px; font-weight: 700; fill: var(--text-muted); }
-    .pie-center-bot { font-size: 18px; font-weight: 800; fill: var(--text-primary); }
-    .pie-legend { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 7px; }
-    .pie-legend-row { display: flex; align-items: center; gap: 7px; }
-    .pie-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-    .pie-legend-name { flex: 1; font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pie-legend-val { font-size: 11px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-    .pie-legend-pct { font-size: 10px; color: var(--text-muted); background: var(--bg-card); padding: 1px 5px; border-radius: 6px; font-variant-numeric: tabular-nums; }
-    .pie-empty { padding: 20px 0; text-align: center; font-size: 12px; color: var(--text-muted); }
-
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-5px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    @media (max-width: 700px) {
-      .metrics-cards {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        overflow-x: unset;
-        gap: 8px;
-      }
-      .metric-card {
-        min-width: unset;
-        white-space: normal;
-      }
-    }
+    .breakdown-expand-btn:hover { color: var(--text-primary); background: var(--accent-hover); }
   `]
 })
 export class MetricsComponent implements OnChanges, OnDestroy {
@@ -526,12 +269,9 @@ export class MetricsComponent implements OnChanges, OnDestroy {
   @Output() cardHighlight = new EventEmitter<string[] | null>();
 
   private readonly destroy$ = new Subject<void>();
-  view: MetricView      = 'professional';
-  analyticsMode: AnalyticsMode = 'digital';
-  modeMenuOpen          = false;
   prevDayLogs:          LogEntry[] = [];
-  selectedCardIdx:      number | null = null;
   isExpanded            = false;
+  breakdownExpanded     = false;
   monthWorkSummary:     Record<string, number> = {};
   prevMonthWorkSummary: Record<string, number> = {};
   /** 1.83 — day type map for current and previous month (for leave-day streak skipping). */
@@ -555,7 +295,7 @@ export class MetricsComponent implements OnChanges, OnDestroy {
     if (changes['selectedDate'] && this.selectedDate) {
       this.fetchPrevDayLogs();
       this.fetchMonthSummary();
-      this.clearSelection();
+      this.breakdownExpanded = false;
     }
   }
 
@@ -593,143 +333,43 @@ export class MetricsComponent implements OnChanges, OnDestroy {
     });
   }
 
-  /* ── View / card selection ───────────────────────── */
+  /* ── View / expand ──────────────────────────────── */
 
-  toggleExpanded(): void {
-    this.isExpanded = !this.isExpanded;
-    if (!this.isExpanded) this.clearSelection();
+  toggleExpanded(): void { this.isExpanded = !this.isExpanded; }
+
+  /* ── Breakdown ───────────────────────────────────── */
+
+  get visibleBreakdown(): LogTypeBreakdown[] {
+    return this.breakdownExpanded ? this.logTypeBreakdown : this.logTypeBreakdown.slice(0, 4);
   }
 
-  onViewChange(v: MetricView): void {
-    this.view = v;
-    this.clearSelection();
-  }
-
-  selectCard(idx: number): void {
-    if (this.selectedCardIdx === idx) {
-      this.clearSelection();
-    } else {
-      this.selectedCardIdx = idx;
-      this.cardHighlight.emit(this.activeCards[idx].logIds);
+  get logTypeBreakdown(): LogTypeBreakdown[] {
+    const map = new Map<string, LogTypeBreakdown>();
+    for (const log of this.logs) {
+      if (!log.logType || log.entryType === 'point' || !log.endAt) continue;
+      const mins = Math.max(0, this.toMins(log.endAt) - this.toMins(log.startAt));
+      if (!mins) continue;
+      const key = log.logType.id;
+      if (!map.has(key)) map.set(key, { id: key, name: log.logType.name, color: log.logType.color, totalMins: 0 });
+      map.get(key)!.totalMins += mins;
     }
+    return Array.from(map.values()).sort((a, b) => b.totalMins - a.totalMins);
   }
 
-  clearSelection(): void {
-    this.selectedCardIdx = null;
-    this.cardHighlight.emit(null);
+  private get breakdownTotalMins(): number {
+    return this.logTypeBreakdown.reduce((s, bt) => s + bt.totalMins, 0);
   }
 
-  // ── 1.91: Analytics mode ──────────────────────────────────
-  toggleModeMenu(): void { this.modeMenuOpen = !this.modeMenuOpen; }
-
-  setMode(m: AnalyticsMode): void {
-    this.analyticsMode = m;
-    this.modeMenuOpen  = false;
-    if (m === 'digital') return;
-    this.clearSelection();
+  breakdownPct(mins: number): number {
+    return this.breakdownTotalMins > 0 ? Math.round(mins / this.breakdownTotalMins * 100) : 0;
   }
 
-  // ── 1.91: Pie chart ───────────────────────────────────────
-
-  get workTotalLabel(): string { return this.fmtH(this.workDomainTotalHours); }
-
-  fmtHPublic(h: number): string { return this.fmtH(h); }
-
-  private get workDomainTotalHours(): number {
-    return this.logs
-      .filter(l => l.logType?.domain === 'work' && l.entryType !== 'point' && l.endAt)
-      .reduce((s, l) => s + Math.max(0, this.toMins(l.endAt!) - this.toMins(l.startAt)), 0) / 60;
-  }
-
-  get workPieSlices(): PieSlice[] {
-    const map = new Map<string, { name: string; color: string; hours: number }>();
-
-    for (const l of this.logs) {
-      if (l.logType?.domain !== 'work' || l.entryType === 'point' || !l.endAt) continue;
-      const key   = l.logType.id;
-      const hours = Math.max(0, this.toMins(l.endAt) - this.toMins(l.startAt)) / 60;
-      if (!map.has(key)) map.set(key, { name: l.logType.name, color: l.logType.color, hours: 0 });
-      map.get(key)!.hours += hours;
-    }
-
-    const entries = Array.from(map.values()).filter(s => s.hours > 0);
-    const total   = entries.reduce((s, e) => s + e.hours, 0);
-    if (!total) return [];
-
-    // Sort largest first for cleaner chart
-    entries.sort((a, b) => b.hours - a.hours);
-
-    let cumPct = 0;
-    return entries.map(e => {
-      const pct  = (e.hours / total) * 100;
-      const path = this.pieArcPath(cumPct, cumPct + pct, 80, 100, 100);
-      cumPct += pct;
-      return { name: e.name, color: e.color, hours: e.hours, pct: Math.round(pct), path };
-    });
-  }
-
-  private pieArcPath(startPct: number, endPct: number, r: number, cx: number, cy: number): string {
-    const rad  = (p: number) => (p / 100) * 2 * Math.PI - Math.PI / 2;
-    const s    = rad(startPct);
-    const e    = rad(endPct);
-    const x1   = cx + r * Math.cos(s), y1 = cy + r * Math.sin(s);
-    const x2   = cx + r * Math.cos(e), y2 = cy + r * Math.sin(e);
-    const large = (endPct - startPct) > 50 ? 1 : 0;
-    return `M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large} 1 ${x2.toFixed(1)},${y2.toFixed(1)} Z`;
-  }
-
-  /* ── Active cards ────────────────────────────────── */
-
-  get activeCards(): MetricCard[] {
-    return this.view === 'professional'
-      ? this.professionalCards
-      : this.personalCards;
-  }
-
-  /* ── Professional cards ──────────────────────────── */
-
-  private get professionalCards(): MetricCard[] {
-    const work    = this.totalWorkHours;          // excludes transit
-    const code    = this.hoursWhere(l => this.isWork(l, 'codetime'));
-    const meet    = this.hoursWhere(l => this.isWork(l, 'meeting'));
-    const design  = this.hoursWhere(l => this.isWork(l, 'design'));
-    const transit = this.hoursWhere(l => this.isWork(l, 'transit'));
-    const dayTotal = 24; // transit % shown as fraction of full day
-    const workDayPct = Math.round((work / 8) * 100); // % of 8h standard workday
-    const workLogIds = this.logIdsWhere(l => l.logType?.domain === 'work' && l.logType?.category !== 'transit' && l.logType?.category !== 'break');
-
-    return [
-      { label: 'Total Work Hours', main: this.fmtH(work),           side: null,
-        logIds: workLogIds },
-      { label: 'Work Log %',       main: workDayPct + '%',           side: this.fmtH(work),
-        logIds: workLogIds },
-      { label: 'Coding Time',      main: this.fmtH(code),    side: this.pct(code, work),
-        logIds: this.logIdsWhere(l => this.isWork(l, 'codetime')) },
-      { label: 'Meetings',         main: this.fmtH(meet),    side: this.pct(meet, work),
-        logIds: this.logIdsWhere(l => this.isWork(l, 'meeting')) },
-      { label: 'Design',           main: this.fmtH(design),  side: this.pct(design, work),
-        logIds: this.logIdsWhere(l => this.isWork(l, 'design')) },
-      { label: 'Transit',          main: this.fmtH(transit), side: this.pct(transit, dayTotal),
-        logIds: this.logIdsWhere(l => this.isWork(l, 'transit')) }
-    ];
-  }
-
-  /* ── Personal cards ──────────────────────────────── */
-
-  private get personalCards(): MetricCard[] {
-    const sleep    = this.sleepHours;
-    const learning = this.hoursWhere(
-      l => l.logType?.domain === 'personal' && l.logType?.category === 'learning'
-    );
-
-    return [
-      { label: 'Main Sleep Time', main: this.fmtH(sleep),    side: null,
-        logIds: this.sleepLogIds },
-      { label: 'Learning Time',   main: this.fmtH(learning), side: null,
-        logIds: this.logIdsWhere(
-          l => l.logType?.domain === 'personal' && l.logType?.category === 'learning'
-        ) }
-    ];
+  fmtMins(totalMins: number): string {
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
   }
 
   /* ── 1.65: Coverage ring + streak ───────────────── */
@@ -737,13 +377,6 @@ export class MetricsComponent implements OnChanges, OnDestroy {
   /** % of 8h standard workday covered by today's work logs (0–100). */
   get coveragePct(): number {
     return Math.min(100, Math.round((this.totalWorkHours / 8) * 100));
-  }
-
-  /** SVG stroke-dasharray value for the coverage ring (r = 20, circ ≈ 125.66). */
-  get coverageDash(): string {
-    const circ    = 2 * Math.PI * 20;
-    const covered = Math.min(this.coveragePct / 100, 1) * circ;
-    return `${covered.toFixed(1)} ${circ.toFixed(1)}`;
   }
 
   /** Human-readable label of logged work hours (e.g. "4h 20m", "45m"). */
@@ -812,62 +445,11 @@ export class MetricsComponent implements OnChanges, OnDestroy {
 
   /* ── Metric computation ──────────────────────────── */
 
-  /** Transit and break are excluded — travel time and breaks are not productive work. */
   private get totalWorkHours(): number {
-    return this.hoursWhere(l => l.logType?.domain === 'work' && l.logType?.category !== 'transit' && l.logType?.category !== 'break');
-  }
-
-  /**
-   * Sleep window: previous day 19:00 → selected day 12:00.
-   * Clips each matching log to the relevant half of the window.
-   */
-  private get sleepHours(): number {
-    const PREV_START = 19 * 60;
-    const DAY_END    = 12 * 60;
-    let mins = 0;
-
-    for (const l of this.prevDayLogs) {
-      if (l.logType?.domain !== 'personal' || l.logType?.category !== 'sleep') continue;
-      if (!l.endAt) continue;
-      const s = this.toMins(l.startAt);
-      const e = this.toMins(l.endAt);
-      mins += Math.max(0, Math.min(e, 24 * 60) - Math.max(s, PREV_START));
-    }
-    for (const l of this.logs) {
-      if (l.logType?.domain !== 'personal' || l.logType?.category !== 'sleep') continue;
-      if (!l.endAt) continue;
-      const s = this.toMins(l.startAt);
-      const e = this.toMins(l.endAt);
-      mins += Math.max(0, Math.min(e, DAY_END) - Math.max(s, 0));
-    }
-    return mins / 60;
-  }
-
-  /** IDs of selected-day sleep logs that fall within [00:00, 12:00]. */
-  private get sleepLogIds(): string[] {
-    const DAY_END = 12 * 60;
     return this.logs
-      .filter(l => {
-        if (l.logType?.domain !== 'personal' || l.logType?.category !== 'sleep') return false;
-        if (!l.endAt) return false;
-        return Math.min(this.toMins(l.endAt), DAY_END) - Math.max(this.toMins(l.startAt), 0) > 0;
-      })
-      .map(l => l.id);
-  }
-
-  private hoursWhere(pred: (l: LogEntry) => boolean): number {
-    return this.logs
-      .filter(l => l.entryType !== 'point')
-      .filter(pred)
-      .reduce((sum, l) => sum + Math.max(0, this.toMins(l.endAt ?? '00:00') - this.toMins(l.startAt)), 0) / 60;
-  }
-
-  private logIdsWhere(pred: (l: LogEntry) => boolean): string[] {
-    return this.logs.filter(l => l.entryType !== 'point').filter(pred).map(l => l.id);
-  }
-
-  private isWork(l: LogEntry, category: string): boolean {
-    return l.logType?.domain === 'work' && l.logType?.category === category;
+      .filter(l => l.entryType !== 'point' && l.logType?.domain === 'work'
+                && l.logType?.category !== 'transit' && l.logType?.category !== 'break')
+      .reduce((s, l) => s + Math.max(0, this.toMins(l.endAt ?? '00:00') - this.toMins(l.startAt)), 0) / 60;
   }
 
   private toMins(time: string): number {
@@ -875,21 +457,5 @@ export class MetricsComponent implements OnChanges, OnDestroy {
     return h * 60 + m;
   }
 
-  /** Format fractional hours as "Xh Ymin", "Xh", or "Ymin". */
-  private fmtH(hours: number): string {
-    const totalMins = Math.round(hours * 60);
-    const h = Math.floor(totalMins / 60);
-    const m = totalMins % 60;
-    if (h === 0) return `${m}min`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}min`;
-  }
-
-  private pct(part: number, total: number): string | null {
-    if (!total) return null;
-    return (part / total * 100).toFixed(0) + '%';
-  }
-
-  trackByLabel(_i: number, card: MetricCard): string { return card.label; }
-  trackByName(_i: number, s: PieSlice): string { return s.name; }
+  trackByBreakdownId(_i: number, bt: LogTypeBreakdown): string { return bt.id; }
 }

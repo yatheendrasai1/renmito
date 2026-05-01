@@ -743,10 +743,11 @@ const PERF = (() => {
       border-radius: var(--radius-sm);
       display: flex; align-items: center; justify-content: center;
       transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
     }
     .date-bar-btn:hover:not(:disabled) { background: var(--accent-hover); color: var(--text-primary); }
     .date-bar-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-    .date-bar-btn--today { color: var(--accent) !important; }
+    .date-bar-btn--today { color: var(--highlight-selected) !important; }
 
     /* ── 1.83: Day type dropdown ────────────────────────────── */
     .day-type-bar { padding: 8px 4px 2px; position: relative; display: flex; align-items: center; gap: 8px; }
@@ -822,23 +823,6 @@ const PERF = (() => {
     }
 
     /* ── Logger layout — 1.76: full-width log list ─────── */
-    .logger-split {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    /* Log list — full width */
-    .split-logs {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      min-width: 0;
-    }
-    .split-logs--full .log-list-section {
-      max-height: none;
-      overflow-y: visible;
-    }
 
     /* ── Time Line view — 1.76 ─────────────────────────── */
     .timeline-view { }
@@ -875,8 +859,6 @@ const PERF = (() => {
     /* ── Log List section ───────────────────────────────── */
     .log-list-section {
       display: flex; flex-direction: column; gap: 12px;
-      background: var(--bg-surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 16px;
     }
     .log-count {
       font-size: 11px; color: var(--text-muted);
@@ -1051,8 +1033,6 @@ const PERF = (() => {
     }
     .btn-inline-fullform:hover { background: var(--accent-hover); color: var(--text-primary); }
 
-    /* ── Add log row — 1.54 / 1.80 ────────────────────────────────── */
-    .log-list-add-row { position: relative; padding-top: 4px; }
 
     .log-list-empty {
       display: flex; flex-direction: column; align-items: center;
@@ -1341,10 +1321,9 @@ const PERF = (() => {
     /* ── 1.62: Quick Shortcuts Bar / 1.84: wrap to 2 rows ───── */
     .shortcuts-bar {
       display: flex;
-      align-items: center;
-      flex-wrap: wrap;
+      flex-direction: column;
       gap: 8px;
-      padding: 8px 14px;
+      padding: 10px 14px;
       background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -1363,6 +1342,47 @@ const PERF = (() => {
       gap: 4px;
     }
 
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .shortcut-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .shortcut-btn:hover:not(:disabled) {
+      background: var(--nav-item-active);
+      border-color: var(--nav-bg);
+      color: var(--nav-bg);
+    }
+    .shortcut-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .shortcut-btn--active {
+      background: var(--bg-card);
+      border-color: var(--nav-bg);
+      color: var(--text-secondary);
+    }
+    .shortcut-btn--active:hover:not(:disabled) {
+      background: var(--nav-item-active);
+      border-color: var(--nav-bg);
+      color: var(--nav-bg);
+    }
+
+    /* keep legacy chip styles in case used elsewhere */
     .shortcut-chip {
       display: flex;
       align-items: center;
@@ -1972,46 +1992,6 @@ const PERF = (() => {
     }
     .log-now-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* ── 1.63: Continue Last Log ─────────────────────────────── */
-    .continue-log-row {
-      padding: 6px 12px 10px;
-      display: flex;
-    }
-
-    .continue-log-btn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      border-radius: 20px;
-      background: var(--bg-card);
-      border: 1px dashed var(--border-light);
-      color: var(--text-muted);
-      font-size: 12px;
-      cursor: pointer;
-      transition: border-color 0.15s, color 0.15s, background 0.15s;
-      width: 100%;
-      justify-content: center;
-    }
-    .continue-log-btn:hover:not(:disabled) {
-      border-color: var(--accent);
-      color: var(--text-primary);
-      background: var(--nav-item-hover);
-    }
-    .continue-log-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .continue-log-btn strong { color: var(--text-primary); font-weight: 600; }
-
-    .continue-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .continue-since {
-      color: var(--text-muted);
-      font-size: 11px;
-      margin-left: 2px;
-    }
 
     /* ── 1.71/1.72/1.73: Running Log Banner ──────────────────── */
     .running-log-banner {
@@ -2341,11 +2321,6 @@ const PERF = (() => {
       font-weight: 600;
     }
 
-    /* ── 1.80: Three-button Add Log group ────────────────── */
-    .add-log-btn-group {
-      display: flex;
-      gap: 8px;
-    }
 
     /* ── 1.90: Add-point long-press wrapper ── */
     .add-point-wrap {

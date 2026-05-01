@@ -32,11 +32,17 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
     LogTypeSelectComponent,
   ],
   styles: [`:host { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-    .date-title-row { display: flex; align-items: center; gap: 8px; }
-    .date-above-bar { font-size: 17px; font-weight: 700; color: var(--text-primary); line-height: 1; cursor: pointer; text-decoration: none; }
+    .date-title-row { display: flex; align-items: center; gap: 6px; }
+    .date-swipe-zone { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; min-width: 0; user-select: none; touch-action: pan-y; }
+    .date-above-bar { font-size: 17px; font-weight: 700; color: var(--text-primary); line-height: 1; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; will-change: transform; }
+    .date-above-bar.date-animated { transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1); }
+    .date-dropdown-icon { color: var(--text-muted); opacity: 0.75; flex-shrink: 0; }
+    .action-btns-row { display: flex; gap: 8px; }
+    .action-btns-row .add-point-wrap { flex: 1; }
+    .action-btns-row .btn-add-entry { flex: 1; }
   `],
   template: `
-    <!-- ── Day-type pill · Date · Nav buttons ───────────── -->
+    <!-- ── Day-type pill · Prev · Date (swipeable) · Next · Today ── -->
     <div class="date-title-row">
       <div class="hdr-dt" *ngIf="dayMetadata">
         <button class="hdr-dt-trigger"
@@ -59,36 +65,47 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
           </button>
         </div>
       </div>
-      <span class="date-above-bar" (click)="appState.openCalendarRequested$.next()">{{ appState.dateShortLabel }}</span>
-      <div class="date-bar-actions">
-        <button class="date-bar-btn" (click)="appState.prevDay()"
-                title="Previous day" aria-label="Previous day">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 18 9 12 15 6"/>
+
+      <button class="date-bar-btn" (click)="appState.prevDay()"
+              title="Previous day" aria-label="Previous day">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+
+      <div class="date-swipe-zone"
+           (touchstart)="onDateSwipeStart($event)"
+           (touchmove)="onDateSwipeMove($event)"
+           (touchend)="onDateSwipeEnd()">
+        <span class="date-above-bar"
+              [class.date-animated]="!dateSwipeActive"
+              [style.transform]="'translateX(' + dateSlideX + 'px)'"
+              (click)="appState.openCalendarRequested$.next()">
+          {{ appState.dateShortLabel }}
+          <svg class="date-dropdown-icon" width="10" height="10" viewBox="0 0 12 12" fill="none">
+            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-        </button>
-        <button class="date-bar-btn" (click)="appState.nextDay()"
-                [disabled]="appState.isToday"
-                title="Next day" aria-label="Next day">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-        </button>
-        <button class="date-bar-btn date-bar-btn--today"
-                [disabled]="appState.isToday"
-                (click)="appState.goToToday()" title="Go to today" aria-label="Go to today">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-            <circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none"/>
-          </svg>
-        </button>
+        </span>
       </div>
+
+      <button class="date-bar-btn" (click)="appState.nextDay()"
+              [disabled]="appState.isToday"
+              title="Next day" aria-label="Next day">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
+
+      <button class="date-bar-btn date-bar-btn--today"
+              [disabled]="appState.isToday"
+              (click)="appState.goToToday()" title="Go to today" aria-label="Go to today">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="7" cy="7" r="5.5" fill="currentColor"/>
+        </svg>
+      </button>
     </div>
 
     <!-- ── Metrics ────────────────────────────────────── -->
@@ -146,15 +163,17 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
           </svg>
         </button>
       </span>
-      <button class="shortcut-chip"
-              *ngFor="let lt of shortcutDisplayTypes; trackBy: trackByLogTypeId"
-              [class.shortcut-chip--active]="quickActionChip?._id === lt._id"
-              [disabled]="shortcutSaving"
-              (click)="onShortcutTap(lt)"
-              [title]="'Log ' + lt.name">
-        <span class="shortcut-dot" [style.background]="lt.color"></span>
-        {{ lt.name }}
-      </button>
+      <div class="shortcuts-grid">
+        <button class="shortcut-btn"
+                *ngFor="let lt of shortcutDisplayTypes; trackBy: trackByLogTypeId"
+                [class.shortcut-btn--active]="quickActionChip?._id === lt._id"
+                [disabled]="shortcutSaving"
+                (click)="onShortcutTap(lt)"
+                [title]="'Log ' + lt.name">
+          <span class="shortcut-dot" [style.background]="lt.color"></span>
+          {{ lt.name }}
+        </button>
+      </div>
 
       <!-- Quick action panel -->
       <div class="quick-action-panel" *ngIf="quickActionChip">
@@ -180,6 +199,59 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
       </div>
     </div>
 
+    <!-- ── Action Buttons ────────────────────────────── -->
+    <div class="action-btns-row" *ngIf="!isLoading">
+      <button class="btn-add-entry" (click)="openLogNow()">
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        Add log
+      </button>
+      <div class="add-point-wrap"
+           (pointerdown)="onAddPointPointerDown($event)"
+           (pointerup)="onAddPointPointerUp()"
+           (pointerleave)="onAddPointPointerUp()"
+           (click)="onAddPointClick($event)">
+        <button class="btn-add-entry" style="pointer-events:none; width:100%">
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.6"/>
+            <circle cx="6" cy="6" r="1.5" fill="currentColor"/>
+          </svg>
+          Add point
+        </button>
+        <div class="add-point-backdrop" *ngIf="addPointMenuOpen" (click)="closeAddPointMenu(); $event.stopPropagation()"></div>
+        <div class="add-point-menu" *ngIf="addPointMenuOpen" (click)="$event.stopPropagation()">
+          <button class="add-point-menu-item" (click)="addPointLogNow(); closeAddPointMenu(); $event.stopPropagation()">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            <div class="add-point-menu-text">
+              <span>Log now</span>
+              <span class="add-point-menu-sub">Stamp at {{ currentTimeStr() }}</span>
+            </div>
+          </button>
+          <button class="add-point-menu-item" (click)="openAddPoint(); closeAddPointMenu(); $event.stopPropagation()">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M5 3V1.5M11 3V1.5M2 7h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            <div class="add-point-menu-text">
+              <span>Log time</span>
+              <span class="add-point-menu-sub">Pick a time</span>
+            </div>
+          </button>
+        </div>
+      </div>
+      <button class="btn-add-entry btn-add-entry--activity" (click)="appState.startTimerRequested$.next()">
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M4.5 3.5l5 2.5-5 2.5V3.5z" fill="currentColor"/>
+        </svg>
+        Start activity
+      </button>
+    </div>
+
     <!-- ── Wrap-Up Banner ───────────────────────────── -->
     <div class="wrapup-banner" *ngIf="showWrapUpBanner">
       <svg class="wrapup-banner-icon" width="14" height="14" viewBox="0 0 24 24"
@@ -196,102 +268,28 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
     </div>
 
     <!-- ── Log List ─────────────────────────────────── -->
-    <div class="logger-split">
-      <div class="split-logs split-logs--full">
-        <div class="content-header">
-          <h2 class="section-title">Logs for the day</h2>
-          <span class="log-count" *ngIf="logs.length > 0">
-            {{ logs.length }} entr{{ logs.length === 1 ? 'y' : 'ies' }}
-          </span>
-          <button type="button" class="btn-sort"
-                  *ngIf="!isLoading && logs.length > 1"
-                  (click)="toggleLogSort()"
-                  [title]="logSortOrder === 'asc' ? 'Earliest first — click for latest first' : 'Latest first — click for earliest first'">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M4 2v12M4 14l-2.5-3M4 14l2.5-3" stroke="currentColor"
-                    stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
-                    [attr.opacity]="logSortOrder === 'desc' ? '1' : '0.35'"/>
-              <path d="M12 14V2M12 2l-2.5 3M12 2l2.5 3" stroke="currentColor"
-                    stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
-                    [attr.opacity]="logSortOrder === 'asc' ? '1' : '0.35'"/>
-            </svg>
-            <span>{{ logSortOrder === 'asc' ? 'Earliest' : 'Latest' }}</span>
-          </button>
-        </div>
+    <div class="content-header">
+      <h2 class="section-title">Logs for the day</h2>
+      <span class="log-count" *ngIf="logs.length > 0">
+        {{ logs.length }} entr{{ logs.length === 1 ? 'y' : 'ies' }}
+      </span>
+      <button type="button" class="btn-sort"
+              *ngIf="!isLoading && logs.length > 1"
+              (click)="toggleLogSort()"
+              [title]="logSortOrder === 'asc' ? 'Earliest first — click for latest first' : 'Latest first — click for earliest first'">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M4 2v12M4 14l-2.5-3M4 14l2.5-3" stroke="currentColor"
+                stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
+                [attr.opacity]="logSortOrder === 'desc' ? '1' : '0.35'"/>
+          <path d="M12 14V2M12 2l-2.5 3M12 2l2.5 3" stroke="currentColor"
+                stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
+                [attr.opacity]="logSortOrder === 'asc' ? '1' : '0.35'"/>
+        </svg>
+        <span>{{ logSortOrder === 'asc' ? 'Earliest' : 'Latest' }}</span>
+      </button>
+    </div>
 
-        <div class="log-list-section">
-
-          <!-- Add log row -->
-          <div class="log-list-add-row" *ngIf="!isLoading">
-            <div class="add-log-btn-group">
-              <button class="btn-add-entry" (click)="openLogNow()">
-                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                  <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                </svg>
-                Add log
-              </button>
-              <div class="add-point-wrap"
-                   (pointerdown)="onAddPointPointerDown($event)"
-                   (pointerup)="onAddPointPointerUp()"
-                   (pointerleave)="onAddPointPointerUp()"
-                   (click)="onAddPointClick($event)">
-                <button class="btn-add-entry" style="pointer-events:none; width:100%">
-                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                    <circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.6"/>
-                    <circle cx="6" cy="6" r="1.5" fill="currentColor"/>
-                  </svg>
-                  Add point
-                </button>
-                <div class="add-point-backdrop" *ngIf="addPointMenuOpen" (click)="closeAddPointMenu(); $event.stopPropagation()"></div>
-                <div class="add-point-menu" *ngIf="addPointMenuOpen" (click)="$event.stopPropagation()">
-                  <button class="add-point-menu-item" (click)="addPointLogNow(); closeAddPointMenu(); $event.stopPropagation()">
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                      <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/>
-                      <path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                    </svg>
-                    <div class="add-point-menu-text">
-                      <span>Log now</span>
-                      <span class="add-point-menu-sub">Stamp at {{ currentTimeStr() }}</span>
-                    </div>
-                  </button>
-                  <button class="add-point-menu-item" (click)="openAddPoint(); closeAddPointMenu(); $event.stopPropagation()">
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                      <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
-                      <path d="M5 3V1.5M11 3V1.5M2 7h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                    </svg>
-                    <div class="add-point-menu-text">
-                      <span>Log time</span>
-                      <span class="add-point-menu-sub">Pick a time</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
-              <button class="btn-add-entry btn-add-entry--activity" (click)="appState.startTimerRequested$.next()">
-                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                  <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M4.5 3.5l5 2.5-5 2.5V3.5z" fill="currentColor"/>
-                </svg>
-                Start activity
-              </button>
-            </div>
-          </div>
-
-          <!-- Continue Last Log -->
-          <div class="continue-log-row"
-               *ngIf="isToday && lastRangeLog && !inlineEditId">
-            <button class="continue-log-btn"
-                    [disabled]="shortcutSaving"
-                    (click)="continueLastLog()">
-              <span class="continue-dot"
-                    [style.background]="lastRangeLog.logType?.color ?? '#9B9B9B'"></span>
-              <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor">
-                <path d="M2 1.5l6 3.5-6 3.5V1.5z"/>
-              </svg>
-              Continue
-              <strong>{{ lastRangeLog.logType?.name ?? 'last log' }}</strong>
-              <span class="continue-since">since {{ lastRangeLog.endAt }}</span>
-            </button>
-          </div>
+    <div class="log-list-section">
 
           <!-- Skeleton -->
           <div class="log-list-skeleton" *ngIf="isLoading">
@@ -458,9 +456,7 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
             <span>Use the Time Line view or Log Now to get started.</span>
           </div>
 
-        </div><!-- /log-list-section -->
-      </div><!-- /split-logs -->
-    </div><!-- /logger-split -->
+    </div><!-- /log-list-section -->
 
     <!-- ── Quick Prefs popup ──────────────────────────────── -->
     <div class="quick-prefs-overlay" *ngIf="quickPrefsOpen"
@@ -578,6 +574,11 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   inlineEdit = { title: '', startAt: '', endAt: '', logTypeId: '' };
   inlineSaving = false;
 
+  // ── Date swipe ────────────────────────────────────────────────────
+  dateSlideX     = 0;
+  dateSwipeActive = false;
+  private _dateSwipeStartX = 0;
+
   // ── Swipe ─────────────────────────────────────────────────────────
   swipeLogId:      string | null = null;
   swipeTranslateX  = 0;
@@ -614,7 +615,7 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
         if (a.domain !== 'work' && b.domain === 'work') return 1;
         return 0;
       })
-      .slice(0, 6);
+      .slice(0, 9);
   }
 
   // ── Quick prefs ───────────────────────────────────────────────────
@@ -739,11 +740,6 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   }
 
   // ── Log operations ────────────────────────────────────────────────
-  get lastRangeLog(): LogEntry | null {
-    const range = this.logs.filter(l => l.entryType === 'range' && !!l.endAt);
-    return range.length ? range[range.length - 1] : null;
-  }
-
   editLog(log: LogEntry): void {
     this.appState.openLogFormRequested$.next({
       startTime: log.startAt, endTime: log.endAt ?? '01:00', editEntry: log
@@ -772,36 +768,6 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
 
   openAddPoint(): void {
     this.appState.openUnifiedSheetRequested$.next({ tab: 2 });
-  }
-
-  continueLastLog(): void {
-    const last = this.lastRangeLog;
-    if (!last || this.shortcutSaving) return;
-    const now       = this.currentTimeStr();
-    const startMins = this._timeToMins(last.endAt!);
-    const endMins   = this._timeToMins(now);
-    if (endMins <= startMins) return;
-    this.shortcutSaving = true;
-    this.logService.createLog(this.selectedDate, {
-      title:     last.title || (last.logType?.name ?? 'Log'),
-      logTypeId: last.logType?.id ?? '',
-      startTime: last.endAt!,
-      endTime:   now,
-    }).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (created) => {
-        this.shortcutSaving = false;
-        this.appState.reloadLogs();
-        const diff = endMins - startMins;
-        const h = Math.floor(diff / 60), m = diff % 60;
-        const dur = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-        this.appState.showToastRequested$.next({
-          message: `${last.logType?.name ?? 'Log'} continued · ${dur}`,
-          logId:   created.id,
-        });
-        this.cdr.markForCheck();
-      },
-      error: () => { this.shortcutSaving = false; this.cdr.markForCheck(); }
-    });
   }
 
   // ── Inline edit ───────────────────────────────────────────────────
@@ -880,6 +846,63 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
       if (action === 'delete') this.confirmDeleteLog(log);
       this.cdr.markForCheck();
     }, 240);
+  }
+
+  // ── Date swipe handlers ───────────────────────────────────────────
+  onDateSwipeStart(e: TouchEvent): void {
+    this._dateSwipeStartX = e.touches[0].clientX;
+    this.dateSwipeActive  = true;
+    this.dateSlideX       = 0;
+    this.cdr.markForCheck();
+  }
+
+  onDateSwipeMove(e: TouchEvent): void {
+    if (!this.dateSwipeActive) return;
+    const dx = e.touches[0].clientX - this._dateSwipeStartX;
+    if (Math.abs(dx) > 8) e.preventDefault();
+    this.dateSlideX = Math.max(-100, Math.min(100, dx));
+    this.cdr.markForCheck();
+  }
+
+  onDateSwipeEnd(): void {
+    if (!this.dateSwipeActive) return;
+    const dx = this.dateSlideX;
+    this.dateSwipeActive = false;
+
+    if (dx > 45) {
+      // swiped right → prev day: slide out right, then bring in from left
+      this.dateSlideX = 150;
+      this.cdr.markForCheck();
+      setTimeout(() => {
+        this.appState.prevDay();
+        this.dateSwipeActive = true;
+        this.dateSlideX = -150;
+        this.cdr.markForCheck();
+        setTimeout(() => {
+          this.dateSwipeActive = false;
+          this.dateSlideX = 0;
+          this.cdr.markForCheck();
+        }, 16);
+      }, 200);
+    } else if (dx < -45 && !this.appState.isToday) {
+      // swiped left → next day: slide out left, then bring in from right
+      this.dateSlideX = -150;
+      this.cdr.markForCheck();
+      setTimeout(() => {
+        this.appState.nextDay();
+        this.dateSwipeActive = true;
+        this.dateSlideX = 150;
+        this.cdr.markForCheck();
+        setTimeout(() => {
+          this.dateSwipeActive = false;
+          this.dateSlideX = 0;
+          this.cdr.markForCheck();
+        }, 16);
+      }, 200);
+    } else {
+      this.dateSlideX = 0;
+      this.cdr.markForCheck();
+    }
   }
 
   // ── Quick shortcuts ───────────────────────────────────────────────
