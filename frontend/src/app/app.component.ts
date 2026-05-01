@@ -630,29 +630,23 @@ const PERF = (() => {
     .hdr-dt { position: relative; }
 
     .hdr-dt-trigger {
-      display: flex; align-items: center; gap: 5px;
-      padding: 4px 7px;
-      background: var(--bg-card);
-      border-radius: 20px;
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: var(--radius-sm);
       color: var(--text-secondary);
-      font-size: 12px; font-weight: 600;
       cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-      white-space: nowrap;
+      transition: filter 0.15s;
+      flex-shrink: 0;
     }
-    .hdr-dt-trigger:hover { background: var(--accent-hover); color: var(--text-primary); }
+    .hdr-dt-trigger:hover { filter: brightness(0.9); }
 
     .hdr-dt-dot {
-      width: 9px; height: 9px;
+      width: 11px; height: 11px;
       border-radius: 50%;
       flex-shrink: 0;
     }
 
-    .hdr-dt-chevron {
-      opacity: 0.7;
-      transition: transform 0.15s;
-      flex-shrink: 0;
-    }
+    .hdr-dt-chevron { display: none; }
 
     .hdr-dt-panel {
       position: absolute;

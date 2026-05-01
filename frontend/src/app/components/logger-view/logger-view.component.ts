@@ -47,13 +47,9 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
       <div class="hdr-dt" *ngIf="dayMetadata">
         <button class="hdr-dt-trigger"
                 (click)="dayTypeDropdownOpen = !dayTypeDropdownOpen; $event.stopPropagation()"
-                [attr.aria-expanded]="dayTypeDropdownOpen">
+                [attr.aria-expanded]="dayTypeDropdownOpen"
+                [style.background]="dayTypePastel">
           <span class="hdr-dt-dot" [style.background]="dayTypeColor"></span>
-          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" class="hdr-dt-chevron"
-               [style.transform]="dayTypeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'">
-            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
-                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
         </button>
         <div class="hdr-dt-panel" *ngIf="dayTypeDropdownOpen" (click)="$event.stopPropagation()">
           <button *ngFor="let opt of dayTypeOptions"
@@ -558,6 +554,11 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
 
   get dayTypeColor(): string {
     return this.dayTypeOptions.find(o => o.value === this.dayMetadata?.dayType)?.color ?? '#4ade80';
+  }
+
+  get dayTypePastel(): string {
+    const c = this.dayTypeColor;
+    return `color-mix(in srgb, ${c} 28%, var(--bg-card))`;
   }
 
   setDayType(dayType: DayType): void { this.appState.setDayType(dayType); }
