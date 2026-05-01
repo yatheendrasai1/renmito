@@ -17,7 +17,7 @@ export interface OpenLogFormParams {
 }
 
 export interface OpenUnifiedSheetParams {
-  tab: 0 | 1 | 2 | 3;
+  tab: 1 | 2 | 3;
   prepDomain?:  'work' | 'personal';
   prepTypeId?:  string;
   prepTime?:    string;

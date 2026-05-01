@@ -25,6 +25,7 @@ import { NotesService } from './services/notes.service';
 import { environment } from '../environments/environment';
 import { PaletteSheetComponent } from './components/palette-sheet/palette-sheet.component';
 import { UnifiedSheetComponent } from './components/unified-sheet/unified-sheet.component';
+import { RenniChatComponent } from './components/renni-chat/renni-chat.component';
 import { AppStateService, OpenLogFormParams, ConfirmDialogParams } from './services/app-state.service';
 
 // ── Performance Profiler ─────────────────────────────────────────────────────
@@ -106,7 +107,7 @@ const PERF = (() => {
   selector: 'app-root',
   standalone: true,
   encapsulation: ViewEncapsulation.None,
-  imports: [CommonModule, FormsModule, RouterOutlet, RouterLink, RouterLinkActive, CalendarComponent, LogFormComponent, LoginComponent, ConfirmDialogComponent, ImportantLogsComponent, NotesSheetComponent, PaletteSheetComponent, UnifiedSheetComponent],
+  imports: [CommonModule, FormsModule, RouterOutlet, RouterLink, RouterLinkActive, CalendarComponent, LogFormComponent, LoginComponent, ConfirmDialogComponent, ImportantLogsComponent, NotesSheetComponent, PaletteSheetComponent, UnifiedSheetComponent, RenniChatComponent],
   template: `
     <!-- ── Login gate ──────────────────────────────────── -->
     <app-login *ngIf="!isAuthenticated" (loggedIn)="onLoggedIn()"></app-login>
@@ -209,6 +210,18 @@ const PERF = (() => {
         <button class="shortcut-toast-undo" (click)="undoShortcut()">Undo</button>
       </div>
 
+      <!-- ── 1.61: Renni FAB ── -->
+      <button class="renni-fab"
+              *ngIf="isAuthenticated"
+              (click)="renniChatOpen = true"
+              title="Chat with Renni — AI log assistant">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 3L13.5 8.5L19 10L13.5 11.5L12 17L10.5 11.5L5 10L10.5 8.5L12 3Z"/>
+          <path d="M5 3L5.75 5.25L8 6L5.75 6.75L5 9L4.25 6.75L2 6L4.25 5.25L5 3Z"/>
+          <path d="M19 14L19.75 16.25L22 17L19.75 17.75L19 20L18.25 17.75L16 17L18.25 16.25L19 14Z"/>
+        </svg>
+      </button>
+
       <!-- ── 1.61: Log Now FAB ── -->
       <button class="log-now-fab"
               *ngIf="isAuthenticated"
@@ -220,6 +233,15 @@ const PERF = (() => {
           <line x1="5"  y1="12" x2="19" y2="12"/>
         </svg>
       </button>
+
+      <!-- ── Renni chat popup ── -->
+      <app-renni-chat
+        *ngIf="renniChatOpen"
+        [selectedDate]="appState.selectedDate"
+        [logs]="appState.logs$.value"
+        (closed)="renniChatOpen = false"
+        (logCreated)="appState.reloadLogs()">
+      </app-renni-chat>
 
       <!-- ── 1.83: Unified log-creation sheet (Add log / Add point / Start timer) ── -->
       <app-unified-sheet
@@ -1555,6 +1577,30 @@ const PERF = (() => {
       to   { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
 
+    /* ── Renni FAB ───────────────────────────────────────────── */
+    .renni-fab {
+      position: fixed;
+      bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 16px + 52px + 10px);
+      right: 20px;
+      z-index: 250;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #7c3aed, #a78bfa);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(124,58,237,0.45);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .renni-fab:hover {
+      transform: scale(1.06);
+      box-shadow: 0 6px 22px rgba(124,58,237,0.6);
+    }
+
     /* ── 1.61: Log Now FAB ───────────────────────────────────── */
     .log-now-fab {
       position: fixed;
@@ -2743,9 +2789,12 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
   private toastTimer: ReturnType<typeof setTimeout> | undefined = undefined;
 
+  // ── Renni chat popup ─────────────────────────────────────────
+  renniChatOpen = false;
+
   // ── Unified log-creation sheet ────────────────────────────────
   unifiedSheetOpen = false;
-  unifiedSheetInitialTab: 0 | 1 | 2 | 3 = 0;
+  unifiedSheetInitialTab: 1 | 2 | 3 = 1;
 
   // ── Renni AI chat (used inside UnifiedSheetComponent) ─────────
   private uniTouchStartX = 0;
@@ -3337,7 +3386,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
 
   openLogNow(): void {
-    this.unifiedSheetInitialTab = 0;
+    this.unifiedSheetInitialTab = 1;
     this.unifiedSheetOpen = true;
   }
 

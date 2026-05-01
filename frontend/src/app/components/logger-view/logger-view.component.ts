@@ -763,7 +763,7 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   }
 
   openLogNow(): void {
-    this.appState.openUnifiedSheetRequested$.next({ tab: 0 });
+    this.appState.openUnifiedSheetRequested$.next({ tab: 1 });
   }
 
   openAddPoint(): void {
