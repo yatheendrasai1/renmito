@@ -36,11 +36,11 @@ interface LogTypeBreakdown {
       <div class="summary-cards">
 
         <div class="summary-card">
-          <span class="summary-label">Coverage</span>
+          <span class="summary-label">Coverage <span class="summary-baseline">(8h)</span></span>
           <span class="summary-val">{{ coveragePct }}%</span>
           <div class="coverage-bar-track">
             <div class="coverage-bar-fill"
-              [style.width.%]="coveragePct"
+              [style.width.%]="coverageBarPct"
               [style.background]="coveragePct >= 100 ? '#a3d4ac' : '#93b8de'">
             </div>
           </div>
@@ -147,6 +147,14 @@ interface LogTypeBreakdown {
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.8px;
+    }
+
+    .summary-baseline {
+      font-size: 8px;
+      font-weight: 400;
+      color: color-mix(in srgb, var(--text-muted) 65%, transparent);
+      text-transform: none;
+      letter-spacing: 0;
     }
 
     .summary-val {
@@ -374,9 +382,15 @@ export class MetricsComponent implements OnChanges, OnDestroy {
 
   /* ── 1.65: Coverage ring + streak ───────────────── */
 
-  /** % of 8h standard workday covered by today's work logs (0–100). */
+  /** % of 8h standard workday covered by today's work logs. Exceeds 100 when over 8h. */
   get coveragePct(): number {
-    return Math.min(100, Math.round((this.totalWorkHours / 8) * 100));
+    return Math.round((this.totalWorkHours / 8) * 100);
+  }
+
+  /** Progress bar fill percentage — always 0–100. When >8h logged, bar fills to 100%. */
+  get coverageBarPct(): number {
+    if (this.totalWorkHours <= 8) return Math.round((this.totalWorkHours / 8) * 100);
+    return 100;
   }
 
   /** Human-readable label of logged work hours (e.g. "4h 20m", "45m"). */
