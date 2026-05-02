@@ -1,8 +1,8 @@
 const https = require('https');
-const AccountConfig = require('../models/AccountConfig');
+const IcConfig = require('../models/IcConfig');
 
 async function getConfig(userId) {
-  const doc = await AccountConfig.findOne({ userId }).lean();
+  const doc = await IcConfig.findOne({ userId }).lean();
   if (!doc) return { geminiConfigured: false };
   return { geminiConfigured: doc.geminiVerified && !!doc.geminiApiKey };
 }
@@ -12,7 +12,7 @@ async function verifyAndSaveGeminiKey(userId, apiKey) {
   const t0 = Date.now();
   await _verifyGeminiKey(apiKey);
   console.log(`[Config] key verified ok in ${Date.now() - t0}ms`);
-  await AccountConfig.findOneAndUpdate(
+  await IcConfig.findOneAndUpdate(
     { userId },
     { $set: { geminiApiKey: apiKey, geminiVerified: true } },
     { upsert: true, new: true }
@@ -20,7 +20,7 @@ async function verifyAndSaveGeminiKey(userId, apiKey) {
 }
 
 async function getGeminiKey(userId) {
-  const doc = await AccountConfig.findOne({ userId }, 'geminiApiKey geminiVerified').lean();
+  const doc = await IcConfig.findOne({ userId }, 'geminiApiKey geminiVerified').lean();
   if (!doc?.geminiVerified || !doc?.geminiApiKey) return null;
   return doc.geminiApiKey;
 }

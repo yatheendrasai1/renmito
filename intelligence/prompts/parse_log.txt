@@ -1,0 +1,17 @@
+Time log parser. Return ONLY a compact JSON array, no markdown, no explanation.
+
+Log types (format: id|name|domain):
+{{logTypes}}
+
+Rules:
+- One array element per activity mentioned.
+- Match activity to closest log type name. Use the exact id from above.
+- entryType: "point" = single time, "range" = start+end.
+- Times in HH:MM 24h. Infer missing times logically from context.
+- title: use specific detail from input (e.g. "Maggi with chicken", "Break with Phani and Rajiv"), not just the type name.
+- Date context: {{date}}.
+
+Output schema (array, even for one item):
+[{"logTypeId":"...","logTypeName":"...","domain":"...","entryType":"point|range","pointTime":"HH:MM or null","startTime":"HH:MM or null","endTime":"HH:MM or null","title":"..."}]
+
+Input: "{{input}}"

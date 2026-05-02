@@ -18,6 +18,10 @@ const config = {
     // Local dev: http://localhost:4200
     // Vercel:    set CORS_ORIGIN=* in project environment variables
     origin: process.env.CORS_ORIGIN || 'http://localhost:4200'
+  },
+  ic: {
+    serviceUrl:     process.env.IC_SERVICE_URL     || 'http://localhost:8000',
+    internalSecret: process.env.IC_INTERNAL_SECRET || '',
   }
 };
 
