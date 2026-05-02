@@ -1,16 +1,14 @@
 import {
   Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef,
-  HostListener,
+  HostListener, ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { AppStateService, ConfirmDialogParams } from '../../services/app-state.service';
+import { AppStateService } from '../../services/app-state.service';
 import { LogService } from '../../services/log.service';
-import { LogTypeService } from '../../services/log-type.service';
-import { PreferenceService } from '../../services/preference.service';
 import { DayLevelService, DayType } from '../../services/day-level.service';
 
 import { LogEntry } from '../../models/log.model';
@@ -19,6 +17,7 @@ import { LogType } from '../../models/log-type.model';
 import { MetricsComponent } from '../metrics/metrics.component';
 import { ActiveLogBarComponent } from '../active-log-bar/active-log-bar.component';
 import { LogTypeSelectComponent } from '../log-type-select/log-type-select.component';
+import { TimelineComponent, DragSelection } from '../timeline/timeline.component';
 
 @Component({
   selector: 'app-logger-view',
@@ -30,6 +29,7 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
     MetricsComponent,
     ActiveLogBarComponent,
     LogTypeSelectComponent,
+    TimelineComponent,
   ],
   styles: [`:host { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
     .date-title-row { display: flex; align-items: center; gap: 6px; }
@@ -108,6 +108,7 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
     <app-metrics
       [logs]="logs"
       [selectedDate]="selectedDate"
+      [dayMetadata]="dayMetadata"
       (cardHighlight)="onCardHighlight($event)"
     ></app-metrics>
 
@@ -144,56 +145,19 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
       (stop)="appState.stopRunningLogRequested$.next()">
     </app-active-log-bar>
 
-    <!-- ── Quick Shortcuts ──────────────────────────── -->
-    <div class="shortcuts-bar" *ngIf="isAuthenticated && shortcutDisplayTypes.length > 0"
-         (click)="$event.stopPropagation()">
-      <span class="shortcuts-label">
-        Quick
-        <button class="shortcuts-edit-btn"
-                (click)="openQuickPrefs($event)"
-                title="Configure quick shortcuts"
-                aria-label="Configure quick bar">
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
-            <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
-                  stroke-width="1.5" stroke-linejoin="round"/>
-          </svg>
-        </button>
-      </span>
-      <div class="shortcuts-grid">
-        <button class="shortcut-btn"
-                *ngFor="let lt of shortcutDisplayTypes; trackBy: trackByLogTypeId"
-                [class.shortcut-btn--active]="quickActionChip?._id === lt._id"
-                [disabled]="shortcutSaving"
-                (click)="onShortcutTap(lt)"
-                [title]="'Log ' + lt.name">
-          <span class="shortcut-dot" [style.background]="lt.color"></span>
-          {{ lt.name }}
-        </button>
-      </div>
-
-      <!-- Quick action panel -->
-      <div class="quick-action-panel" *ngIf="quickActionChip">
-        <div class="quick-action-row">
-          <button class="quick-anchor-btn"
-                  [class.quick-anchor-btn--active]="quickActionAnchor === 'start'"
-                  (click)="quickActionAnchor = 'start'">start</button>
-          <button class="quick-anchor-btn"
-                  [class.quick-anchor-btn--active]="quickActionAnchor === 'conclude'"
-                  (click)="quickActionAnchor = 'conclude'">conclude</button>
-        </div>
-        <div class="quick-action-row">
-          <button class="quick-dur-chip"
-                  *ngFor="let d of quickDurations; trackBy: trackByIndex"
-                  [class.quick-dur-chip--active]="quickActionDuration === d.mins"
-                  (click)="quickActionDuration = d.mins">{{ d.label }}</button>
-        </div>
-        <div class="quick-action-row quick-action-row--log">
-          <button class="quick-log-btn"
-                  (click)="commitQuickLog()"
-                  [disabled]="shortcutSaving">Log</button>
-        </div>
-      </div>
-    </div>
+    <!-- ── Embedded Timeline (vertical, compact) ──────── -->
+    <app-timeline
+      #embeddedTimelineRef
+      [logs]="logs"
+      [selectedDate]="selectedDate"
+      [highlightedLogId]="highlightedLogId"
+      [metricLogIds]="metricLogIds"
+      [collapsible]="false"
+      [scrollHeight]="'220px'"
+      (createLogClicked)="onTimelineCreate($event)"
+      (logClicked)="onTimelineLogClick($event)"
+      (mergePointsSelected)="onTimelineMerge($event)"
+    ></app-timeline>
 
     <!-- ── Action Buttons ────────────────────────────── -->
     <div class="action-btns-row" *ngIf="!isLoading">
@@ -453,74 +417,12 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
           </div>
 
     </div><!-- /log-list-section -->
-
-    <!-- ── Quick Prefs popup ──────────────────────────────── -->
-    <div class="quick-prefs-overlay" *ngIf="quickPrefsOpen"
-         (click)="closeQuickPrefs()"></div>
-    <div class="quick-prefs-popup" *ngIf="quickPrefsOpen"
-         (click)="$event.stopPropagation()">
-      <div class="quick-prefs-header">
-        <div class="quick-prefs-title-row">
-          <span class="quick-prefs-title">Quick Bar</span>
-          <span class="quick-prefs-sub">Select log types to pin in the quick bar</span>
-        </div>
-        <button class="quick-prefs-close" (click)="closeQuickPrefs()" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="18" y1="6"  x2="6"  y2="18"/>
-            <line x1="6"  y1="6"  x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-      <div class="quick-prefs-body">
-        <div class="quick-prefs-domain-label">Work</div>
-        <ng-container *ngFor="let lt of quickPrefsWorkTypes; trackBy: trackByLogTypeId">
-          <div class="quick-pref-item"
-               [class.quick-pref-item--on]="isInQuickPrefs(lt._id)"
-               (click)="toggleQuickPref(lt._id)">
-            <span class="quick-pref-dot" [style.background]="lt.color"></span>
-            <span class="quick-pref-name">{{ lt.name }}</span>
-            <span class="quick-pref-badge" *ngIf="isInQuickPrefs(lt._id)">30m</span>
-            <span class="quick-pref-toggle-icon">
-              <svg *ngIf="isInQuickPrefs(lt._id)" width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M2 7l4 4 6-6" stroke="#4A90E2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <svg *ngIf="!isInQuickPrefs(lt._id)" width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M7 3v8M3 7h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-              </svg>
-            </span>
-          </div>
-        </ng-container>
-        <div class="quick-prefs-domain-label" style="margin-top:10px">Personal</div>
-        <ng-container *ngFor="let lt of quickPrefsPersonalTypes; trackBy: trackByLogTypeId">
-          <div class="quick-pref-item"
-               [class.quick-pref-item--on]="isInQuickPrefs(lt._id)"
-               (click)="toggleQuickPref(lt._id)">
-            <span class="quick-pref-dot" [style.background]="lt.color"></span>
-            <span class="quick-pref-name">{{ lt.name }}</span>
-            <span class="quick-pref-badge" *ngIf="isInQuickPrefs(lt._id)">30m</span>
-            <span class="quick-pref-toggle-icon">
-              <svg *ngIf="isInQuickPrefs(lt._id)" width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M2 7l4 4 6-6" stroke="#4A90E2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <svg *ngIf="!isInQuickPrefs(lt._id)" width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <path d="M7 3v8M3 7h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-              </svg>
-            </span>
-          </div>
-        </ng-container>
-      </div>
-      <div class="quick-prefs-footer">
-        <button class="quick-prefs-save" (click)="saveQuickPrefs()"
-                [disabled]="quickPrefsSaving">
-          {{ quickPrefsSaving ? 'Saving…' : 'Save' }}
-        </button>
-      </div>
-    </div>
   `,
 })
 export class LoggerViewComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
+
+  @ViewChild('embeddedTimelineRef') embeddedTimelineRef?: TimelineComponent;
 
   // ── Derived from AppStateService ──────────────────────────────────
   logs:           LogEntry[]         = [];
@@ -547,10 +449,6 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     { value: 'paid_leave', label: 'Paid Leave',   color: '#fb923c' },
     { value: 'sick_leave', label: 'Sick Leave',   color: '#f87171' },
   ];
-
-  get selectedDayTypeLabel(): string {
-    return this.dayTypeOptions.find(o => o.value === this.dayMetadata?.dayType)?.label ?? 'Day Type';
-  }
 
   get dayTypeColor(): string {
     return this.dayTypeOptions.find(o => o.value === this.dayMetadata?.dayType)?.color ?? '#4ade80';
@@ -588,90 +486,12 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   private swipeStartY        = 0;
   private swipeIsHorizontal: boolean | null = null;
 
-  // ── Quick shortcuts ───────────────────────────────────────────────
-  shortcutSaving    = false;
-  quickActionChip:    LogType | null = null;
-  quickActionAnchor: 'start' | 'conclude' = 'conclude';
-  quickActionDuration = 30;
-  private quickShortcutItems: { logTypeId: string; defaultMins: number }[] = [];
-  readonly quickDurations = [
-    { mins: 15, label: '15m' }, { mins: 30, label: '30m' },
-    { mins: 45, label: '45m' }, { mins: 60, label: '1h'  },
-  ];
-
-  get shortcutDisplayTypes(): LogType[] {
-    if (!this.logTypes.length) return [];
-    if (this.quickShortcutItems.length > 0) {
-      return this.quickShortcutItems
-        .map(p => this.logTypes.find(lt => lt._id === p.logTypeId))
-        .filter((lt): lt is LogType => !!lt);
-    }
-    const usedIds = new Set(this.logs.map(l => l.logType?.id).filter(Boolean));
-    return [...this.logTypes]
-      .sort((a, b) => {
-        const aUsed = usedIds.has(a._id) ? 0 : 1;
-        const bUsed = usedIds.has(b._id) ? 0 : 1;
-        if (aUsed !== bUsed) return aUsed - bUsed;
-        if (a.domain === 'work' && b.domain !== 'work') return -1;
-        if (a.domain !== 'work' && b.domain === 'work') return 1;
-        return 0;
-      })
-      .slice(0, 9);
-  }
-
-  // ── Quick prefs ───────────────────────────────────────────────────
-  quickPrefsOpen    = false;
-  quickPrefsSaving  = false;
-  private quickPrefsEdit = new Set<string>();
-
-  get quickPrefsWorkTypes():     LogType[] { return this.logTypes.filter(lt => lt.domain === 'work');     }
-  get quickPrefsPersonalTypes(): LogType[] { return this.logTypes.filter(lt => lt.domain === 'personal'); }
-  isInQuickPrefs(id: string): boolean { return this.quickPrefsEdit.has(id); }
-
-  openQuickPrefs(event: MouseEvent): void {
-    event.stopPropagation();
-    if (!this.logTypes.length) {
-      this.logTypeService.getLogTypes().pipe(takeUntil(this.destroy$)).subscribe(t => {
-        this.appState.inlineLogTypes$.next(t);
-        this._doOpenQuickPrefs();
-      });
-    } else {
-      this._doOpenQuickPrefs();
-    }
-  }
-  private _doOpenQuickPrefs(): void {
-    this.quickPrefsEdit = new Set(this.quickShortcutItems.map(p => p.logTypeId));
-    this.quickPrefsOpen = true;
-    this.cdr.markForCheck();
-  }
-  closeQuickPrefs(): void { this.quickPrefsOpen = false; }
-  toggleQuickPref(id: string): void {
-    if (this.quickPrefsEdit.has(id)) { this.quickPrefsEdit.delete(id); }
-    else { this.quickPrefsEdit.add(id); }
-    this.quickPrefsEdit = new Set(this.quickPrefsEdit);
-  }
-  saveQuickPrefs(): void {
-    if (this.quickPrefsSaving) return;
-    const shortcuts = [...this.quickPrefsEdit].map(id => ({ logTypeId: id, defaultMins: 30 }));
-    this.quickPrefsSaving = true;
-    this.prefService.updateQuickShortcuts(shortcuts).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => {
-        this.quickShortcutItems = shortcuts;
-        this.appState.quickShortcuts$.next(shortcuts);
-        this.quickPrefsSaving = false;
-        this.quickPrefsOpen   = false;
-        this.cdr.markForCheck();
-      },
-      error: () => { this.quickPrefsSaving = false; this.cdr.markForCheck(); }
-    });
-  }
-
   // ── Add-point long-press ──────────────────────────────────────────
   addPointMenuOpen = false;
   private addPointLongPressTimer: ReturnType<typeof setTimeout> | undefined;
   private addPointLongPressTriggered = false;
 
-  onAddPointPointerDown(event: PointerEvent): void {
+  onAddPointPointerDown(_event: PointerEvent): void {
     this.addPointLongPressTriggered = false;
     this.addPointLongPressTimer = setTimeout(() => {
       this.addPointLongPressTriggered = true;
@@ -871,7 +691,6 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     this.dateSwipeActive = false;
 
     if (dx > 45) {
-      // swiped right → prev day: slide out right, then bring in from left
       this.dateSlideX = 150;
       this.cdr.markForCheck();
       setTimeout(() => {
@@ -886,7 +705,6 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
         }, 16);
       }, 200);
     } else if (dx < -45 && !this.appState.isToday) {
-      // swiped left → next day: slide out left, then bring in from right
       this.dateSlideX = -150;
       this.cdr.markForCheck();
       setTimeout(() => {
@@ -906,53 +724,44 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ── Quick shortcuts ───────────────────────────────────────────────
-  onShortcutTap(lt: LogType): void {
-    if (this.shortcutSaving) return;
-    if (this.quickActionChip?._id === lt._id) { this.quickActionChip = null; return; }
-    this.quickActionChip    = lt;
-    this.quickActionAnchor  = 'conclude';
-    const pref = this.quickShortcutItems.find(p => p.logTypeId === lt._id);
-    const rawMins = pref?.defaultMins ?? 30;
-    const durations = [15, 30, 45, 60];
-    this.quickActionDuration = durations.reduce((prev, curr) =>
-      Math.abs(curr - rawMins) < Math.abs(prev - rawMins) ? curr : prev
-    );
-  }
-
-  commitQuickLog(): void {
-    if (!this.quickActionChip || this.shortcutSaving) return;
-    const lt      = this.quickActionChip;
-    const nowMins = this._timeToMins(this.currentTimeStr());
-    let startMins: number, endMins: number;
-    if (this.quickActionAnchor === 'start') {
-      startMins = nowMins; endMins = nowMins + this.quickActionDuration;
-    } else {
-      endMins = nowMins; startMins = nowMins - this.quickActionDuration;
-    }
-    if (startMins < 0) startMins = 0;
-    if (endMins > 24 * 60) endMins = 24 * 60;
-    if (endMins <= startMins) return;
-    const startStr = this._minsToTimeStr(startMins);
-    const endStr   = this._minsToTimeStr(endMins);
-    this.shortcutSaving = true;
-    this.logService.createLog(this.selectedDate, {
-      title: lt.name, logTypeId: lt._id, startTime: startStr, endTime: endStr,
-    }).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (created) => {
-        this.shortcutSaving  = false;
-        this.quickActionChip = null;
-        this.appState.reloadLogs();
-        const diff = endMins - startMins;
-        const h = Math.floor(diff / 60), m = diff % 60;
-        const dur = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-        this.appState.showToastRequested$.next({ message: `${lt.name} · ${dur}`, logId: created.id });
-        this.cdr.markForCheck();
-      },
-      error: () => { this.shortcutSaving = false; this.cdr.markForCheck(); }
+  // ── Embedded timeline events ──────────────────────────────────────
+  onTimelineCreate(selection: DragSelection): void {
+    this.appState.openLogFormRequested$.next({
+      startTime: selection.startTime,
+      endTime:   selection.endTime,
+      editEntry: null,
     });
   }
 
+  onTimelineLogClick(log: LogEntry): void {
+    this.appState.openLogFormRequested$.next({
+      startTime: log.startAt,
+      endTime:   log.endAt ?? '01:00',
+      editEntry: log,
+    });
+  }
+
+  onTimelineMerge(selection: DragSelection): void {
+    const diff   = selection.endMinutes - selection.startMinutes;
+    const h      = Math.floor(diff / 60), m = diff % 60;
+    const durStr = h && m ? `${h}h ${m}m` : h ? `${h}h` : `${m}m`;
+    this.appState.confirmDialogRequested$.next({
+      title:   'Merge into time range?',
+      message: 'The two point logs will be deleted after the new entry is saved.',
+      detail:  `${selection.startTime} – ${selection.endTime}  (${durStr})`,
+      okLabel: 'Merge',
+      onConfirm: () => {
+        this.appState.openLogFormRequested$.next({
+          startTime:      selection.startTime,
+          endTime:        selection.endTime,
+          editEntry:      null,
+          logTypeId:      selection.mergeLogTypeId ?? null,
+          mergeSourceIds: selection.mergeSourceIds ?? null,
+        });
+        this.embeddedTimelineRef?.cancelMerge();
+      }
+    });
+  }
 
   onCardHighlight(ids: string[] | null): void {
     this.appState.metricLogIds$.next(ids ? new Set(ids) : null);
@@ -984,33 +793,23 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     return h * 60 + m;
   }
 
-  private _minsToTimeStr(mins: number): string {
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-  }
-
   // ── TrackBy helpers ───────────────────────────────────────────────
   trackByIndex(index: number): number { return index; }
   trackByLogId(_i: number, log: LogEntry): string { return log.id; }
-  trackByLogTypeId(_i: number, lt: LogType): string { return lt._id; }
-  trackByValue(_i: number, item: { value: string }): string { return item.value; }
 
-  // ── Global click: close chips/quick-action/day-type dropdown ────────
+  // ── Global click: close day-type dropdown ─────────────────────────
   @HostListener('document:click')
   onDocumentClick(): void {
-    let changed = false;
-    if (this.quickActionChip)   { this.quickActionChip = null;       changed = true; }
-    if (this.dayTypeDropdownOpen) { this.dayTypeDropdownOpen = false; changed = true; }
-    if (changed) this.cdr.markForCheck();
+    if (this.dayTypeDropdownOpen) {
+      this.dayTypeDropdownOpen = false;
+      this.cdr.markForCheck();
+    }
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────
   constructor(
     public  appState:         AppStateService,
     private logService:       LogService,
-    private logTypeService:   LogTypeService,
-    private prefService:      PreferenceService,
     private _dayLevelService: DayLevelService,
     private cdr:              ChangeDetectorRef,
   ) {}
@@ -1054,11 +853,7 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
       this.activeLogPlannedPct = this.appState.activeLogPlannedPct;
       this.cdr.markForCheck();
     });
-    this.appState.quickShortcuts$.pipe(takeUntil(this.destroy$)).subscribe(v => {
-      this.quickShortcutItems = v; this.cdr.markForCheck();
-    });
 
-    // Force log types load if not yet loaded
     if (!this.appState.inlineLogTypes$.value.length) {
       this.appState.loadLogTypes();
     }

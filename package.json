@@ -6,6 +6,7 @@
     "node": ">=18"
   },
   "scripts": {
+    "dev": "concurrently -n NODE,ANGULAR,IC -c blue,green,yellow \"cd backend && npm run dev\" \"cd frontend && npm start\" \"cd intelligence && uvicorn app.main:app --reload --port 8000\"",
     "build": "cd frontend && npm install && npx ng build --configuration production"
   },
   "dependencies": {
@@ -16,5 +17,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.4.1",
     "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
