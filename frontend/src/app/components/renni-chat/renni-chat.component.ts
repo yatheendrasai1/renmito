@@ -1,5 +1,5 @@
 import {
-  Component, Input, Output, EventEmitter, OnDestroy,
+  Component, Input, Output, EventEmitter, OnInit, OnDestroy, HostListener,
   ChangeDetectionStrategy, ChangeDetectorRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -9,6 +9,7 @@ import { takeUntil } from 'rxjs/operators';
 
 import { AiService, AiError, RenniMessage, ChatResponse } from '../../services/ai.service';
 import { LogService } from '../../services/log.service';
+import { NotesService, NoteItem } from '../../services/notes.service';
 import { LogEntry, CreateLogEntry } from '../../models/log.model';
 
 @Component({
@@ -20,6 +21,8 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
     <div class="renni-backdrop" (click)="close()"></div>
 
     <div class="renni-popup">
+
+      <!-- ── Header ────────────────────────────────────────────────── -->
       <div class="renni-header">
         <div class="renni-header-title">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="renni-header-star">
@@ -29,13 +32,32 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
           </svg>
           Renni
         </div>
-        <button class="renni-close-btn" (click)="close()" aria-label="Close">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
+
+        <div class="renni-header-actions">
+          <!-- Notes trigger — only shown when notes exist -->
+          <button class="renni-notes-btn" *ngIf="notes.length > 0"
+                  [class.renni-notes-btn--active]="notesOverlayOpen"
+                  (click)="toggleNotesOverlay()"
+                  [attr.aria-label]="'Notes (' + notes.length + ')'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+            <span class="renni-notes-badge">{{ notes.length }}</span>
+          </button>
+
+          <button class="renni-close-btn" (click)="close()" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
+      <!-- ── Messages ───────────────────────────────────────────────── -->
       <div class="renni-messages" #renniScroll>
         <div class="renni-empty" *ngIf="renniMsgs.length === 0">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" class="renni-empty-icon">
@@ -111,6 +133,7 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
         </ng-container>
       </div>
 
+      <!-- ── Input ─────────────────────────────────────────────────── -->
       <div class="renni-input-row">
         <textarea class="renni-input-field"
                   [(ngModel)]="renniInput"
@@ -126,6 +149,74 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
           </svg>
         </button>
       </div>
+
+      <!-- ── Notes overlay (inside popup, above messages) ──────────── -->
+      <div class="renni-notes-overlay" *ngIf="notesOverlayOpen"
+           (click)="closeNotesOverlay()">
+        <div class="renni-notes-panel" (click)="$event.stopPropagation()">
+          <div class="renni-notes-panel-header">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.6">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+            <span>Notes</span>
+            <span class="renni-notes-panel-count">{{ notes.length }}</span>
+          </div>
+
+          <div class="renni-notes-items">
+            <div class="renni-note-item"
+                 *ngFor="let note of notes; trackBy: trackById"
+                 [class.renni-note-item--expanded]="expandedNoteId === note._id">
+
+              <!-- Collapsed row -->
+              <button class="renni-note-row" *ngIf="expandedNoteId !== note._id"
+                      (click)="expandNote(note._id)">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="renni-note-row-icon">
+                  <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
+                </svg>
+                <span class="renni-note-preview">{{ note.content.trim().slice(0, 20) }}{{ note.content.trim().length > 20 ? '…' : '' }}</span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;opacity:0.4;margin-left:auto">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+
+              <!-- Expanded content -->
+              <div *ngIf="expandedNoteId === note._id" class="renni-note-expanded">
+                <button class="renni-note-row renni-note-row--active"
+                        (click)="collapseNote()">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="renni-note-row-icon renni-note-row-icon--active">
+                    <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
+                  </svg>
+                  <span class="renni-note-preview renni-note-preview--active">{{ note.content.trim().slice(0, 20) }}{{ note.content.trim().length > 20 ? '…' : '' }}</span>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;opacity:0.6;margin-left:auto;transform:rotate(180deg)">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                <div class="renni-note-body"
+                     (mouseup)="onNoteTextSelect($event)"
+                     (touchend)="onNoteTextSelect($event)">
+                  {{ note.content.trim() }}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Log-it tooltip ────────────────────────────────────────────── -->
+    <div class="renni-logit-tooltip"
+         *ngIf="selectionTooltip"
+         [style.left.px]="selectionTooltip.x"
+         [style.top.px]="selectionTooltip.y"
+         (mousedown)="$event.preventDefault()"
+         (click)="logSelectedText()">
+      Log it
     </div>
   `,
   styles: [`
@@ -154,6 +245,8 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
       from { transform: translateY(100%); }
       to   { transform: translateY(0); }
     }
+
+    /* ── Header ──────────────────────────────────────────────────────── */
     .renni-header {
       flex-shrink: 0;
       display: flex;
@@ -163,25 +256,37 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
       border-bottom: 1px solid rgba(255,255,255,0.08);
     }
     .renni-header-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.95rem;
-      font-weight: 700;
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.95rem; font-weight: 700;
       background: linear-gradient(135deg, #a78bfa, #7c3aed);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
     .renni-header-star { color: #a78bfa; flex-shrink: 0; }
+    .renni-header-actions { display: flex; align-items: center; gap: 6px; }
+
+    .renni-notes-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 9px; border-radius: 20px; border: 1px solid rgba(167,139,250,0.25);
+      background: rgba(167,139,250,0.08); color: #a78bfa;
+      font-size: 0.75rem; font-weight: 600; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .renni-notes-btn:hover { background: rgba(167,139,250,0.15); border-color: rgba(167,139,250,0.4); }
+    .renni-notes-btn--active { background: rgba(167,139,250,0.2); border-color: rgba(167,139,250,0.5); }
+    .renni-notes-badge {
+      background: rgba(167,139,250,0.3); color: #a78bfa;
+      font-size: 0.68rem; font-weight: 700;
+      padding: 1px 5px; border-radius: 8px;
+    }
+
     .renni-close-btn {
       background: none; border: none; cursor: pointer;
       color: var(--text-secondary); padding: 4px;
-      display: flex; align-items: center; border-radius: 6px;
-      opacity: 0.7;
+      display: flex; align-items: center; border-radius: 6px; opacity: 0.7;
     }
     .renni-close-btn:hover { opacity: 1; background: rgba(255,255,255,0.07); }
 
+    /* ── Messages ────────────────────────────────────────────────────── */
     .renni-messages {
       flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
       padding: 12px 16px 4px;
@@ -206,8 +311,7 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
       border-radius: 16px 16px 4px 16px;
     }
     .renni-bubble--renni {
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
       border-radius: 16px 16px 16px 4px;
     }
     .renni-bubble--error {
@@ -280,6 +384,8 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
       font-size: 0.78rem; color: #f87171;
       background: rgba(248,113,113,0.1); border-radius: 6px; padding: 6px 9px;
     }
+
+    /* ── Input ───────────────────────────────────────────────────────── */
     .renni-input-row {
       flex-shrink: 0;
       display: flex; gap: 8px; align-items: flex-end;
@@ -301,9 +407,106 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
       align-self: flex-end;
     }
     .renni-send-btn:disabled { opacity: 0.45; cursor: default; }
+
+    /* ── Notes overlay ───────────────────────────────────────────────── */
+    .renni-notes-overlay {
+      position: absolute; inset: 0;
+      z-index: 10;
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      animation: renniOverlayIn 0.15s ease;
+    }
+    @keyframes renniOverlayIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .renni-notes-panel {
+      background: var(--bg-surface);
+      border-bottom: 1px solid rgba(167,139,250,0.2);
+      border-radius: 0 0 16px 16px;
+      max-height: 70%;
+      overflow-y: auto;
+      animation: renniPanelDown 0.18s ease;
+    }
+    @keyframes renniPanelDown {
+      from { transform: translateY(-8px); opacity: 0.6; }
+      to   { transform: translateY(0);    opacity: 1;   }
+    }
+    .renni-notes-panel-header {
+      display: flex; align-items: center; gap: 7px;
+      padding: 10px 14px 8px;
+      font-size: 0.78rem; font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .renni-notes-panel-count {
+      background: rgba(167,139,250,0.2); color: #a78bfa;
+      font-size: 0.68rem; font-weight: 700;
+      padding: 1px 6px; border-radius: 8px; margin-left: 2px;
+    }
+    .renni-notes-items {
+      display: flex; flex-direction: column;
+      padding: 6px 8px 10px;
+      gap: 3px;
+    }
+    .renni-note-item {
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid transparent;
+      transition: border-color 0.15s;
+    }
+    .renni-note-item--expanded {
+      border-color: rgba(167,139,250,0.3);
+      background: rgba(167,139,250,0.06);
+    }
+
+    .renni-note-row {
+      width: 100%; display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; background: none; border: none; cursor: pointer;
+      color: var(--text-secondary); text-align: left;
+      border-radius: 10px;
+      transition: background 0.12s;
+    }
+    .renni-note-row:hover { background: rgba(255,255,255,0.04); }
+    .renni-note-row--active { color: var(--text-primary); }
+    .renni-note-row-icon { flex-shrink: 0; opacity: 0.35; }
+    .renni-note-row-icon--active { opacity: 0.7; color: #a78bfa; }
+
+    .renni-note-preview {
+      flex: 1; font-size: 0.82rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .renni-note-preview--active { color: #c4b5fd; font-weight: 500; }
+
+    .renni-note-expanded { display: flex; flex-direction: column; }
+    .renni-note-body {
+      padding: 2px 10px 10px 29px;
+      font-size: 0.83rem; line-height: 1.6;
+      color: var(--text-primary); white-space: pre-wrap; word-break: break-word;
+      user-select: text; -webkit-user-select: text;
+    }
+
+    /* ── Log-it tooltip ─────────────────────────────────────────────── */
+    .renni-logit-tooltip {
+      position: fixed;
+      transform: translate(-50%, calc(-100% - 8px));
+      background: linear-gradient(135deg, #7c3aed, #a78bfa);
+      color: #fff; font-size: 0.76rem; font-weight: 700;
+      padding: 5px 11px; border-radius: 6px;
+      z-index: 500; cursor: pointer; white-space: nowrap;
+      box-shadow: 0 4px 14px rgba(124,58,237,0.45);
+      pointer-events: all;
+    }
+    .renni-logit-tooltip::after {
+      content: '';
+      position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: #a78bfa; border-bottom: none;
+    }
   `],
 })
-export class RenniChatComponent implements OnDestroy {
+export class RenniChatComponent implements OnInit, OnDestroy {
   @Input() selectedDate: Date = new Date();
   @Input() logs: LogEntry[] = [];
 
@@ -316,15 +519,40 @@ export class RenniChatComponent implements OnDestroy {
   renniInput    = '';
   renniThinking = false;
 
+  // ── Notes state ───────────────────────────────────────────────────
+  notes: NoteItem[]             = [];
+  notesOverlayOpen              = false;
+  expandedNoteId: string | null = null;
+  selectionTooltip: { text: string; x: number; y: number } | null = null;
+
   constructor(
-    private aiService:  AiService,
-    private logService: LogService,
-    private cd:         ChangeDetectorRef,
+    private aiService:    AiService,
+    private logService:   LogService,
+    private notesService: NotesService,
+    private cd:           ChangeDetectorRef,
   ) {}
+
+  ngOnInit(): void {
+    this.notesService.getNotes(this.selectedDateStr)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(dayNotes => {
+        this.notes = (dayNotes?.notes ?? []).filter(n => n.content.trim() !== '');
+        this.cd.markForCheck();
+      });
+  }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  // Dismiss tooltip when clicking anywhere outside it
+  @HostListener('document:mousedown', ['$event'])
+  onDocumentMousedown(e: MouseEvent): void {
+    if (!(e.target as HTMLElement).closest('.renni-logit-tooltip') && this.selectionTooltip) {
+      this.selectionTooltip = null;
+      this.cd.markForCheck();
+    }
   }
 
   private get selectedDateStr(): string {
@@ -333,12 +561,69 @@ export class RenniChatComponent implements OnDestroy {
   }
 
   close(): void {
-    this.renniMsgs     = [];
-    this.renniInput    = '';
-    this.renniThinking = false;
+    this.renniMsgs          = [];
+    this.renniInput         = '';
+    this.renniThinking      = false;
+    this.notesOverlayOpen   = false;
+    this.expandedNoteId     = null;
+    this.selectionTooltip   = null;
     this.closed.emit();
   }
 
+  // ── Notes overlay ─────────────────────────────────────────────────
+  toggleNotesOverlay(): void {
+    this.notesOverlayOpen = !this.notesOverlayOpen;
+    if (!this.notesOverlayOpen) {
+      this.expandedNoteId   = null;
+      this.selectionTooltip = null;
+    }
+    this.cd.markForCheck();
+  }
+
+  closeNotesOverlay(): void {
+    this.notesOverlayOpen = false;
+    this.expandedNoteId   = null;
+    this.selectionTooltip = null;
+    this.cd.markForCheck();
+  }
+
+  expandNote(id: string): void {
+    this.expandedNoteId   = id;
+    this.selectionTooltip = null;
+    this.cd.markForCheck();
+  }
+
+  collapseNote(): void {
+    if (window.getSelection()?.toString().trim()) return;
+    this.expandedNoteId   = null;
+    this.selectionTooltip = null;
+    this.cd.markForCheck();
+  }
+
+  onNoteTextSelect(event: MouseEvent | TouchEvent): void {
+    event.stopPropagation();
+    const sel  = window.getSelection();
+    const text = sel?.toString().trim() ?? '';
+    if (!text) {
+      this.selectionTooltip = null;
+      this.cd.markForCheck();
+      return;
+    }
+    const rect = sel!.getRangeAt(0).getBoundingClientRect();
+    this.selectionTooltip = { text, x: rect.left + rect.width / 2, y: rect.top };
+    this.cd.markForCheck();
+  }
+
+  logSelectedText(): void {
+    if (!this.selectionTooltip) return;
+    this.renniInput       = this.selectionTooltip.text;
+    this.selectionTooltip = null;
+    window.getSelection()?.removeAllRanges();
+    this.closeNotesOverlay();
+    this.cd.markForCheck();
+  }
+
+  // ── Chat ──────────────────────────────────────────────────────────
   onRenniKeydown(e: KeyboardEvent): void {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendRenniMessage(); }
   }
@@ -432,6 +717,8 @@ export class RenniChatComponent implements OnDestroy {
     saveNext(0);
   }
 
+  // ── TrackBy ───────────────────────────────────────────────────────
+  trackById(_i: number, item: NoteItem): string { return item._id; }
   trackByIndex(i: number): number { return i; }
 
   private _scrollToBottom(): void {
