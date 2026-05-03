@@ -14,6 +14,8 @@ const timeLogSchema = new mongoose.Schema(
     status:          { type: String, enum: ['running', 'completed', 'cancelled'], default: 'completed' },
     durationMins:    { type: Number, default: null },
     ticketId:        { type: String, default: '' },
+    priority:        { type: String, enum: ['High', 'Medium', 'Low'], default: null },
+    collaborators:   [{ type: String }],
     tags:            [{ type: String }],
     source:          { type: String, enum: ['manual', 'auto', 'imported', 'ai'], default: 'manual' },
     entryType:       { type: String, enum: ['range', 'point'], default: 'range' },

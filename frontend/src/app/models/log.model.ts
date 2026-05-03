@@ -18,6 +18,8 @@ export interface LogEntry {
   logTypeSource: 'DefaultLogType' | 'LogType' | null;
   entryType: 'range' | 'point';
   ticketId?: string;
+  priority?: 'High' | 'Medium' | 'Low' | null;
+  collaborators?: string[];
   source?: 'manual' | 'auto' | 'imported' | 'ai';
   updatedAt: string | null;  // ISO — used for Important Logs stale detection (1.83)
 }
@@ -32,5 +34,7 @@ export interface CreateLogEntry {
   entryType?: 'range' | 'point';
   pointTime?: string;   // HH:MM — used for point logs instead of startTime/endTime
   ticketId?: string;
+  priority?: 'High' | 'Medium' | 'Low' | null;
+  collaborators?: string[];
   source?: 'manual' | 'ai';
 }

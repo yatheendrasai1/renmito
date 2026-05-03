@@ -21,6 +21,7 @@ interface LogTypeBreakdown {
   id:        string;
   name:      string;
   color:     string;
+  domain:    string;
   totalMins: number;
 }
 
@@ -88,40 +89,92 @@ interface LogTypeBreakdown {
         </div>
 
         <ng-container *ngIf="logTypeBreakdown.length > 0; else noBreakdown">
-          <div class="breakdown-list">
-            <div class="breakdown-item"
-                 *ngFor="let bt of visibleBreakdown; trackBy: trackByBreakdownId">
-              <div class="breakdown-row">
-                <span class="breakdown-dot" [style.background]="bt.color || '#9B9B9B'"></span>
-                <span class="breakdown-name">{{ bt.name }}</span>
-                <span class="breakdown-time">{{ fmtMins(bt.totalMins) }}</span>
-                <span class="breakdown-pct">{{ breakdownPct(bt.totalMins) }}%</span>
-              </div>
-              <div class="breakdown-track">
-                <div class="breakdown-fill"
-                     [style.width]="breakdownPct(bt.totalMins) + '%'"
-                     [style.background]="bt.color || '#9B9B9B'"></div>
+
+          <!-- Professional section -->
+          <ng-container *ngIf="professionalBreakdown.length > 0">
+            <div class="breakdown-section-header">
+              <span class="breakdown-section-label">Professional</span>
+              <span class="breakdown-section-total">{{ fmtMins(sectionTotalMins(professionalBreakdown)) }}</span>
+            </div>
+            <div class="breakdown-list">
+              <div class="breakdown-item"
+                   *ngFor="let bt of visibleProfessional; trackBy: trackByBreakdownId">
+                <div class="breakdown-row">
+                  <span class="breakdown-dot" [style.background]="bt.color || '#9B9B9B'"></span>
+                  <span class="breakdown-name">{{ bt.name }}</span>
+                  <span class="breakdown-time">{{ fmtMins(bt.totalMins) }}</span>
+                  <span class="breakdown-pct">{{ breakdownPct(bt.totalMins) }}%</span>
+                </div>
+                <div class="breakdown-track">
+                  <div class="breakdown-fill"
+                       [style.width]="breakdownPct(bt.totalMins) + '%'"
+                       [style.background]="bt.color || '#9B9B9B'"></div>
+                </div>
               </div>
             </div>
-          </div>
-          <button class="breakdown-expand-btn"
-                  *ngIf="logTypeBreakdown.length > 4"
-                  (click)="breakdownExpanded = !breakdownExpanded; $event.stopPropagation()">
-            <ng-container *ngIf="!breakdownExpanded">
-              Show {{ logTypeBreakdown.length - 4 }} more
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
-                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </ng-container>
-            <ng-container *ngIf="breakdownExpanded">
-              Show less
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                <path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor"
-                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </ng-container>
-          </button>
+            <button class="breakdown-expand-btn"
+                    *ngIf="professionalBreakdown.length > 4"
+                    (click)="professionalExpanded = !professionalExpanded; $event.stopPropagation()">
+              <ng-container *ngIf="!professionalExpanded">
+                Show {{ professionalBreakdown.length - 4 }} more
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                  <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
+                        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </ng-container>
+              <ng-container *ngIf="professionalExpanded">
+                Show less
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                  <path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor"
+                        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </ng-container>
+            </button>
+          </ng-container>
+
+          <!-- Personal section -->
+          <ng-container *ngIf="personalBreakdown.length > 0">
+            <div class="breakdown-section-header"
+                 [class.breakdown-section-header--bordered]="professionalBreakdown.length > 0">
+              <span class="breakdown-section-label">Personal</span>
+              <span class="breakdown-section-total">{{ fmtMins(sectionTotalMins(personalBreakdown)) }}</span>
+            </div>
+            <div class="breakdown-list">
+              <div class="breakdown-item"
+                   *ngFor="let bt of visiblePersonal; trackBy: trackByBreakdownId">
+                <div class="breakdown-row">
+                  <span class="breakdown-dot" [style.background]="bt.color || '#9B9B9B'"></span>
+                  <span class="breakdown-name">{{ bt.name }}</span>
+                  <span class="breakdown-time">{{ fmtMins(bt.totalMins) }}</span>
+                  <span class="breakdown-pct">{{ breakdownPct(bt.totalMins) }}%</span>
+                </div>
+                <div class="breakdown-track">
+                  <div class="breakdown-fill"
+                       [style.width]="breakdownPct(bt.totalMins) + '%'"
+                       [style.background]="bt.color || '#9B9B9B'"></div>
+                </div>
+              </div>
+            </div>
+            <button class="breakdown-expand-btn"
+                    *ngIf="personalBreakdown.length > 4"
+                    (click)="personalExpanded = !personalExpanded; $event.stopPropagation()">
+              <ng-container *ngIf="!personalExpanded">
+                Show {{ personalBreakdown.length - 4 }} more
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                  <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
+                        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </ng-container>
+              <ng-container *ngIf="personalExpanded">
+                Show less
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                  <path d="M3 7.5L6 4.5L9 7.5" stroke="currentColor"
+                        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </ng-container>
+            </button>
+          </ng-container>
+
         </ng-container>
         <ng-template #noBreakdown>
           <div class="breakdown-empty">No logs recorded for this day.</div>
@@ -329,6 +382,23 @@ interface LogTypeBreakdown {
     .breakdown-fill   { height: 100%; border-radius: 2px; transition: width 0.4s ease; opacity: 0.75; }
     .breakdown-empty  { padding: 16px 14px; font-size: 12px; color: var(--text-muted); }
 
+    .breakdown-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px 4px;
+    }
+    .breakdown-section-header--bordered {
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+    .breakdown-section-label {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; color: var(--text-muted);
+    }
+    .breakdown-section-total {
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
     .breakdown-expand-btn {
       display: flex; align-items: center; gap: 4px; justify-content: center;
       width: 100%; padding: 7px 14px;
@@ -349,6 +419,8 @@ export class MetricsComponent implements OnChanges, OnDestroy {
 
   metricsPopupOpen      = false;
   breakdownExpanded     = false;
+  professionalExpanded  = false;
+  personalExpanded      = false;
   monthWorkSummary:     Record<string, number> = {};
   prevMonthWorkSummary: Record<string, number> = {};
   monthDayTypes:        Record<string, string> = {};
@@ -379,8 +451,10 @@ export class MetricsComponent implements OnChanges, OnDestroy {
     if (changes['selectedDate'] && this.selectedDate) {
       this.fetchPrevDayLogs();
       this.fetchMonthSummary();
-      this.breakdownExpanded = false;
-      this.metricsPopupOpen  = false;
+      this.breakdownExpanded     = false;
+      this.professionalExpanded  = false;
+      this.personalExpanded      = false;
+      this.metricsPopupOpen      = false;
     }
   }
 
@@ -453,10 +527,6 @@ export class MetricsComponent implements OnChanges, OnDestroy {
 
   /* ── Breakdown ───────────────────────────────────── */
 
-  get visibleBreakdown(): LogTypeBreakdown[] {
-    return this.breakdownExpanded ? this.logTypeBreakdown : this.logTypeBreakdown.slice(0, 4);
-  }
-
   get logTypeBreakdown(): LogTypeBreakdown[] {
     const map = new Map<string, LogTypeBreakdown>();
     for (const log of this.logs) {
@@ -464,10 +534,30 @@ export class MetricsComponent implements OnChanges, OnDestroy {
       const mins = Math.max(0, this.toMins(log.endAt) - this.toMins(log.startAt));
       if (!mins) continue;
       const key = log.logType.id;
-      if (!map.has(key)) map.set(key, { id: key, name: log.logType.name, color: log.logType.color, totalMins: 0 });
+      if (!map.has(key)) map.set(key, { id: key, name: log.logType.name, color: log.logType.color, domain: log.logType.domain ?? '', totalMins: 0 });
       map.get(key)!.totalMins += mins;
     }
     return Array.from(map.values()).sort((a, b) => b.totalMins - a.totalMins);
+  }
+
+  get professionalBreakdown(): LogTypeBreakdown[] {
+    return this.logTypeBreakdown.filter(bt => bt.domain === 'work');
+  }
+
+  get personalBreakdown(): LogTypeBreakdown[] {
+    return this.logTypeBreakdown.filter(bt => bt.domain !== 'work');
+  }
+
+  get visibleProfessional(): LogTypeBreakdown[] {
+    return this.professionalExpanded ? this.professionalBreakdown : this.professionalBreakdown.slice(0, 4);
+  }
+
+  get visiblePersonal(): LogTypeBreakdown[] {
+    return this.personalExpanded ? this.personalBreakdown : this.personalBreakdown.slice(0, 4);
+  }
+
+  sectionTotalMins(section: LogTypeBreakdown[]): number {
+    return section.reduce((s, bt) => s + bt.totalMins, 0);
   }
 
   private get breakdownTotalMins(): number {

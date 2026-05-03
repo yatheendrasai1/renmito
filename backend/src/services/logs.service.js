@@ -45,8 +45,10 @@ function toResponse(doc) {
       category: lt.category ?? null
     } : null,
     logTypeSource: doc.logTypeSource ?? null,
-    entryType:     doc.entryType     ?? 'range',
+    entryType:     doc.entryType      ?? 'range',
     ticketId:      doc.ticketId      ?? '',
+    priority:      doc.priority      ?? null,
+    collaborators: doc.collaborators ?? [],
     source:        doc.source        ?? 'manual',
     updatedAt:     doc.updatedAt     ?? doc.createdAt ?? null,
   };
@@ -97,7 +99,7 @@ async function getLogsByDate(userId, date) {
  */
 async function createLog(userId, date, body) {
   const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId, source,
-          startAtISO, endAtISO, pointAtISO, endDate } = body;
+          startAtISO, endAtISO, pointAtISO, endDate, priority, collaborators } = body;
   const isPoint = entryType === 'point';
 
   const resolved = await validateLogTypeId(logTypeId);
@@ -118,6 +120,8 @@ async function createLog(userId, date, body) {
     logTypeSource: resolved.source,
     title,
     ticketId:      ticketId ?? '',
+    priority:      priority ?? null,
+    collaborators: Array.isArray(collaborators) ? collaborators.map(c => String(c).trim()).filter(Boolean) : [],
     startAt,
     endAt,
     durationMins,
@@ -136,7 +140,7 @@ async function createLog(userId, date, body) {
  * Returns the updated response object or an error.
  */
 async function updateLog(userId, date, id, body) {
-  const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId, endDate } = body;
+  const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId, endDate, priority, collaborators } = body;
   const isPoint = entryType === 'point';
   const updates = {};
 
@@ -156,8 +160,11 @@ async function updateLog(userId, date, id, body) {
     }
   }
 
-  if (title    !== undefined) updates.title    = title;
-  if (ticketId !== undefined) updates.ticketId = ticketId;
+  if (title         !== undefined) updates.title         = title;
+  if (ticketId      !== undefined) updates.ticketId      = ticketId;
+  if (priority      !== undefined) updates.priority      = priority ?? null;
+  if (collaborators !== undefined) updates.collaborators = Array.isArray(collaborators)
+    ? collaborators.map(c => String(c).trim()).filter(Boolean) : [];
 
   if (logTypeId !== undefined) {
     const resolved = await validateLogTypeId(logTypeId);
@@ -246,11 +253,14 @@ async function getLogsByDateRange(userId, startDate, endDate) {
  * Recomputes endAt from startAt + durationMins.
  */
 async function updateLogReport(userId, id, body) {
-  const { title, ticketId, startAtISO, durationMins } = body;
+  const { title, ticketId, startAtISO, durationMins, priority, collaborators } = body;
   const updates = {};
 
-  if (title    !== undefined) updates.title    = title;
-  if (ticketId !== undefined) updates.ticketId = ticketId ?? '';
+  if (title         !== undefined) updates.title         = title;
+  if (ticketId      !== undefined) updates.ticketId      = ticketId ?? '';
+  if (priority      !== undefined) updates.priority      = priority ?? null;
+  if (collaborators !== undefined) updates.collaborators = Array.isArray(collaborators)
+    ? collaborators.map(c => String(c).trim()).filter(Boolean) : [];
 
   if (startAtISO !== undefined) {
     const newStart = new Date(startAtISO);

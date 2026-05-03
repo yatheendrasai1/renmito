@@ -1956,9 +1956,16 @@ export class JourneysComponent implements OnInit, OnDestroy {
     }
 
     if (j.trackerType === 'point-log' && j.config.valueType === 'numeric') {
-      const nums = this.entries.filter(e => e.numericValue !== null).map(e => e.numericValue!);
-      if (nums.length === 0) return null;
-      const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+      const byDate = new Map<string, number[]>();
+      for (const e of this.entries) {
+        if (e.numericValue === null) continue;
+        const d = new Date(e.timestamp).toLocaleDateString('en-CA');
+        if (!byDate.has(d)) byDate.set(d, []);
+        byDate.get(d)!.push(e.numericValue);
+      }
+      const dailyAvgs = Array.from(byDate.values()).map(vals => vals.reduce((a, b) => a + b, 0) / vals.length);
+      if (dailyAvgs.length === 0) return null;
+      const avg = dailyAvgs.reduce((a, b) => a + b, 0) / dailyAvgs.length;
       return Number.isInteger(avg) ? `${avg}` : avg.toFixed(2);
     }
 

@@ -257,6 +257,52 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
             </div><!-- /accordion-list -->
           </div>
 
+          <!-- ── Priority ──────────────────────────────────── -->
+          <div class="form-group">
+            <label>Priority</label>
+            <div class="priority-row">
+              <button type="button" class="priority-btn priority-btn--high"
+                      [class.priority-btn--active]="priority === 'High'"
+                      (click)="togglePriority('High')">
+                <span class="priority-dot"></span>High
+              </button>
+              <button type="button" class="priority-btn priority-btn--medium"
+                      [class.priority-btn--active]="priority === 'Medium'"
+                      (click)="togglePriority('Medium')">
+                <span class="priority-dot"></span>Medium
+              </button>
+              <button type="button" class="priority-btn priority-btn--low"
+                      [class.priority-btn--active]="priority === 'Low'"
+                      (click)="togglePriority('Low')">
+                <span class="priority-dot"></span>Low
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Collaborators ──────────────────────────────── -->
+          <div class="form-group">
+            <label>Collaborators</label>
+            <div class="collab-chips" *ngIf="collaborators.length > 0">
+              <span class="collab-chip" *ngFor="let c of collaborators; let i = index; trackBy: trackByIndex">
+                {{ c }}
+                <button type="button" class="collab-chip-remove" (click)="removeCollaborator(i)" aria-label="Remove">×</button>
+              </span>
+            </div>
+            <div class="collab-input-row">
+              <input
+                type="text"
+                name="collaboratorInput"
+                [(ngModel)]="collaboratorInput"
+                placeholder="Name or team…"
+                maxlength="60"
+                autocomplete="off"
+                class="collab-input"
+                (keydown.enter)="$event.preventDefault(); addCollaborator()"
+              />
+              <button type="button" class="collab-add-btn" (click)="addCollaborator()" [disabled]="!collaboratorInput.trim()">Add</button>
+            </div>
+          </div>
+
           <!-- ── Description ────────────────────────────────── -->
           <div class="form-group">
             <label for="labelInput">Description</label>
@@ -391,7 +437,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
       border-radius: var(--radius);
       padding: 16px;
       width: 500px; max-width: 96vw;
-      height: 82vh; height: 82dvh; overflow-y: auto;
+      height: 90vh; height: 90dvh; overflow-y: auto;
       box-shadow: var(--shadow);
       animation: slideIn 0.2s ease;
     }
@@ -680,6 +726,66 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .ticket-id-input:focus { border-color: var(--highlight-selected); outline: none; }
     .ticket-id-input::placeholder { color: var(--text-muted); }
 
+    /* ── Priority ───────────────────────────────────────── */
+    .priority-row { display: flex; gap: 6px; }
+    .priority-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 20px;
+      border: 1.5px solid transparent;
+      font-size: 12px; font-weight: 600;
+      background: var(--bg-card); color: var(--text-muted);
+      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .priority-btn:hover { color: var(--text-primary); }
+    .priority-btn .priority-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: currentColor; }
+    .priority-btn--high  { --p-color: #e94560; }
+    .priority-btn--medium { --p-color: #f5a623; }
+    .priority-btn--low   { --p-color: #4caf7d; }
+    .priority-btn--high  .priority-dot  { background: #e94560; }
+    .priority-btn--medium .priority-dot { background: #f5a623; }
+    .priority-btn--low   .priority-dot  { background: #4caf7d; }
+    .priority-btn--high.priority-btn--active  { border-color: #e94560; color: #e94560; background: rgba(233,69,96,0.1); }
+    .priority-btn--medium.priority-btn--active { border-color: #f5a623; color: #f5a623; background: rgba(245,166,35,0.1); }
+    .priority-btn--low.priority-btn--active   { border-color: #4caf7d; color: #4caf7d; background: rgba(76,175,125,0.1); }
+
+    /* ── Collaborators ───────────────────────────────────── */
+    .collab-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .collab-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 14px;
+      background: color-mix(in srgb, var(--highlight-selected) 14%, transparent);
+      border: 1px solid color-mix(in srgb, var(--highlight-selected) 30%, transparent);
+      color: var(--highlight-selected); font-size: 12px; font-weight: 500;
+    }
+    .collab-chip-remove {
+      background: none; color: var(--highlight-selected);
+      font-size: 15px; line-height: 1; padding: 0 2px;
+      opacity: 0.7; cursor: pointer; border-radius: 50%;
+      transition: opacity 0.15s;
+    }
+    .collab-chip-remove:hover { opacity: 1; }
+    .collab-input-row { display: flex; gap: 6px; }
+    .collab-input {
+      flex: 1; min-width: 0;
+      padding: 7px 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary); font-size: 13px; font-family: inherit;
+      box-sizing: border-box;
+    }
+    .collab-input:focus { border-color: var(--highlight-selected); outline: none; }
+    .collab-input::placeholder { color: var(--text-muted); }
+    .collab-add-btn {
+      padding: 7px 14px; font-size: 12px; font-weight: 600;
+      background: var(--bg-card); color: var(--text-secondary);
+      border: 1px solid var(--border-light); border-radius: var(--radius-sm);
+      cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+    .collab-add-btn:hover:not(:disabled) { background: var(--accent-hover); color: var(--text-primary); }
+    .collab-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
     /* Actions */
     .form-actions { display: flex; gap: 10px; margin-top: 12px; }
     .btn-cancel { flex: 1; padding: 10px; background: var(--bg-card); color: var(--text-secondary); }
@@ -764,6 +870,11 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
   ticketId   = '';
   editMode   = false;
   entryType: 'range' | 'point' = 'point';
+
+  // ── priority & collaborators ───────────────────────────
+  priority: 'High' | 'Medium' | 'Low' | null = null;
+  collaborators: string[] = [];
+  collaboratorInput = '';
 
   // ── accordion state ────────────────────────────────────
   openAccordions = new Set<string>();
@@ -912,6 +1023,9 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
       this.formEndDate   = this.editEntry.endDate ?? this.editEntry.date;
       this.labelValue    = this.editEntry.title;
       this.ticketId      = this.editEntry.ticketId ?? '';
+      this.priority      = this.editEntry.priority ?? null;
+      this.collaborators = [...(this.editEntry.collaborators ?? [])];
+      this.collaboratorInput = '';
 
       // Restore log type — match by id first, then by name
       this.selectedLogType =
@@ -927,13 +1041,16 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
         this.entryType = 'range';
       }
     } else {
-      this.editMode        = false;
-      this.formStartTime   = this.startTime;
-      this.formEndTime     = this.endTime;
-      this.formDate        = this.currentDate;
-      this.formEndDate     = this.currentDate;
-      this.labelValue      = '';
-      this.ticketId        = '';
+      this.editMode          = false;
+      this.formStartTime     = this.startTime;
+      this.formEndTime       = this.endTime;
+      this.formDate          = this.currentDate;
+      this.formEndDate       = this.currentDate;
+      this.labelValue        = '';
+      this.ticketId          = '';
+      this.priority          = null;
+      this.collaborators     = [];
+      this.collaboratorInput = '';
       this.selectedLogType =
         (this.preselectedLogTypeId
           ? this.logTypes.find(lt => lt._id === this.preselectedLogTypeId)
@@ -1107,21 +1224,40 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
+  // ── priority & collaborators ───────────────────────────
+
+  togglePriority(value: 'High' | 'Medium' | 'Low'): void {
+    this.priority = this.priority === value ? null : value;
+  }
+
+  addCollaborator(): void {
+    const name = this.collaboratorInput.trim();
+    if (!name || this.collaborators.includes(name)) return;
+    this.collaborators = [...this.collaborators, name];
+    this.collaboratorInput = '';
+  }
+
+  removeCollaborator(index: number): void {
+    this.collaborators = this.collaborators.filter((_, i) => i !== index);
+  }
+
   // ── form submit ────────────────────────────────────────
 
   save(): void {
     if (!this.canSave) return;
 
     const entry: CreateLogEntry = {
-      startTime:  this.formStartTime,
-      endTime:    this.formEndTime,
-      title:      this.labelValue.trim() || this.selectedLogType?.name || '',
-      logTypeId:  this.selectedLogType!._id,
-      date:       this.formDate || undefined,
-      endDate:    this.entryType === 'range' && this.isNextDay ? this.formEndDate : undefined,
-      entryType:  this.entryType,
-      pointTime:  this.entryType === 'point' ? this.formStartTime : undefined,
-      ticketId:   this.showTicketId ? (this.ticketId.trim() || undefined) : undefined,
+      startTime:     this.formStartTime,
+      endTime:       this.formEndTime,
+      title:         this.labelValue.trim() || this.selectedLogType?.name || '',
+      logTypeId:     this.selectedLogType!._id,
+      date:          this.formDate || undefined,
+      endDate:       this.entryType === 'range' && this.isNextDay ? this.formEndDate : undefined,
+      entryType:     this.entryType,
+      pointTime:     this.entryType === 'point' ? this.formStartTime : undefined,
+      ticketId:      this.showTicketId ? (this.ticketId.trim() || undefined) : undefined,
+      priority:      this.priority ?? undefined,
+      collaborators: this.collaborators.length > 0 ? [...this.collaborators] : undefined,
     };
 
     if (this.editMode && this.editEntry) {
