@@ -132,8 +132,8 @@ import { LogEntry } from '../../models/log.model';
             </div><!-- /TO card -->
           </div><!-- /ln-time-row -->
 
-          <!-- 4. Priority carousel -->
-          <div class="ln-field-group">
+          <!-- 4. Priority carousel (work only) -->
+          <div class="ln-field-group" *ngIf="logNowDomain === 'work'">
             <span class="ln-field-label">Priority</span>
             <div class="ln-priority-carousel">
               <button type="button" class="ln-priority-chip ln-priority-chip--high"
@@ -154,8 +154,8 @@ import { LogEntry } from '../../models/log.model';
             </div>
           </div>
 
-          <!-- 5. Collaborators -->
-          <div class="ln-field-group">
+          <!-- 5. Collaborators (work only) -->
+          <div class="ln-field-group" *ngIf="logNowDomain === 'work'">
             <span class="ln-field-label">Collaborators</span>
             <div class="ln-collab-chips" *ngIf="logNowCollaborators.length > 0">
               <span class="ln-collab-chip"
@@ -256,8 +256,8 @@ import { LogEntry } from '../../models/log.model';
             </div>
           </div>
 
-          <!-- 4. Priority carousel -->
-          <div class="ln-field-group">
+          <!-- 4. Priority carousel (work only) -->
+          <div class="ln-field-group" *ngIf="addPointDomain === 'work'">
             <span class="ln-field-label">Priority</span>
             <div class="ln-priority-carousel">
               <button type="button" class="ln-priority-chip ln-priority-chip--high"
@@ -278,8 +278,8 @@ import { LogEntry } from '../../models/log.model';
             </div>
           </div>
 
-          <!-- 5. Collaborators -->
-          <div class="ln-field-group">
+          <!-- 5. Collaborators (work only) -->
+          <div class="ln-field-group" *ngIf="addPointDomain === 'work'">
             <span class="ln-field-label">Collaborators</span>
             <div class="ln-collab-chips" *ngIf="addPointCollaborators.length > 0">
               <span class="ln-collab-chip"

@@ -259,7 +259,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
           </div>
 
           <!-- ── Priority ──────────────────────────────────── -->
-          <div class="form-group">
+          <div class="form-group" *ngIf="showTicketId">
             <label>Priority</label>
             <div class="priority-row">
               <button type="button" class="priority-btn priority-btn--high"
@@ -281,7 +281,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
           </div>
 
           <!-- ── Collaborators ──────────────────────────────── -->
-          <div class="form-group">
+          <div class="form-group" *ngIf="showTicketId">
             <label>Collaborators</label>
             <div class="collab-chips" *ngIf="collaborators.length > 0">
               <span class="collab-chip" *ngFor="let c of collaborators; let i = index; trackBy: trackByIndex">
