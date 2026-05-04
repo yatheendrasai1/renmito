@@ -12,9 +12,9 @@ import { AuthService } from './services/auth.service';
 import { LogTypeService } from './services/log-type.service';
 import { PreferenceService, ActiveLog } from './services/preference.service';
 import { DayLevelService, DayMetadata, DayType } from './services/day-level.service';
-import { LogEntry, CreateLogEntry } from './models/log.model';
+import { LogEntry } from './models/log.model';
 import { LogType } from './models/log-type.model';
-import { forkJoin, Subject } from 'rxjs';
+import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ConfirmDialogComponent } from './components/confirm-dialog/confirm-dialog.component';
 import { ImportantLogsComponent } from './components/important-logs/important-logs.component';
@@ -456,9 +456,8 @@ const PERF = (() => {
       [editEntry]="editingEntry"
       [currentDate]="selectedDateStr"
       [preselectedLogTypeId]="formLogTypeId"
-      (saved)="onLogSaved($event)"
-      (updated)="onLogUpdated($event)"
-      (deleted)="onLogDeleted($event)"
+      [mergeSourceIds]="mergeSourceIds"
+      (logChanged)="onFormChanged()"
       (cancelled)="closeForm()"
     ></app-log-form>
 
@@ -2397,7 +2396,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   profilePass    = { current: '', next: '', confirm: '' };
 
   // ── Merge state (for timeline merge action) ───────────────────
-  private mergeSourceIds: [string, string] | null = null;
+  mergeSourceIds: [string, string] | null = null;
   formLogTypeId: string | null = null;
 
   // ── Global confirm dialog ─────────────────────────────────────
@@ -3109,52 +3108,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
 
 
-  onLogSaved(entry: CreateLogEntry): void {
-    let targetDate = this.appState.selectedDate;
-    if (entry.date && entry.date !== this.appState.selectedDateStr) {
-      const [y, m, d] = entry.date.split('-').map(Number);
-      targetDate = new Date(y, m - 1, d);
-      targetDate.setHours(0, 0, 0, 0);
-    }
-    this.logService.createLog(targetDate, entry).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => {
-        const idsToDelete = this.mergeSourceIds;
-        this.mergeSourceIds = null;
-        this.closeForm();
-        if (idsToDelete) {
-          // Destructive merge: delete both source point logs then reload
-          forkJoin([
-            this.logService.deleteLog(this.appState.selectedDate, idsToDelete[0]),
-            this.logService.deleteLog(this.appState.selectedDate, idsToDelete[1])
-          ]).pipe(takeUntil(this.destroy$)).subscribe({ next: () => this.appState.reloadLogs(), error: () => this.appState.reloadLogs() });
-        } else {
-          this.appState.reloadLogs();
-        }
-      },
-      error: () => alert('Failed to save log. Please try again.')
-    });
+  onFormChanged(): void {
+    this.mergeSourceIds = null;
+    this.closeForm();
+    this.appState.reloadLogs();
   }
-
-  onLogUpdated(event: { id: string; entry: Partial<CreateLogEntry>; newDate?: string }): void {
-    let targetDate = this.appState.selectedDate;
-    if (event.newDate) {
-      const [y, m, d] = event.newDate.split('-').map(Number);
-      targetDate = new Date(y, m - 1, d);
-      targetDate.setHours(0, 0, 0, 0);
-    }
-    this.logService.updateLog(targetDate, event.id, event.entry).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { this.closeForm(); this.appState.reloadLogs(); },
-      error: () => alert('Failed to update log. Please try again.')
-    });
-  }
-
-  onLogDeleted(id: string): void {
-    this.logService.deleteLog(this.appState.selectedDate, id).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { this.closeForm(); this.appState.reloadLogs(); },
-      error: () => alert('Failed to delete log. Please try again.')
-    });
-  }
-
 
   closeForm(): void {
     this.showForm      = false;

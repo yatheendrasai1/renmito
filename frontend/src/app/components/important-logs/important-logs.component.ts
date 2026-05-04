@@ -6,7 +6,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { LogEntry, CreateLogEntry } from '../../models/log.model';
+import { LogEntry } from '../../models/log.model';
 import { DayLevelService, DayMetadata, ImportantLogEntry } from '../../services/day-level.service';
 import { LogService } from '../../services/log.service';
 import { LogTypeService } from '../../services/log-type.service';
@@ -153,9 +153,7 @@ const SLOT_CATEGORY: Record<string, string> = {
       [editEntry]="formEditEntry"
       [currentDate]="formDate"
       [preselectedLogTypeId]="formLogTypeId"
-      (saved)="onLogFormSaved($event)"
-      (updated)="onLogFormUpdated($event)"
-      (deleted)="onLogFormDeleted($event)"
+      (logChanged)="onFormChanged()"
       (cancelled)="showForm = false"
     ></app-log-form>
   `,
@@ -530,19 +528,7 @@ export class ImportantLogsComponent implements OnInit, OnChanges, OnDestroy {
     this.showForm      = true;
   }
 
-  onLogFormSaved(_entry: CreateLogEntry): void {
-    this.showForm = false;
-    this.logsChanged.emit();
-    this.reloadSurroundingAndRebuild();
-  }
-
-  onLogFormUpdated(_payload: any): void {
-    this.showForm = false;
-    this.logsChanged.emit();
-    this.reloadSurroundingAndRebuild();
-  }
-
-  onLogFormDeleted(_id: string): void {
+  onFormChanged(): void {
     this.showForm = false;
     this.logsChanged.emit();
     this.reloadSurroundingAndRebuild();

@@ -5,8 +5,9 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject } from 'rxjs';
+import { forkJoin, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { LogService } from '../../services/log.service';
 import { LogTypeService } from '../../services/log-type.service';
 import { LogType } from '../../models/log-type.model';
 import { LogEntry, CreateLogEntry } from '../../models/log.model';
@@ -335,16 +336,16 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
 
           <!-- ── Actions ─────────────────────────────────────── -->
           <div class="form-actions">
-            <button type="button" class="btn-cancel" (click)="cancel()">Cancel</button>
-            <button type="submit" class="btn-save" [disabled]="!canSave">
-              {{ editMode ? 'Update Log' : 'Save Log' }}
+            <button type="button" class="btn-cancel" (click)="cancel()" [disabled]="saving">Cancel</button>
+            <button type="submit" class="btn-save" [disabled]="!canSave || saving">
+              {{ saving ? 'Saving…' : editMode ? 'Update Log' : 'Save Log' }}
             </button>
           </div>
         </form>
 
         <!-- Delete (edit mode only) -->
         <div *ngIf="editMode" class="delete-section">
-          <button class="btn-delete" (click)="deleteEntry()">
+          <button class="btn-delete" (click)="deleteEntry()" [disabled]="saving">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="margin-right:4px;vertical-align:middle;">
               <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9H3z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -842,11 +843,10 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
   @Input() editEntry:            LogEntry | null = null;
   @Input() currentDate          = '';
   @Input() preselectedLogTypeId: string | null = null;
+  @Input() mergeSourceIds:       [string, string] | null = null;
 
-  @Output() saved     = new EventEmitter<CreateLogEntry>();
-  @Output() updated   = new EventEmitter<{ id: string; entry: Partial<CreateLogEntry>; newDate?: string }>();
-  @Output() deleted   = new EventEmitter<string>();
-  @Output() cancelled = new EventEmitter<void>();
+  @Output() logChanged = new EventEmitter<void>();
+  @Output() cancelled  = new EventEmitter<void>();
 
   private readonly destroy$ = new Subject<void>();
 
@@ -875,6 +875,9 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
   priority: 'High' | 'Medium' | 'Low' | null = null;
   collaborators: string[] = [];
   collaboratorInput = '';
+
+  // ── save state ────────────────────────────────────────
+  saving = false;
 
   // ── accordion state ────────────────────────────────────
   openAccordions = new Set<string>();
@@ -912,7 +915,11 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
     return `Delete "${this.deleteConfirmType?.name ?? ''}"?`;
   }
 
-  constructor(private logTypeService: LogTypeService, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private logService:     LogService,
+    private logTypeService: LogTypeService,
+    private cdr:            ChangeDetectorRef,
+  ) {}
 
   // ── computed ───────────────────────────────────────────
 
@@ -1244,7 +1251,7 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
   // ── form submit ────────────────────────────────────────
 
   save(): void {
-    if (!this.canSave) return;
+    if (!this.canSave || this.saving) return;
 
     const entry: CreateLogEntry = {
       startTime:     this.formStartTime,
@@ -1260,17 +1267,48 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
       collaborators: this.collaborators.length > 0 ? [...this.collaborators] : undefined,
     };
 
+    this.saving = true;
+    this.cdr.markForCheck();
+
     if (this.editMode && this.editEntry) {
-      const payload: { id: string; entry: Partial<CreateLogEntry>; newDate?: string } = {
-        id: this.editEntry.id, entry
-      };
-      if (this.formDate && this.formDate !== this.editEntry.date) {
-        payload.newDate = this.formDate;
-      }
-      this.updated.emit(payload);
+      const targetDate = this._dateFromStr(this.formDate);
+      this.logService.updateLog(targetDate, this.editEntry.id, entry)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next:  () => { this.saving = false; this.logChanged.emit(); this.cancel(); },
+          error: () => { this.saving = false; this.cdr.markForCheck(); alert('Failed to update log. Please try again.'); },
+        });
     } else {
-      this.saved.emit(entry);
+      const targetDate = this._dateFromStr(this.formDate);
+      this.logService.createLog(targetDate, entry)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            const idsToDelete = this.mergeSourceIds;
+            this.saving = false;
+            if (idsToDelete) {
+              forkJoin([
+                this.logService.deleteLog(targetDate, idsToDelete[0]),
+                this.logService.deleteLog(targetDate, idsToDelete[1]),
+              ]).pipe(takeUntil(this.destroy$)).subscribe({
+                next:  () => { this.logChanged.emit(); this.cancel(); },
+                error: () => { this.logChanged.emit(); this.cancel(); },
+              });
+            } else {
+              this.logChanged.emit();
+              this.cancel();
+            }
+          },
+          error: () => { this.saving = false; this.cdr.markForCheck(); alert('Failed to save log. Please try again.'); },
+        });
     }
+  }
+
+  private _dateFromStr(dateStr: string): Date {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    date.setHours(0, 0, 0, 0);
+    return date;
   }
 
   deleteConfirmVisible = false;
@@ -1286,7 +1324,14 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
 
   onDeleteConfirmed(): void {
     this.deleteConfirmVisible = false;
-    if (this.editEntry) this.deleted.emit(this.editEntry.id);
+    if (!this.editEntry) return;
+    const date = this._dateFromStr(this.editEntry.date);
+    this.logService.deleteLog(date, this.editEntry.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next:  () => { this.logChanged.emit(); this.cancel(); },
+        error: () => alert('Failed to delete log. Please try again.'),
+      });
   }
 
   onDeleteCancelled(): void {
