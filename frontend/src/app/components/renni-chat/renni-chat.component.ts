@@ -209,14 +209,17 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
 
     </div>
 
-    <!-- ── Log-it tooltip ────────────────────────────────────────────── -->
+    <!-- ── Copy-to-chat tooltip ──────────────────────────────────────── -->
     <div class="renni-logit-tooltip"
          *ngIf="selectionTooltip"
          [style.left.px]="selectionTooltip.x"
          [style.top.px]="selectionTooltip.y"
          (mousedown)="$event.preventDefault()"
-         (click)="logSelectedText()">
-      Log it
+         (click)="copySelectedToInput()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span>Copy to chat</span>
     </div>
   `,
   styles: [`
@@ -487,16 +490,18 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
       user-select: text; -webkit-user-select: text;
     }
 
-    /* ── Log-it tooltip ─────────────────────────────────────────────── */
+    /* ── Copy-to-chat tooltip ───────────────────────────────────────── */
     .renni-logit-tooltip {
       position: fixed;
       transform: translate(-50%, calc(-100% - 8px));
       background: linear-gradient(135deg, #7c3aed, #a78bfa);
       color: #fff; font-size: 0.76rem; font-weight: 700;
-      padding: 5px 11px; border-radius: 6px;
+      padding: 5px 10px 5px 9px; border-radius: 6px;
       z-index: 500; cursor: pointer; white-space: nowrap;
       box-shadow: 0 4px 14px rgba(124,58,237,0.45);
       pointer-events: all;
+      display: flex; align-items: center; gap: 5px;
+      user-select: none;
     }
     .renni-logit-tooltip::after {
       content: '';
@@ -620,6 +625,17 @@ export class RenniChatComponent implements OnInit, OnDestroy {
     this.selectionTooltip = null;
     window.getSelection()?.removeAllRanges();
     this.closeNotesOverlay();
+    this.cd.markForCheck();
+  }
+
+  copySelectedToInput(): void {
+    if (!this.selectionTooltip) return;
+    const snippet = this.selectionTooltip.text;
+    this.renniInput = this.renniInput.trim()
+      ? this.renniInput.trimEnd() + ' ' + snippet
+      : snippet;
+    this.selectionTooltip = null;
+    window.getSelection()?.removeAllRanges();
     this.cd.markForCheck();
   }
 
