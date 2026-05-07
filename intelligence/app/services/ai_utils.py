@@ -59,6 +59,11 @@ def resolve_log_type(parsed: dict, log_types: list[LogType]) -> ParsedLogItem:
         startTime=parsed.get("startTime"),
         endTime=parsed.get("endTime"),
         title=parsed.get("title") or matched.name,
+        priority=parsed.get("priority") or None,
+        ticketId=parsed.get("ticketId") or None,
+        satisfactoryScore=parsed.get("satisfactoryScore"),
+        collaborators=parsed.get("collaborators") or None,
+        crucialPerson=parsed.get("crucialPerson") or None,
     )
 
 

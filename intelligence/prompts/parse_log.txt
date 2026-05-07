@@ -11,7 +11,20 @@ Rules:
 - title: use specific detail from input (e.g. "Maggi with chicken", "Break with Phani and Rajiv"), not just the type name.
 - Date context: {{date}}.
 
-Output schema (array, even for one item):
-[{"logTypeId":"...","logTypeName":"...","domain":"...","entryType":"point|range","pointTime":"HH:MM or null","startTime":"HH:MM or null","endTime":"HH:MM or null","title":"..."}]
+Optional field extraction (ONLY include a field if the input explicitly mentions it; otherwise omit it entirely — do NOT default or guess):
+- priority: "High" | "Medium" | "Low" — extract if the input contains words like "high priority", "urgent", "low priority", "P1/P2/P3", etc.
+- ticketId: string — extract ticket/issue identifiers like "JIRA-123", "ticket #45", "issue ABC-7", etc.
+- satisfactoryScore: integer 1–10 — extract if the input gives an explicit numeric score or rating (e.g. "score 8", "7/10", "rated it a 9").
+- collaborators: array of name strings — extract names of people the activity was done WITH (e.g. "with Alice and Bob" → ["Alice","Bob"]). Do not include names that are merely mentioned.
+- crucialPerson: "Yes" | "No" | "Shared" — extract only if the input uses words like "crucial", "critical person", "not crucial", "shared ownership", etc.
+
+Output schema (array, even for one item).
+Required keys always present:
+  logTypeId, logTypeName, domain, entryType, pointTime, startTime, endTime, title
+Optional keys — include ONLY when the input explicitly mentions them, otherwise omit the key entirely:
+  priority ("High"|"Medium"|"Low"), ticketId (string), satisfactoryScore (integer 1-10), collaborators (array of strings), crucialPerson ("Yes"|"No"|"Shared")
+
+Minimal example (no optional fields): [{"logTypeId":"...","logTypeName":"...","domain":"...","entryType":"range","pointTime":null,"startTime":"09:00","endTime":"10:00","title":"..."}]
+With some optional fields: [{"logTypeId":"...","logTypeName":"...","domain":"...","entryType":"range","pointTime":null,"startTime":"09:00","endTime":"10:00","title":"...","priority":"High","ticketId":"JIRA-42","collaborators":["Alice"]}]
 
 Input: "{{input}}"

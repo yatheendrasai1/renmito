@@ -120,6 +120,18 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
                   <span class="renni-time-sep">–</span>
                   <input class="renni-edit-input renni-time-input" [(ngModel)]="log.endTime" placeholder="HH:MM" />
                 </div>
+                <div class="renni-meta-chips" *ngIf="log.priority || log.ticketId || log.satisfactoryScore != null || log.collaborators?.length || log.crucialPerson">
+                  <span class="renni-meta-chip renni-meta-priority" *ngIf="log.priority"
+                        [class.renni-meta-priority--high]="log.priority === 'High'"
+                        [class.renni-meta-priority--medium]="log.priority === 'Medium'"
+                        [class.renni-meta-priority--low]="log.priority === 'Low'">
+                    {{ log.priority }}
+                  </span>
+                  <span class="renni-meta-chip" *ngIf="log.ticketId">{{ log.ticketId }}</span>
+                  <span class="renni-meta-chip" *ngIf="log.satisfactoryScore != null">★ {{ log.satisfactoryScore }}/10</span>
+                  <span class="renni-meta-chip" *ngFor="let c of (log.collaborators ?? [])">{{ c }}</span>
+                  <span class="renni-meta-chip" *ngIf="log.crucialPerson">Crucial: {{ log.crucialPerson }}</span>
+                </div>
               </div>
               <div class="renni-log-actions">
                 <button class="renni-discard-btn" (click)="discardRenniLogs(i)">Discard</button>
@@ -371,6 +383,15 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
     .renni-edit-input:focus { outline: none; border-color: rgba(167,139,250,0.5); }
     .renni-time-input { flex: 0 0 72px; font-family: monospace; }
     .renni-time-sep { opacity: 0.5; font-size: 0.8rem; }
+    .renni-meta-chips { display: flex; flex-wrap: wrap; gap: 5px; padding-top: 1px; }
+    .renni-meta-chip {
+      font-size: 0.7rem; padding: 2px 7px; border-radius: 10px;
+      background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.25);
+      color: #a78bfa; font-weight: 500;
+    }
+    .renni-meta-priority--high { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.3); color: #f87171; }
+    .renni-meta-priority--medium { background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.3); color: #fbbf24; }
+    .renni-meta-priority--low { background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.3); color: #34d399; }
     .renni-log-actions { display: flex; gap: 8px; padding-top: 2px; }
     .renni-discard-btn {
       flex: 1; padding: 7px 10px; border-radius: 8px; font-size: 0.82rem;
@@ -713,6 +734,11 @@ export class RenniChatComponent implements OnInit, OnDestroy {
       const payload: CreateLogEntry & { pointAtISO?: string; startAtISO?: string; endAtISO?: string } = {
         title: p.title, logTypeId: p.logTypeId, entryType: p.entryType,
         source: 'ai', startTime: p.startTime ?? '', endTime: p.endTime ?? '',
+        ...(p.priority          != null && { priority: p.priority }),
+        ...(p.ticketId          != null && p.ticketId !== '' && { ticketId: p.ticketId }),
+        ...(p.satisfactoryScore != null && { satisfactoryScore: p.satisfactoryScore }),
+        ...(p.collaborators?.length     && { collaborators: p.collaborators }),
+        ...(p.crucialPerson     != null && { crucialPerson: p.crucialPerson }),
       };
       if (p.entryType === 'point') {
         payload.pointAtISO = `${dateStr}T${p.pointTime}:00.000Z`;

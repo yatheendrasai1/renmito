@@ -46,11 +46,13 @@ function toResponse(doc) {
     } : null,
     logTypeSource: doc.logTypeSource ?? null,
     entryType:     doc.entryType      ?? 'range',
-    ticketId:      doc.ticketId      ?? '',
-    priority:      doc.priority      ?? null,
-    collaborators: doc.collaborators ?? [],
-    source:        doc.source        ?? 'manual',
-    updatedAt:     doc.updatedAt     ?? doc.createdAt ?? null,
+    ticketId:          doc.ticketId          ?? '',
+    priority:          doc.priority          ?? null,
+    collaborators:     doc.collaborators     ?? [],
+    satisfactoryScore: doc.satisfactoryScore ?? null,
+    crucialPerson:     doc.crucialPerson     ?? null,
+    source:            doc.source            ?? 'manual',
+    updatedAt:         doc.updatedAt         ?? doc.createdAt ?? null,
   };
 }
 
@@ -99,7 +101,8 @@ async function getLogsByDate(userId, date) {
  */
 async function createLog(userId, date, body) {
   const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId, source,
-          startAtISO, endAtISO, pointAtISO, endDate, priority, collaborators } = body;
+          startAtISO, endAtISO, pointAtISO, endDate, priority, collaborators,
+          satisfactoryScore, crucialPerson } = body;
   const isPoint = entryType === 'point';
 
   const resolved = await validateLogTypeId(logTypeId);
@@ -119,9 +122,11 @@ async function createLog(userId, date, body) {
     logTypeId:     resolved.id,
     logTypeSource: resolved.source,
     title,
-    ticketId:      ticketId ?? '',
-    priority:      priority ?? null,
-    collaborators: Array.isArray(collaborators) ? collaborators.map(c => String(c).trim()).filter(Boolean) : [],
+    ticketId:          ticketId ?? '',
+    priority:          priority ?? null,
+    collaborators:     Array.isArray(collaborators) ? collaborators.map(c => String(c).trim()).filter(Boolean) : [],
+    satisfactoryScore: satisfactoryScore != null ? Number(satisfactoryScore) : null,
+    crucialPerson:     crucialPerson ?? null,
     startAt,
     endAt,
     durationMins,
@@ -140,7 +145,8 @@ async function createLog(userId, date, body) {
  * Returns the updated response object or an error.
  */
 async function updateLog(userId, date, id, body) {
-  const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId, endDate, priority, collaborators } = body;
+  const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId, endDate,
+          priority, collaborators, satisfactoryScore, crucialPerson } = body;
   const isPoint = entryType === 'point';
   const updates = {};
 
@@ -160,11 +166,13 @@ async function updateLog(userId, date, id, body) {
     }
   }
 
-  if (title         !== undefined) updates.title         = title;
-  if (ticketId      !== undefined) updates.ticketId      = ticketId;
-  if (priority      !== undefined) updates.priority      = priority ?? null;
-  if (collaborators !== undefined) updates.collaborators = Array.isArray(collaborators)
+  if (title             !== undefined) updates.title             = title;
+  if (ticketId          !== undefined) updates.ticketId          = ticketId;
+  if (priority          !== undefined) updates.priority          = priority ?? null;
+  if (collaborators     !== undefined) updates.collaborators     = Array.isArray(collaborators)
     ? collaborators.map(c => String(c).trim()).filter(Boolean) : [];
+  if (satisfactoryScore !== undefined) updates.satisfactoryScore = satisfactoryScore != null ? Number(satisfactoryScore) : null;
+  if (crucialPerson     !== undefined) updates.crucialPerson     = crucialPerson ?? null;
 
   if (logTypeId !== undefined) {
     const resolved = await validateLogTypeId(logTypeId);

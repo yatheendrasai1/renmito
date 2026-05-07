@@ -5,14 +5,19 @@ import { catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface ParsedLog {
-  logTypeId:   string;
-  logTypeName: string;
-  domain:      string;
-  entryType:   'range' | 'point';
-  pointTime:   string | null;
-  startTime:   string | null;
-  endTime:     string | null;
-  title:       string;
+  logTypeId:         string;
+  logTypeName:       string;
+  domain:            string;
+  entryType:         'range' | 'point';
+  pointTime:         string | null;
+  startTime:         string | null;
+  endTime:           string | null;
+  title:             string;
+  priority?:         'High' | 'Medium' | 'Low' | null;
+  ticketId?:         string | null;
+  satisfactoryScore?: number | null;
+  collaborators?:    string[] | null;
+  crucialPerson?:    'Yes' | 'No' | 'Shared' | null;
 }
 
 export interface ChatResponse {

@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
-import { LogEntry } from '../../models/log.model';
+import { LogEntry, LogType } from '../../models/log.model';
 
 export interface DragSelection {
   startTime: string;
@@ -25,7 +25,6 @@ export interface DragSelection {
   mergeLogTypeId?: string;
 }
 
-interface TickMark { pos: number; isHalf: boolean; }
 
 @Component({
   selector: 'app-timeline',
@@ -35,11 +34,11 @@ interface TickMark { pos: number; isHalf: boolean; }
   template: `
     <div class="timeline-wrapper">
 
-      <!-- ── Header ─────────────────────────────────────── -->
-      <div class="timeline-header" [class.timeline-header--no-toggle]="!collapsible"
+      <!-- ── Toolbar ──────────────────────────────────────── -->
+      <div class="tl-toolbar" [class.tl-toolbar--no-toggle]="!collapsible"
            (click)="collapsible && (isCollapsed = !isCollapsed)">
 
-        <button class="timeline-collapse-btn" tabindex="-1"
+        <button class="tl-section-btn" tabindex="-1"
                 *ngIf="collapsible"
                 [title]="isCollapsed ? 'Expand timeline' : 'Collapse timeline'"
                 [attr.aria-expanded]="!isCollapsed">
@@ -48,10 +47,8 @@ interface TickMark { pos: number; isHalf: boolean; }
             <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8"
                   stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span class="collapse-label">Timeline</span>
+          <span class="tl-section-label">Timeline</span>
         </button>
-
-        <span class="sel-hint" *ngIf="!mergeMode && !dragSelection">Tap timeline to select a slot</span>
 
         <div class="merge-banner" *ngIf="mergeMode" (click)="$event.stopPropagation()">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
@@ -61,9 +58,30 @@ interface TickMark { pos: number; isHalf: boolean; }
             <line x1="6.5" y1="8" x2="9.5" y2="8" stroke="currentColor" stroke-width="1.4"
                   stroke-linecap="round" stroke-dasharray="1.5 1.5"/>
           </svg>
-          <span class="merge-hint">Select another point log to create a time range</span>
+          <span class="merge-hint">Select another point log</span>
           <button class="btn-cancel-merge" (click)="cancelMerge()">Cancel</button>
         </div>
+
+        <!-- Info slot: fixed height, hint and sel-info are absolutely overlaid -->
+        <div class="tl-center" *ngIf="!mergeMode">
+          <span class="tl-tap-hint" [class.tl-fade-out]="hasDragSelection">Tap or drag to select</span>
+          <div class="tl-sel-info" [class.tl-fade-in]="hasDragSelection && !!dragSelection">
+            <span class="tl-sel-times">{{ dragSelection?.startTime ?? '' }}&thinsp;–&thinsp;{{ dragSelection?.endTime ?? '' }}</span>
+            <span class="tl-sel-dur" *ngIf="selectionDuration">{{ selectionDuration }}</span>
+          </div>
+        </div>
+
+        <!-- Add button: always in DOM to prevent layout shift; visible only when selection exists -->
+        <button class="tl-add-btn" *ngIf="!mergeMode"
+                [class.tl-add-btn--active]="hasDragSelection && !!dragSelection"
+                (pointerdown)="$event.stopPropagation()"
+                (click)="openCreateForm(); $event.stopPropagation()">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <line x1="7" y1="1.5" x2="7" y2="12.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            <line x1="1.5" y1="7" x2="12.5" y2="7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+          Add block
+        </button>
 
       </div>
 
@@ -81,27 +99,17 @@ interface TickMark { pos: number; isHalf: boolean; }
           (pointerenter)="onTrackPointerEnter($event)"
           (pointerleave)="onTrackPointerLeave($event)"
         >
-          <!-- Ruler strip background (sits behind labels, above bars) -->
-          <div class="ruler-strip" [style.height.px]="LABEL_H"></div>
-
-          <!-- Hour labels -->
+          <!-- Hour labels (bottom of canvas) -->
           <div class="hour-label"
-               *ngFor="let hour of labelHours"
+               *ngFor="let hour of labelHours; trackBy: trackByIndex"
                [style.left.px]="hour * hourWidth + 2">
             {{ formatHour(hour) }}
           </div>
 
-          <!-- Vertical hour grid lines -->
+          <!-- Vertical grid lines at 6-hour intervals -->
           <div class="hour-line"
-               *ngFor="let hour of hours; trackBy: trackByIndex"
+               *ngFor="let hour of gridHours; trackBy: trackByIndex"
                [style.left.px]="hour * hourWidth"></div>
-          <div class="hour-line" [style.left.px]="24 * hourWidth"></div>
-
-          <!-- 10-minute tick marks -->
-          <div class="tick-line"
-               *ngFor="let tick of tickMarks; trackBy: trackByPos"
-               [class.tick-line--half]="tick.isHalf"
-               [style.left.px]="tick.pos"></div>
 
           <!-- Selection overlay (tap-to-select result) -->
           <div class="drag-overlay"
@@ -110,24 +118,6 @@ interface TickMark { pos: number; isHalf: boolean; }
                [style.width.px]="dragOverlayWidth"
                [style.top.px]="LABEL_H"
                [style.height.px]="barAreaHeight"></div>
-
-          <!-- Log tooltip: icon button pinned to the top corner of the selection -->
-          <button
-            class="log-tooltip-btn"
-            *ngIf="hasDragSelection && dragSelection && !isPanning"
-            [class.log-tooltip-btn--left]="!tooltipOnRight"
-            [style.left.px]="tooltipLeft"
-            [style.top.px]="LABEL_H + 3"
-            title="Log this slot"
-            (pointerdown)="$event.stopPropagation()"
-            (pointerup)="$event.stopPropagation()"
-            (click)="openCreateForm(); $event.stopPropagation()"
-          >
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
-              <circle cx="8" cy="8" r="2.8" fill="currentColor"/>
-            </svg>
-          </button>
 
           <!-- Range log bars -->
           <div
@@ -143,9 +133,7 @@ interface TickMark { pos: number; isHalf: boolean; }
             [attr.data-log-id]="log.id"
             [title]="log.title + ' (' + log.startAt + ' – ' + (log.endAt ?? '') + ')'"
             (click)="onBarClick(log, $event)"
-          >
-            <span class="log-bar-label">{{ log.logType?.name ?? log.title }}</span>
-          </div>
+          ></div>
 
           <!-- Point log markers (vertical lines) -->
           <div
@@ -167,9 +155,6 @@ interface TickMark { pos: number; isHalf: boolean; }
             (click)="onPointMarkerClick(log, $event)"
           >
             <div class="point-marker-dot" [style.background]="log.logType?.color ?? '#9B9B9B'"></div>
-            <span class="point-marker-label" [style.color]="log.logType?.color ?? '#9B9B9B'">
-              {{ log.logType?.name ?? log.title }}
-            </span>
             <button
               *ngIf="selectedPointLog?.id === log.id && !mergeMode"
               class="point-merge-btn"
@@ -182,7 +167,6 @@ interface TickMark { pos: number; isHalf: boolean; }
           <!-- Current time indicator (vertical, prominent) -->
           <div class="current-time-line" *ngIf="isToday" [style.left.px]="currentTimeX">
             <div class="current-time-dot"></div>
-            <span class="current-time-label">{{ currentTimeLabel }}</span>
           </div>
 
           <!-- Mouse hover: vertical dashed line + time pill -->
@@ -197,6 +181,19 @@ interface TickMark { pos: number; isHalf: boolean; }
         </div>
       </div>
 
+      <!-- ── Work-domain legend ──────────────────────── -->
+      <div class="tl-legend" *ngIf="workLegendTypes.length">
+        <button class="tl-legend-item"
+                *ngFor="let lt of workLegendTypes"
+                [class.tl-legend-item--active]="selectedLegendTypeId === lt.id"
+                [title]="lt.name"
+                (click)="onLegendClick(lt); $event.stopPropagation()">
+          <span class="tl-legend-dot" [style.background]="lt.color"></span>
+          <span class="tl-legend-name">{{ lt.name }}</span>
+          <span class="tl-legend-total" *ngIf="selectedLegendTypeId === lt.id && legendTotalLabel(lt.id)">{{ legendTotalLabel(lt.id) }}</span>
+        </button>
+      </div>
+
     </div>
   `,
   styles: [`
@@ -208,29 +205,29 @@ interface TickMark { pos: number; isHalf: boolean; }
       width: 100%;
     }
 
-    /* ── Header ──────────────────────────────────────── */
-    .timeline-header {
+    /* ── Toolbar ─────────────────────────────────────── */
+    .tl-toolbar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
       gap: 8px;
       cursor: pointer;
+      min-height: 36px;
     }
-    .timeline-header--no-toggle { cursor: default; }
+    .tl-toolbar--no-toggle { cursor: default; }
 
-    .timeline-collapse-btn {
+    .tl-section-btn {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
       background: none;
       color: var(--text-muted);
-      padding: 4px 8px;
+      padding: 4px 6px;
       border-radius: var(--radius-sm);
       cursor: pointer;
       transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
     }
-    .timeline-collapse-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+    .tl-section-btn:hover { background: var(--bg-card); color: var(--text-primary); }
 
     .collapse-chevron {
       flex-shrink: 0;
@@ -239,54 +236,87 @@ interface TickMark { pos: number; isHalf: boolean; }
     }
     .collapse-chevron--open { transform: rotate(0deg); }
 
-    .collapse-label {
+    .tl-section-label {
       font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
 
-    /* ── Idle hint shown before first selection ──────── */
-    .sel-hint {
+    /* ── Info slot: fixed height, hint and sel-info overlap ── */
+    .tl-center {
+      flex: 1;
+      position: relative;
+      height: 20px;
+      min-width: 0;
+    }
+    .tl-tap-hint,
+    .tl-sel-info {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      transform: translateY(-50%);
+      transition: opacity 0.18s ease;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .tl-tap-hint {
       font-size: 12px;
       color: var(--text-muted);
       font-style: italic;
+      opacity: 1;
     }
-
-    /* ── Log tooltip icon button (top corner of the selection) ── */
-    .log-tooltip-btn {
-      position: absolute;
-      /* top / left bound in template */
-      width: 26px;
-      height: 26px;
-      border-radius: 50%;
-      background: var(--highlight-selected);
-      color: #fff;
+    .tl-tap-hint.tl-fade-out { opacity: 0; }
+    .tl-sel-info {
       display: flex;
       align-items: center;
-      justify-content: center;
-      z-index: 20;
-      box-shadow: 0 2px 8px rgba(74,144,226,0.45);
+      gap: 6px;
+      opacity: 0;
+    }
+    .tl-sel-info.tl-fade-in { opacity: 1; }
+    .tl-sel-times {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+    .tl-sel-dur {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-card);
+      padding: 2px 7px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+
+    /* ── Add block button: always in DOM, fades in when selection exists ── */
+    .tl-add-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--highlight-selected);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 7px 13px;
+      font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      line-height: 1;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(4px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+    .tl-add-btn--active {
+      opacity: 1;
       pointer-events: all;
-      animation: tooltipPop 0.13s ease;
-      transition: transform 0.15s, opacity 0.15s;
+      transform: translateX(0);
     }
-    /* When anchored to left edge, shift the button so its right side touches the edge */
-    .log-tooltip-btn--left {
-      transform: translateX(-100%);
-    }
-    .log-tooltip-btn:hover {
-      transform: scale(1.12);
-      opacity: 0.9;
-    }
-    .log-tooltip-btn--left:hover {
-      transform: translateX(-100%) scale(1.12);
-    }
-    @keyframes tooltipPop {
-      from { opacity: 0; transform: scale(0.7); }
-      to   { opacity: 1; transform: scale(1); }
-    }
+    .tl-add-btn--active:hover  { filter: brightness(1.1); }
+    .tl-add-btn--active:active { transform: scale(0.96); }
 
     /* ── Scroll container ────────────────────────────── */
     .scroll-container {
@@ -321,22 +351,10 @@ interface TickMark { pos: number; isHalf: boolean; }
     }
     .timeline-canvas:active { cursor: grabbing; }
 
-    /* ── Ruler strip ─────────────────────────────────── */
-    .ruler-strip {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      background: var(--bg-card);
-      border-bottom: 1px solid var(--border);
-      pointer-events: none;
-      z-index: 4;
-    }
-
-    /* ── Hour labels (sit inside the ruler strip) ─────── */
+    /* ── Hour labels (bottom of canvas) ─────────────────── */
     .hour-label {
       position: absolute;
-      top: 5px;
+      bottom: 4px;
       font-size: 10px;
       font-weight: 600;
       color: var(--timeline-text);
@@ -346,43 +364,23 @@ interface TickMark { pos: number; isHalf: boolean; }
       letter-spacing: 0.2px;
     }
 
-    /* ── Vertical hour grid lines (bar area only, below ruler) */
+    /* ── Vertical grid lines (6-hour intervals, bar area only) */
     .hour-line {
       position: absolute;
-      top: 0;
-      bottom: 0;
+      top: 6px;    /* LABEL_H */
+      bottom: 22px; /* BOTTOM_H */
       width: 1px;
       background: var(--border);
       pointer-events: none;
       z-index: 1;
     }
 
-    /* ── 10-minute tick marks (anchored to ruler bottom edge) */
-    /* top value mirrors LABEL_H - tickHeight so they hang from the ruler bottom */
-    .tick-line {
-      position: absolute;
-      top: 19px;   /* LABEL_H(24) - height(5) = 19 */
-      height: 5px;
-      width: 1px;
-      background: var(--timeline-text-muted);
-      opacity: 0.5;
-      pointer-events: none;
-      z-index: 5;
-    }
-    .tick-line--half {
-      top: 13px;   /* LABEL_H(24) - height(11) = 13 */
-      height: 11px;
-      opacity: 0.7;
-    }
-
     /* ── Selection overlay ───────────────────────────── */
     .drag-overlay {
       position: absolute;
       background: var(--drag-overlay);
-      border-top: 2px solid rgba(74,144,226,0.75);
-      border-left: 1px solid rgba(74,144,226,0.35);
-      border-right: 1px solid rgba(74,144,226,0.35);
-      border-radius: 3px 3px 0 0;
+      border: 1.5px solid rgba(74,144,226,0.6);
+      border-radius: 4px;
       pointer-events: none;
       z-index: 5;
       transition: left 0.1s ease, width 0.1s ease;
@@ -416,22 +414,11 @@ interface TickMark { pos: number; isHalf: boolean; }
       70%  { box-shadow: 0 0 0 6px rgba(255,255,255,0); }
       100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
     }
-    .log-bar-label {
-      font-size: 10px;
-      font-weight: 600;
-      color: rgba(255,255,255,0.95);
-      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      pointer-events: none;
-    }
-
     /* ── Current time indicator ──────────────────────── */
     .current-time-line {
       position: absolute;
       top: 0;
-      bottom: 0;
+      bottom: 22px; /* BOTTOM_H — stops above hour labels */
       width: 2px;
       background: var(--highlight-today);
       pointer-events: none;
@@ -439,25 +426,13 @@ interface TickMark { pos: number; isHalf: boolean; }
     }
     .current-time-dot {
       position: absolute;
-      top: 7px;     /* vertically centred in the 24px ruler strip */
-      left: -5px;
-      width: 10px;
-      height: 10px;
+      top: 3px;
+      left: -4px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: var(--highlight-today);
       box-shadow: 0 0 6px var(--highlight-today);
-      z-index: 10;
-    }
-    .current-time-label {
-      position: absolute;
-      top: 5px;
-      left: 9px;
-      font-size: 9px;
-      font-weight: 700;
-      color: var(--highlight-today);
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      pointer-events: none;
       z-index: 10;
     }
 
@@ -501,25 +476,12 @@ interface TickMark { pos: number; isHalf: boolean; }
     .point-marker:hover { filter: brightness(1.3); z-index: 4; }
     .point-marker-dot {
       position: absolute;
-      top: 4px;     /* inside the bar area (below ruler) */
+      top: 5px;     /* (LANE_H - BAR_H) / 2 = 5 — aligns with bar top */
       left: -7px;
       width: 11px;
       height: 11px;
       border-radius: 50%;
       border: 2px solid var(--timeline-bg);
-    }
-    .point-marker-label {
-      position: absolute;
-      top: 9px;
-      left: 4px;
-      font-size: 9px;
-      font-weight: 700;
-      background: var(--timeline-bg);
-      border-radius: 3px;
-      padding: 1px 3px;
-      white-space: nowrap;
-      pointer-events: none;
-      opacity: 0.9;
     }
     .point-marker--highlighted { filter: brightness(1.3); z-index: 6; }
     .point-marker--dimmed { opacity: 0.18; }
@@ -591,6 +553,63 @@ interface TickMark { pos: number; isHalf: boolean; }
       transition: background 0.15s;
     }
     .btn-cancel-merge:hover { background: rgba(246,166,35,0.28); }
+
+    /* ── Work-domain legend ──────────────────────────── */
+    .tl-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      padding: 6px 2px 2px;
+    }
+    .tl-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      padding: 3px 7px 3px 5px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .tl-legend-item:hover {
+      background: var(--bg-card);
+      border-color: var(--border);
+    }
+    .tl-legend-item--active {
+      background: var(--bg-card);
+      border-color: var(--border-light);
+    }
+    .tl-legend-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 2px;
+      flex-shrink: 0;
+      transition: box-shadow 0.15s;
+    }
+    .tl-legend-item--active .tl-legend-dot {
+      box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 3.5px currentColor;
+    }
+    .tl-legend-name {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      transition: color 0.15s, font-weight 0.15s;
+    }
+    .tl-legend-item--active .tl-legend-name {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .tl-legend-total {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      border-radius: 4px;
+      padding: 1px 5px;
+      margin-left: 1px;
+      white-space: nowrap;
+    }
   `]
 })
 export class TimelineComponent implements OnChanges, AfterViewInit {
@@ -619,9 +638,10 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
    */
   hourWidth       = 46;               // overwritten in ngAfterViewInit
   readonly TOTAL_MINUTES = 1440;
-  readonly LABEL_H       = 24;        // height of the ruler strip at the top
-  readonly LANE_H        = 32;        // height per log-bar lane
-  readonly BAR_H         = 26;        // rendered bar height within a lane
+  readonly LABEL_H       = 6;         // top padding above bar area
+  readonly BOTTOM_H      = 22;        // bottom label strip height
+  readonly LANE_H        = 44;        // height per log-bar lane
+  readonly BAR_H         = 34;        // rendered bar height within a lane
 
   private get _cw(): number {
     return this.scrollContainerRef?.nativeElement?.clientWidth ?? 375;
@@ -631,20 +651,10 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
 
   get totalWidth():    number { return 24 * this.hourWidth; }
   get barAreaHeight(): number { return Math.max(1, this.numLanes) * this.LANE_H + 4; }
-  get canvasHeight():  number { return this.LABEL_H + this.barAreaHeight; }
+  get canvasHeight():  number { return this.LABEL_H + this.barAreaHeight + this.BOTTOM_H; }
 
-  hours      = Array.from({ length: 24 }, (_, i) => i);
-  labelHours = Array.from({ length: 13 }, (_, i) => i * 2); // 0,2,4,...,24
-
-  get tickMarks(): TickMark[] {
-    const marks: TickMark[] = [];
-    for (let h = 0; h < 24; h++) {
-      for (const t of [10, 20, 30, 40, 50]) {
-        marks.push({ pos: this.minutesToPixels(h * 60 + t), isHalf: t === 30 });
-      }
-    }
-    return marks;
-  }
+  gridHours  = [0, 6, 12, 18, 24];
+  labelHours = [0, 3, 6, 9, 12, 15, 18, 21, 24];
 
   /* ── Lane assignment for overlapping range logs ───── */
   private _logLanesCache: Map<string, number> | null = null;
@@ -689,11 +699,14 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
   dragCurrentX     = 0;
   dragSelection: DragSelection | null = null;
 
-  /* ── Pan state ───────────────────────────────────── */
-  isPanning = false;
-  private _downClientX  = 0;
+  /* ── Gesture state ───────────────────────────────── */
+  private _gestureMode: 'idle' | 'pan' | 'select' = 'idle';
+  get isPanning(): boolean { return this._gestureMode === 'pan'; }
+  private _downClientX    = 0;
+  private _downTrackX     = 0;
+  private _downTrackY     = 0;
   private _panLastClientX = 0;
-  private readonly PAN_THRESHOLD = 6; // px movement before entering pan mode
+  private readonly PAN_THRESHOLD = 6;
 
   /* ── Hover (mouse only) ──────────────────────────── */
   isHoveringTrack = false;
@@ -715,15 +728,17 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
       setTimeout(() => {
         const cw = this._cw;
         if (cw > 0) {
-          this.hourWidth = Math.floor(cw / 8);
+          this.hourWidth = Math.floor(cw / 18);
           this._logLanesCache = null;
-          this.initDefaultSelection();
           this.scrollToCurrentTime();
           this.cdr.detectChanges();
         }
       }, 50);
     }
   }
+
+  /* ── Legend selection ────────────────────────────── */
+  selectedLegendTypeId: string | null = null;
 
   /* ── Point-log merge ─────────────────────────────── */
   selectedPointLog: LogEntry | null = null;
@@ -738,12 +753,10 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
   constructor(private cdr: ChangeDetectorRef, private el: ElementRef) {}
 
   ngAfterViewInit(): void {
-    // Use setTimeout so the container has finished rendering and has a real clientWidth
     setTimeout(() => {
       const cw = this._cw;
-      this.hourWidth = Math.floor(cw / 8); // default: 8 hours in viewport
+      this.hourWidth = Math.floor(cw / 18);
       this.checkIsToday();
-      this.initDefaultSelection();
       this.scrollToCurrentTime();
       this.cdr.detectChanges();
     }, 0);
@@ -752,6 +765,11 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     if (!this.el.nativeElement.contains(event.target as Node)) {
+      this.hasDragSelection     = false;
+      this.dragSelection        = null;
+      this.dragStartX           = 0;
+      this.dragCurrentX         = 0;
+      this.selectedLegendTypeId = null;
       this.cdr.detectChanges();
     }
   }
@@ -794,7 +812,10 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
     }
     if (changes['selectedDate'] && this.selectedDate) {
       this.checkIsToday();
-      this.initDefaultSelection();
+      // Clear any existing selection when date changes
+      this.hasDragSelection      = false;
+      this.dragSelection         = null;
+      this.selectedLegendTypeId  = null;
     }
   }
 
@@ -845,9 +866,7 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
   scrollToCurrentTime(): void {
     const container = this.scrollContainerRef?.nativeElement;
     if (!container) return;
-    const targetMins = this.isToday ? Math.max(0, this.currentTimeMins - 20) : 8 * 60;
-    const x          = this.minutesToPixels(targetMins);
-    container.scrollLeft = Math.max(0, x - container.clientWidth * 0.3);
+    container.scrollLeft = this.minutesToPixels(6 * 60); // 6 AM at left edge
   }
 
   /* ── Coordinate helpers ──────────────────────────── */
@@ -873,11 +892,23 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
     return diff <= 0 ? 0 : this.minutesToPixels(diff);
   }
   barTop(log: LogEntry): number {
-    return this.LABEL_H + (this.logLanes.get(log.id) ?? 0) * this.LANE_H + 2;
+    return this.LABEL_H + (this.logLanes.get(log.id) ?? 0) * this.LANE_H + Math.floor((this.LANE_H - this.BAR_H) / 2);
   }
 
   get rangeLogs(): LogEntry[] { return this.logs.filter(l => l.entryType !== 'point'); }
   get pointLogs(): LogEntry[] { return this.logs.filter(l => l.entryType === 'point'); }
+
+  get workLegendTypes(): LogType[] {
+    const seen = new Set<string>();
+    const types: LogType[] = [];
+    for (const log of this.logs) {
+      if (log.logType && log.logType.domain === 'work' && !seen.has(log.logType.id)) {
+        seen.add(log.logType.id);
+        types.push(log.logType);
+      }
+    }
+    return types;
+  }
 
   snapToTen(minutes: number): number { return Math.round(minutes / 10) * 10; }
 
@@ -895,21 +926,22 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
 
   /* ── Pointer handlers ────────────────────────────────
    *
-   * Gesture model (all pointer types):
-   *   Single touch/click + move > PAN_THRESHOLD → pan (scroll the container)
-   *   Single touch/click + minimal movement     → tap → set 1-hour selection
-   *   Two touches                               → pinch-to-zoom
+   * Gesture model:
+   *   Tap (minimal movement)       → set 1-hour selection centred on tap
+   *   Drag in bar area             → drag-to-select (live selection preview)
+   *   Drag starting in ruler strip → pan (scroll)
+   *   Two touches                  → pinch-to-zoom
    */
 
   onPointerDown(event: PointerEvent): void {
     if (!this.trackRef) return;
-    if ((event.target as HTMLElement).closest('.log-bar,.point-marker,.log-tooltip-btn')) return;
+    if ((event.target as HTMLElement).closest('.log-bar,.point-marker')) return;
 
     this.trackRef.nativeElement.setPointerCapture(event.pointerId);
     this.activePointerMap.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
     if (this.activePointerMap.size >= 2) {
-      this.isPanning      = false;
+      this._gestureMode = 'idle';
       this.isPinching     = true;
       this.pinchStartDist = this.calcPinchDist();
       this.pinchStartHourW = this.hourWidth;
@@ -921,9 +953,13 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
 
-    this._downClientX   = event.clientX;
+    this._downClientX    = event.clientX;
     this._panLastClientX = event.clientX;
-    this.isPanning      = false;
+    this._downTrackX     = this.getTrackX(event);
+    this._downTrackY     = this.trackRef
+      ? event.clientY - this.trackRef.nativeElement.getBoundingClientRect().top
+      : 0;
+    this._gestureMode    = 'idle';
   }
 
   onPointerMove(event: PointerEvent): void {
@@ -939,23 +975,41 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
       return;
     }
 
-    // Track hover position for mouse (shows the dashed line + pill)
     const rawX = Math.max(0, Math.min(this.getTrackX(event), this.totalWidth));
     this.hoverX = rawX;
 
-    // Commit to pan once movement exceeds threshold
-    if (!this.isPanning && this.activePointerMap.size === 1) {
-      if (Math.abs(event.clientX - this._downClientX) > this.PAN_THRESHOLD) {
-        this.isPanning = true;
-      }
-    }
+    if (this.activePointerMap.size === 1) {
+      const moved = Math.abs(event.clientX - this._downClientX);
 
-    if (this.isPanning) {
-      const container = this.scrollContainerRef?.nativeElement;
-      if (container) {
-        container.scrollLeft += this._panLastClientX - event.clientX;
+      // Commit to a gesture once movement exceeds threshold
+      if (this._gestureMode === 'idle' && moved > this.PAN_THRESHOLD) {
+        if (this._downTrackY <= this.LABEL_H) {
+          this._gestureMode = 'pan';
+        } else {
+          this._gestureMode    = 'select';
+          this.dragStartX      = this.minutesToPixels(this.snapToTen(this.pixelsToMinutes(this._downTrackX)));
+          this.hasDragSelection = true;
+        }
       }
-      this._panLastClientX = event.clientX;
+
+      if (this._gestureMode === 'pan') {
+        const container = this.scrollContainerRef?.nativeElement;
+        if (container) container.scrollLeft += this._panLastClientX - event.clientX;
+        this._panLastClientX = event.clientX;
+      } else if (this._gestureMode === 'select') {
+        const snappedMins    = this.snapToTen(this.pixelsToMinutes(rawX));
+        this.dragCurrentX    = this.minutesToPixels(snappedMins);
+        const startPx        = Math.min(this.dragStartX, this.dragCurrentX);
+        const endPx          = Math.max(this.dragStartX, this.dragCurrentX);
+        const startMins      = Math.round(this.pixelsToMinutes(startPx));
+        const endMins        = Math.round(this.pixelsToMinutes(endPx));
+        this.dragSelection   = {
+          startTime:    this.minutesToTime(startMins),
+          endTime:      this.minutesToTime(endMins),
+          startMinutes: startMins,
+          endMinutes:   endMins,
+        };
+      }
     }
 
     this.cdr.detectChanges();
@@ -981,27 +1035,41 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
       return;
     }
 
-    if (this.isPanning) {
-      this.isPanning       = false;
+    if (this._gestureMode === 'pan') {
+      this._gestureMode    = 'idle';
       this.isHoveringTrack = false;
       this.cdr.detectChanges();
       return;
     }
 
-    // Tap: set a 1-hour selection centred on the tapped time
-    const rawX        = Math.max(0, Math.min(this.getTrackX(event), this.totalWidth));
-    const tappedMins  = this.snapToTen(this.pixelsToMinutes(rawX));
-    const startMins   = Math.max(0, tappedMins - 30);
-    const endMins     = Math.min(Math.max(tappedMins + 30, startMins + 10), this.TOTAL_MINUTES);
+    if (this._gestureMode === 'select') {
+      this._gestureMode = 'idle';
+      // Ensure minimum 10-minute selection
+      if (this.dragSelection) {
+        const diff = this.dragSelection.endMinutes - this.dragSelection.startMinutes;
+        if (diff < 10) {
+          const mid   = (this.dragSelection.startMinutes + this.dragSelection.endMinutes) / 2;
+          const start = Math.max(0, Math.round(mid - 5));
+          const end   = Math.min(this.TOTAL_MINUTES, start + 10);
+          this.dragSelection   = { startTime: this.minutesToTime(start), endTime: this.minutesToTime(end), startMinutes: start, endMinutes: end };
+          this.dragStartX      = this.minutesToPixels(start);
+          this.dragCurrentX    = this.minutesToPixels(end);
+        }
+        this.selectionMade.emit(this.dragSelection);
+      }
+      this.cdr.detectChanges();
+      return;
+    }
 
-    this.dragStartX   = this.minutesToPixels(startMins);
-    this.dragCurrentX = this.minutesToPixels(endMins);
-    this.dragSelection = {
-      startTime:    this.minutesToTime(startMins),
-      endTime:      this.minutesToTime(endMins),
-      startMinutes: startMins,
-      endMinutes:   endMins
-    };
+    // Tap (idle → no drag committed): 1-hour selection centred on tapped time
+    const rawX       = Math.max(0, Math.min(this.getTrackX(event), this.totalWidth));
+    const tappedMins = this.snapToTen(this.pixelsToMinutes(rawX));
+    const startMins  = Math.max(0, tappedMins - 30);
+    const endMins    = Math.min(Math.max(tappedMins + 30, startMins + 10), this.TOTAL_MINUTES);
+
+    this.dragStartX    = this.minutesToPixels(startMins);
+    this.dragCurrentX  = this.minutesToPixels(endMins);
+    this.dragSelection = { startTime: this.minutesToTime(startMins), endTime: this.minutesToTime(endMins), startMinutes: startMins, endMinutes: endMins };
     this.hasDragSelection = true;
     this.selectionMade.emit(this.dragSelection);
     this.cdr.detectChanges();
@@ -1011,12 +1079,19 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
 
   isBarHighlighted(log: LogEntry): boolean {
     if (this.metricLogIds !== null) return this.metricLogIds.has(log.id);
+    if (this.selectedLegendTypeId !== null) return log.logType?.id === this.selectedLegendTypeId;
     return log.id === this.highlightedLogId;
   }
 
   isBarDimmed(log: LogEntry): boolean {
     if (this.metricLogIds !== null) return !this.metricLogIds.has(log.id);
+    if (this.selectedLegendTypeId !== null) return log.logType?.id !== this.selectedLegendTypeId;
     return false;
+  }
+
+  onLegendClick(lt: LogType): void {
+    this.selectedLegendTypeId = this.selectedLegendTypeId === lt.id ? null : lt.id;
+    this.cdr.detectChanges();
   }
 
   onBarClick(log: LogEntry, event: MouseEvent): void {
@@ -1135,7 +1210,12 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
     container.scrollLeft = Math.max(0, center - container.clientWidth / 2);
   }
 
-  clearSelection(): void { this.initDefaultSelection(); }
+  clearSelection(): void {
+    this.hasDragSelection = false;
+    this.dragSelection    = null;
+    this.dragStartX       = 0;
+    this.dragCurrentX     = 0;
+  }
 
   openCreateForm(): void {
     if (this.dragSelection) {
@@ -1145,7 +1225,20 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
     }
   }
 
+  legendTotalLabel(typeId: string): string {
+    const total = this.rangeLogs
+      .filter(l => l.logType?.id === typeId)
+      .reduce((sum, l) => {
+        const mins = this.timeToMinutes(l.endAt ?? '00:00') - this.timeToMinutes(l.startAt);
+        return sum + Math.max(0, mins);
+      }, 0);
+    if (total <= 0) return '';
+    const h = Math.floor(total / 60), m = total % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  }
+
   trackByIndex(index: number):             number { return index; }
   trackByLogId(_i: number, log: LogEntry): string { return log.id; }
-  trackByPos(_i: number, tick: TickMark):  number { return tick.pos; }
 }

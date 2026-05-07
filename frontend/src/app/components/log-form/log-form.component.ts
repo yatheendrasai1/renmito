@@ -258,10 +258,55 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
             </div><!-- /accordion-list -->
           </div>
 
-          <!-- ── Priority ──────────────────────────────────── -->
-          <div class="form-group" *ngIf="showTicketId">
-            <label>Priority</label>
-            <div class="priority-row">
+          <!-- ── Field chip grid ───────────────────────────── -->
+          <div class="field-chip-grid">
+            <button type="button" class="field-chip"
+                    [class.field-chip--filled]="!!priority"
+                    [class.field-chip--active]="activeField === 'priority'"
+                    (click)="toggleField('priority')">
+              <ng-container *ngIf="!priority">+ Priority</ng-container>
+              <ng-container *ngIf="priority">
+                <span class="fc-dot" [style.background]="priorityColor(priority)"></span>{{ priority }}
+              </ng-container>
+            </button>
+
+            <button *ngIf="showTicketId" type="button" class="field-chip"
+                    [class.field-chip--filled]="!!ticketId"
+                    [class.field-chip--active]="activeField === 'ticketId'"
+                    (click)="toggleField('ticketId')">
+              <ng-container *ngIf="!ticketId">+ Ticket ID</ng-container>
+              <ng-container *ngIf="ticketId">{{ ticketId }}</ng-container>
+            </button>
+
+            <button *ngIf="showTicketId" type="button" class="field-chip"
+                    [class.field-chip--filled]="!!crucialPerson"
+                    [class.field-chip--active]="activeField === 'crucialPerson'"
+                    (click)="toggleField('crucialPerson')">
+              <ng-container *ngIf="!crucialPerson">+ Crucial</ng-container>
+              <ng-container *ngIf="crucialPerson">{{ crucialPerson }}</ng-container>
+            </button>
+
+            <button type="button" class="field-chip"
+                    [class.field-chip--filled]="collaborators.length > 0"
+                    [class.field-chip--active]="activeField === 'collaborators'"
+                    (click)="toggleField('collaborators')">
+              <ng-container *ngIf="collaborators.length === 0">+ Collaborators</ng-container>
+              <ng-container *ngIf="collaborators.length > 0">{{ collaboratorChipLabel }}</ng-container>
+            </button>
+
+            <button type="button" class="field-chip"
+                    [class.field-chip--filled]="satisfactoryScore !== null"
+                    [class.field-chip--active]="activeField === 'satisfactoryScore'"
+                    (click)="toggleField('satisfactoryScore')">
+              <ng-container *ngIf="satisfactoryScore === null">+ Score</ng-container>
+              <ng-container *ngIf="satisfactoryScore !== null">★ {{ satisfactoryScore }}/10</ng-container>
+            </button>
+          </div>
+
+          <!-- ── Field expand panel ─────────────────────────── -->
+          <div class="field-expand" *ngIf="activeField">
+
+            <div *ngIf="activeField === 'priority'" class="fe-priority">
               <button type="button" class="priority-btn priority-btn--high"
                       [class.priority-btn--active]="priority === 'High'"
                       (click)="togglePriority('High')">
@@ -278,31 +323,52 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                 <span class="priority-dot"></span>Low
               </button>
             </div>
-          </div>
 
-          <!-- ── Collaborators ──────────────────────────────── -->
-          <div class="form-group" *ngIf="showTicketId">
-            <label>Collaborators</label>
-            <div class="collab-chips" *ngIf="collaborators.length > 0">
-              <span class="collab-chip" *ngFor="let c of collaborators; let i = index; trackBy: trackByIndex">
-                {{ c }}
-                <button type="button" class="collab-chip-remove" (click)="removeCollaborator(i)" aria-label="Remove">×</button>
-              </span>
+            <div *ngIf="activeField === 'ticketId'" class="fe-single">
+              <input type="text" name="ticketIdInput" [(ngModel)]="ticketId"
+                     placeholder="e.g. JIRA-1234" maxlength="100" autocomplete="off"
+                     class="ticket-id-input" style="width:100%;box-sizing:border-box"/>
             </div>
-            <div class="collab-input-row">
-              <input
-                type="text"
-                name="collaboratorInput"
-                [(ngModel)]="collaboratorInput"
-                placeholder="Name or team…"
-                maxlength="60"
-                autocomplete="off"
-                class="collab-input"
-                (keydown.enter)="$event.preventDefault(); addCollaborator()"
-              />
-              <button type="button" class="collab-add-btn" (click)="addCollaborator()" [disabled]="!collaboratorInput.trim()">Add</button>
+
+            <div *ngIf="activeField === 'crucialPerson'" class="fe-crucial">
+              <button type="button" class="crucial-btn crucial-btn--yes"
+                      [class.crucial-btn--active]="crucialPerson === 'Yes'"
+                      (click)="toggleCrucialPerson('Yes')">Yes</button>
+              <button type="button" class="crucial-btn crucial-btn--shared"
+                      [class.crucial-btn--active]="crucialPerson === 'Shared'"
+                      (click)="toggleCrucialPerson('Shared')">Shared</button>
+              <button type="button" class="crucial-btn crucial-btn--no"
+                      [class.crucial-btn--active]="crucialPerson === 'No'"
+                      (click)="toggleCrucialPerson('No')">No</button>
             </div>
-          </div>
+
+            <div *ngIf="activeField === 'collaborators'" class="fe-collab">
+              <div class="collab-chips" *ngIf="collaborators.length > 0">
+                <span class="collab-chip" *ngFor="let c of collaborators; let i = index; trackBy: trackByIndex">
+                  {{ c }}<button type="button" class="collab-chip-remove" (click)="removeCollaborator(i)">×</button>
+                </span>
+              </div>
+              <div class="collab-input-row">
+                <input type="text" name="collaboratorInput" [(ngModel)]="collaboratorInput"
+                       placeholder="Name or team…" maxlength="60" autocomplete="off" class="collab-input"
+                       (keydown.enter)="$event.preventDefault(); addCollaborator()"/>
+                <button type="button" class="collab-add-btn" (click)="addCollaborator()" [disabled]="!collaboratorInput.trim()">Add</button>
+              </div>
+            </div>
+
+            <div *ngIf="activeField === 'satisfactoryScore'" class="fe-score">
+              <div class="score-track">
+                <button *ngFor="let n of scoreRange" type="button"
+                        class="score-btn"
+                        [class.score-btn--filled]="satisfactoryScore !== null && n <= satisfactoryScore"
+                        (click)="setScore(n)">{{ n }}</button>
+              </div>
+              <div class="score-bar-wrap">
+                <div class="score-bar-fill" [style.width.%]="satisfactoryScore ? (satisfactoryScore / 10) * 100 : 0"></div>
+              </div>
+            </div>
+
+          </div><!-- /field-expand -->
 
           <!-- ── Description ────────────────────────────────── -->
           <div class="form-group">
@@ -317,21 +383,6 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
               autocomplete="off"
               class="description-textarea"
             ></textarea>
-          </div>
-
-          <!-- ── Ticket ID (work domain, non-transit/break only) ── -->
-          <div class="form-group" *ngIf="showTicketId">
-            <label for="ticketIdInput">Ticket ID</label>
-            <input
-              id="ticketIdInput"
-              name="ticketIdInput"
-              type="text"
-              [(ngModel)]="ticketId"
-              placeholder="e.g. JIRA-1234 (optional)"
-              maxlength="100"
-              autocomplete="off"
-              class="ticket-id-input"
-            />
           </div>
 
           <!-- ── Actions ─────────────────────────────────────── -->
@@ -730,8 +781,8 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     /* ── Priority ───────────────────────────────────────── */
     .priority-row { display: flex; gap: 6px; }
     .priority-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 6px 14px; border-radius: 20px;
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 6px 8px; border-radius: 20px;
       border: 1.5px solid transparent;
       font-size: 12px; font-weight: 600;
       background: var(--bg-card); color: var(--text-muted);
@@ -786,6 +837,75 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     }
     .collab-add-btn:hover:not(:disabled) { background: var(--accent-hover); color: var(--text-primary); }
     .collab-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Field chip grid ────────────────────────────────── */
+    .field-chip-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 2px;
+    }
+    .field-chip {
+      padding: 7px 4px; border-radius: 16px; border: 1.5px dashed var(--border-light);
+      font-size: 11px; font-weight: 600; background: var(--bg-card); color: var(--text-muted);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      gap: 4px; min-width: 0; overflow: hidden;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+    .field-chip > span, .field-chip > ng-container { min-width: 0; }
+    .field-chip:hover { color: var(--text-primary); border-style: solid; }
+    .field-chip--filled {
+      border-style: solid; border-color: color-mix(in srgb, var(--highlight-selected) 55%, transparent);
+      color: var(--highlight-selected);
+      background: color-mix(in srgb, var(--highlight-selected) 8%, transparent);
+    }
+    .field-chip--active {
+      border-style: solid; border-color: var(--highlight-selected);
+      color: var(--text-primary);
+      background: color-mix(in srgb, var(--highlight-selected) 14%, transparent);
+    }
+    .fc-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Field expand panel ──────────────────────────────── */
+    .field-expand {
+      padding: 10px; margin-bottom: 2px;
+      animation: feIn 0.14s ease;
+    }
+    @keyframes feIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
+    .fe-priority  { display: flex; gap: 6px; }
+    .fe-crucial   { display: flex; gap: 6px; }
+    .fe-collab    { display: flex; flex-direction: column; gap: 8px; }
+    .fe-score     { display: flex; flex-direction: column; gap: 5px; }
+
+    /* ── Crucial Person ─────────────────────────────────── */
+    .crucial-btn {
+      flex: 1; padding: 6px 10px; border-radius: 20px;
+      border: 1.5px solid var(--border-light);
+      font-size: 12px; font-weight: 600;
+      background: var(--bg-card); color: var(--text-muted);
+      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .crucial-btn:hover { color: var(--text-primary); }
+    .crucial-btn--yes.crucial-btn--active    { border-color: #4caf7d; color: #4caf7d; background: rgba(76,175,125,0.1); }
+    .crucial-btn--shared.crucial-btn--active { border-color: #f5a623; color: #f5a623; background: rgba(245,166,35,0.1); }
+    .crucial-btn--no.crucial-btn--active     { border-color: #9b9b9b; color: var(--text-secondary); background: var(--bg-surface); }
+
+    /* ── Satisfactory Score ──────────────────────────────── */
+    .score-track { display: flex; gap: 4px; }
+    .score-btn {
+      flex: 1; padding: 5px 0; border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border-light);
+      font-size: 11px; font-weight: 700;
+      background: var(--bg-card); color: var(--text-muted);
+      cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s;
+      min-width: 0;
+    }
+    .score-btn:hover { border-color: var(--highlight-selected); color: var(--text-primary); }
+    .score-btn--filled {
+      background: color-mix(in srgb, var(--highlight-selected) 18%, transparent);
+      border-color: var(--highlight-selected); color: var(--highlight-selected);
+    }
+    .score-bar-wrap { height: 4px; border-radius: 2px; background: var(--border-light); overflow: hidden; }
+    .score-bar-fill {
+      height: 100%; border-radius: 2px; background: var(--highlight-selected); transition: width 0.2s ease;
+    }
 
     /* Actions */
     .form-actions { display: flex; gap: 10px; margin-top: 12px; }
@@ -871,10 +991,14 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
   editMode   = false;
   entryType: 'range' | 'point' = 'point';
 
-  // ── priority & collaborators ───────────────────────────
+  // ── priority, collaborators, new fields ───────────────
   priority: 'High' | 'Medium' | 'Low' | null = null;
   collaborators: string[] = [];
   collaboratorInput = '';
+  satisfactoryScore: number | null = null;
+  crucialPerson: 'Yes' | 'No' | 'Shared' | null = null;
+  readonly scoreRange = [1,2,3,4,5,6,7,8,9,10];
+  activeField: string | null = null;
 
   // ── save state ────────────────────────────────────────
   saving = false;
@@ -1029,10 +1153,13 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
       this.formDate      = this.editEntry.date;
       this.formEndDate   = this.editEntry.endDate ?? this.editEntry.date;
       this.labelValue    = this.editEntry.title;
-      this.ticketId      = this.editEntry.ticketId ?? '';
-      this.priority      = this.editEntry.priority ?? null;
-      this.collaborators = [...(this.editEntry.collaborators ?? [])];
+      this.ticketId          = this.editEntry.ticketId ?? '';
+      this.priority          = this.editEntry.priority ?? null;
+      this.collaborators     = [...(this.editEntry.collaborators ?? [])];
       this.collaboratorInput = '';
+      this.satisfactoryScore = this.editEntry.satisfactoryScore ?? null;
+      this.crucialPerson     = this.editEntry.crucialPerson ?? null;
+      this.activeField       = null;
 
       // Restore log type — match by id first, then by name
       this.selectedLogType =
@@ -1058,6 +1185,9 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
       this.priority          = null;
       this.collaborators     = [];
       this.collaboratorInput = '';
+      this.satisfactoryScore = null;
+      this.crucialPerson     = null;
+      this.activeField       = null;
       this.selectedLogType =
         (this.preselectedLogTypeId
           ? this.logTypes.find(lt => lt._id === this.preselectedLogTypeId)
@@ -1231,10 +1361,32 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  // ── priority & collaborators ───────────────────────────
+  // ── priority, collaborators, new fields ───────────────
 
   togglePriority(value: 'High' | 'Medium' | 'Low'): void {
     this.priority = this.priority === value ? null : value;
+  }
+
+  setScore(n: number): void {
+    this.satisfactoryScore = this.satisfactoryScore === n ? null : n;
+  }
+
+  toggleCrucialPerson(v: 'Yes' | 'No' | 'Shared'): void {
+    this.crucialPerson = this.crucialPerson === v ? null : v;
+  }
+
+  toggleField(field: string): void {
+    this.activeField = this.activeField === field ? null : field;
+  }
+
+  get collaboratorChipLabel(): string {
+    if (this.collaborators.length === 0) return '';
+    if (this.collaborators.length === 1) return this.collaborators[0];
+    return `${this.collaborators[0]} +${this.collaborators.length - 1}`;
+  }
+
+  priorityColor(p: string): string {
+    return p === 'High' ? '#e94560' : p === 'Medium' ? '#f5a623' : '#4caf7d';
   }
 
   addCollaborator(): void {
@@ -1262,9 +1414,11 @@ export class LogFormComponent implements OnInit, OnChanges, OnDestroy {
       endDate:       this.entryType === 'range' && this.isNextDay ? this.formEndDate : undefined,
       entryType:     this.entryType,
       pointTime:     this.entryType === 'point' ? this.formStartTime : undefined,
-      ticketId:      this.showTicketId ? (this.ticketId.trim() || undefined) : undefined,
-      priority:      this.priority ?? undefined,
-      collaborators: this.collaborators.length > 0 ? [...this.collaborators] : undefined,
+      ticketId:          this.showTicketId ? (this.ticketId.trim() || undefined) : undefined,
+      priority:          this.priority ?? undefined,
+      collaborators:     this.collaborators.length > 0 ? [...this.collaborators] : undefined,
+      satisfactoryScore: this.satisfactoryScore ?? undefined,
+      crucialPerson:     this.showTicketId ? (this.crucialPerson ?? undefined) : undefined,
     };
 
     this.saving = true;

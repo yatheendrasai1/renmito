@@ -593,9 +593,7 @@ const PERF = (() => {
 
     /* ── Notes + Important Logs row (logger view, below metrics) */
     .notes-important-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      display: flex;
     }
     .notes-col {
       display: flex;
@@ -1001,7 +999,8 @@ const PERF = (() => {
       background: var(--bg-surface); border: 1px solid var(--border);
       border-radius: var(--radius-sm); color: var(--text-primary);
       font-size: 13px; font-weight: 600; padding: 7px 8px;
-      font-family: inherit; outline: none;
+      font-family: inherit; outline: none; resize: none;
+      line-height: 1.45;
     }
     .inline-title-input:focus { border-color: var(--border-light); }
     .inline-type-select {

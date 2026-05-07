@@ -16,8 +16,10 @@ const timeLogSchema = new mongoose.Schema(
     ticketId:        { type: String, default: '' },
     priority:        { type: String, enum: ['High', 'Medium', 'Low'], default: null },
     collaborators:   [{ type: String }],
-    tags:            [{ type: String }],
-    source:          { type: String, enum: ['manual', 'auto', 'imported', 'ai'], default: 'manual' },
+    tags:               [{ type: String }],
+    satisfactoryScore:  { type: Number, min: 1, max: 10, default: null },
+    crucialPerson:      { type: String, enum: ['Yes', 'No', 'Shared'], default: null },
+    source:             { type: String, enum: ['manual', 'auto', 'imported', 'ai'], default: 'manual' },
     entryType:       { type: String, enum: ['range', 'point'], default: 'range' },
     lastHeartbeatAt: { type: Date, default: null }
   },

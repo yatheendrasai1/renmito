@@ -20,6 +20,8 @@ export interface LogEntry {
   ticketId?: string;
   priority?: 'High' | 'Medium' | 'Low' | null;
   collaborators?: string[];
+  satisfactoryScore?: number | null;
+  crucialPerson?: 'Yes' | 'No' | 'Shared' | null;
   source?: 'manual' | 'auto' | 'imported' | 'ai';
   updatedAt: string | null;  // ISO — used for Important Logs stale detection (1.83)
 }
@@ -36,5 +38,7 @@ export interface CreateLogEntry {
   ticketId?: string;
   priority?: 'High' | 'Medium' | 'Low' | null;
   collaborators?: string[];
+  satisfactoryScore?: number | null;
+  crucialPerson?: 'Yes' | 'No' | 'Shared' | null;
   source?: 'manual' | 'ai';
 }

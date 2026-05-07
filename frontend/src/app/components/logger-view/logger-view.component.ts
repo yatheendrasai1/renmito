@@ -34,12 +34,19 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
   styles: [`:host { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
     .date-title-row { display: flex; align-items: center; gap: 6px; }
     .date-swipe-zone { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; min-width: 0; user-select: none; touch-action: pan-y; }
-    .date-above-bar { font-size: 17px; font-weight: 700; color: var(--text-primary); line-height: 1; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; will-change: transform; }
+    .date-above-bar { font-size: 13px; font-weight: 700; color: var(--text-primary); line-height: 1; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; will-change: transform; }
     .date-above-bar.date-animated { transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1); }
     .date-dropdown-icon { color: var(--text-muted); opacity: 0.75; flex-shrink: 0; }
     .action-btns-row { display: flex; gap: 8px; }
     .action-btns-row .add-point-wrap { flex: 1; }
     .action-btns-row .btn-add-entry { flex: 1; }
+    .domain-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: -6px; }
+    .domain-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border-subtle, rgba(128,128,128,0.2)); background: var(--bg-card); color: var(--text-secondary); font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.14s, color 0.14s, border-color 0.14s; }
+    .domain-chip:hover { border-color: var(--chip-color, #9B9B9B); color: var(--chip-color, var(--text-primary)); }
+    .domain-chip--active { background: color-mix(in srgb, var(--chip-color, #9B9B9B) 15%, var(--bg-card)); border-color: var(--chip-color, #9B9B9B); color: var(--chip-color, var(--text-primary)); font-weight: 600; }
+    .domain-chip--all { --chip-color: var(--text-secondary); }
+    .domain-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--chip-color, #9B9B9B); flex-shrink: 0; }
+    .tl-card--ai { border-left: 3px solid #9B6DBF; }
   `],
   template: `
     <!-- ── Day-type pill · Prev · Date (swipeable) · Next · Today ── -->
@@ -102,6 +109,13 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
           <circle cx="7" cy="7" r="5.5" fill="currentColor"/>
         </svg>
       </button>
+
+      <button class="date-bar-btn" (click)="appState.openImportantLogsRequested$.next()" title="Important logs" aria-label="Important logs">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+      </button>
     </div>
 
     <!-- ── Metrics ────────────────────────────────────── -->
@@ -125,13 +139,6 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
         </svg>
         <span class="notes-col-label">Notes</span>
         <span class="notes-row-count" *ngIf="notesCount > 0">{{ notesCount }}</span>
-      </button>
-      <button class="notes-col" (click)="appState.openImportantLogsRequested$.next()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-        </svg>
-        <span class="notes-col-label">Important</span>
       </button>
     </div>
 
@@ -231,7 +238,10 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
     <div class="content-header">
       <h2 class="section-title">Logs for the day</h2>
       <span class="log-count" *ngIf="logs.length > 0">
-        {{ logs.length }} entr{{ logs.length === 1 ? 'y' : 'ies' }}
+        <ng-container *ngIf="filterDomain; else noFilter">
+          {{ filteredCount }}/{{ logs.length }}
+        </ng-container>
+        <ng-template #noFilter>{{ logs.length }} entr{{ logs.length === 1 ? 'y' : 'ies' }}</ng-template>
       </span>
       <button type="button" class="btn-sort"
               *ngIf="!isLoading && logs.length > 1"
@@ -246,6 +256,20 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
                 [attr.opacity]="logSortOrder === 'asc' ? '1' : '0.35'"/>
         </svg>
         <span>{{ logSortOrder === 'asc' ? 'Earliest' : 'Latest' }}</span>
+      </button>
+    </div>
+
+    <!-- ── Domain filter chips ─────────────────────────────────────── -->
+    <div class="domain-filter-row" *ngIf="!isLoading && availableDomains.length > 1">
+      <button class="domain-chip domain-chip--all"
+              [class.domain-chip--active]="filterDomain === ''"
+              (click)="setDomainFilter('')">All</button>
+      <button *ngFor="let d of availableDomains"
+              class="domain-chip"
+              [class.domain-chip--active]="filterDomain === d"
+              [style.--chip-color]="domainColor(d)"
+              (click)="setDomainFilter(d)">
+        <span class="domain-chip-dot"></span>{{ d }}
       </button>
     </div>
 
@@ -302,7 +326,8 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
 
                 <div class="tl-card"
                      [style.transform]="swipeLogId === log.id ? 'translateX(' + swipeTranslateX + 'px)' : ''"
-                     [class.tl-card--snapping]="swipeLogId === log.id && swipeSnapping">
+                     [class.tl-card--snapping]="swipeLogId === log.id && swipeSnapping"
+                     [class.tl-card--ai]="log.source === 'ai'">
 
                   <!-- View mode -->
                   <ng-container *ngIf="inlineEditId !== log.id">
@@ -322,12 +347,6 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
                             {{ log.logType?.name ?? '—' }}
                           </span>
                           <span class="log-list-duration" *ngIf="getDuration(log)">{{ getDuration(log) }}</span>
-                          <span class="log-ai-badge" *ngIf="log.source === 'ai'" title="Created by Renni AI">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                            </svg>
-                            AI
-                          </span>
                         </div>
                       </div>
                       <div class="tl-card-actions">
@@ -355,11 +374,12 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
                   <!-- Inline edit mode -->
                   <div class="log-list-inline" *ngIf="inlineEditId === log.id"
                        (click)="$event.stopPropagation()">
-                    <input class="inline-title-input" type="text"
-                           [(ngModel)]="inlineEdit.title"
-                           maxlength="300"
-                           placeholder="Activity description"
-                           (keydown)="onInlineKeydown($event, log)">
+                    <textarea class="inline-title-input"
+                              [(ngModel)]="inlineEdit.title"
+                              maxlength="300"
+                              rows="2"
+                              placeholder="Activity description"
+                              (keydown)="onInlineKeydown($event, log)"></textarea>
                     <app-log-type-select
                       [logTypes]="logTypes"
                       [selectedId]="inlineEdit.logTypeId"
@@ -463,10 +483,27 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
 
   // ── Log list ──────────────────────────────────────────────────────
   logSortOrder: 'asc' | 'desc' = 'desc';
-  get sortedLogs(): LogEntry[] {
-    return this.logSortOrder === 'asc' ? this.logs : [...this.logs].reverse();
+  filterDomain = '';
+
+  get availableDomains(): string[] {
+    const seen = new Set<string>();
+    for (const log of this.logs) {
+      const d = log.logType?.domain;
+      if (d) seen.add(d);
+    }
+    return [...seen].sort();
   }
+
+  get sortedLogs(): LogEntry[] {
+    const ordered = this.logSortOrder === 'asc' ? this.logs : [...this.logs].reverse();
+    if (!this.filterDomain) return ordered;
+    return ordered.filter(l => l.logType?.domain === this.filterDomain);
+  }
+
+  get filteredCount(): number { return this.sortedLogs.length; }
+
   toggleLogSort(): void { this.logSortOrder = this.logSortOrder === 'asc' ? 'desc' : 'asc'; }
+  setDomainFilter(domain: string): void { this.filterDomain = domain; }
 
   // ── Inline edit ───────────────────────────────────────────────────
   inlineEditId: string | null = null;
@@ -793,6 +830,15 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     return h * 60 + m;
   }
 
+  domainColor(domain: string): string {
+    const map: Record<string, string> = {
+      work: '#5A9CB5',
+      personal: '#F2A65A',
+      family: '#9B6DBF',
+    };
+    return map[domain] ?? '#9B9B9B';
+  }
+
   // ── TrackBy helpers ───────────────────────────────────────────────
   trackByIndex(index: number): number { return index; }
   trackByLogId(_i: number, log: LogEntry): string { return log.id; }
@@ -825,6 +871,7 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
       this.selectedDate    = v;
       this.selectedDateStr = this.appState.selectedDateStr;
       this.isToday         = this.appState.isToday;
+      this.filterDomain    = '';
       this.cdr.markForCheck();
     });
     this.appState.isLoading$.pipe(takeUntil(this.destroy$)).subscribe(v => {

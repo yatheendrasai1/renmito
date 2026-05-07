@@ -46,7 +46,10 @@ import { LogEntry } from '../../models/log.model';
               <button class="ln-domain-tab" [class.ln-domain-tab--active]="logNowDomain === 'personal'"
                       (click)="setLogNowDomain('personal')">Personal</button>
             </div>
-            <div class="ln-type-carousel" (touchstart)="$event.stopPropagation()">
+            <div class="ln-type-carousel"
+                 (touchstart)="onCarouselTouchStart($event)"
+                 (touchmove)="onCarouselTouchMove($event)"
+                 (touchend)="onCarouselTouchEnd($event)">
               <button type="button" class="ln-type-chip"
                       *ngFor="let lt of logNowFilteredTypes; trackBy: trackByLogTypeId"
                       [class.ln-type-chip--active]="lt._id === logNowTypeId"
@@ -132,10 +135,54 @@ import { LogEntry } from '../../models/log.model';
             </div><!-- /TO card -->
           </div><!-- /ln-time-row -->
 
-          <!-- 4. Priority carousel (work only) -->
-          <div class="ln-field-group" *ngIf="logNowDomain === 'work'">
-            <span class="ln-field-label">Priority</span>
-            <div class="ln-priority-carousel">
+          <!-- 4-8. Field chip grid -->
+          <div class="ln-field-chip-grid">
+            <button *ngIf="logNowDomain === 'work'" type="button" class="ln-field-chip"
+                    [class.ln-field-chip--filled]="!!logNowPriority"
+                    [class.ln-field-chip--active]="logNowActiveField === 'priority'"
+                    (click)="toggleLogNowField('priority')">
+              <ng-container *ngIf="!logNowPriority">+ Priority</ng-container>
+              <ng-container *ngIf="logNowPriority">
+                <span class="ln-fc-dot" [style.background]="priorityColor(logNowPriority)"></span>{{ logNowPriority }}
+              </ng-container>
+            </button>
+
+            <button *ngIf="logNowDomain === 'work'" type="button" class="ln-field-chip"
+                    [class.ln-field-chip--filled]="!!logNowTicketId"
+                    [class.ln-field-chip--active]="logNowActiveField === 'ticketId'"
+                    (click)="toggleLogNowField('ticketId')">
+              <ng-container *ngIf="!logNowTicketId">+ Ticket ID</ng-container>
+              <ng-container *ngIf="logNowTicketId">{{ logNowTicketId }}</ng-container>
+            </button>
+
+            <button *ngIf="logNowDomain === 'work'" type="button" class="ln-field-chip"
+                    [class.ln-field-chip--filled]="!!logNowCrucialPerson"
+                    [class.ln-field-chip--active]="logNowActiveField === 'crucialPerson'"
+                    (click)="toggleLogNowField('crucialPerson')">
+              <ng-container *ngIf="!logNowCrucialPerson">+ Crucial</ng-container>
+              <ng-container *ngIf="logNowCrucialPerson">{{ logNowCrucialPerson }}</ng-container>
+            </button>
+
+            <button *ngIf="logNowDomain === 'work'" type="button" class="ln-field-chip"
+                    [class.ln-field-chip--filled]="logNowCollaborators.length > 0"
+                    [class.ln-field-chip--active]="logNowActiveField === 'collaborators'"
+                    (click)="toggleLogNowField('collaborators')">
+              <ng-container *ngIf="logNowCollaborators.length === 0">+ Collaborators</ng-container>
+              <ng-container *ngIf="logNowCollaborators.length > 0">{{ logNowCollabLabel() }}</ng-container>
+            </button>
+
+            <button type="button" class="ln-field-chip"
+                    [class.ln-field-chip--filled]="logNowSatisfactoryScore !== null"
+                    [class.ln-field-chip--active]="logNowActiveField === 'satisfactoryScore'"
+                    (click)="toggleLogNowField('satisfactoryScore')">
+              <ng-container *ngIf="logNowSatisfactoryScore === null">+ Score</ng-container>
+              <ng-container *ngIf="logNowSatisfactoryScore !== null">★ {{ logNowSatisfactoryScore }}/10</ng-container>
+            </button>
+          </div>
+
+          <!-- Field expand panel (tab 1) -->
+          <div class="ln-field-expand" *ngIf="logNowActiveField">
+            <div *ngIf="logNowActiveField === 'priority'" class="ln-fe-row">
               <button type="button" class="ln-priority-chip ln-priority-chip--high"
                       [class.ln-priority-chip--active]="logNowPriority === 'High'"
                       (click)="toggleLogNowPriority('High')">
@@ -152,32 +199,50 @@ import { LogEntry } from '../../models/log.model';
                 <span class="ln-priority-dot"></span>Low
               </button>
             </div>
-          </div>
-
-          <!-- 5. Collaborators (work only) -->
-          <div class="ln-field-group" *ngIf="logNowDomain === 'work'">
-            <span class="ln-field-label">Collaborators</span>
-            <div class="ln-collab-chips" *ngIf="logNowCollaborators.length > 0">
-              <span class="ln-collab-chip"
-                    *ngFor="let c of logNowCollaborators; let i = index; trackBy: trackByIndex">
-                {{ c }}<button type="button" class="ln-collab-remove" (click)="removeLogNowCollaborator(i)">×</button>
-              </span>
+            <div *ngIf="logNowActiveField === 'ticketId'">
+              <input type="text" class="ln-text-input" [(ngModel)]="logNowTicketId"
+                     placeholder="e.g. JIRA-1234 (optional)" maxlength="100" autocomplete="off"
+                     style="width:100%;box-sizing:border-box"/>
             </div>
-            <div class="ln-collab-row">
-              <input type="text" class="ln-collab-input" [(ngModel)]="logNowCollaboratorInput"
-                     placeholder="Name or team…" maxlength="60" autocomplete="off"
-                     (keydown.enter)="$event.preventDefault(); addLogNowCollaborator()"/>
-              <button type="button" class="ln-collab-add"
-                      (click)="addLogNowCollaborator()" [disabled]="!logNowCollaboratorInput.trim()">Add</button>
+            <div *ngIf="logNowActiveField === 'crucialPerson'" class="ln-fe-row">
+              <button type="button" class="ln-crucial-btn ln-crucial-btn--yes"
+                      [class.ln-crucial-btn--active]="logNowCrucialPerson === 'Yes'"
+                      (click)="toggleLogNowCrucialPerson('Yes')">Yes</button>
+              <button type="button" class="ln-crucial-btn ln-crucial-btn--shared"
+                      [class.ln-crucial-btn--active]="logNowCrucialPerson === 'Shared'"
+                      (click)="toggleLogNowCrucialPerson('Shared')">Shared</button>
+              <button type="button" class="ln-crucial-btn ln-crucial-btn--no"
+                      [class.ln-crucial-btn--active]="logNowCrucialPerson === 'No'"
+                      (click)="toggleLogNowCrucialPerson('No')">No</button>
             </div>
-          </div>
-
-          <!-- 6. Ticket ID (work only) -->
-          <div class="ln-field-group" *ngIf="logNowDomain === 'work'">
-            <span class="ln-field-label">Ticket ID</span>
-            <input type="text" class="ln-text-input" [(ngModel)]="logNowTicketId"
-                   placeholder="e.g. JIRA-1234 (optional)" maxlength="100" autocomplete="off"/>
-          </div>
+            <div *ngIf="logNowActiveField === 'collaborators'">
+              <div class="ln-collab-chips" *ngIf="logNowCollaborators.length > 0">
+                <span class="ln-collab-chip"
+                      *ngFor="let c of logNowCollaborators; let i = index; trackBy: trackByIndex">
+                  {{ c }}<button type="button" class="ln-collab-remove" (click)="removeLogNowCollaborator(i)">×</button>
+                </span>
+              </div>
+              <div class="ln-collab-row">
+                <input type="text" class="ln-collab-input" [(ngModel)]="logNowCollaboratorInput"
+                       placeholder="Name or team…" maxlength="60" autocomplete="off"
+                       (keydown.enter)="$event.preventDefault(); addLogNowCollaborator()"/>
+                <button type="button" class="ln-collab-add"
+                        (click)="addLogNowCollaborator()" [disabled]="!logNowCollaboratorInput.trim()">Add</button>
+              </div>
+            </div>
+            <div *ngIf="logNowActiveField === 'satisfactoryScore'">
+              <div class="ln-score-track">
+                <button *ngFor="let n of scoreRange; trackBy: trackByIndex" type="button"
+                        class="ln-score-btn"
+                        [class.ln-score-btn--filled]="logNowSatisfactoryScore !== null && n <= logNowSatisfactoryScore"
+                        (click)="setLogNowScore(n)">{{ n }}</button>
+              </div>
+              <div class="ln-score-bar-wrap" style="margin-top:5px">
+                <div class="ln-score-bar-fill"
+                     [style.width.%]="logNowSatisfactoryScore ? (logNowSatisfactoryScore / 10) * 100 : 0"></div>
+              </div>
+            </div>
+          </div><!-- /ln-field-expand -->
 
         </div>
         <div class="log-now-actions">
@@ -201,7 +266,10 @@ import { LogEntry } from '../../models/log.model';
               <button class="ln-domain-tab" [class.ln-domain-tab--active]="addPointDomain === 'personal'"
                       (click)="setAddPointDomain('personal')">Personal</button>
             </div>
-            <div class="ln-type-carousel" (touchstart)="$event.stopPropagation()">
+            <div class="ln-type-carousel"
+                 (touchstart)="onCarouselTouchStart($event)"
+                 (touchmove)="onCarouselTouchMove($event)"
+                 (touchend)="onCarouselTouchEnd($event)">
               <button type="button" class="ln-type-chip"
                       *ngFor="let lt of addPointFilteredTypes; trackBy: trackByLogTypeId"
                       [class.ln-type-chip--active]="lt._id === addPointTypeId"
@@ -256,10 +324,54 @@ import { LogEntry } from '../../models/log.model';
             </div>
           </div>
 
-          <!-- 4. Priority carousel (work only) -->
-          <div class="ln-field-group" *ngIf="addPointDomain === 'work'">
-            <span class="ln-field-label">Priority</span>
-            <div class="ln-priority-carousel">
+          <!-- 4-8. Field chip grid -->
+          <div class="ln-field-chip-grid">
+            <button *ngIf="addPointDomain === 'work'" type="button" class="ln-field-chip"
+                    [class.ln-field-chip--filled]="!!addPointPriority"
+                    [class.ln-field-chip--active]="addPointActiveField === 'priority'"
+                    (click)="toggleAddPointField('priority')">
+              <ng-container *ngIf="!addPointPriority">+ Priority</ng-container>
+              <ng-container *ngIf="addPointPriority">
+                <span class="ln-fc-dot" [style.background]="priorityColor(addPointPriority)"></span>{{ addPointPriority }}
+              </ng-container>
+            </button>
+
+            <button *ngIf="addPointDomain === 'work'" type="button" class="ln-field-chip"
+                    [class.ln-field-chip--filled]="!!addPointTicketId"
+                    [class.ln-field-chip--active]="addPointActiveField === 'ticketId'"
+                    (click)="toggleAddPointField('ticketId')">
+              <ng-container *ngIf="!addPointTicketId">+ Ticket ID</ng-container>
+              <ng-container *ngIf="addPointTicketId">{{ addPointTicketId }}</ng-container>
+            </button>
+
+            <button *ngIf="addPointDomain === 'work'" type="button" class="ln-field-chip"
+                    [class.ln-field-chip--filled]="!!addPointCrucialPerson"
+                    [class.ln-field-chip--active]="addPointActiveField === 'crucialPerson'"
+                    (click)="toggleAddPointField('crucialPerson')">
+              <ng-container *ngIf="!addPointCrucialPerson">+ Crucial</ng-container>
+              <ng-container *ngIf="addPointCrucialPerson">{{ addPointCrucialPerson }}</ng-container>
+            </button>
+
+            <button *ngIf="addPointDomain === 'work'" type="button" class="ln-field-chip"
+                    [class.ln-field-chip--filled]="addPointCollaborators.length > 0"
+                    [class.ln-field-chip--active]="addPointActiveField === 'collaborators'"
+                    (click)="toggleAddPointField('collaborators')">
+              <ng-container *ngIf="addPointCollaborators.length === 0">+ Collaborators</ng-container>
+              <ng-container *ngIf="addPointCollaborators.length > 0">{{ addPointCollabLabel() }}</ng-container>
+            </button>
+
+            <button type="button" class="ln-field-chip"
+                    [class.ln-field-chip--filled]="addPointSatisfactoryScore !== null"
+                    [class.ln-field-chip--active]="addPointActiveField === 'satisfactoryScore'"
+                    (click)="toggleAddPointField('satisfactoryScore')">
+              <ng-container *ngIf="addPointSatisfactoryScore === null">+ Score</ng-container>
+              <ng-container *ngIf="addPointSatisfactoryScore !== null">★ {{ addPointSatisfactoryScore }}/10</ng-container>
+            </button>
+          </div>
+
+          <!-- Field expand panel (tab 2) -->
+          <div class="ln-field-expand" *ngIf="addPointActiveField">
+            <div *ngIf="addPointActiveField === 'priority'" class="ln-fe-row">
               <button type="button" class="ln-priority-chip ln-priority-chip--high"
                       [class.ln-priority-chip--active]="addPointPriority === 'High'"
                       (click)="toggleAddPointPriority('High')">
@@ -276,32 +388,50 @@ import { LogEntry } from '../../models/log.model';
                 <span class="ln-priority-dot"></span>Low
               </button>
             </div>
-          </div>
-
-          <!-- 5. Collaborators (work only) -->
-          <div class="ln-field-group" *ngIf="addPointDomain === 'work'">
-            <span class="ln-field-label">Collaborators</span>
-            <div class="ln-collab-chips" *ngIf="addPointCollaborators.length > 0">
-              <span class="ln-collab-chip"
-                    *ngFor="let c of addPointCollaborators; let i = index; trackBy: trackByIndex">
-                {{ c }}<button type="button" class="ln-collab-remove" (click)="removeAddPointCollaborator(i)">×</button>
-              </span>
+            <div *ngIf="addPointActiveField === 'ticketId'">
+              <input type="text" class="ln-text-input" [(ngModel)]="addPointTicketId"
+                     placeholder="e.g. JIRA-1234 (optional)" maxlength="100" autocomplete="off"
+                     style="width:100%;box-sizing:border-box"/>
             </div>
-            <div class="ln-collab-row">
-              <input type="text" class="ln-collab-input" [(ngModel)]="addPointCollaboratorInput"
-                     placeholder="Name or team…" maxlength="60" autocomplete="off"
-                     (keydown.enter)="$event.preventDefault(); addAddPointCollaborator()"/>
-              <button type="button" class="ln-collab-add"
-                      (click)="addAddPointCollaborator()" [disabled]="!addPointCollaboratorInput.trim()">Add</button>
+            <div *ngIf="addPointActiveField === 'crucialPerson'" class="ln-fe-row">
+              <button type="button" class="ln-crucial-btn ln-crucial-btn--yes"
+                      [class.ln-crucial-btn--active]="addPointCrucialPerson === 'Yes'"
+                      (click)="toggleAddPointCrucialPerson('Yes')">Yes</button>
+              <button type="button" class="ln-crucial-btn ln-crucial-btn--shared"
+                      [class.ln-crucial-btn--active]="addPointCrucialPerson === 'Shared'"
+                      (click)="toggleAddPointCrucialPerson('Shared')">Shared</button>
+              <button type="button" class="ln-crucial-btn ln-crucial-btn--no"
+                      [class.ln-crucial-btn--active]="addPointCrucialPerson === 'No'"
+                      (click)="toggleAddPointCrucialPerson('No')">No</button>
             </div>
-          </div>
-
-          <!-- 6. Ticket ID (work only) -->
-          <div class="ln-field-group" *ngIf="addPointDomain === 'work'">
-            <span class="ln-field-label">Ticket ID</span>
-            <input type="text" class="ln-text-input" [(ngModel)]="addPointTicketId"
-                   placeholder="e.g. JIRA-1234 (optional)" maxlength="100" autocomplete="off"/>
-          </div>
+            <div *ngIf="addPointActiveField === 'collaborators'">
+              <div class="ln-collab-chips" *ngIf="addPointCollaborators.length > 0">
+                <span class="ln-collab-chip"
+                      *ngFor="let c of addPointCollaborators; let i = index; trackBy: trackByIndex">
+                  {{ c }}<button type="button" class="ln-collab-remove" (click)="removeAddPointCollaborator(i)">×</button>
+                </span>
+              </div>
+              <div class="ln-collab-row">
+                <input type="text" class="ln-collab-input" [(ngModel)]="addPointCollaboratorInput"
+                       placeholder="Name or team…" maxlength="60" autocomplete="off"
+                       (keydown.enter)="$event.preventDefault(); addAddPointCollaborator()"/>
+                <button type="button" class="ln-collab-add"
+                        (click)="addAddPointCollaborator()" [disabled]="!addPointCollaboratorInput.trim()">Add</button>
+              </div>
+            </div>
+            <div *ngIf="addPointActiveField === 'satisfactoryScore'">
+              <div class="ln-score-track">
+                <button *ngFor="let n of scoreRange; trackBy: trackByIndex" type="button"
+                        class="ln-score-btn"
+                        [class.ln-score-btn--filled]="addPointSatisfactoryScore !== null && n <= addPointSatisfactoryScore"
+                        (click)="setAddPointScore(n)">{{ n }}</button>
+              </div>
+              <div class="ln-score-bar-wrap" style="margin-top:5px">
+                <div class="ln-score-bar-fill"
+                     [style.width.%]="addPointSatisfactoryScore ? (addPointSatisfactoryScore / 10) * 100 : 0"></div>
+              </div>
+            </div>
+          </div><!-- /ln-field-expand -->
 
         </div>
         <div class="log-now-actions">
@@ -325,7 +455,10 @@ import { LogEntry } from '../../models/log.model';
               <button class="ln-domain-tab" [class.ln-domain-tab--active]="startLogDomain === 'personal'"
                       (click)="setStartLogDomain('personal')">Personal</button>
             </div>
-            <div class="ln-type-carousel" (touchstart)="$event.stopPropagation()">
+            <div class="ln-type-carousel"
+                 (touchstart)="onCarouselTouchStart($event)"
+                 (touchmove)="onCarouselTouchMove($event)"
+                 (touchend)="onCarouselTouchEnd($event)">
               <button type="button" class="ln-type-chip"
                       *ngFor="let lt of startLogFilteredTypes; trackBy: trackByLogTypeId"
                       [class.ln-type-chip--active]="lt._id === startLogTypeId"
@@ -394,7 +527,7 @@ import { LogEntry } from '../../models/log.model';
     }
     .uni-sheet {
       display: flex; flex-direction: column;
-      height: 78dvh; max-height: 78dvh;
+      height: 72dvh; max-height: 72dvh;
       padding: 12px 20px 28px; overflow: hidden;
     }
     .uni-sheet .uni-tabs { flex-shrink: 0; }
@@ -554,7 +687,7 @@ import { LogEntry } from '../../models/log.model';
       display: flex; gap: 8px;
     }
     .ln-priority-chip {
-      flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
       padding: 8px 10px; border-radius: 10px;
       border: 1.5px solid var(--border);
       font-size: 13px; font-weight: 600;
@@ -620,6 +753,68 @@ import { LogEntry } from '../../models/log.model';
     .ln-collab-add:hover:not(:disabled) { color: var(--text-primary); }
     .ln-collab-add:disabled { opacity: 0.4; cursor: not-allowed; }
 
+    /* ── Field chip grid ─────────────────────────────────── */
+    .ln-field-chip-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;
+    }
+    .ln-field-chip {
+      padding: 7px 4px; border-radius: 14px; border: 1.5px dashed var(--border-light);
+      font-size: 10px; font-weight: 600; background: var(--bg-card); color: var(--text-muted);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      gap: 4px; min-width: 0; overflow: hidden;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+    .ln-field-chip:hover { color: var(--text-primary); border-style: solid; }
+    .ln-field-chip--filled {
+      border-style: solid; border-color: color-mix(in srgb, var(--highlight-selected) 55%, transparent);
+      color: var(--highlight-selected);
+      background: color-mix(in srgb, var(--highlight-selected) 8%, transparent);
+    }
+    .ln-field-chip--active {
+      border-style: solid; border-color: var(--highlight-selected);
+      color: var(--text-primary);
+      background: color-mix(in srgb, var(--highlight-selected) 14%, transparent);
+    }
+    .ln-fc-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Field expand panel ──────────────────────────────── */
+    .ln-field-expand {
+      padding: 10px;
+      animation: lnFeIn 0.14s ease;
+    }
+    @keyframes lnFeIn { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:none; } }
+    .ln-fe-row { display: flex; gap: 6px; }
+
+    /* ── Crucial Person (expand content) ────────────────── */
+    .ln-crucial-btn {
+      flex: 1; padding: 6px 8px; border-radius: 16px;
+      border: 1.5px solid var(--border-light);
+      font-size: 12px; font-weight: 600;
+      background: var(--bg-card); color: var(--text-muted);
+      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .ln-crucial-btn:hover { color: var(--text-primary); }
+    .ln-crucial-btn--yes.ln-crucial-btn--active    { border-color: #4caf7d; color: #4caf7d; background: rgba(76,175,125,0.12); }
+    .ln-crucial-btn--shared.ln-crucial-btn--active { border-color: #f5a623; color: #f5a623; background: rgba(245,166,35,0.12); }
+    .ln-crucial-btn--no.ln-crucial-btn--active     { border-color: #9b9b9b; color: var(--text-secondary); background: var(--bg-surface); }
+
+    /* ── Score (expand content) ──────────────────────────── */
+    .ln-score-track { display: flex; gap: 3px; }
+    .ln-score-btn {
+      flex: 1; padding: 5px 0; border-radius: 6px;
+      border: 1.5px solid var(--border-light);
+      font-size: 10px; font-weight: 700;
+      background: var(--bg-card); color: var(--text-muted);
+      cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; min-width: 0;
+    }
+    .ln-score-btn:hover { border-color: var(--highlight-selected); color: var(--text-primary); }
+    .ln-score-btn--filled {
+      background: color-mix(in srgb, var(--highlight-selected) 18%, transparent);
+      border-color: var(--highlight-selected); color: var(--highlight-selected);
+    }
+    .ln-score-bar-wrap { height: 3px; border-radius: 2px; background: var(--border-light); overflow: hidden; }
+    .ln-score-bar-fill { height: 100%; border-radius: 2px; background: var(--highlight-selected); transition: width 0.2s ease; }
+
     /* ── Plan for chips (tab 3) ─────────────────────────── */
     .ln-plan-chips { display: flex; gap: 6px; flex-wrap: wrap; }
     .ln-plan-chip {
@@ -650,6 +845,7 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
   readonly logNowHours     = Array.from({ length: 24 }, (_, i) => i);
   readonly logNowMinutes   = [15, 30, 45, 0];
   readonly addPointMinutes = [0, 15, 30, 45];
+  readonly scoreRange      = [1,2,3,4,5,6,7,8,9,10];
   readonly plannedOpts = [
     {v:'',l:'no time bound'},{v:'15',l:'15m'},{v:'30',l:'30m'},
     {v:'60',l:'1h'},{v:'90',l:'1.5h'},{v:'120',l:'2h'},
@@ -660,6 +856,15 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
   private logTypes: LogType[] = [];
   private uniTouchStartX = 0;
   private uniTouchStartY = 0;
+
+  // Carousel fast-scroll state
+  private _cEl: HTMLElement | null = null;
+  private _cStartX = 0;
+  private _cScrollLeft = 0;
+  private _cLastX = 0;
+  private _cLastT = 0;
+  private _cVelocity = 0;
+  private _cRaf = 0;
 
   // Log Now (tab 1)
   logNowDomain: 'work' | 'personal' = 'work';
@@ -672,6 +877,9 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
   logNowPriority: 'High' | 'Medium' | 'Low' | null = null;
   logNowCollaborators: string[] = [];
   logNowCollaboratorInput = '';
+  logNowSatisfactoryScore: number | null = null;
+  logNowCrucialPerson: 'Yes' | 'No' | 'Shared' | null = null;
+  logNowActiveField: string | null = null;
 
   // Add Point (tab 2)
   addPointDomain: 'work' | 'personal' = 'work';
@@ -683,6 +891,9 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
   addPointPriority: 'High' | 'Medium' | 'Low' | null = null;
   addPointCollaborators: string[] = [];
   addPointCollaboratorInput = '';
+  addPointSatisfactoryScore: number | null = null;
+  addPointCrucialPerson: 'Yes' | 'No' | 'Shared' | null = null;
+  addPointActiveField: string | null = null;
 
   // Start Timer (tab 3)
   startLogDomain: 'work' | 'personal' = 'work';
@@ -736,9 +947,12 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
     this.logNowDomain            = 'work';
     this.logNowTitle             = '';
     this.logNowTicketId          = '';
-    this.logNowPriority          = null;
-    this.logNowCollaborators     = [];
-    this.logNowCollaboratorInput = '';
+    this.logNowPriority            = null;
+    this.logNowCollaborators       = [];
+    this.logNowCollaboratorInput   = '';
+    this.logNowSatisfactoryScore   = null;
+    this.logNowCrucialPerson       = null;
+    this.logNowActiveField         = null;
     const workTypes = this.logTypes.filter(lt => lt.domain === 'work');
     this.logNowTypeId = workTypes[0]?._id ?? this.logTypes[0]?._id ?? '';
   }
@@ -747,9 +961,12 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
     this.addPointDomain            = 'work';
     this.addPointTitle             = '';
     this.addPointTicketId          = '';
-    this.addPointPriority          = null;
-    this.addPointCollaborators     = [];
-    this.addPointCollaboratorInput = '';
+    this.addPointPriority            = null;
+    this.addPointCollaborators       = [];
+    this.addPointCollaboratorInput   = '';
+    this.addPointSatisfactoryScore   = null;
+    this.addPointCrucialPerson       = null;
+    this.addPointActiveField         = null;
     const n = new Date();
     this.addPointTime = this._snapToQuarter(
       `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`
@@ -788,6 +1005,45 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
     else if (dx < -60 && this.tab < 3) { this.tab = (this.tab + 1) as 1|2|3; setTimeout(() => this._scrollTimeDrums(), 40); }
   }
 
+  onCarouselTouchStart(e: TouchEvent): void {
+    e.stopPropagation();
+    cancelAnimationFrame(this._cRaf);
+    this._cEl         = e.currentTarget as HTMLElement;
+    this._cStartX     = e.touches[0].clientX;
+    this._cScrollLeft = this._cEl.scrollLeft;
+    this._cLastX      = this._cStartX;
+    this._cLastT      = performance.now();
+    this._cVelocity   = 0;
+  }
+
+  onCarouselTouchMove(e: TouchEvent): void {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!this._cEl) return;
+    const x   = e.touches[0].clientX;
+    const now = performance.now();
+    const dt  = now - this._cLastT || 1;
+    this._cVelocity = (this._cLastX - x) / dt;
+    this._cLastX = x;
+    this._cLastT = now;
+    this._cEl.scrollLeft = this._cScrollLeft + (this._cStartX - x) * 2;
+  }
+
+  onCarouselTouchEnd(e: TouchEvent): void {
+    e.stopPropagation();
+    if (!this._cEl) return;
+    const el       = this._cEl;
+    let velocity   = this._cVelocity * 12;
+    this._cEl      = null;
+    const momentum = () => {
+      if (Math.abs(velocity) < 0.5) return;
+      el.scrollLeft += velocity;
+      velocity      *= 0.92;
+      this._cRaf     = requestAnimationFrame(momentum);
+    };
+    this._cRaf = requestAnimationFrame(momentum);
+  }
+
   closeSheet(): void { this.closed.emit(); }
 
   // ── Filtered type lists ───────────────────────────────────────────
@@ -802,12 +1058,18 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
     if (!filtered.find(lt => lt._id === this.logNowTypeId)) {
       this.logNowTypeId = filtered[0]?._id ?? '';
     }
+    if (domain === 'personal' && ['priority','ticketId','crucialPerson','collaborators'].includes(this.logNowActiveField ?? '')) {
+      this.logNowActiveField = null;
+    }
   }
   setAddPointDomain(domain: 'work' | 'personal'): void {
     this.addPointDomain = domain;
     const filtered      = this.addPointFilteredTypes;
     if (!filtered.find(lt => lt._id === this.addPointTypeId)) {
       this.addPointTypeId = filtered[0]?._id ?? '';
+    }
+    if (domain === 'personal' && ['priority','ticketId','crucialPerson','collaborators'].includes(this.addPointActiveField ?? '')) {
+      this.addPointActiveField = null;
     }
   }
   setStartLogDomain(domain: 'work' | 'personal'): void {
@@ -876,9 +1138,11 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
     this.logNowSaving = true;
     this.logService.createLog(this.selectedDate, {
       title, logTypeId: this.logNowTypeId, startTime: this.logNowStart, endTime: this.logNowEnd,
-      ticketId:      this.logNowDomain === 'work' ? (this.logNowTicketId.trim() || undefined) : undefined,
-      priority:      this.logNowPriority ?? undefined,
-      collaborators: this.logNowCollaborators.length > 0 ? [...this.logNowCollaborators] : undefined,
+      ticketId:          this.logNowDomain === 'work' ? (this.logNowTicketId.trim() || undefined) : undefined,
+      priority:          this.logNowPriority ?? undefined,
+      collaborators:     this.logNowCollaborators.length > 0 ? [...this.logNowCollaborators] : undefined,
+      satisfactoryScore: this.logNowSatisfactoryScore ?? undefined,
+      crucialPerson:     this.logNowDomain === 'work' ? (this.logNowCrucialPerson ?? undefined) : undefined,
     }).pipe(takeUntil(this.destroy$)).subscribe({
       next:  () => { this.logNowSaving = false; this.closed.emit(); this.logCreated.emit(); this.cd.markForCheck(); },
       error: () => { this.logNowSaving = false; this.cd.markForCheck(); },
@@ -893,9 +1157,11 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
     this.logService.createLog(this.selectedDate, {
       title, logTypeId: this.addPointTypeId, entryType: 'point',
       pointTime: this.addPointTime, startTime: this.addPointTime, endTime: this.addPointTime,
-      ticketId:      this.addPointDomain === 'work' ? (this.addPointTicketId.trim() || undefined) : undefined,
-      priority:      this.addPointPriority ?? undefined,
-      collaborators: this.addPointCollaborators.length > 0 ? [...this.addPointCollaborators] : undefined,
+      ticketId:          this.addPointDomain === 'work' ? (this.addPointTicketId.trim() || undefined) : undefined,
+      priority:          this.addPointPriority ?? undefined,
+      collaborators:     this.addPointCollaborators.length > 0 ? [...this.addPointCollaborators] : undefined,
+      satisfactoryScore: this.addPointSatisfactoryScore ?? undefined,
+      crucialPerson:     this.addPointDomain === 'work' ? (this.addPointCrucialPerson ?? undefined) : undefined,
     }).pipe(takeUntil(this.destroy$)).subscribe({
       next:  () => { this.addPointSaving = false; this.closed.emit(); this.logCreated.emit(); this.cd.markForCheck(); },
       error: () => { this.addPointSaving = false; this.cd.markForCheck(); },
@@ -927,6 +1193,40 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
   }
   toggleAddPointPriority(v: 'High' | 'Medium' | 'Low'): void {
     this.addPointPriority = this.addPointPriority === v ? null : v;
+  }
+
+  setLogNowScore(n: number): void {
+    this.logNowSatisfactoryScore = this.logNowSatisfactoryScore === n ? null : n;
+  }
+  setAddPointScore(n: number): void {
+    this.addPointSatisfactoryScore = this.addPointSatisfactoryScore === n ? null : n;
+  }
+  toggleLogNowCrucialPerson(v: 'Yes' | 'No' | 'Shared'): void {
+    this.logNowCrucialPerson = this.logNowCrucialPerson === v ? null : v;
+  }
+  toggleAddPointCrucialPerson(v: 'Yes' | 'No' | 'Shared'): void {
+    this.addPointCrucialPerson = this.addPointCrucialPerson === v ? null : v;
+  }
+
+  toggleLogNowField(field: string): void {
+    this.logNowActiveField = this.logNowActiveField === field ? null : field;
+  }
+  toggleAddPointField(field: string): void {
+    this.addPointActiveField = this.addPointActiveField === field ? null : field;
+  }
+
+  logNowCollabLabel(): string {
+    if (this.logNowCollaborators.length === 0) return '';
+    if (this.logNowCollaborators.length === 1) return this.logNowCollaborators[0];
+    return `${this.logNowCollaborators[0]} +${this.logNowCollaborators.length - 1}`;
+  }
+  addPointCollabLabel(): string {
+    if (this.addPointCollaborators.length === 0) return '';
+    if (this.addPointCollaborators.length === 1) return this.addPointCollaborators[0];
+    return `${this.addPointCollaborators[0]} +${this.addPointCollaborators.length - 1}`;
+  }
+  priorityColor(p: string): string {
+    return p === 'High' ? '#e94560' : p === 'Medium' ? '#f5a623' : '#4caf7d';
   }
 
   // ── Collaborators ─────────────────────────────────────────────────
