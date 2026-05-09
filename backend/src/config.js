@@ -17,7 +17,14 @@ const config = {
   cors: {
     // Local dev: http://localhost:4200
     // Vercel:    set CORS_ORIGIN=* in project environment variables
-    origin: process.env.CORS_ORIGIN || 'http://localhost:4200'
+    // Mobile:    capacitor://localhost and https://localhost (Capacitor Android/iOS)
+    // Supports comma-separated list: CORS_ORIGIN=http://localhost:4200,https://localhost
+    origin: (() => {
+      const raw = process.env.CORS_ORIGIN || 'http://localhost:4200,https://localhost,capacitor://localhost';
+      if (raw === '*') return '*';
+      const list = raw.split(',').map(o => o.trim()).filter(Boolean);
+      return list.length === 1 ? list[0] : list;
+    })()
   },
   ic: {
     serviceUrl:     process.env.IC_SERVICE_URL     || 'http://localhost:8000',

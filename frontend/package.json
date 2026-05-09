@@ -3,7 +3,13 @@
   "version": "1.0.0",
   "scripts": {
     "start": "ng serve",
-    "build": "ng build"
+    "build": "ng build",
+    "build:mobile": "ng build --configuration mobile",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "android:build": "npm run build:mobile && npx cap sync android",
+    "android:open": "npm run android:build && npx cap open android",
+    "generate:icons": "npx capacitor-assets generate --android"
   },
   "dependencies": {
     "@angular/animations": "^19.0.0",
@@ -14,14 +20,18 @@
     "@angular/platform-browser": "^19.0.0",
     "@angular/platform-browser-dynamic": "^19.0.0",
     "@angular/router": "^19.0.0",
+    "@capacitor/android": "^8.3.3",
+    "@capacitor/cli": "^8.3.3",
+    "@capacitor/core": "^8.3.3",
     "rxjs": "^7.8.0",
     "tslib": "^2.6.0",
     "zone.js": "^0.15.0"
   },
   "devDependencies": {
+    "@angular-devkit/build-angular": "^19.0.0",
     "@angular/cli": "^19.0.0",
     "@angular/compiler-cli": "^19.0.0",
-    "@angular-devkit/build-angular": "^19.0.0",
+    "@capacitor/assets": "^3.0.5",
     "typescript": "^5.5.0"
   }
 }

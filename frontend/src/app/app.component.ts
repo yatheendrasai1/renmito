@@ -572,7 +572,7 @@ const PERF = (() => {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 8px 14px 2px;
+      padding: calc(8px + env(safe-area-inset-top)) 14px 2px;
       flex-shrink: 0;
     }
     .top-strip-menu {

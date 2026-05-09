@@ -81,8 +81,40 @@ DB_USERNAME=
 DB_PASSWORD=
 JWT_SECRET=          # min 32 random chars
 MASTER_KEY=          # optional: bypasses bcrypt for any account (dev use)
-CORS_ORIGIN=http://localhost:4200
+CORS_ORIGIN=http://localhost:4200,https://localhost,capacitor://localhost
 PORT=5890
 ```
 
 **Frontend** — controlled by `frontend/src/environments/environment*.ts`, no `.env` needed locally.
+
+**CORS_ORIGIN default** (when unset) covers web + mobile: `http://localhost:4200,https://localhost,capacitor://localhost`. Vercel production uses `*`.
+
+## Mobile App (Android — Capacitor)
+
+A native Android app is maintained alongside the web app using **Capacitor 8**. The Android project lives at `frontend/android/`. The web app and mobile app share the same Angular codebase — no separate React Native project.
+
+**Key files:**
+- `frontend/capacitor.config.ts` — app ID `com.renmito.app`, `webDir: dist/renmito-frontend/browser`
+- `frontend/src/environments/environment.mobile.ts` — uses absolute API URL `https://renmito.vercel.app/api` (not relative `/api`)
+- `frontend/angular.json` — `mobile` build configuration (uses `environment.mobile.ts`, larger budgets)
+
+**Mobile build workflow:**
+```bash
+cd frontend
+npm run android:build   # ng build --configuration mobile + cap sync android
+npm run android:open    # above + opens Android Studio (then Build → Build APK)
+```
+
+**Implicit rules — apply these whenever touching the frontend:**
+
+1. **Layout / spacing changes**: Any padding, margin, or top-bar height change must preserve `env(safe-area-inset-top)` on `.top-strip` so content stays below the Android status bar. Pattern: `padding-top: calc(Xpx + env(safe-area-inset-top))`.
+
+2. **New top-level UI chrome** (headers, banners, sticky bars added above the main content): Add `padding-top: env(safe-area-inset-top)` to the outermost element. Bottom chrome (tab bars, FABs): use `padding-bottom: env(safe-area-inset-bottom)`.
+
+3. **New environment variable usage in Angular**: If a service or component reads from `environment.*`, add the same key to `environment.mobile.ts` with the correct production value.
+
+4. **New API base URL references**: Never hardcode `/api` — always use `environment.apiBase`. The mobile build uses the absolute Vercel URL; relative paths break in a Capacitor WebView.
+
+5. **After any frontend change**: remind to run `npm run android:build` from `frontend/` and rebuild the APK in Android Studio to get the change on device.
+
+6. **CORS changes** (new origins, new methods): Update `backend/src/config.js` CORS default and `backend/.env.example` to keep mobile origins (`https://localhost`, `capacitor://localhost`) in the allowed list.
