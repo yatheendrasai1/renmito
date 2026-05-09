@@ -1,7 +1,12 @@
 const Note = require('../models/Note');
 
 function fmt(item) {
-  return { _id: item._id.toString(), content: item.content };
+  return {
+    _id: item._id.toString(),
+    content: item.content,
+    type: item.type || 'regular',
+    timestamp: item.timestamp,
+  };
 }
 
 async function getNotes(userId, date) {
@@ -9,10 +14,10 @@ async function getNotes(userId, date) {
   return { date, notes: doc ? doc.notes.map(fmt) : [] };
 }
 
-async function addNote(userId, date) {
+async function addNote(userId, date, { content = '', type = 'regular' } = {}) {
   const doc = await Note.findOneAndUpdate(
     { userId, date },
-    { $push: { notes: { content: '' } } },
+    { $push: { notes: { content, type, timestamp: new Date() } } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
   return fmt(doc.notes[doc.notes.length - 1]);

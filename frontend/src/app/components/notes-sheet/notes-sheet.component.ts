@@ -18,6 +18,8 @@ interface LocalNote {
   isNew: boolean;
   copied: boolean;
   deleting: boolean;
+  type: 'regular' | 'tapper';
+  timestamp?: string;
 }
 
 @Component({
@@ -54,61 +56,114 @@ interface LocalNote {
       <!-- Body -->
       <div class="ns-body">
 
-        <!-- Loading -->
         <div class="ns-loading" *ngIf="loading">Loading…</div>
 
-        <!-- Notes list -->
         <div class="ns-list" *ngIf="!loading">
 
-          <div class="ns-note-wrap"
-               *ngFor="let note of notes; let i = index; trackBy: trackById"
-               [class.ns-note-wrap--new]="note.isNew">
-            <button class="ns-delete-btn" (click)="pendingDeleteNote = note" [disabled]="note.deleting" title="Delete note">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                <path d="M10 11v6M14 11v6"/>
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-              </svg>
-            </button>
-            <button class="ns-copy-btn" (click)="copyNote(note)" [title]="note.copied ? 'Copied!' : 'Copy'">
-              <svg *ngIf="!note.copied" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-              <svg *ngIf="note.copied" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </button>
-            <textarea
-              #noteTA
-              class="ns-note-ta"
-              rows="6"
-              [(ngModel)]="note.content"
-              placeholder="Note…"
-              maxlength="500"
-              (blur)="onBlur(note)"
-            ></textarea>
-            <div class="ns-note-footer">
-              <span class="ns-saving-badge" *ngIf="note.saving">saving…</span>
-              <span class="ns-char-count" [class.ns-char-count--near]="note.content.length >= 450">
-                {{ note.content.length }}/500
-              </span>
+          <!-- Regular note -->
+          <ng-container *ngFor="let note of notes; trackBy: trackById">
+            <div *ngIf="note.type !== 'tapper'"
+                 class="ns-note-wrap"
+                 [class.ns-note-wrap--new]="note.isNew">
+              <button class="ns-delete-btn" (click)="pendingDeleteNote = note" [disabled]="note.deleting" title="Delete note">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6M14 11v6"/>
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+              </button>
+              <button class="ns-copy-btn" (click)="copyNote(note)" [title]="note.copied ? 'Copied!' : 'Copy'">
+                <svg *ngIf="!note.copied" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                <svg *ngIf="note.copied" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </button>
+              <textarea
+                #noteTA
+                class="ns-note-ta"
+                rows="6"
+                [(ngModel)]="note.content"
+                placeholder="Note…"
+                maxlength="500"
+                (blur)="onBlur(note)"
+              ></textarea>
+              <div class="ns-note-footer">
+                <span class="ns-saving-badge" *ngIf="note.saving">saving…</span>
+                <span class="ns-char-count" [class.ns-char-count--near]="note.content.length >= 450">
+                  {{ note.content.length }}/500
+                </span>
+              </div>
             </div>
-          </div>
 
-          <!-- Add note button -->
-          <button class="ns-add-btn" (click)="addNote()" [disabled]="adding">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"
-                 stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-              <line x1="8" y1="2" x2="8" y2="14"/>
-              <line x1="2" y1="8" x2="14" y2="8"/>
-            </svg>
-            Note
-          </button>
+            <!-- Tapper note -->
+            <div *ngIf="note.type === 'tapper'"
+                 class="ns-tapper-wrap"
+                 [class.ns-note-wrap--new]="note.isNew">
+              <div class="ns-tapper-header">
+                <span class="ns-tapper-badge">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  {{ note.timestamp | date:'h:mm a' }}
+                </span>
+                <button class="ns-tapper-delete-btn" (click)="pendingDeleteNote = note"
+                        [disabled]="note.deleting" title="Delete tap">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                  </svg>
+                </button>
+              </div>
+              <input
+                #tapperInput
+                class="ns-tapper-input"
+                type="text"
+                [(ngModel)]="note.content"
+                placeholder="Add a note… (optional)"
+                maxlength="30"
+                (blur)="onBlur(note)"
+              />
+              <div class="ns-note-footer">
+                <span class="ns-saving-badge" *ngIf="note.saving">saving…</span>
+                <span class="ns-char-count" [class.ns-char-count--near]="note.content.length >= 25">
+                  {{ note.content.length }}/30
+                </span>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Action buttons row -->
+          <div class="ns-actions-row">
+            <button class="ns-add-btn" (click)="addNote()" [disabled]="adding">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"
+                   stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                <line x1="8" y1="2" x2="8" y2="14"/>
+                <line x1="2" y1="8" x2="14" y2="8"/>
+              </svg>
+              Note
+            </button>
+
+            <button class="ns-tap-btn" (click)="addTapper()" [disabled]="addingTapper">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              Time Tap
+            </button>
+          </div>
 
         </div>
 
@@ -199,6 +254,8 @@ interface LocalNote {
       gap: 12px;
     }
 
+    /* ── Regular note ── */
+
     .ns-note-wrap {
       position: relative;
     }
@@ -280,6 +337,67 @@ interface LocalNote {
     }
     .ns-char-count--near { color: var(--warn, #e07b39); }
 
+    /* ── Tapper note ── */
+
+    .ns-tapper-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-left: 3px solid #7C6FCD;
+      border-radius: var(--radius);
+      padding: 10px 12px 8px;
+    }
+
+    .ns-tapper-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .ns-tapper-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 600;
+      color: #9D8FDE;
+      letter-spacing: 0.02em;
+    }
+
+    .ns-tapper-delete-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .ns-tapper-wrap:hover .ns-tapper-delete-btn { opacity: 1; }
+    .ns-tapper-delete-btn:hover:not(:disabled) { color: #e05252; border-color: #e05252; }
+    .ns-tapper-delete-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .ns-tapper-input {
+      width: 100%;
+      background: none;
+      border: none;
+      border-bottom: 1px solid var(--border-light);
+      border-radius: 0;
+      padding: 4px 0 6px;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color 0.15s;
+    }
+    .ns-tapper-input:focus { border-bottom-color: #7C6FCD; }
+    .ns-tapper-input::placeholder { color: var(--text-muted); font-style: italic; }
+
+    /* ── Action buttons row ── */
+
+    .ns-actions-row {
+      display: flex; align-items: center; gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .ns-add-btn {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 7px 14px;
@@ -290,10 +408,23 @@ interface LocalNote {
       font-size: 12px; font-weight: 600;
       cursor: pointer;
       transition: border-color 0.15s, color 0.15s;
-      align-self: flex-start;
     }
     .ns-add-btn:hover:not(:disabled) { border-color: var(--highlight-selected); color: var(--text-primary); }
     .ns-add-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .ns-tap-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px;
+      background: none;
+      border: 1px dashed #4A4080;
+      border-radius: var(--radius-sm);
+      color: #9D8FDE;
+      font-size: 12px; font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .ns-tap-btn:hover:not(:disabled) { border-color: #7C6FCD; color: #B8ADFF; background: rgba(124,111,205,0.08); }
+    .ns-tap-btn:disabled { opacity: 0.45; cursor: not-allowed; }
   `]
 })
 export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
@@ -301,11 +432,13 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
   @Output() close = new EventEmitter<void>();
 
   @ViewChildren('noteTA') noteTAs!: QueryList<ElementRef<HTMLTextAreaElement>>;
+  @ViewChildren('tapperInput') tapperInputs!: QueryList<ElementRef<HTMLInputElement>>;
 
   private readonly destroy$ = new Subject<void>();
   notes:             LocalNote[] = [];
   loading            = false;
   adding             = false;
+  addingTapper       = false;
   pendingDeleteNote: LocalNote | null = null;
 
   get dateLabel(): string {
@@ -337,7 +470,9 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
       next: (d) => {
         this.notes = d.notes.map(n => ({
           _id: n._id, content: n.content, savedContent: n.content,
-          saving: false, isNew: false, copied: false, deleting: false
+          saving: false, isNew: false, copied: false, deleting: false,
+          type: n.type ?? 'regular',
+          timestamp: n.timestamp,
         }));
         this.loading = false;
         this.cdr.markForCheck();
@@ -380,16 +515,42 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.adding = true;
     this.notesService.addNote(this.dateStr).pipe(takeUntil(this.destroy$)).subscribe({
       next: (n) => {
-        this.notes.push({ _id: n._id, content: '', savedContent: '', saving: false, isNew: true, copied: false, deleting: false });
+        this.notes.push({
+          _id: n._id, content: '', savedContent: '',
+          saving: false, isNew: true, copied: false, deleting: false,
+          type: 'regular',
+        });
         this.adding = false;
         this.cdr.markForCheck();
-        // Focus the new textarea after Angular renders it
         setTimeout(() => {
           const tas = this.noteTAs.toArray();
           tas[tas.length - 1]?.nativeElement.focus();
         }, 50);
       },
       error: () => { this.adding = false; this.cdr.markForCheck(); }
+    });
+  }
+
+  addTapper(): void {
+    if (this.addingTapper) return;
+    this.addingTapper = true;
+    const now = new Date();
+    this.notesService.addNote(this.dateStr, 'tapper', '').pipe(takeUntil(this.destroy$)).subscribe({
+      next: (n) => {
+        this.notes.push({
+          _id: n._id, content: '', savedContent: '',
+          saving: false, isNew: true, copied: false, deleting: false,
+          type: 'tapper',
+          timestamp: n.timestamp ?? now.toISOString(),
+        });
+        this.addingTapper = false;
+        this.cdr.markForCheck();
+        setTimeout(() => {
+          const inputs = this.tapperInputs.toArray();
+          inputs[inputs.length - 1]?.nativeElement.focus();
+        }, 50);
+      },
+      error: () => { this.addingTapper = false; this.cdr.markForCheck(); }
     });
   }
 

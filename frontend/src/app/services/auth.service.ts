@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { environment } from '../../environments/environment';
 
 export interface AuthUser {
@@ -13,6 +14,13 @@ interface AuthResponse {
   token: string;
   user: AuthUser;
 }
+
+interface TokenSyncPlugin {
+  saveToken(options: { token: string }): Promise<void>;
+  clearToken(): Promise<void>;
+}
+
+const TokenSync = registerPlugin<TokenSyncPlugin>('TokenSync');
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -54,10 +62,16 @@ export class AuthService {
   logout(): void {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    if (Capacitor.isNativePlatform()) {
+      TokenSync.clearToken().catch(() => {});
+    }
   }
 
   private persist(res: AuthResponse): void {
     localStorage.setItem(this.TOKEN_KEY, res.token);
     localStorage.setItem(this.USER_KEY, JSON.stringify(res.user));
+    if (Capacitor.isNativePlatform()) {
+      TokenSync.saveToken({ token: res.token }).catch(() => {});
+    }
   }
 }

@@ -17,7 +17,10 @@ async function addNote(req, res) {
   try {
     const { date } = req.params;
     if (!DATE_RE.test(date)) return res.status(400).json({ error: 'Invalid date format' });
-    res.json(await service.addNote(req.user.userId, date));
+    const { content = '', type = 'regular' } = req.body || {};
+    if (!['regular', 'tapper'].includes(type)) return res.status(400).json({ error: 'Invalid note type' });
+    if (type === 'tapper' && content.length > 30) return res.status(400).json({ error: 'Tapper note exceeds 30 characters' });
+    res.json(await service.addNote(req.user.userId, date, { content, type }));
   } catch (err) {
     console.error('notes.addNote:', err.message);
     res.status(500).json({ error: 'Failed to add note' });

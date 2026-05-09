@@ -4,4 +4,25 @@
     <string name="title_activity_main">Renmito</string>
     <string name="package_name">com.renmito.app</string>
     <string name="custom_url_scheme">com.renmito.app</string>
+
+    <!-- Banner widget -->
+    <string name="widget_description">Renmito Tapper — log a quick timestamped note from your home screen</string>
+    <string name="widget_btn_label">Time Tap</string>
+
+    <!-- Icon widget -->
+    <string name="widget_icon_description">Renmito Tapper (icon) — one-tap timestamped note</string>
+    <string name="widget_icon_label">⏱</string>
+
+    <!-- Tapper sheet -->
+    <string name="tapper_creating">Logging tap…</string>
+    <string name="tapper_tapped_at">Tapped at %s</string>
+    <string name="tapper_hint">or type a custom note… (30 chars max)</string>
+    <string name="tapper_save">Save</string>
+    <string name="tapper_done">Done</string>
+
+    <!-- Tapper messages -->
+    <string name="tapper_not_logged_in">Open Renmito and log in before using the widget</string>
+    <string name="tapper_saved">Note saved!</string>
+    <string name="tapper_error">Failed (code %d)</string>
+    <string name="tapper_network_error">Network error — check your connection</string>
 </resources>

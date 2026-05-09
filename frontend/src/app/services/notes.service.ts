@@ -7,6 +7,8 @@ import { environment } from '../../environments/environment';
 export interface NoteItem {
   _id: string;
   content: string;
+  type: 'regular' | 'tapper';
+  timestamp?: string;
 }
 
 export interface DayNotes {
@@ -32,13 +34,13 @@ export class NotesService {
     );
   }
 
-  addNote(date: string): Observable<NoteItem> {
-    return this.http.post<NoteItem>(`${this.apiBase}/${date}/notes`, {}).pipe(
+  addNote(date: string, type: 'regular' | 'tapper' = 'regular', content = ''): Observable<NoteItem> {
+    return this.http.post<NoteItem>(`${this.apiBase}/${date}/notes`, { type, content }).pipe(
       tap(n => {
         const cached = this.cache.get(date);
         if (cached) cached.notes.push(n);
       }),
-      catchError(() => of({ _id: `tmp-${Date.now()}`, content: '' }))
+      catchError(() => of({ _id: `tmp-${Date.now()}`, content, type, timestamp: new Date().toISOString() }))
     );
   }
 
@@ -61,7 +63,7 @@ export class NotesService {
           if (idx !== -1) cached.notes[idx].content = n.content;
         }
       }),
-      catchError(() => of({ _id: noteId, content }))
+      catchError(() => of({ _id: noteId, content, type: 'regular' as const }))
     );
   }
 }
