@@ -10,6 +10,7 @@ import { takeUntil } from 'rxjs/operators';
 import { AppStateService } from '../../services/app-state.service';
 import { LogService } from '../../services/log.service';
 import { DayLevelService, DayType } from '../../services/day-level.service';
+import { NoteItem } from '../../services/notes.service';
 
 import { LogEntry } from '../../models/log.model';
 import { LogType } from '../../models/log-type.model';
@@ -40,13 +41,33 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
     .action-btns-row { display: flex; gap: 8px; }
     .action-btns-row .add-point-wrap { flex: 1; }
     .action-btns-row .btn-add-entry { flex: 1; }
-    .domain-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: -6px; }
-    .domain-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border-subtle, rgba(128,128,128,0.2)); background: var(--bg-card); color: var(--text-secondary); font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.14s, color 0.14s, border-color 0.14s; }
-    .domain-chip:hover { border-color: var(--chip-color, #9B9B9B); color: var(--chip-color, var(--text-primary)); }
-    .domain-chip--active { background: color-mix(in srgb, var(--chip-color, #9B9B9B) 15%, var(--bg-card)); border-color: var(--chip-color, #9B9B9B); color: var(--chip-color, var(--text-primary)); font-weight: 600; }
-    .domain-chip--all { --chip-color: var(--text-secondary); }
-    .domain-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--chip-color, #9B9B9B); flex-shrink: 0; }
+    .domain-filter-row { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; margin-top: -6px; padding-bottom: 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .domain-filter-row::-webkit-scrollbar { display: none; }
+    .domain-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 9px; border-radius: 6px; border: 1px solid var(--border-subtle, rgba(128,128,128,0.2)); border-left: 3px solid var(--chip-color, var(--border)); background: var(--bg-card); color: var(--text-secondary); font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.14s, color 0.14s, border-color 0.14s; white-space: nowrap; flex-shrink: 0; }
+    .domain-chip:hover { background: color-mix(in srgb, var(--chip-color, #9B9B9B) 8%, var(--bg-card)); color: var(--text-primary); }
+    .domain-chip--active { background: color-mix(in srgb, var(--chip-color, #9B9B9B) 15%, var(--bg-card)); border-color: var(--chip-color, #9B9B9B); border-left-color: var(--chip-color, #9B9B9B); color: var(--chip-color, var(--text-primary)); font-weight: 600; }
+    .domain-chip--all { --chip-color: var(--text-muted); }
+    .domain-chip-badge { font-size: 10px; font-weight: 700; padding: 0 5px; min-width: 16px; height: 16px; background: color-mix(in srgb, var(--chip-color, #9B9B9B) 20%, var(--bg-surface)); color: var(--text-muted); border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .domain-chip--active .domain-chip-badge { background: var(--chip-color, #9B9B9B); color: #fff; }
     .tl-card--ai { border-left: 3px solid #9B6DBF; }
+    .log-group-header {
+      position: sticky; top: 0; z-index: 5;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 2px 4px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .log-group-header:hover .log-group-label { color: var(--text-secondary); }
+    .log-group-collapse-btn {
+      display: flex; align-items: center; justify-content: center;
+      background: none; border: none; padding: 0; cursor: pointer;
+      color: var(--text-muted); flex-shrink: 0;
+    }
+    .log-group-chevron { transition: transform 0.2s ease; }
+    .log-group-chevron--collapsed { transform: rotate(-90deg); }
+    .log-group-label { font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.4px; }
+    .log-group-count { font-size: 10px; color: var(--text-muted); background: var(--bg-card); padding: 1px 6px; border-radius: 8px; }
+    .log-group-line { flex: 1; height: 1px; background: var(--border-subtle, rgba(128,128,128,0.15)); }
   `],
   template: `
     <!-- ── Day-type pill · Prev · Date (swipeable) · Next · Today ── -->
@@ -128,18 +149,31 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
 
     <!-- ── Notes + Important Logs ────────────────────── -->
     <div class="notes-important-row">
-      <button class="notes-col" (click)="appState.openNotesRequested$.next()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
-        <span class="notes-col-label">Notes</span>
-        <span class="notes-row-count" *ngIf="notesCount > 0">{{ notesCount }}</span>
-      </button>
+      <div class="notes-col" [class.notes-col--expanded]="notesExpanded && notesList.length > 0">
+        <button class="notes-col-main" (click)="toggleNotesExpand()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+          <div class="notes-col-text">
+            <span class="notes-col-label">Notes</span>
+            <span class="notes-col-subtitle" *ngIf="notesList.length > 0">{{ notesList[0].content }}</span>
+          </div>
+          <span class="notes-row-count" *ngIf="notesCount > 0">{{ notesCount }}</span>
+        </button>
+        <button class="notes-col-edit-btn" (click)="appState.openNotesRequested$.next()" title="Open notes">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="notes-preview" *ngIf="notesExpanded && notesList.length > 0">
+        <div class="notes-preview-item" *ngFor="let note of notesList">{{ note.content }}</div>
+      </div>
     </div>
 
     <!-- ── Running Log Banner ────────────────────────── -->
@@ -263,13 +297,17 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
     <div class="domain-filter-row" *ngIf="!isLoading && availableDomains.length > 1">
       <button class="domain-chip domain-chip--all"
               [class.domain-chip--active]="filterDomain === ''"
-              (click)="setDomainFilter('')">All</button>
+              (click)="setDomainFilter('')">
+        All
+        <span class="domain-chip-badge">{{ logs.length }}</span>
+      </button>
       <button *ngFor="let d of availableDomains"
               class="domain-chip"
               [class.domain-chip--active]="filterDomain === d"
               [style.--chip-color]="domainColor(d)"
               (click)="setDomainFilter(d)">
-        <span class="domain-chip-dot"></span>{{ d }}
+        {{ d }}
+        <span class="domain-chip-badge">{{ domainCount(d) }}</span>
       </button>
     </div>
 
@@ -288,11 +326,26 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
             </div>
           </div>
 
-          <!-- Log cards -->
+          <!-- Log cards grouped by time period -->
           <div class="log-list" *ngIf="!isLoading && logs.length > 0">
+            <ng-container *ngFor="let group of logGroups; trackBy: trackByGroupPeriod">
+              <div class="log-group-header" (click)="toggleGroupCollapse(group.period)">
+                <button class="log-group-collapse-btn" tabindex="-1">
+                  <svg class="log-group-chevron"
+                       [class.log-group-chevron--collapsed]="isGroupCollapsed(group.period)"
+                       width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.8"
+                          stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+                <span class="log-group-label">{{ group.period }}</span>
+                <span class="log-group-count">{{ group.logs.length }}</span>
+                <div class="log-group-line"></div>
+              </div>
+            <ng-container *ngIf="!isGroupCollapsed(group.period)">
             <div
               class="tl-item"
-              *ngFor="let log of sortedLogs; let i = index; trackBy: trackByLogId"
+              *ngFor="let log of group.logs; trackBy: trackByLogId"
               [class.tl-item--active]="log.id === highlightedLogId && !metricLogIds && inlineEditId !== log.id"
               [class.tl-item--metric-active]="metricLogIds?.has(log.id) && inlineEditId !== log.id"
               [class.tl-item--dimmed]="metricLogIds && !metricLogIds.has(log.id) && inlineEditId !== log.id"
@@ -423,6 +476,8 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
                 </div><!-- /tl-card -->
               </div><!-- /swipe-wrap -->
             </div><!-- /tl-item -->
+            </ng-container><!-- /collapse -->
+            </ng-container><!-- /group -->
           </div><!-- /log-list -->
 
           <div class="log-list-empty" *ngIf="!isLoading && logs.length === 0">
@@ -455,6 +510,8 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   activeLog       = this.appState.activeLog$.value;
   dayMetadata     = this.appState.dayMetadata$.value;
   notesCount      = 0;
+  notesList:      NoteItem[] = [];
+  notesExpanded   = false;
   highlightedLogId: string | null    = null;
   metricLogIds:     Set<string>|null = null;
   activeLogElapsedStr = '00:00';
@@ -501,6 +558,48 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   }
 
   get filteredCount(): number { return this.sortedLogs.length; }
+
+  private periodOf(startAt: string): string {
+    const h = parseInt(startAt.split(':')[0], 10);
+    if (h >= 6  && h < 12) return 'Morning';
+    if (h >= 12 && h < 17) return 'Afternoon';
+    if (h >= 17 && h < 21) return 'Evening';
+    return 'Night';
+  }
+
+  get logGroups(): { period: string; logs: LogEntry[] }[] {
+    const ascOrder = ['Morning', 'Afternoon', 'Evening', 'Night'];
+    const order = this.logSortOrder === 'asc' ? ascOrder : [...ascOrder].reverse();
+    const map = new Map<string, LogEntry[]>();
+    for (const log of this.sortedLogs) {
+      const p = this.periodOf(log.startAt);
+      if (!map.has(p)) map.set(p, []);
+      map.get(p)!.push(log);
+    }
+    return order.filter(p => map.has(p)).map(p => ({ period: p, logs: map.get(p)! }));
+  }
+
+  trackByGroupPeriod(_i: number, g: { period: string }): string { return g.period; }
+
+  private collapsedGroups = new Set<string>();
+  isGroupCollapsed(period: string): boolean { return this.collapsedGroups.has(period); }
+  toggleGroupCollapse(period: string): void {
+    if (this.collapsedGroups.has(period)) {
+      this.collapsedGroups.delete(period);
+    } else {
+      this.collapsedGroups.add(period);
+    }
+    this.cdr.markForCheck();
+  }
+
+  toggleNotesExpand(): void {
+    if (this.notesList.length > 0) {
+      this.notesExpanded = !this.notesExpanded;
+    } else {
+      this.appState.openNotesRequested$.next();
+    }
+    this.cdr.markForCheck();
+  }
 
   toggleLogSort(): void { this.logSortOrder = this.logSortOrder === 'asc' ? 'desc' : 'asc'; }
   setDomainFilter(domain: string): void { this.filterDomain = domain; }
@@ -830,6 +929,10 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     return h * 60 + m;
   }
 
+  domainCount(domain: string): number {
+    return this.logs.filter(l => l.logType?.domain === domain).length;
+  }
+
   domainColor(domain: string): string {
     const map: Record<string, string> = {
       work: '#5A9CB5',
@@ -888,6 +991,9 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     });
     this.appState.notesCount$.pipe(takeUntil(this.destroy$)).subscribe(v => {
       this.notesCount = v; this.cdr.markForCheck();
+    });
+    this.appState.notesList$.pipe(takeUntil(this.destroy$)).subscribe(v => {
+      this.notesList = v; this.notesExpanded = false; this.cdr.markForCheck();
     });
     this.appState.highlightedLogId$.pipe(takeUntil(this.destroy$)).subscribe(v => {
       this.highlightedLogId = v; this.cdr.markForCheck();

@@ -16,6 +16,7 @@ import { takeUntil } from 'rxjs/operators';
 import { LogEntry } from '../../models/log.model';
 import { LogService } from '../../services/log.service';
 import { DayLevelService, DayMetadata } from '../../services/day-level.service';
+import { AppStateService } from '../../services/app-state.service';
 
 interface LogTypeBreakdown {
   id:        string;
@@ -36,30 +37,59 @@ interface LogTypeBreakdown {
       <!-- ── Summary cards ────────────────────────── -->
       <div class="summary-cards">
 
-        <!-- Coverage card — clicking opens metrics popup -->
-        <div class="summary-card summary-card--clickable"
-             (click)="toggleMetricsPopup($event)">
-          <div class="summary-card-header-row">
-            <span class="summary-label">Coverage <span class="summary-baseline">(8h)</span></span>
-            <svg class="summary-chevron" [class.summary-chevron--open]="metricsPopupOpen"
-                 width="11" height="11" viewBox="0 0 12 12" fill="none">
-              <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
-                    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <span class="summary-val">{{ coveragePct }}%</span>
-          <div class="coverage-bar-track">
-            <div class="coverage-bar-fill"
-              [style.width.%]="coverageBarPct"
-              [style.background]="coveragePct >= 100 ? '#a3d4ac' : '#93b8de'">
+        <ng-container *ngIf="dayMetadata?.dayType === 'holiday' || dayMetadata?.dayType === 'paid_leave' || dayMetadata?.dayType === 'sick_leave'; else normalCards">
+          <ng-container *ngIf="totalWorkMins > 0; else breakMsg">
+            <div class="summary-card summary-card--break-logged">
+              <span class="summary-label">Logged</span>
+              <span class="summary-val">{{ coveredHoursLabel }}</span>
+            </div>
+          </ng-container>
+          <ng-template #breakMsg>
+            <div class="summary-card summary-card--break-msg">
+              <span class="break-msg-text">
+                <ng-container *ngIf="dayMetadata?.dayType === 'sick_leave'">
+                  Really sick? I mean sick sick? JK! take care! :-)
+                </ng-container>
+                <ng-container *ngIf="dayMetadata?.dayType === 'holiday' || dayMetadata?.dayType === 'paid_leave'">
+                  Take a break. you deserve this! focus on your 'ME' Time
+                </ng-container>
+              </span>
+            </div>
+          </ng-template>
+        </ng-container>
+
+        <ng-template #normalCards>
+          <!-- Coverage card — clicking opens metrics popup -->
+          <div class="summary-card summary-card--clickable"
+               (click)="toggleMetricsPopup($event)">
+            <div class="summary-card-header-row">
+              <span class="summary-label">Coverage <span class="summary-baseline">(8h)</span></span>
+              <svg class="summary-chevron" [class.summary-chevron--open]="metricsPopupOpen"
+                   width="11" height="11" viewBox="0 0 12 12" fill="none">
+                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
+                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="summary-val">{{ coveragePct }}%</span>
+            <div class="coverage-bar-track">
+              <div class="coverage-bar-fill"
+                [style.width.%]="coverageBarPct"
+                [style.background]="coveragePct >= 100 ? '#a3d4ac' : '#93b8de'">
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="summary-card">
-          <span class="summary-label">Logged</span>
-          <span class="summary-val">{{ coveredHoursLabel }}</span>
-        </div>
+          <div class="summary-card">
+            <span class="summary-label">Logged</span>
+            <span class="summary-val">{{ coveredHoursLabel }}</span>
+          </div>
+
+          <div class="summary-card">
+            <span class="summary-label">Remaining</span>
+            <span class="summary-val summary-val--goal-met" *ngIf="remainingHours <= 0">Goal met ✓</span>
+            <span class="summary-val" *ngIf="remainingHours > 0">{{ remainingHoursLabel }}</span>
+          </div>
+        </ng-template>
 
       </div>
 
@@ -88,6 +118,27 @@ interface LogTypeBreakdown {
           </button>
         </div>
 
+        <!-- Summary header -->
+        <div class="breakdown-summary-hdr" *ngIf="logTypeBreakdown.length > 0">
+          <div class="bsh-row">
+            <span class="bsh-label">Total Logged</span>
+            <span class="bsh-logged">{{ fmtMins(totalWorkMins) }}</span>
+            <span class="bsh-sep">/</span>
+            <span class="bsh-target">8h target</span>
+            <span class="bsh-overflow-lbl" *ngIf="totalWorkMins > 480">
+              ↑ {{ overflowMultiplierLabel }}
+            </span>
+          </div>
+          <div class="bsh-track">
+            <div class="bsh-fill"
+                 [style.width.%]="summaryTargetWidth"
+                 [style.background]="totalWorkMins >= 480 ? '#a3d4ac' : '#93b8de'"></div>
+            <div class="bsh-fill bsh-fill--overflow"
+                 *ngIf="totalWorkMins > 480"
+                 [style.width.%]="summaryOverflowWidth"></div>
+          </div>
+        </div>
+
         <ng-container *ngIf="logTypeBreakdown.length > 0; else noBreakdown">
 
           <!-- Professional section -->
@@ -103,11 +154,11 @@ interface LogTypeBreakdown {
                   <span class="breakdown-dot" [style.background]="bt.color || '#9B9B9B'"></span>
                   <span class="breakdown-name">{{ bt.name }}</span>
                   <span class="breakdown-time">{{ fmtMins(bt.totalMins) }}</span>
-                  <span class="breakdown-pct">{{ breakdownPct(bt.totalMins) }}%</span>
+                  <span class="breakdown-pct" [style.color]="bt.color || '#9B9B9B'">{{ breakdownPct(bt.totalMins) }}%</span>
                 </div>
                 <div class="breakdown-track">
                   <div class="breakdown-fill"
-                       [style.width]="breakdownPct(bt.totalMins) + '%'"
+                       [style.width]="breakdownBarWidth(bt.totalMins) + '%'"
                        [style.background]="bt.color || '#9B9B9B'"></div>
                 </div>
               </div>
@@ -130,6 +181,7 @@ interface LogTypeBreakdown {
                 </svg>
               </ng-container>
             </button>
+            <div class="breakdown-footnote">% of 24h day</div>
           </ng-container>
 
           <!-- Personal section -->
@@ -146,11 +198,11 @@ interface LogTypeBreakdown {
                   <span class="breakdown-dot" [style.background]="bt.color || '#9B9B9B'"></span>
                   <span class="breakdown-name">{{ bt.name }}</span>
                   <span class="breakdown-time">{{ fmtMins(bt.totalMins) }}</span>
-                  <span class="breakdown-pct">{{ breakdownPct(bt.totalMins) }}%</span>
+                  <span class="breakdown-pct" [style.color]="bt.color || '#9B9B9B'">{{ breakdownPct(bt.totalMins) }}%</span>
                 </div>
                 <div class="breakdown-track">
                   <div class="breakdown-fill"
-                       [style.width]="breakdownPct(bt.totalMins) + '%'"
+                       [style.width]="breakdownBarWidth(bt.totalMins) + '%'"
                        [style.background]="bt.color || '#9B9B9B'"></div>
                 </div>
               </div>
@@ -173,12 +225,15 @@ interface LogTypeBreakdown {
                 </svg>
               </ng-container>
             </button>
+            <div class="breakdown-footnote">% of 24h day</div>
           </ng-container>
 
         </ng-container>
         <ng-template #noBreakdown>
           <div class="breakdown-empty">No logs recorded for this day.</div>
         </ng-template>
+
+        <div class="metrics-popup-fade"></div>
 
       </div>
 
@@ -220,6 +275,23 @@ interface LogTypeBreakdown {
       border-color: var(--border-light);
     }
 
+    .summary-card--break-logged {
+      flex: 3;
+    }
+
+    .summary-card--break-msg {
+      flex: 3;
+      justify-content: center;
+      align-items: center;
+    }
+    .break-msg-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      line-height: 1.4;
+    }
+
     .summary-card-header-row {
       display: flex;
       align-items: center;
@@ -259,6 +331,11 @@ interface LogTypeBreakdown {
       color: var(--text-primary);
       line-height: 1;
       font-variant-numeric: tabular-nums;
+    }
+
+    .summary-val--goal-met {
+      color: #a3d4ac;
+      font-size: 13px;
     }
 
     /* ── Coverage progress bar ───────────────────────── */
@@ -407,6 +484,69 @@ interface LogTypeBreakdown {
       cursor: pointer; transition: color 0.15s, background 0.15s;
     }
     .breakdown-expand-btn:hover { color: var(--text-primary); background: var(--accent-hover); }
+
+    /* ── Summary header card ─────────────────────────── */
+    .breakdown-summary-hdr {
+      margin: 10px 12px 4px;
+      padding: 10px 12px;
+      background: color-mix(in srgb, var(--bg-card) 60%, var(--bg-surface));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm, 6px);
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .bsh-row {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+    }
+    .bsh-label {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.7px; color: var(--text-muted); flex: 1;
+    }
+    .bsh-logged {
+      font-size: 13px; font-weight: 700; color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+    .bsh-sep { font-size: 11px; color: var(--text-muted); }
+    .bsh-target { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .bsh-overflow-lbl {
+      font-size: 10px; font-weight: 700; color: #f59e0b;
+      margin-left: 2px;
+    }
+    .bsh-track {
+      display: flex;
+      height: 5px;
+      background: color-mix(in srgb, var(--text-primary) 12%, transparent);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .bsh-fill {
+      height: 100%; transition: width 0.35s ease;
+    }
+    .bsh-fill--overflow {
+      background: #f59e0b;
+      opacity: 0.85;
+    }
+
+    /* ── Footnote ────────────────────────────────────── */
+    .breakdown-footnote {
+      font-size: 10px; color: var(--text-muted);
+      padding: 4px 14px 10px;
+      opacity: 0.65;
+    }
+
+    /* ── Bottom fade ─────────────────────────────────── */
+    .metrics-popup-fade {
+      position: sticky;
+      bottom: 0;
+      height: 40px;
+      margin-top: -40px;
+      background: linear-gradient(to bottom, transparent, var(--bg-card));
+      pointer-events: none;
+      display: block;
+    }
   `]
 })
 export class MetricsComponent implements OnChanges, OnDestroy {
@@ -417,7 +557,13 @@ export class MetricsComponent implements OnChanges, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
 
-  metricsPopupOpen      = false;
+  private _metricsPopupOpen = false;
+  get metricsPopupOpen(): boolean { return this._metricsPopupOpen; }
+  set metricsPopupOpen(v: boolean) {
+    this._metricsPopupOpen = v;
+    this.appState.coverageSheetOpen$.next(v);
+  }
+
   breakdownExpanded     = false;
   professionalExpanded  = false;
   personalExpanded      = false;
@@ -438,6 +584,7 @@ export class MetricsComponent implements OnChanges, OnDestroy {
     private logService:      LogService,
     private dayLevelService: DayLevelService,
     private cdr:             ChangeDetectorRef,
+    readonly appState:       AppStateService,
   ) {}
 
   /* ── Lifecycle ───────────────────────────────────── */
@@ -560,12 +707,35 @@ export class MetricsComponent implements OnChanges, OnDestroy {
     return section.reduce((s, bt) => s + bt.totalMins, 0);
   }
 
-  private get breakdownTotalMins(): number {
+  get breakdownTotalMins(): number {
     return this.logTypeBreakdown.reduce((s, bt) => s + bt.totalMins, 0);
   }
 
   breakdownPct(mins: number): number {
-    return this.breakdownTotalMins > 0 ? Math.round(mins / this.breakdownTotalMins * 100) : 0;
+    return Math.round(mins / 1440 * 100);
+  }
+
+  breakdownBarWidth(mins: number): number {
+    return Math.min(100, mins / 1440 * 100);
+  }
+
+  get totalWorkMins(): number {
+    return Math.round(this.totalWorkHours * 60);
+  }
+
+  get summaryTargetWidth(): number {
+    if (this.totalWorkMins <= 480) return this.totalWorkMins / 480 * 100;
+    return 480 / this.totalWorkMins * 100;
+  }
+
+  get summaryOverflowWidth(): number {
+    if (this.totalWorkMins <= 480) return 0;
+    return (this.totalWorkMins - 480) / this.totalWorkMins * 100;
+  }
+
+  get overflowMultiplierLabel(): string {
+    const x = Math.round(this.totalWorkMins / 480 * 10) / 10;
+    return x.toFixed(1) + 'x target';
   }
 
   fmtMins(totalMins: number): string {
@@ -585,6 +755,20 @@ export class MetricsComponent implements OnChanges, OnDestroy {
   get coverageBarPct(): number {
     if (this.totalWorkHours <= 8) return Math.round((this.totalWorkHours / 8) * 100);
     return 100;
+  }
+
+  get remainingHours(): number {
+    return 8 - this.totalWorkHours;
+  }
+
+  get remainingHoursLabel(): string {
+    const r = this.remainingHours;
+    if (r <= 0) return 'Goal met ✓';
+    const h = Math.floor(r);
+    const m = Math.round((r - h) * 60);
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
   }
 
   get coveredHoursLabel(): string {
@@ -631,7 +815,7 @@ export class MetricsComponent implements OnChanges, OnDestroy {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
-  private get totalWorkHours(): number {
+  get totalWorkHours(): number {
     return this.logs
       .filter(l => l.entryType !== 'point' && l.logType?.domain === 'work'
                 && l.logType?.category !== 'transit' && l.logType?.category !== 'break')

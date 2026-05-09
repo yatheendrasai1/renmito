@@ -3,7 +3,7 @@ import { BehaviorSubject, Subject } from 'rxjs';
 import { LogService } from './log.service';
 import { LogTypeService } from './log-type.service';
 import { DayLevelService, DayMetadata, DayType } from './day-level.service';
-import { NotesService } from './notes.service';
+import { NoteItem, NotesService } from './notes.service';
 import { PreferenceService, ActiveLog, QuickShortcut } from './preference.service';
 import { LogEntry, CreateLogEntry } from '../models/log.model';
 import { LogType } from '../models/log-type.model';
@@ -49,6 +49,7 @@ export class AppStateService {
   readonly activeLog$       = new BehaviorSubject<ActiveLog | null>(null);
   readonly dayMetadata$     = new BehaviorSubject<DayMetadata | null>(null);
   readonly notesCount$      = new BehaviorSubject<number>(0);
+  readonly notesList$       = new BehaviorSubject<NoteItem[]>([]);
   readonly highlightedLogId$= new BehaviorSubject<string | null>(null);
   readonly metricLogIds$    = new BehaviorSubject<Set<string> | null>(null);
   readonly isLoading$       = new BehaviorSubject<boolean>(false);
@@ -72,6 +73,7 @@ export class AppStateService {
   readonly confirmDialogRequested$     = new Subject<ConfirmDialogParams>();
   readonly openWrapUpRequested$        = new Subject<void>();
   readonly createJourneyRequested$     = new Subject<void>();
+  readonly coverageSheetOpen$          = new BehaviorSubject<boolean>(false);
 
   // ── Computed getters ──────────────────────────────────────────────
   get selectedDate(): Date { return this.selectedDate$.value; }
@@ -170,13 +172,28 @@ export class AppStateService {
 
   private _reloadNotesCount(dateStr: string): void {
     this.notesCount$.next(0);
+    this.notesList$.next([]);
     this.notesService.getNotes(dateStr).subscribe({
-      next:  d  => { if (this.selectedDateStr === dateStr) this.notesCount$.next(d.notes.length); },
-      error: () => { if (this.selectedDateStr === dateStr) this.notesCount$.next(0); }
+      next:  d  => {
+        if (this.selectedDateStr === dateStr) {
+          this.notesCount$.next(d.notes.length);
+          this.notesList$.next(d.notes);
+        }
+      },
+      error: () => {
+        if (this.selectedDateStr === dateStr) {
+          this.notesCount$.next(0);
+          this.notesList$.next([]);
+        }
+      }
     });
   }
 
-  reloadNotesCount(): void { this._reloadNotesCount(this.selectedDateStr); }
+  reloadNotesCount(): void {
+    const dateStr = this.selectedDateStr;
+    this.notesService.invalidateCache(dateStr);
+    this._reloadNotesCount(dateStr);
+  }
 
   loadLogTypes(): void {
     if (this.inlineLogTypes$.value.length) return;

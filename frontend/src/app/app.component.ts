@@ -179,6 +179,24 @@ const PERF = (() => {
               <span>Intelligence</span>
             </a>
 
+            <!-- Timeline -->
+            <a
+              class="left-nav-item"
+              routerLink="/timeline"
+              routerLinkActive="left-nav-item--active"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+                <circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/>
+                <circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/>
+                <circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/>
+              </svg>
+              <span>Timeline</span>
+            </a>
+
             <!-- Theme -->
             <button
               class="left-nav-item"
@@ -226,7 +244,7 @@ const PERF = (() => {
 
       <!-- ── 1.61: Renni FAB ── -->
       <button class="renni-fab"
-              *ngIf="isAuthenticated"
+              *ngIf="isAuthenticated && !(appState.coverageSheetOpen$ | async)"
               (click)="renniChatOpen = true"
               title="Chat with Renni — AI log assistant">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -238,7 +256,7 @@ const PERF = (() => {
 
       <!-- ── 1.61: Log Now FAB ── -->
       <button class="log-now-fab"
-              *ngIf="isAuthenticated"
+              *ngIf="isAuthenticated && !(appState.coverageSheetOpen$ | async)"
               (click)="isJourneysRoute ? appState.createJourneyRequested$.next() : openLogNow()"
               [title]="isJourneysRoute ? 'New Journey' : 'Log Now — tap to record what you just did'">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
@@ -358,19 +376,7 @@ const PERF = (() => {
           </svg>
           <span class="bottom-tab-label">Logger</span>
         </a>
-        <a class="bottom-tab" routerLink="/timeline" routerLinkActive="bottom-tab--active">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="18" x2="21" y2="18"/>
-            <circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/>
-            <circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/>
-            <circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/>
-          </svg>
-          <span class="bottom-tab-label">Timeline</span>
-        </a>
-        <a class="bottom-tab" routerLink="/journeys" routerLinkActive="bottom-tab--active">
+<a class="bottom-tab" routerLink="/journeys" routerLinkActive="bottom-tab--active">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
@@ -594,25 +600,52 @@ const PERF = (() => {
     /* ── Notes + Important Logs row (logger view, below metrics) */
     .notes-important-row {
       display: flex;
+      flex-direction: column;
     }
     .notes-col {
       display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
+      align-items: stretch;
       background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       color: var(--text-secondary);
       font-size: 13px;
       font-weight: 500;
-      cursor: pointer;
       transition: border-color 0.15s, color 0.15s;
-      text-align: left;
       width: 100%;
+      box-sizing: border-box;
+      overflow: hidden;
     }
-    .notes-col:hover { border-color: var(--accent); color: var(--text-primary); }
-    .notes-col-label { flex: 1; }
+    .notes-col:hover { border-color: var(--accent); }
+    .notes-col-main {
+      flex: 1; min-width: 0;
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 10px 10px 14px;
+      background: none; border: none;
+      color: inherit; font: inherit;
+      cursor: pointer; text-align: left;
+    }
+    .notes-col-main:hover { color: var(--text-primary); }
+    .notes-col-edit-btn {
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 12px;
+      background: none; border: none; border-left: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+    .notes-col-edit-btn:hover { color: var(--text-primary); background: var(--accent-hover); }
+    .notes-col-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .notes-col-label { font-size: 13px; font-weight: 500; }
+    .notes-col-subtitle {
+      font-size: 11px;
+      color: var(--text-secondary);
+      opacity: 0.6;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
     .notes-row-count {
       min-width: 18px; height: 18px;
       padding: 0 5px;
@@ -621,6 +654,28 @@ const PERF = (() => {
       font-size: 10px; font-weight: 700;
       border-radius: 9px;
       display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .notes-preview {
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      background: var(--bg-card);
+      overflow: hidden;
+    }
+    .notes-preview-item {
+      padding: 8px 14px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border-subtle, rgba(128,128,128,0.12));
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .notes-preview-item:first-child { border-top: none; }
+    .notes-col--expanded {
+      border-radius: var(--radius) var(--radius) 0 0;
+      border-color: var(--accent);
     }
 
     /* ── Day-type pill (in date-bar) ────────────────────── */
@@ -740,7 +795,7 @@ const PERF = (() => {
     /* ── View area ──────────────────────────────────────── */
     /* 1.53: scrollbar-gutter:stable reserves scrollbar lane so it never
              causes a layout shift when it appears / disappears            */
-    .view-area { flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: 10px 24px calc(58px + env(safe-area-inset-bottom, 0px) + 20px); min-width: 0; }
+    .view-area { flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: 10px 24px calc(58px + env(safe-area-inset-bottom, 0px) + 16px + 52px + 8px + 48px + 24px); min-width: 0; }
 
     /* ── Content area (full width now — no calendar panel) ─ */
     .content-area {
@@ -946,7 +1001,7 @@ const PERF = (() => {
     .tl-card {
       position: relative; z-index: 1;
       background: var(--bg-card); border: 1px solid transparent;
-      border-radius: var(--radius-sm); padding: 10px 12px;
+      border-radius: var(--radius-sm); padding: 14px 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.03);
       transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
       min-width: 0; will-change: transform;
@@ -965,7 +1020,7 @@ const PERF = (() => {
     .tl-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
     .tl-card-actions { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: 2px; }
 
-    .log-list-label { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .log-list-label { font-size: 13px; font-weight: 600; color: var(--text-primary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
     .log-list-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .log-list-type-badge { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.4px; }
     .log-list-time { font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
@@ -1387,7 +1442,7 @@ const PERF = (() => {
     /* ── Renni FAB ───────────────────────────────────────────── */
     .renni-fab {
       position: fixed;
-      bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 16px + 52px + 10px);
+      bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 16px + 52px + 8px);
       right: 20px;
       z-index: 250;
       width: 48px;
@@ -2561,7 +2616,15 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.appState.createJourneyRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       // JourneysComponent handles this via its own subscription when it is active
     });
+
+    document.addEventListener('visibilitychange', this._onVisibilityChange);
   }
+
+  private _onVisibilityChange = (): void => {
+    if (document.visibilityState === 'visible' && this.isAuthenticated) {
+      this.appState.reloadNotesCount();
+    }
+  };
 
   ngAfterViewInit(): void {
     PERF.instant('first-render');
@@ -2572,6 +2635,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.destroy$.complete();
     this.appState.stopTimer();
     clearTimeout(this.toastTimer);
+    document.removeEventListener('visibilitychange', this._onVisibilityChange);
   }
 
   onLoggedIn(): void {

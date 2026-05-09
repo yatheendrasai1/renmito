@@ -34,6 +34,18 @@ import { LogEntry } from '../../models/log.model';
         <button class="uni-tab" [class.uni-tab--active]="tab === 3" (click)="switchTab(3)">Start timer</button>
       </div>
 
+      <!-- Date context -->
+      <div class="uni-date-context">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        Logging to: {{ targetDateLabel }}
+      </div>
+
       <!-- ── Tab 1: Add log ── -->
       <ng-container *ngIf="tab === 1">
         <div class="log-now-fields">
@@ -46,32 +58,38 @@ import { LogEntry } from '../../models/log.model';
               <button class="ln-domain-tab" [class.ln-domain-tab--active]="logNowDomain === 'personal'"
                       (click)="setLogNowDomain('personal')">Personal</button>
             </div>
-            <div class="ln-type-carousel"
-                 (touchstart)="onCarouselTouchStart($event)"
-                 (touchmove)="onCarouselTouchMove($event)"
-                 (touchend)="onCarouselTouchEnd($event)">
-              <button type="button" class="ln-type-chip"
-                      *ngFor="let lt of logNowFilteredTypes; trackBy: trackByLogTypeId"
-                      [class.ln-type-chip--active]="lt._id === logNowTypeId"
-                      [style.border-color]="lt._id === logNowTypeId ? lt.color : null"
-                      [style.background-color]="lt._id === logNowTypeId ? lt.color + '22' : null"
-                      [style.color]="lt._id === logNowTypeId ? lt.color : null"
-                      (click)="logNowTypeId = lt._id">
-                <span class="ln-type-dot" [style.background]="lt.color"></span>
-                {{ lt.name }}
-              </button>
+            <div class="ln-type-carousel-wrap">
+              <div class="ln-type-carousel"
+                   (touchstart)="onCarouselTouchStart($event)"
+                   (touchmove)="onCarouselTouchMove($event)"
+                   (touchend)="onCarouselTouchEnd($event)">
+                <button type="button" class="ln-type-chip"
+                        *ngFor="let lt of logNowFilteredTypes; trackBy: trackByLogTypeId"
+                        [class.ln-type-chip--active]="lt._id === logNowTypeId"
+                        [style.border-color]="lt._id === logNowTypeId ? lt.color : null"
+                        [style.background-color]="lt._id === logNowTypeId ? lt.color + '22' : null"
+                        [style.color]="lt._id === logNowTypeId ? lt.color : null"
+                        (click)="logNowTypeId = lt._id">
+                  <span class="ln-type-dot" [style.background]="lt.color"></span>
+                  {{ lt.name }}
+                </button>
+              </div>
             </div>
           </div>
 
           <!-- 2. Title -->
           <textarea class="log-now-input"
                     placeholder="Title (optional — defaults to type name)"
-                    [(ngModel)]="logNowTitle"></textarea>
+                    [(ngModel)]="logNowTitle"
+                    rows="1"
+                    (input)="autoResizeTitle($event)"
+                    (focus)="scrollInputIntoView($event)"></textarea>
 
           <!-- 3. Time pickers — split From / To cards -->
           <div class="ln-time-row">
             <!-- FROM card -->
             <div class="ln-time-card">
+              <span class="ln-time-card-label">Start</span>
               <div class="ln-drum-group">
                 <div class="ln-drum-col">
                   <div class="ln-drum-wrapper">
@@ -107,6 +125,7 @@ import { LogEntry } from '../../models/log.model';
 
             <!-- TO card -->
             <div class="ln-time-card">
+              <span class="ln-time-card-label">End</span>
               <div class="ln-drum-group">
                 <div class="ln-drum-col">
                   <div class="ln-drum-wrapper">
@@ -266,25 +285,31 @@ import { LogEntry } from '../../models/log.model';
               <button class="ln-domain-tab" [class.ln-domain-tab--active]="addPointDomain === 'personal'"
                       (click)="setAddPointDomain('personal')">Personal</button>
             </div>
-            <div class="ln-type-carousel"
-                 (touchstart)="onCarouselTouchStart($event)"
-                 (touchmove)="onCarouselTouchMove($event)"
-                 (touchend)="onCarouselTouchEnd($event)">
-              <button type="button" class="ln-type-chip"
-                      *ngFor="let lt of addPointFilteredTypes; trackBy: trackByLogTypeId"
-                      [class.ln-type-chip--active]="lt._id === addPointTypeId"
-                      [style.border-color]="lt._id === addPointTypeId ? lt.color : null"
-                      [style.background-color]="lt._id === addPointTypeId ? lt.color + '22' : null"
-                      [style.color]="lt._id === addPointTypeId ? lt.color : null"
-                      (click)="addPointTypeId = lt._id">
-                <span class="ln-type-dot" [style.background]="lt.color"></span>
-                {{ lt.name }}
-              </button>
+            <div class="ln-type-carousel-wrap">
+              <div class="ln-type-carousel"
+                   (touchstart)="onCarouselTouchStart($event)"
+                   (touchmove)="onCarouselTouchMove($event)"
+                   (touchend)="onCarouselTouchEnd($event)">
+                <button type="button" class="ln-type-chip"
+                        *ngFor="let lt of addPointFilteredTypes; trackBy: trackByLogTypeId"
+                        [class.ln-type-chip--active]="lt._id === addPointTypeId"
+                        [style.border-color]="lt._id === addPointTypeId ? lt.color : null"
+                        [style.background-color]="lt._id === addPointTypeId ? lt.color + '22' : null"
+                        [style.color]="lt._id === addPointTypeId ? lt.color : null"
+                        (click)="addPointTypeId = lt._id">
+                  <span class="ln-type-dot" [style.background]="lt.color"></span>
+                  {{ lt.name }}
+                </button>
+              </div>
             </div>
           </div>
 
           <!-- 2. Title -->
-          <textarea class="log-now-input" placeholder="Title (optional)" [(ngModel)]="addPointTitle"></textarea>
+          <textarea class="log-now-input" placeholder="Title (optional)"
+                    [(ngModel)]="addPointTitle"
+                    rows="1"
+                    (input)="autoResizeTitle($event)"
+                    (focus)="scrollInputIntoView($event)"></textarea>
 
           <!-- 3. Time picker (single) -->
           <div class="ln-time-pickers ln-time-pickers--single">
@@ -455,27 +480,32 @@ import { LogEntry } from '../../models/log.model';
               <button class="ln-domain-tab" [class.ln-domain-tab--active]="startLogDomain === 'personal'"
                       (click)="setStartLogDomain('personal')">Personal</button>
             </div>
-            <div class="ln-type-carousel"
-                 (touchstart)="onCarouselTouchStart($event)"
-                 (touchmove)="onCarouselTouchMove($event)"
-                 (touchend)="onCarouselTouchEnd($event)">
-              <button type="button" class="ln-type-chip"
-                      *ngFor="let lt of startLogFilteredTypes; trackBy: trackByLogTypeId"
-                      [class.ln-type-chip--active]="lt._id === startLogTypeId"
-                      [style.border-color]="lt._id === startLogTypeId ? lt.color : null"
-                      [style.background-color]="lt._id === startLogTypeId ? lt.color + '22' : null"
-                      [style.color]="lt._id === startLogTypeId ? lt.color : null"
-                      (click)="startLogTypeId = lt._id">
-                <span class="ln-type-dot" [style.background]="lt.color"></span>
-                {{ lt.name }}
-              </button>
+            <div class="ln-type-carousel-wrap">
+              <div class="ln-type-carousel"
+                   (touchstart)="onCarouselTouchStart($event)"
+                   (touchmove)="onCarouselTouchMove($event)"
+                   (touchend)="onCarouselTouchEnd($event)">
+                <button type="button" class="ln-type-chip"
+                        *ngFor="let lt of startLogFilteredTypes; trackBy: trackByLogTypeId"
+                        [class.ln-type-chip--active]="lt._id === startLogTypeId"
+                        [style.border-color]="lt._id === startLogTypeId ? lt.color : null"
+                        [style.background-color]="lt._id === startLogTypeId ? lt.color + '22' : null"
+                        [style.color]="lt._id === startLogTypeId ? lt.color : null"
+                        (click)="startLogTypeId = lt._id">
+                  <span class="ln-type-dot" [style.background]="lt.color"></span>
+                  {{ lt.name }}
+                </button>
+              </div>
             </div>
           </div>
 
           <!-- 2. Title -->
           <textarea class="log-now-input"
                     placeholder="Title (optional — defaults to type name)"
-                    [(ngModel)]="startLogTitle"></textarea>
+                    [(ngModel)]="startLogTitle"
+                    rows="1"
+                    (input)="autoResizeTitle($event)"
+                    (focus)="scrollInputIntoView($event)"></textarea>
 
           <!-- 3. Plan for (replaces time picker for timer) -->
           <div class="ln-field-group">
@@ -527,17 +557,17 @@ import { LogEntry } from '../../models/log.model';
     }
     .uni-sheet {
       display: flex; flex-direction: column;
-      height: 72dvh; max-height: 72dvh;
-      padding: 12px 20px 28px; overflow: hidden;
+      max-height: 82dvh;
+      padding: 12px 20px 24px;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
     }
     .uni-sheet .uni-tabs { flex-shrink: 0; }
     .uni-sheet ng-container { display: contents; }
     .uni-sheet .log-now-fields {
-      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
-      padding-top: 8px; min-height: 0;
+      padding-top: 8px;
       display: flex; flex-direction: column; gap: 12px;
     }
-    .uni-sheet .log-now-actions { flex-shrink: 0; padding-top: 10px; }
+    .uni-sheet .log-now-actions { padding-top: 12px; }
     @keyframes slideUp {
       from { transform: translateX(-50%) translateY(100%); }
       to   { transform: translateX(-50%) translateY(0); }
@@ -545,8 +575,8 @@ import { LogEntry } from '../../models/log.model';
 
     /* Tab pills */
     .uni-tabs {
-      display: flex; gap: 6px; padding: 0 0 12px;
-      border-bottom: 1px solid var(--border); margin-bottom: 4px;
+      display: flex; gap: 6px; padding: 0 0 10px;
+      border-bottom: 1px solid var(--border); margin-bottom: 0;
       flex-shrink: 0;
     }
     .uni-tab {
@@ -556,6 +586,16 @@ import { LogEntry } from '../../models/log.model';
       transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
     .uni-tab--active { background: var(--nav-bg); color: var(--nav-text); border-color: var(--nav-bg); }
+
+    /* Date context */
+    .uni-date-context {
+      display: flex; align-items: center; gap: 5px;
+      padding: 8px 0 0;
+      font-size: 11px; font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.2px;
+      flex-shrink: 0;
+    }
 
     /* Actions */
     .log-now-actions { display: flex; gap: 10px; }
@@ -585,12 +625,23 @@ import { LogEntry } from '../../models/log.model';
 
     /* ── Type carousel ──────────────────────────────────── */
     .ln-type-section { display: flex; flex-direction: column; gap: 8px; }
+    .ln-type-carousel-wrap { position: relative; }
+    .ln-type-carousel-wrap::after {
+      content: '';
+      position: absolute; top: 0; right: 0; bottom: 6px; width: 32px;
+      background: linear-gradient(to right, transparent, var(--bg-surface));
+      pointer-events: none; z-index: 1;
+    }
     .ln-type-carousel {
       display: flex; gap: 7px;
-      overflow-x: auto; padding: 3px 2px 6px;
-      scrollbar-width: none; -webkit-overflow-scrolling: touch;
+      overflow-x: auto; padding: 3px 2px 5px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-light) transparent;
+      -webkit-overflow-scrolling: touch;
     }
-    .ln-type-carousel::-webkit-scrollbar { display: none; }
+    .ln-type-carousel::-webkit-scrollbar { height: 3px; }
+    .ln-type-carousel::-webkit-scrollbar-track { background: transparent; }
+    .ln-type-carousel::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
     .ln-type-chip {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 7px 14px; border-radius: 20px;
@@ -605,12 +656,12 @@ import { LogEntry } from '../../models/log.model';
       width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
     }
 
-    /* ── Title textarea ─────────────────────────────────── */
+    /* ── Title textarea (auto-expand single line) ───────── */
     .log-now-input {
       width: 100%; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border);
       border-radius: 8px; color: var(--text-primary); font-size: 14px;
       box-sizing: border-box; font-family: inherit; resize: none;
-      line-height: 1.5; height: calc(1.5em * 3 + 20px);
+      line-height: 1.5; min-height: 44px; height: 44px; overflow: hidden;
     }
     .log-now-input:focus { border-color: var(--highlight-selected); outline: none; }
     .log-now-input::placeholder { color: var(--text-muted); }
@@ -622,7 +673,7 @@ import { LogEntry } from '../../models/log.model';
     .ln-time-card {
       flex: 1; display: flex; flex-direction: column; align-items: center;
       background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
-      padding: 6px 4px;
+      padding: 6px 4px; gap: 4px;
     }
     .ln-time-card-label {
       font-size: 10px; font-weight: 700; color: var(--text-muted);
@@ -758,20 +809,23 @@ import { LogEntry } from '../../models/log.model';
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;
     }
     .ln-field-chip {
-      padding: 7px 4px; border-radius: 14px; border: 1.5px dashed var(--border-light);
-      font-size: 10px; font-weight: 600; background: var(--bg-card); color: var(--text-muted);
+      padding: 7px 6px; border-radius: 14px;
+      border: 1.5px solid var(--border);
+      font-size: 11px; font-weight: 600;
+      background: color-mix(in srgb, var(--text-muted) 5%, var(--bg-card));
+      color: var(--text-secondary);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       gap: 4px; min-width: 0; overflow: hidden;
       transition: border-color 0.15s, background 0.15s, color 0.15s;
     }
-    .ln-field-chip:hover { color: var(--text-primary); border-style: solid; }
+    .ln-field-chip:hover { color: var(--text-primary); border-color: var(--border-light); }
     .ln-field-chip--filled {
-      border-style: solid; border-color: color-mix(in srgb, var(--highlight-selected) 55%, transparent);
+      border-color: color-mix(in srgb, var(--highlight-selected) 55%, transparent);
       color: var(--highlight-selected);
       background: color-mix(in srgb, var(--highlight-selected) 8%, transparent);
     }
     .ln-field-chip--active {
-      border-style: solid; border-color: var(--highlight-selected);
+      border-color: var(--highlight-selected);
       color: var(--text-primary);
       background: color-mix(in srgb, var(--highlight-selected) 14%, transparent);
     }
@@ -929,6 +983,24 @@ export class UnifiedSheetComponent implements OnInit, OnDestroy {
   private get selectedDateStr(): string {
     const d = this.selectedDate;
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  get targetDateLabel(): string {
+    return this.selectedDate.toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric',
+    });
+  }
+
+  autoResizeTitle(event: Event): void {
+    const el = event.target as HTMLTextAreaElement;
+    el.style.height = '44px';
+    el.style.height = `${el.scrollHeight}px`;
+  }
+
+  scrollInputIntoView(event: FocusEvent): void {
+    const el = event.target as HTMLElement;
+    // Wait for the software keyboard to finish animating before scrolling
+    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
   }
 
   // ── Initialisation ────────────────────────────────────────────────

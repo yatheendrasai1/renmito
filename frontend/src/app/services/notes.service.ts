@@ -54,6 +54,10 @@ export class NotesService {
     );
   }
 
+  invalidateCache(date: string): void {
+    this.cache.delete(date);
+  }
+
   updateNote(date: string, noteId: string, content: string): Observable<NoteItem> {
     return this.http.put<NoteItem>(`${this.apiBase}/${date}/notes/${noteId}`, { content }).pipe(
       tap(n => {

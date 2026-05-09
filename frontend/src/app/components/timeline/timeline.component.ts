@@ -181,6 +181,27 @@ export interface DragSelection {
         </div>
       </div>
 
+      <!-- ── Bar tap tooltip (fixed — avoids scroll-container overflow clip) ── -->
+      <div class="bar-tooltip"
+           *ngIf="barTooltip"
+           [style.left.px]="barTooltipFixedLeft"
+           [style.top.px]="barTooltipFixedTop"
+           (click)="$event.stopPropagation()">
+        <div class="bar-tooltip-header">
+          <div class="bar-tooltip-name">{{ barTooltip.log.logType?.name ?? barTooltip.log.title }}</div>
+          <button class="bar-tooltip-edit-btn" (click)="editFromTooltip()" title="Edit log">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="bar-tooltip-time">
+          <ng-container *ngIf="barTooltip.log.entryType === 'point'">⏱ {{ barTooltip.log.startAt }}</ng-container>
+          <ng-container *ngIf="barTooltip.log.entryType !== 'point'">{{ barTooltip.log.startAt }}&thinsp;–&thinsp;{{ barTooltip.log.endAt }}</ng-container>
+        </div>
+        <div class="bar-tooltip-dur" *ngIf="barTooltipDuration">{{ barTooltipDuration }}</div>
+      </div>
+
       <!-- ── Work-domain legend ──────────────────────── -->
       <div class="tl-legend" *ngIf="workLegendTypes.length">
         <button class="tl-legend-item"
@@ -420,7 +441,8 @@ export interface DragSelection {
       top: 0;
       bottom: 22px; /* BOTTOM_H — stops above hour labels */
       width: 2px;
-      background: var(--highlight-today);
+      background: rgba(255,255,255,0.92);
+      box-shadow: 0 0 6px rgba(255,255,255,0.5);
       pointer-events: none;
       z-index: 8;
     }
@@ -431,9 +453,70 @@ export interface DragSelection {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: var(--highlight-today);
-      box-shadow: 0 0 6px var(--highlight-today);
+      background: #fff;
+      box-shadow: 0 0 8px rgba(255,255,255,0.8);
       z-index: 10;
+    }
+
+    /* ── Bar tap tooltip ─────────────────────────────── */
+    .bar-tooltip {
+      position: fixed;
+      z-index: 400;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 8px 12px;
+      min-width: 130px;
+      max-width: 200px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      pointer-events: auto;
+      animation: tooltipIn 0.13s ease;
+    }
+    @keyframes tooltipIn {
+      from { opacity: 0; transform: translateY(5px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .bar-tooltip-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+    .bar-tooltip-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bar-tooltip-edit-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; flex-shrink: 0;
+      background: var(--accent-hover);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+    }
+    .bar-tooltip-edit-btn:hover { background: var(--accent); color: #fff; }
+    .bar-tooltip-time {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+    .bar-tooltip-dur {
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--bg-card);
+      padding: 1px 5px;
+      border-radius: 5px;
+      display: inline-block;
+      margin-top: 4px;
+      font-variant-numeric: tabular-nums;
     }
 
     /* ── Hover line (mouse only) ─────────────────────── */
@@ -744,6 +827,32 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
   selectedPointLog: LogEntry | null = null;
   mergeMode = false;
 
+  /* ── Bar tap tooltip ─────────────────────────────── */
+  barTooltip: { log: LogEntry; cx: number; cy: number } | null = null;
+
+  get barTooltipFixedLeft(): number {
+    if (!this.barTooltip) return 0;
+    const vw = window.innerWidth;
+    return Math.max(6, Math.min(this.barTooltip.cx - 65, vw - 208));
+  }
+
+  get barTooltipFixedTop(): number {
+    if (!this.barTooltip) return 0;
+    return Math.max(8, this.barTooltip.cy - 88);
+  }
+
+  get barTooltipDuration(): string {
+    if (!this.barTooltip) return '';
+    const log = this.barTooltip.log;
+    if (log.entryType === 'point') return '';
+    const diff = this.timeToMinutes(log.endAt ?? '00:00') - this.timeToMinutes(log.startAt);
+    if (diff <= 0) return '';
+    const h = Math.floor(diff / 60), m = diff % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  }
+
   /* ── Date / time ─────────────────────────────────── */
   isToday         = false;
   currentTimeMins = 0;
@@ -770,6 +879,7 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
       this.dragStartX           = 0;
       this.dragCurrentX         = 0;
       this.selectedLegendTypeId = null;
+      this.barTooltip           = null;
       this.cdr.detectChanges();
     }
   }
@@ -935,7 +1045,8 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
 
   onPointerDown(event: PointerEvent): void {
     if (!this.trackRef) return;
-    if ((event.target as HTMLElement).closest('.log-bar,.point-marker')) return;
+    if ((event.target as HTMLElement).closest('.log-bar,.point-marker,.bar-tooltip')) return;
+    this.barTooltip = null;
 
     this.trackRef.nativeElement.setPointerCapture(event.pointerId);
     this.activePointerMap.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -1097,7 +1208,20 @@ export class TimelineComponent implements OnChanges, AfterViewInit {
   onBarClick(log: LogEntry, event: MouseEvent): void {
     event.stopPropagation();
     this.cancelMerge();
+    if (this.barTooltip?.log.id === log.id) {
+      this.barTooltip = null;
+    } else {
+      this.barTooltip = { log, cx: event.clientX, cy: event.clientY };
+    }
+    this.cdr.detectChanges();
+  }
+
+  editFromTooltip(): void {
+    if (!this.barTooltip) return;
+    const log = this.barTooltip.log;
+    this.barTooltip = null;
     this.logClicked.emit(log);
+    this.cdr.detectChanges();
   }
 
   onPointMarkerClick(log: LogEntry, event: MouseEvent): void {
