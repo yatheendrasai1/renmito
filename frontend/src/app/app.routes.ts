@@ -32,4 +32,9 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./components/intelligence/intelligence.component').then(m => m.IntelligenceComponent),
   },
+  {
+    path: 'eagle-view',
+    loadComponent: () =>
+      import('./components/eagle-view/eagle-view.component').then(m => m.EagleViewComponent),
+  },
 ];

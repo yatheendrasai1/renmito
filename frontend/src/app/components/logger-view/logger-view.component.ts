@@ -561,6 +561,7 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
 
   private periodOf(startAt: string): string {
     const h = parseInt(startAt.split(':')[0], 10);
+    if (h < 6)             return 'Late Night';
     if (h >= 6  && h < 12) return 'Morning';
     if (h >= 12 && h < 17) return 'Afternoon';
     if (h >= 17 && h < 21) return 'Evening';
@@ -568,7 +569,7 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   }
 
   get logGroups(): { period: string; logs: LogEntry[] }[] {
-    const ascOrder = ['Morning', 'Afternoon', 'Evening', 'Night'];
+    const ascOrder = ['Late Night', 'Morning', 'Afternoon', 'Evening', 'Night'];
     const order = this.logSortOrder === 'asc' ? ascOrder : [...ascOrder].reverse();
     const map = new Map<string, LogEntry[]>();
     for (const log of this.sortedLogs) {

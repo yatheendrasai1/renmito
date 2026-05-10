@@ -410,6 +410,14 @@ const PERF = (() => {
           </svg>
           <span class="bottom-tab-label">Reports</span>
         </a>
+        <a class="bottom-tab" routerLink="/eagle-view" routerLinkActive="bottom-tab--active">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span class="bottom-tab-label">Eagle View</span>
+        </a>
       </nav>
     </div><!-- /app-shell -->
 
@@ -2601,7 +2609,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.appState.isAuthenticated$.next(this.isAuthenticated);
     if (this.isAuthenticated) {
       this.currentUser = this.authService.getUser();
-      const today = new Date();
+      const today = AppStateService.logicalToday();
       today.setHours(0, 0, 0, 0);
       this.appState.selectedDate$.next(today);
       this.appState.reloadLogs();
@@ -2694,7 +2702,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isAuthenticated = true;
     this.appState.isAuthenticated$.next(true);
     this.currentUser = this.authService.getUser();
-    const today = new Date();
+    const today = AppStateService.logicalToday();
     today.setHours(0, 0, 0, 0);
     this.appState.selectedDate$.next(today);
     this.appState.reloadLogs();

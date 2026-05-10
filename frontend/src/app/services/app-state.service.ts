@@ -43,7 +43,7 @@ export class AppStateService {
   ) {}
 
   // ── Reactive state ────────────────────────────────────────────────
-  readonly selectedDate$    = new BehaviorSubject<Date>(new Date());
+  readonly selectedDate$    = new BehaviorSubject<Date>(AppStateService.logicalToday());
   readonly logs$            = new BehaviorSubject<LogEntry[]>([]);
   readonly inlineLogTypes$  = new BehaviorSubject<LogType[]>([]);
   readonly activeLog$       = new BehaviorSubject<ActiveLog | null>(null);
@@ -83,8 +83,19 @@ export class AppStateService {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
+  // Before 05:00 AM the "logical day" is still yesterday.
+  static logicalToday(): Date {
+    const now = new Date();
+    if (now.getHours() < 5) {
+      const prev = new Date(now);
+      prev.setDate(prev.getDate() - 1);
+      return prev;
+    }
+    return now;
+  }
+
   get isToday(): boolean {
-    const t = new Date();
+    const t = AppStateService.logicalToday();
     const d = this.selectedDate$.value;
     return d.getFullYear() === t.getFullYear() &&
            d.getMonth()    === t.getMonth()    &&
@@ -130,7 +141,7 @@ export class AppStateService {
   }
 
   goToToday(): void {
-    const d = new Date();
+    const d = AppStateService.logicalToday();
     d.setHours(0, 0, 0, 0);
     this._changeDate(d);
   }
