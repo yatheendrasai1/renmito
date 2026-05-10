@@ -17,9 +17,10 @@ function toJourneyResponse(doc) {
     trackerType: doc.trackerType,
     status:      doc.status,
     config: {
-      metricName:    doc.config?.metricName    ?? '',
-      valueType:     doc.config?.valueType     ?? 'numeric',
-      allowedValues: doc.config?.allowedValues ?? []
+      metricName:         doc.config?.metricName         ?? '',
+      valueType:          doc.config?.valueType          ?? 'numeric',
+      allowedValues:      doc.config?.allowedValues      ?? [],
+      increaseIsPositive: doc.config?.increaseIsPositive ?? true
     },
     derivedFrom: doc.derivedFrom ? {
       logTypeId:   doc.derivedFrom.logTypeId.toString(),
@@ -80,7 +81,39 @@ async function resolveLogType(logTypeId) {
 
 async function listJourneys(userId) {
   const docs = await Journey.find({ userId }).sort({ createdAt: -1 }).lean();
-  return docs.map(toJourneyResponse);
+  if (docs.length === 0) return [];
+
+  const journeyIds = docs.map(d => d._id);
+
+  // Fetch last 7 entries per journey in one aggregation
+  const summaries = await JourneyEntry.aggregate([
+    { $match: { journeyId: { $in: journeyIds } } },
+    { $sort:  { journeyId: 1, timestamp: -1 } },
+    { $group: {
+        _id:      '$journeyId',
+        lastEntry: { $first: '$$ROOT' },
+        recent:    { $push:  { v: '$numericValue', t: '$timestamp' } }
+    }},
+    { $project: { lastEntry: 1, recent: { $slice: ['$recent', 7] } } }
+  ]);
+
+  const summaryMap = new Map(summaries.map(s => [s._id.toString(), s]));
+
+  return docs.map(doc => {
+    const summary = summaryMap.get(doc._id.toString());
+    return {
+      ...toJourneyResponse(doc),
+      lastEntry: summary ? {
+        value:     summary.lastEntry.numericValue ?? null,
+        catValue:  summary.lastEntry.categoricalValue ?? null,
+        valueType: summary.lastEntry.valueType,
+        timestamp: summary.lastEntry.timestamp
+      } : null,
+      recentValues: summary
+        ? summary.recent.map(r => r.v).filter(v => v !== null).reverse()
+        : []
+    };
+  });
 }
 
 async function getJourney(userId, journeyId) {
@@ -117,13 +150,15 @@ async function createJourney(userId, body) {
     endDate: span === 'definite' ? new Date(endDate) : null,
     trackerType,
     config: trackerType === 'derived' ? {
-      metricName:    derivedFrom?.valueMetric === 'count' ? 'Count' : 'Duration (mins)',
-      valueType:     'numeric',
-      allowedValues: []
+      metricName:         derivedFrom?.valueMetric === 'count' ? 'Count' : 'Duration (mins)',
+      valueType:          'numeric',
+      allowedValues:      [],
+      increaseIsPositive: config?.increaseIsPositive ?? true
     } : {
-      metricName:    config?.metricName    ?? '',
-      valueType:     config?.valueType     ?? 'numeric',
-      allowedValues: config?.allowedValues ?? []
+      metricName:         config?.metricName         ?? '',
+      valueType:          config?.valueType          ?? 'numeric',
+      allowedValues:      config?.allowedValues      ?? [],
+      increaseIsPositive: config?.increaseIsPositive ?? true
     },
     derivedFrom: trackerType === 'derived' ? {
       logTypeId:   derivedFrom.logTypeId,

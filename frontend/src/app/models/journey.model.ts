@@ -5,9 +5,10 @@ export type ValueType          = 'numeric' | 'categorical';
 export type ValueMetric        = 'duration' | 'count' | 'start-time' | 'end-time';
 
 export interface JourneyConfig {
-  metricName:    string;
-  valueType:     ValueType;
-  allowedValues: string[];
+  metricName:         string;
+  valueType:          ValueType;
+  allowedValues:      string[];
+  increaseIsPositive: boolean;
 }
 
 export interface JourneyDerivedFrom {
@@ -16,18 +17,27 @@ export interface JourneyDerivedFrom {
   valueMetric: ValueMetric;
 }
 
+export interface JourneyLastEntry {
+  value:     number | null;
+  catValue:  string | null;
+  valueType: ValueType;
+  timestamp: string;
+}
+
 export interface Journey {
-  id:          string;
-  name:        string;
-  startDate:   string;   // YYYY-MM-DD
-  span:        JourneySpan;
-  endDate:     string | null;  // YYYY-MM-DD
-  trackerType: JourneyTrackerType;
-  status:      JourneyStatus;
-  config:      JourneyConfig;
-  derivedFrom: JourneyDerivedFrom | null;
-  createdAt:   string;
-  updatedAt:   string;
+  id:           string;
+  name:         string;
+  startDate:    string;   // YYYY-MM-DD
+  span:         JourneySpan;
+  endDate:      string | null;  // YYYY-MM-DD
+  trackerType:  JourneyTrackerType;
+  status:       JourneyStatus;
+  config:       JourneyConfig;
+  derivedFrom:  JourneyDerivedFrom | null;
+  createdAt:    string;
+  updatedAt:    string;
+  lastEntry:    JourneyLastEntry | null;
+  recentValues: number[];
 }
 
 export interface CreateJourney {
@@ -37,9 +47,10 @@ export interface CreateJourney {
   endDate?:    string;
   trackerType: JourneyTrackerType;
   config?: {
-    metricName?:    string;
-    valueType?:     ValueType;
-    allowedValues?: string[];
+    metricName?:         string;
+    valueType?:          ValueType;
+    allowedValues?:      string[];
+    increaseIsPositive?: boolean;
   };
   derivedFrom?: {
     logTypeId:   string;

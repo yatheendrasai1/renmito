@@ -1,13 +1,16 @@
-import { Component, OnInit, OnDestroy, Input, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewChecked, Input, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { Chart, registerables } from 'chart.js';
 import { JourneyService } from '../../services/journey.service';
 import {
   Journey, CreateJourney, JourneyEntry, CreateJourneyEntry,
   JourneySpan, ValueType, JourneyConfig, ValueMetric
 } from '../../models/journey.model';
+
+Chart.register(...registerables);
 
 type SubView = 'list' | 'detail';
 
@@ -61,19 +64,46 @@ type SubView = 'list' | 'detail';
                 <span class="jrn-status-pill" [class]="'jrn-status--' + j.status">{{ j.status }}</span>
               </div>
               <div class="jrn-journey-card-chips">
-                <span class="jrn-chip">{{ j.config.metricName || 'Metric' }}</span>
-                <span class="jrn-chip jrn-chip--dim">{{ j.config.valueType }}</span>
+                <span class="jrn-chip">{{ j.config.metricName || (j.derivedFrom?.logTypeName) || 'Metric' }}</span>
                 <span class="jrn-chip jrn-chip--dim">
-                  {{ j.startDate | date:'MMM d, y' }}
+                  {{ j.startDate | date:'MMM d' }}
                   <ng-container *ngIf="j.span === 'indefinite'"> · ongoing</ng-container>
-                  <ng-container *ngIf="j.span === 'definite' && j.endDate"> → {{ j.endDate | date:'MMM d, y' }}</ng-container>
+                  <ng-container *ngIf="j.span === 'definite' && j.endDate"> → {{ j.endDate | date:'MMM d' }}</ng-container>
                 </span>
               </div>
+              <!-- Last entry + sparkline row -->
+              <div class="jrn-card-summary" *ngIf="j.lastEntry; else noEntries">
+                <span class="jrn-card-last">
+                  Last:
+                  <strong *ngIf="j.lastEntry.valueType === 'numeric'">{{ j.lastEntry.value }}</strong>
+                  <strong *ngIf="j.lastEntry.valueType === 'categorical'">{{ j.lastEntry.catValue }}</strong>
+                  <span class="jrn-card-last-date">· {{ j.lastEntry.timestamp | date:'MMM d' }}</span>
+                </span>
+                <svg *ngIf="j.recentValues.length > 1" class="jrn-sparkline"
+                     [attr.viewBox]="sparklineViewBox(j.recentValues)"
+                     width="56" height="22" preserveAspectRatio="none">
+                  <polyline [attr.points]="sparklinePoints(j.recentValues)" fill="none"
+                            stroke="var(--accent-bright)" stroke-width="1.8"
+                            stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <ng-template #noEntries>
+                <span class="jrn-card-no-entries">No entries yet</span>
+              </ng-template>
             </div>
             <svg class="jrn-journey-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="9 18 15 12 9 6"/>
             </svg>
+          </div>
+        </div>
+
+        <!-- Suggestions prompt -->
+        <div class="jrn-suggest-bar" *ngIf="!loading">
+          <span class="jrn-suggest-label">Track something new</span>
+          <div class="jrn-suggest-chips">
+            <button class="jrn-suggest-chip" *ngFor="let s of journeySuggestions; trackBy: trackByValue"
+                    (click)="openCreateWithSuggestion(s)">{{ s.name }}</button>
           </div>
         </div>
 
@@ -102,9 +132,18 @@ type SubView = 'list' | 'detail';
         <div class="jrn-hero-card" *ngIf="!editingJourney">
           <div class="jrn-hero-top">
             <h2 class="jrn-hero-name">{{ selectedJourney.name }}</h2>
-            <span class="jrn-status-pill" [class]="'jrn-status--' + selectedJourney.status">
-              {{ selectedJourney.status }}
-            </span>
+            <div class="jrn-hero-top-right">
+              <span class="jrn-status-pill" [class]="'jrn-status--' + selectedJourney.status">
+                {{ selectedJourney.status }}
+              </span>
+              <div class="jrn-more-wrap">
+                <button class="jrn-more-btn" (click)="showMoreMenu = !showMoreMenu" aria-label="More options">⋯</button>
+                <div class="jrn-more-dropdown" *ngIf="showMoreMenu" (click)="showMoreMenu = false">
+                  <button class="jrn-more-item" (click)="openEditJourney()">Edit journey</button>
+                  <button class="jrn-more-item jrn-more-item--danger" (click)="confirmDelete()">Delete journey</button>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="jrn-hero-chips">
             <span class="jrn-chip" *ngIf="selectedJourney.trackerType !== 'derived'">
@@ -138,7 +177,6 @@ type SubView = 'list' | 'detail';
             · tracks {{ valueMetricLabel(selectedJourney.derivedFrom.valueMetric) }}
           </div>
           <div class="jrn-hero-footer">
-            <button class="jrn-text-danger-btn" (click)="confirmDelete()">Delete journey</button>
             <button class="jrn-hero-edit-btn" (click)="openEditJourney()">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -202,6 +240,17 @@ type SubView = 'list' | 'detail';
                         (click)="editForm.config.valueType = 'categorical'">Categorical</button>
               </div>
             </div>
+            <div class="jrn-field" *ngIf="editForm.config.valueType === 'numeric'">
+              <label class="jrn-label">Goal Direction</label>
+              <div class="jrn-seg">
+                <button type="button" class="jrn-seg-opt"
+                        [class.jrn-seg-opt--active]="editForm.config.increaseIsPositive === true"
+                        (click)="editForm.config.increaseIsPositive = true">↑ Higher is better</button>
+                <button type="button" class="jrn-seg-opt"
+                        [class.jrn-seg-opt--active]="editForm.config.increaseIsPositive === false"
+                        (click)="editForm.config.increaseIsPositive = false">↓ Lower is better</button>
+              </div>
+            </div>
           </ng-container>
 
           <!-- Derived config -->
@@ -234,6 +283,17 @@ type SubView = 'list' | 'detail';
                 </button>
               </div>
             </div>
+            <div class="jrn-field">
+              <label class="jrn-label">Goal Direction</label>
+              <div class="jrn-seg">
+                <button type="button" class="jrn-seg-opt"
+                        [class.jrn-seg-opt--active]="editForm.config.increaseIsPositive === true"
+                        (click)="editForm.config.increaseIsPositive = true">↑ Higher is better</button>
+                <button type="button" class="jrn-seg-opt"
+                        [class.jrn-seg-opt--active]="editForm.config.increaseIsPositive === false"
+                        (click)="editForm.config.increaseIsPositive = false">↓ Lower is better</button>
+              </div>
+            </div>
           </ng-container>
 
           <div class="jrn-error-banner" *ngIf="editError">{{ editError }}</div>
@@ -249,14 +309,61 @@ type SubView = 'list' | 'detail';
         </div>
 
         <!-- Metrics card -->
-        <div class="jrn-metrics-card" *ngIf="avgValue !== null">
+        <div class="jrn-metrics-card" *ngIf="isNumericJourney && entries.length > 0">
           <p class="jrn-metrics-heading">Metrics</p>
-          <div class="jrn-metrics-row">
-            <div class="jrn-metric-tile">
-              <span class="jrn-metric-tile-label">Average Value</span>
+
+          <!-- Stats grid -->
+          <div class="jrn-metrics-grid">
+            <div class="jrn-metric-tile" *ngIf="currentValue !== null">
+              <span class="jrn-metric-tile-label">Current</span>
+              <span class="jrn-metric-tile-value">{{ currentValue }}</span>
+              <span class="jrn-metric-tile-sub">{{ metricUnitLabel }}</span>
+            </div>
+            <div class="jrn-metric-tile" *ngIf="avgValue !== null">
+              <span class="jrn-metric-tile-label">Average</span>
               <span class="jrn-metric-tile-value">{{ avgValue }}</span>
               <span class="jrn-metric-tile-sub" *ngIf="selectedJourney.trackerType === 'point-log'">{{ selectedJourney.config.metricName }}</span>
-              <span class="jrn-metric-tile-sub" *ngIf="selectedJourney.trackerType === 'derived'">per log · {{ entries.length }} total</span>
+              <span class="jrn-metric-tile-sub" *ngIf="selectedJourney.trackerType === 'derived'">{{ entries.length }} total</span>
+            </div>
+            <div class="jrn-metric-tile" *ngIf="changeFromStart !== null">
+              <span class="jrn-metric-tile-label">Change</span>
+              <span class="jrn-metric-tile-value"
+                    [class.jrn-delta--good]="changeFromStart.sentiment === 'good'"
+                    [class.jrn-delta--bad]="changeFromStart.sentiment === 'bad'">
+                {{ changeFromStart.text }}
+              </span>
+              <span class="jrn-metric-tile-sub">from start</span>
+            </div>
+            <div class="jrn-metric-tile" *ngIf="sevenDayTrend !== null">
+              <span class="jrn-metric-tile-label">Trend (7D)</span>
+              <span class="jrn-metric-tile-value"
+                    [class.jrn-delta--good]="sevenDayTrend.sentiment === 'good'"
+                    [class.jrn-delta--bad]="sevenDayTrend.sentiment === 'bad'">
+                {{ sevenDayTrend.text }}
+              </span>
+              <span class="jrn-metric-tile-sub">vs prev 7</span>
+            </div>
+            <div class="jrn-metric-tile" *ngIf="minValue !== null">
+              <span class="jrn-metric-tile-label">Min</span>
+              <span class="jrn-metric-tile-value">{{ minValue }}</span>
+              <span class="jrn-metric-tile-sub">recorded</span>
+            </div>
+            <div class="jrn-metric-tile" *ngIf="maxValue !== null">
+              <span class="jrn-metric-tile-label">Max</span>
+              <span class="jrn-metric-tile-value">{{ maxValue }}</span>
+              <span class="jrn-metric-tile-sub">recorded</span>
+            </div>
+          </div>
+
+          <!-- Trend chart -->
+          <div class="jrn-chart-section" *ngIf="allChartPoints.length > 1">
+            <div class="jrn-chart-range-row">
+              <button class="jrn-range-btn" [class.jrn-range-btn--active]="chartRange === '7D'"  (click)="setChartRange('7D')">7D</button>
+              <button class="jrn-range-btn" [class.jrn-range-btn--active]="chartRange === '30D'" (click)="setChartRange('30D')">30D</button>
+              <button class="jrn-range-btn" [class.jrn-range-btn--active]="chartRange === 'All'" (click)="setChartRange('All')">All</button>
+            </div>
+            <div class="jrn-chart-wrapper">
+              <canvas #chartCanvas style="touch-action:pan-y"></canvas>
             </div>
           </div>
         </div>
@@ -408,23 +515,29 @@ type SubView = 'list' | 'detail';
             </div>
           </ng-container>
 
-          <!-- Point-log: flat list -->
+          <!-- Point-log: grouped by date -->
           <ng-container *ngIf="selectedJourney.trackerType !== 'derived'">
-            <div class="jrn-entry-card" *ngFor="let e of entries; trackBy: trackByEntryId">
-              <div class="jrn-entry-left">
-                <span class="jrn-entry-date">{{ e.timestamp | date:'MMM d, y' }}</span>
-                <span class="jrn-entry-time">{{ e.timestamp | date:'h:mm a' }}</span>
+            <div class="jrn-pl-group" *ngFor="let group of pointLogDayGroups; trackBy: trackByDateStr">
+              <div class="jrn-pl-date-row">
+                <span class="jrn-pl-date-label">{{ group.displayDate }}</span>
+                <span class="jrn-pl-count" *ngIf="group.entries.length > 1">{{ group.entries.length }}</span>
               </div>
-              <span class="jrn-entry-value" *ngIf="e.valueType === 'numeric'">{{ e.numericValue }}</span>
-              <span class="jrn-entry-pill" *ngIf="e.valueType === 'categorical'">{{ e.categoricalValue }}</span>
-              <button class="jrn-entry-del-btn" title="Delete" (click)="deleteEntry(e)">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"/>
-                  <path d="M19 6l-1 14H6L5 6"/>
-                  <path d="M10 11v6M14 11v6"/>
-                </svg>
-              </button>
+              <div class="jrn-entry-card" *ngFor="let e of group.entries; trackBy: trackByEntryId"
+                   (click)="openEditEntry(e)">
+                <div class="jrn-entry-left">
+                  <span class="jrn-entry-time">{{ e.timestamp | date:'h:mm a' }}</span>
+                </div>
+                <span class="jrn-entry-value" *ngIf="e.valueType === 'numeric'">{{ e.numericValue }}</span>
+                <span class="jrn-entry-pill" *ngIf="e.valueType === 'categorical'">{{ e.categoricalValue }}</span>
+                <button class="jrn-entry-del-btn" title="Delete" (click)="$event.stopPropagation(); deleteEntry(e)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14H6L5 6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                  </svg>
+                </button>
+              </div>
             </div>
           </ng-container>
 
@@ -432,6 +545,70 @@ type SubView = 'list' | 'detail';
 
         <div class="jrn-loading" *ngIf="loadingEntries">
           <span class="jrn-loading-dot"></span>Loading entries…
+        </div>
+
+        <!-- Edit entry sheet -->
+        <div class="jrn-sheet-backdrop" *ngIf="editingEntry" (click)="closeEditEntry()">
+          <div class="jrn-sheet" (click)="$event.stopPropagation()">
+            <div class="jrn-sheet-handle"></div>
+            <p class="jrn-sheet-title">Edit Entry</p>
+            <div class="jrn-entry-fields" style="padding:0 20px 4px">
+              <div class="jrn-field">
+                <label class="jrn-label">Date</label>
+                <input class="jrn-input" type="date" [(ngModel)]="editEntryFormDate" name="editDate">
+              </div>
+              <div class="jrn-field">
+                <label class="jrn-label">Time</label>
+                <div class="jrn-drum-time-row">
+                  <div class="jrn-drum-col">
+                    <div class="jrn-drum-wrapper">
+                      <div class="jrn-drum-center-band"></div>
+                      <div class="jrn-drum jrn-edit-drum-h" (scroll)="onEditHourScroll($event)">
+                        <div class="jrn-drum-spacer"></div>
+                        <div class="jrn-drum-item" *ngFor="let h of entryHours; trackBy: trackByIndex"
+                             [class.jrn-drum-item--sel]="h === editEntryFormHour">{{ h | number:'2.0-0' }}</div>
+                        <div class="jrn-drum-spacer"></div>
+                      </div>
+                    </div>
+                    <span class="jrn-drum-unit">h</span>
+                  </div>
+                  <div class="jrn-drum-colon">:</div>
+                  <div class="jrn-drum-col">
+                    <div class="jrn-drum-wrapper">
+                      <div class="jrn-drum-center-band"></div>
+                      <div class="jrn-drum jrn-edit-drum-m" (scroll)="onEditMinuteScroll($event)">
+                        <div class="jrn-drum-spacer"></div>
+                        <div class="jrn-drum-item" *ngFor="let m of entryMinutes; trackBy: trackByIndex"
+                             [class.jrn-drum-item--sel]="m === editEntryFormMinute">{{ m | number:'2.0-0' }}</div>
+                        <div class="jrn-drum-spacer"></div>
+                      </div>
+                    </div>
+                    <span class="jrn-drum-unit">m</span>
+                  </div>
+                </div>
+              </div>
+              <div class="jrn-field" *ngIf="selectedJourney && selectedJourney.config.valueType === 'numeric'">
+                <label class="jrn-label">{{ selectedJourney.config.metricName || 'Value' }}</label>
+                <input class="jrn-input" type="number" step="any"
+                       [(ngModel)]="editEntryForm.numericValue" name="editEntryNumeric">
+              </div>
+              <div class="jrn-field" *ngIf="selectedJourney && selectedJourney.config.valueType === 'categorical'">
+                <label class="jrn-label">{{ selectedJourney.config.metricName || 'Value' }}</label>
+                <select class="jrn-input" [(ngModel)]="editEntryForm.categoricalValue" name="editEntryCat">
+                  <option *ngFor="let v of selectedJourney.config.allowedValues; trackBy: trackByIndex" [value]="v">{{ v }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="jrn-error-banner" style="margin:0 20px 8px" *ngIf="editEntryError">{{ editEntryError }}</div>
+            <div class="jrn-sheet-actions">
+              <button class="jrn-pill-btn jrn-pill-btn--ghost jrn-pill-btn--full"
+                      (click)="closeEditEntry()">Cancel</button>
+              <button class="jrn-pill-btn jrn-pill-btn--primary jrn-pill-btn--full"
+                      [disabled]="savingEditEntry" (click)="saveEditEntry()">
+                {{ savingEditEntry ? 'Saving…' : 'Save' }}
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Delete confirmation sheet -->
@@ -555,6 +732,18 @@ type SubView = 'list' | 'detail';
                 </div>
               </div>
 
+              <div class="jrn-field" *ngIf="form.config.valueType === 'numeric'">
+                <label class="jrn-label">Goal Direction</label>
+                <div class="jrn-seg">
+                  <button type="button" class="jrn-seg-opt"
+                          [class.jrn-seg-opt--active]="form.config.increaseIsPositive === true"
+                          (click)="form.config.increaseIsPositive = true">↑ Higher is better</button>
+                  <button type="button" class="jrn-seg-opt"
+                          [class.jrn-seg-opt--active]="form.config.increaseIsPositive === false"
+                          (click)="form.config.increaseIsPositive = false">↓ Lower is better</button>
+                </div>
+              </div>
+
               <div class="jrn-field" *ngIf="form.config.valueType === 'categorical'">
                 <label class="jrn-label">Allowed Values</label>
                 <div class="jrn-tags" *ngIf="form.config.allowedValues.length > 0">
@@ -605,6 +794,18 @@ type SubView = 'list' | 'detail';
                     <span class="jrn-metric-label">{{ m.label }}</span>
                     <span class="jrn-metric-hint">{{ m.hint }}</span>
                   </button>
+                </div>
+              </div>
+
+              <div class="jrn-field">
+                <label class="jrn-label">Goal Direction</label>
+                <div class="jrn-seg">
+                  <button type="button" class="jrn-seg-opt"
+                          [class.jrn-seg-opt--active]="form.config.increaseIsPositive === true"
+                          (click)="form.config.increaseIsPositive = true">↑ Higher is better</button>
+                  <button type="button" class="jrn-seg-opt"
+                          [class.jrn-seg-opt--active]="form.config.increaseIsPositive === false"
+                          (click)="form.config.increaseIsPositive = false">↓ Lower is better</button>
                 </div>
               </div>
             </div>
@@ -747,6 +948,36 @@ type SubView = 'list' | 'detail';
     .jrn-empty-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
     .jrn-empty-sub { font-size: 0.82rem; color: var(--text-muted); max-width: 280px; line-height: 1.5; }
 
+    /* Suggestions bar */
+    .jrn-suggest-bar {
+      margin-top: 20px;
+      padding: 14px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+    .jrn-suggest-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .jrn-suggest-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .jrn-suggest-chip {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .jrn-suggest-chip:hover { border-color: var(--accent-bright); color: var(--accent-bright); }
+
     /* ══════════════════════════════════════════
        JOURNEY CARDS (list)
     ══════════════════════════════════════════ */
@@ -799,6 +1030,30 @@ type SubView = 'list' | 'detail';
       gap: 6px;
     }
 
+    .jrn-card-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+    .jrn-card-last {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .jrn-card-last strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .jrn-card-last-date { color: var(--text-muted); }
+    .jrn-card-no-entries {
+      display: block;
+      margin-top: 8px;
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    .jrn-sparkline { display: block; flex-shrink: 0; overflow: visible; }
+
     .jrn-journey-card-arrow {
       color: var(--text-muted);
       flex-shrink: 0;
@@ -813,15 +1068,15 @@ type SubView = 'list' | 'detail';
       align-items: center;
       gap: 3px;
       background: var(--accent);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 3px 10px;
-      font-size: 0.72rem;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
       font-weight: 500;
-      color: var(--text-primary);
+      color: var(--text-secondary);
       white-space: nowrap;
+      pointer-events: none;
     }
-    .jrn-chip--dim { color: var(--text-secondary); background: transparent; }
+    .jrn-chip--dim { color: var(--text-muted); background: transparent; }
 
     /* ══════════════════════════════════════════
        STATUS PILL
@@ -1111,6 +1366,58 @@ type SubView = 'list' | 'detail';
     }
     .jrn-text-danger-btn:hover { opacity: 1; }
 
+    /* Hero top-right: status + ⋯ */
+    .jrn-hero-top-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .jrn-more-wrap { position: relative; }
+    .jrn-more-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: 32px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      line-height: 1;
+      color: var(--text-muted);
+      cursor: pointer;
+      letter-spacing: 0.05em;
+    }
+    .jrn-more-btn:hover { color: var(--text-primary); background: var(--accent-hover); }
+    .jrn-more-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+      min-width: 160px;
+      z-index: 300;
+      overflow: hidden;
+    }
+    .jrn-more-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      padding: 12px 16px;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .jrn-more-item:hover { background: var(--accent-hover); }
+    .jrn-more-item--danger { color: #e74c3c; }
+    .jrn-hero-footer { justify-content: flex-end; }
+
     /* ══════════════════════════════════════════
        METRICS CARD
     ══════════════════════════════════════════ */
@@ -1130,14 +1437,36 @@ type SubView = 'list' | 'detail';
       color: var(--text-muted);
       margin-bottom: 12px;
     }
-    .jrn-metrics-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
+    .jrn-metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 360px) {
+      .jrn-metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    /* Compact overrides for the tight 3-col grid */
+    .jrn-metrics-grid .jrn-metric-tile {
+      padding: 10px 8px;
+    }
+    .jrn-metrics-grid .jrn-metric-tile-label {
+      font-size: 0.58rem;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .jrn-metrics-grid .jrn-metric-tile-value {
+      font-size: 1.1rem;
+      line-height: 1.2;
+    }
+    .jrn-metrics-grid .jrn-metric-tile-sub {
+      font-size: 0.62rem;
     }
     .jrn-metric-tile {
       flex: 1;
-      min-width: 120px;
+      min-width: 80px;
       background: var(--bg-primary);
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -1164,6 +1493,39 @@ type SubView = 'list' | 'detail';
       font-size: 0.7rem;
       color: var(--text-muted);
       margin-top: 2px;
+    }
+    .jrn-delta--good { color: #27ae60; }
+    .jrn-delta--bad  { color: #e74c3c; }
+
+    /* Chart section */
+    .jrn-chart-section {
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+    .jrn-chart-range-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .jrn-range-btn {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .jrn-range-btn--active {
+      background: var(--accent-bright);
+      border-color: var(--accent-bright);
+      color: #fff;
+    }
+    .jrn-chart-wrapper {
+      position: relative;
+      height: 160px;
     }
 
     /* ══════════════════════════════════════════
@@ -1212,6 +1574,30 @@ type SubView = 'list' | 'detail';
        ENTRY CARDS (list)
     ══════════════════════════════════════════ */
     .jrn-entries { display: flex; flex-direction: column; gap: 6px; }
+
+    /* Point-log date groups */
+    .jrn-pl-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+    .jrn-pl-date-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 2px 2px;
+    }
+    .jrn-pl-date-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+    .jrn-pl-count {
+      font-size: 0.65rem;
+      font-weight: 600;
+      background: var(--accent);
+      color: var(--text-muted);
+      border-radius: 999px;
+      padding: 1px 7px;
+    }
 
     .jrn-entry-card {
       display: flex;
@@ -1621,10 +2007,15 @@ type SubView = 'list' | 'detail';
     }
   `]
 })
-export class JourneysComponent implements OnInit, OnDestroy {
+export class JourneysComponent implements OnInit, OnDestroy, AfterViewChecked {
   @Input() availableLogTypes: any[] = [];
+  @ViewChild('chartCanvas') private chartCanvasRef?: ElementRef<HTMLCanvasElement>;
 
   private readonly destroy$ = new Subject<void>();
+  private chartInstance: Chart | null = null;
+  private chartDirty = false;
+  chartRange: '7D' | '30D' | 'All' = '30D';
+
   subView: SubView = 'list';
 
   journeys: Journey[] = [];
@@ -1641,6 +2032,16 @@ export class JourneysComponent implements OnInit, OnDestroy {
   showDeleteConfirm = false;
   deleting = false;
   resyncing = false;
+  showMoreMenu = false;
+
+  // Edit entry state
+  editingEntry: JourneyEntry | null = null;
+  editEntryFormDate = '';
+  editEntryFormHour = 12;
+  editEntryFormMinute = 0;
+  editEntryForm: { numericValue: number | null; categoricalValue: string } = { numericValue: null, categoricalValue: '' };
+  savingEditEntry = false;
+  editEntryError = '';
 
   expandedDays: Record<string, boolean> = {};
 
@@ -1656,7 +2057,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
     status: string;
     span: JourneySpan;
     endDate: string;
-    config: { metricName: string; valueType: ValueType };
+    config: { metricName: string; valueType: ValueType; increaseIsPositive: boolean };
     derivedLogTypeId: string;
     derivedValueMetric: ValueMetric;
   } = this.blankEditForm();
@@ -1689,7 +2090,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
     span: JourneySpan;
     endDate: string;
     trackerType: 'point-log' | 'derived';
-    config: { metricName: string; valueType: ValueType; allowedValues: string[] };
+    config: { metricName: string; valueType: ValueType; allowedValues: string[]; increaseIsPositive: boolean };
     derivedLogTypeId: string;
     derivedValueMetric: ValueMetric;
   } = this.blankForm();
@@ -1702,13 +2103,266 @@ export class JourneysComponent implements OnInit, OnDestroy {
 
   constructor(private journeyService: JourneyService, private cdr: ChangeDetectorRef) {}
 
+  ngAfterViewChecked(): void {
+    if (this.chartDirty && this.chartCanvasRef?.nativeElement) {
+      this.chartDirty = false;
+      this.buildChart();
+    }
+  }
+
   ngOnDestroy(): void {
+    this.destroyChart();
     this.destroy$.next();
     this.destroy$.complete();
   }
 
   ngOnInit() {
     this.loadJourneys();
+  }
+
+  // ── Chart ────────────────────────────────────────────────
+
+  setChartRange(range: '7D' | '30D' | 'All'): void {
+    this.chartRange = range;
+    this.buildChart();
+    this.cdr.markForCheck();
+  }
+
+  private buildChart(): void {
+    const canvas = this.chartCanvasRef?.nativeElement;
+    if (!canvas) return;
+    const pts = this.filteredChartPoints;
+    this.destroyChart();
+    if (pts.length < 2) return;
+
+    const j = this.selectedJourney!;
+    const isDuration = j.trackerType === 'derived' && j.derivedFrom?.valueMetric === 'duration';
+    const isTimeOfDay = j.trackerType === 'derived' &&
+      (j.derivedFrom?.valueMetric === 'start-time' || j.derivedFrom?.valueMetric === 'end-time');
+
+    this.chartInstance = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: pts.map(p => p.label),
+        datasets: [{
+          data: pts.map(p => p.value),
+          borderColor: '#e94f37',
+          backgroundColor: 'rgba(233,79,55,0.10)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: pts.length > 40 ? 2 : (pts.length > 20 ? 3 : 4),
+          pointBackgroundColor: '#e94f37',
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx: any) => {
+                const v: number = ctx.parsed.y;
+                if (isDuration) {
+                  const h = Math.floor(v / 60), m = Math.round(v % 60);
+                  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                }
+                if (isTimeOfDay) return this.minsToTimeStr(v);
+                const unit = j.config?.metricName ?? '';
+                return unit ? `${v} ${unit}` : `${v}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(128,128,128,0.08)' },
+            ticks: { maxTicksLimit: 6, font: { size: 10 }, color: '#999' }
+          },
+          y: {
+            grid: { color: 'rgba(128,128,128,0.08)' },
+            ticks: {
+              font: { size: 10 },
+              color: '#999',
+              callback: (v: any) => {
+                if (isDuration) {
+                  const h = Math.floor(v / 60), m = Math.round(v % 60);
+                  return h > 0 ? `${h}h` : `${m}m`;
+                }
+                if (isTimeOfDay) {
+                  const h2 = Math.floor(v / 60), ampm = h2 >= 12 ? 'PM' : 'AM';
+                  return `${h2 % 12 || 12}${ampm}`;
+                }
+                return v;
+              }
+            }
+          }
+        }
+      } as any
+    });
+  }
+
+  private destroyChart(): void {
+    if (this.chartInstance) {
+      this.chartInstance.destroy();
+      this.chartInstance = null;
+    }
+  }
+
+  // ── Chart data getters ────────────────────────────────────
+
+  get isNumericJourney(): boolean {
+    const j = this.selectedJourney;
+    if (!j) return false;
+    if (j.trackerType === 'point-log') return j.config.valueType === 'numeric';
+    if (j.trackerType === 'derived' && j.derivedFrom) {
+      return ['duration', 'count', 'start-time', 'end-time'].includes(j.derivedFrom.valueMetric);
+    }
+    return false;
+  }
+
+  get allChartPoints(): { label: string; value: number; ts: Date }[] {
+    if (!this.isNumericJourney || this.entries.length === 0) return [];
+    const j = this.selectedJourney!;
+    const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+
+    if (j.trackerType === 'point-log') {
+      return this.entries
+        .filter(e => e.numericValue !== null)
+        .map(e => ({ label: fmt.format(new Date(e.timestamp)), value: e.numericValue!, ts: new Date(e.timestamp) }))
+        .sort((a, b) => a.ts.getTime() - b.ts.getTime());
+    }
+
+    return this.dayGroups
+      .map(g => {
+        const ts = new Date(g.date + 'T12:00:00');
+        const value = this.consolidatedNumeric(g.entries);
+        return { label: fmt.format(ts), value: value ?? 0, ts };
+      })
+      .filter(p => !isNaN(p.ts.getTime()))
+      .sort((a, b) => a.ts.getTime() - b.ts.getTime());
+  }
+
+  get filteredChartPoints(): { label: string; value: number; ts: Date }[] {
+    const pts = this.allChartPoints;
+    const now = new Date();
+    if (this.chartRange === '7D') {
+      const cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return pts.filter(p => p.ts >= cutoff);
+    }
+    if (this.chartRange === '30D') {
+      const cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      return pts.filter(p => p.ts >= cutoff);
+    }
+    return pts;
+  }
+
+  private consolidatedNumeric(entries: JourneyEntry[]): number | null {
+    const vm = this.selectedJourney?.derivedFrom?.valueMetric;
+    const nums = entries.map(e => e.numericValue ?? 0);
+    switch (vm) {
+      case 'duration':   return nums.reduce((a, b) => a + b, 0);
+      case 'count':      return nums.reduce((a, b) => a + b, 0);
+      case 'start-time': return Math.min(...nums);
+      case 'end-time':   return Math.max(...nums);
+      default:           return null;
+    }
+  }
+
+  private formatPointValue(v: number): string {
+    const j = this.selectedJourney;
+    if (!j) return String(v);
+    if (j.trackerType === 'derived' && j.derivedFrom) {
+      const vm = j.derivedFrom.valueMetric;
+      if (vm === 'duration') {
+        const h = Math.floor(v / 60), m = Math.round(v % 60);
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+      }
+      if (vm === 'start-time' || vm === 'end-time') return this.minsToTimeStr(v);
+      return String(Math.round(v));
+    }
+    const n = parseFloat(v.toFixed(2));
+    return Number.isInteger(n) ? String(n) : n.toFixed(2);
+  }
+
+  private formatDiffValue(v: number): string {
+    const j = this.selectedJourney;
+    if (!j) return String(v);
+    if (j.trackerType === 'derived' && j.derivedFrom) {
+      const vm = j.derivedFrom.valueMetric;
+      if (vm === 'duration') {
+        const h = Math.floor(v / 60), m = Math.round(v % 60);
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+      }
+      return `${Math.round(v)}m`;
+    }
+    const n = parseFloat(v.toFixed(2));
+    return Number.isInteger(n) ? String(n) : n.toFixed(2);
+  }
+
+  // ── Metric getters ────────────────────────────────────────
+
+  get metricUnitLabel(): string {
+    const j = this.selectedJourney;
+    if (!j) return '';
+    if (j.trackerType === 'point-log') return j.config.metricName;
+    if (j.trackerType === 'derived' && j.derivedFrom) return this.valueMetricLabel(j.derivedFrom.valueMetric);
+    return '';
+  }
+
+  get currentValue(): string | null {
+    const pts = this.allChartPoints;
+    if (pts.length === 0) return null;
+    return this.formatPointValue(pts[pts.length - 1].value);
+  }
+
+  private sentimentFor(diff: number): 'good' | 'bad' | 'neutral' {
+    if (Math.abs(diff) < 0.001) return 'neutral';
+    const increaseIsPositive = this.selectedJourney?.config?.increaseIsPositive ?? true;
+    return (diff > 0) === increaseIsPositive ? 'good' : 'bad';
+  }
+
+  get changeFromStart(): { text: string; sentiment: 'good' | 'bad' | 'neutral' } | null {
+    const pts = this.allChartPoints;
+    if (pts.length < 2) return null;
+    const diff = pts[pts.length - 1].value - pts[0].value;
+    if (Math.abs(diff) < 0.001) return { text: '—', sentiment: 'neutral' };
+    const fmt = this.formatDiffValue(Math.abs(diff));
+    return {
+      text: diff > 0 ? `↑ +${fmt}` : `↓ −${fmt}`,
+      sentiment: this.sentimentFor(diff)
+    };
+  }
+
+  get sevenDayTrend(): { text: string; sentiment: 'good' | 'bad' | 'neutral' } | null {
+    const pts = this.allChartPoints;
+    if (pts.length < 7) return null;
+    const last7 = pts.slice(-7);
+    const prev7 = pts.slice(Math.max(0, pts.length - 14), pts.length - 7);
+    if (prev7.length === 0) return null;
+    const avg7  = last7.reduce((s, p) => s + p.value, 0) / last7.length;
+    const avgP  = prev7.reduce((s, p) => s + p.value, 0) / prev7.length;
+    const diff  = avg7 - avgP;
+    if (Math.abs(diff) < 0.001) return { text: '—', sentiment: 'neutral' };
+    const fmt = this.formatDiffValue(Math.abs(diff));
+    return {
+      text: diff > 0 ? `↑ +${fmt}` : `↓ −${fmt}`,
+      sentiment: this.sentimentFor(diff)
+    };
+  }
+
+  get minValue(): string | null {
+    const pts = this.allChartPoints;
+    if (pts.length === 0) return null;
+    return this.formatPointValue(Math.min(...pts.map(p => p.value)));
+  }
+
+  get maxValue(): string | null {
+    const pts = this.allChartPoints;
+    if (pts.length === 0) return null;
+    return this.formatPointValue(Math.max(...pts.map(p => p.value)));
   }
 
   private blankForm() {
@@ -1719,7 +2373,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
       span:               'indefinite' as JourneySpan,
       endDate:            '',
       trackerType:        'point-log' as 'point-log' | 'derived',
-      config:             { metricName: '', valueType: 'numeric' as ValueType, allowedValues: [] as string[] },
+      config:             { metricName: '', valueType: 'numeric' as ValueType, allowedValues: [] as string[], increaseIsPositive: true },
       derivedLogTypeId:   '',
       derivedValueMetric: 'duration' as ValueMetric
     };
@@ -1731,7 +2385,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
       status:             'active',
       span:               'indefinite' as JourneySpan,
       endDate:            '',
-      config:             { metricName: '', valueType: 'numeric' as ValueType },
+      config:             { metricName: '', valueType: 'numeric' as ValueType, increaseIsPositive: true },
       derivedLogTypeId:   '',
       derivedValueMetric: 'duration' as ValueMetric
     };
@@ -1756,13 +2410,18 @@ export class JourneysComponent implements OnInit, OnDestroy {
 
   openEditJourney(): void {
     if (!this.selectedJourney) return;
+    this.showMoreMenu = false;
     const j = this.selectedJourney;
     this.editForm = {
       name:               j.name,
       status:             j.status,
       span:               j.span,
       endDate:            j.endDate ?? '',
-      config:             { metricName: j.config.metricName, valueType: j.config.valueType },
+      config:             {
+        metricName:         j.config.metricName,
+        valueType:          j.config.valueType,
+        increaseIsPositive: j.config.increaseIsPositive ?? true
+      },
       derivedLogTypeId:   j.derivedFrom?.logTypeId ?? '',
       derivedValueMetric: j.derivedFrom?.valueMetric ?? 'duration'
     };
@@ -1791,6 +2450,8 @@ export class JourneysComponent implements OnInit, OnDestroy {
     };
     if (!isDerived) {
       patch.config = this.editForm.config;
+    } else {
+      patch.config = { increaseIsPositive: this.editForm.config.increaseIsPositive };
     }
     if (isDerived && this.editForm.derivedLogTypeId) {
       patch.derivedFrom = {
@@ -1906,6 +2567,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
         logTypeName: lt?.name ?? '',
         valueMetric: this.form.derivedValueMetric
       };
+      payload.config = { increaseIsPositive: this.form.config.increaseIsPositive };
     } else {
       payload.config = this.form.config;
     }
@@ -1979,7 +2641,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
       if (!byDate.has(d)) byDate.set(d, []);
       byDate.get(d)!.push(e);
     }
-    const fmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const fmt = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     return Array.from(byDate.entries())
       .sort(([a], [b]) => b.localeCompare(a))
       .map(([date, entries]) => ({
@@ -2048,6 +2710,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
   }
 
   backToList() {
+    this.destroyChart();
     this.subView = 'list';
     this.selectedJourney = null;
     this.entries = [];
@@ -2059,6 +2722,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
     this.journeyService.listEntries(journeyId).pipe(takeUntil(this.destroy$)).subscribe(list => {
       this.entries = list;
       this.loadingEntries = false;
+      this.chartDirty = true;
       this.cdr.markForCheck();
     });
   }
@@ -2092,6 +2756,7 @@ export class JourneysComponent implements OnInit, OnDestroy {
         this.savingEntry = false;
         this.addingEntry = false;
         this.entryForm = { numericValue: null, categoricalValue: '' };
+        this.chartDirty = true;
         this.cdr.markForCheck();
       },
       error: (err) => {
@@ -2131,9 +2796,126 @@ export class JourneysComponent implements OnInit, OnDestroy {
     if (!this.selectedJourney || this.resyncing) return;
     this.resyncing = true;
     this.journeyService.resyncJourney(this.selectedJourney.id).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (synced) => { this.entries = synced; this.resyncing = false; this.cdr.markForCheck(); },
+      next: (synced) => { this.entries = synced; this.resyncing = false; this.chartDirty = true; this.cdr.markForCheck(); },
       error: () => { this.resyncing = false; this.cdr.markForCheck(); }
     });
+  }
+
+  sparklinePoints(values: number[]): string {
+    if (values.length < 2) return '';
+    const W = 56, H = 20, pad = 1;
+    const mn = Math.min(...values), mx = Math.max(...values);
+    const range = mx - mn || 1;
+    return values.map((v, i) => {
+      const x = pad + (i / (values.length - 1)) * (W - pad * 2);
+      const y = H - pad - ((v - mn) / range) * (H - pad * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+  }
+
+  sparklineViewBox(_values: number[]): string { return '0 0 56 22'; }
+
+  readonly journeySuggestions = [
+    { name: 'Sleep hours',  value: 'Sleep hours' },
+    { name: 'Mood score',   value: 'Mood score' },
+    { name: 'Water intake', value: 'Water intake' },
+    { name: 'Steps',        value: 'Steps' },
+    { name: 'Weight',       value: 'Weight' },
+  ];
+
+  openCreateWithSuggestion(s: { name: string }): void {
+    this.form = this.blankForm();
+    this.form.name = s.name;
+    this.showCreateModal = true;
+    this.cdr.markForCheck();
+  }
+
+  get pointLogDayGroups(): { date: string; displayDate: string; entries: JourneyEntry[] }[] {
+    const byDate = new Map<string, JourneyEntry[]>();
+    for (const e of this.entries) {
+      const d = new Date(e.timestamp).toLocaleDateString('en-CA');
+      if (!byDate.has(d)) byDate.set(d, []);
+      byDate.get(d)!.push(e);
+    }
+    const fmt = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([date, entries]) => ({
+        date,
+        displayDate: fmt.format(new Date(date + 'T12:00:00')),
+        entries: [...entries].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      }));
+  }
+
+  openEditEntry(entry: JourneyEntry): void {
+    if (!this.selectedJourney || this.selectedJourney.trackerType === 'derived') return;
+    const ts = new Date(entry.timestamp);
+    const yyyy = ts.getFullYear();
+    const mm   = String(ts.getMonth() + 1).padStart(2, '0');
+    const dd   = String(ts.getDate()).padStart(2, '0');
+    this.editEntryFormDate   = `${yyyy}-${mm}-${dd}`;
+    this.editEntryFormHour   = ts.getHours();
+    this.editEntryFormMinute = ts.getMinutes();
+    this.editEntryForm       = { numericValue: entry.numericValue, categoricalValue: entry.categoricalValue ?? '' };
+    this.editEntryError      = '';
+    this.savingEditEntry     = false;
+    this.editingEntry        = entry;
+    setTimeout(() => {
+      const dh = document.querySelector('.jrn-edit-drum-h') as HTMLElement | null;
+      const dm = document.querySelector('.jrn-edit-drum-m') as HTMLElement | null;
+      if (dh) dh.scrollTop = this.editEntryFormHour   * 25;
+      if (dm) dm.scrollTop = this.editEntryFormMinute * 25;
+    }, 0);
+  }
+
+  closeEditEntry(): void {
+    this.editingEntry   = null;
+    this.editEntryError = '';
+  }
+
+  onEditHourScroll(event: Event): void {
+    const el = event.target as HTMLElement;
+    this.editEntryFormHour = Math.max(0, Math.min(23, Math.round(el.scrollTop / 25)));
+  }
+
+  onEditMinuteScroll(event: Event): void {
+    const el = event.target as HTMLElement;
+    this.editEntryFormMinute = Math.max(0, Math.min(59, Math.round(el.scrollTop / 25)));
+  }
+
+  saveEditEntry(): void {
+    if (!this.editingEntry || !this.selectedJourney) return;
+    this.editEntryError = '';
+    if (!this.editEntryFormDate) { this.editEntryError = 'Date is required.'; return; }
+    const vt = this.selectedJourney.config.valueType;
+    if (vt === 'numeric' && this.editEntryForm.numericValue === null) {
+      this.editEntryError = 'Value is required.'; return;
+    }
+    const h   = String(this.editEntryFormHour).padStart(2, '0');
+    const m   = String(this.editEntryFormMinute).padStart(2, '0');
+    const patch: Partial<CreateJourneyEntry> = {
+      timestamp: new Date(`${this.editEntryFormDate}T${h}:${m}:00`).toISOString(),
+      valueType: vt,
+      ...(vt === 'numeric'     ? { numericValue:     this.editEntryForm.numericValue! }     : {}),
+      ...(vt === 'categorical' ? { categoricalValue: this.editEntryForm.categoricalValue } : {})
+    };
+    this.savingEditEntry = true;
+    this.journeyService.updateEntry(this.selectedJourney.id, this.editingEntry.id, patch)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (updated) => {
+          this.entries = this.entries.map(e => e.id === updated.id ? updated : e);
+          this.savingEditEntry = false;
+          this.editingEntry    = null;
+          this.chartDirty      = true;
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          this.savingEditEntry = false;
+          this.editEntryError  = err?.error?.error ?? 'Failed to update entry.';
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   trackByJourneyId(_i: number, j: Journey): string { return j.id; }

@@ -242,29 +242,47 @@ const PERF = (() => {
         <button class="shortcut-toast-undo" (click)="undoShortcut()">Undo</button>
       </div>
 
-      <!-- ── 1.61: Renni FAB ── -->
-      <button class="renni-fab"
-              *ngIf="isAuthenticated && !(appState.coverageSheetOpen$ | async)"
-              (click)="renniChatOpen = true"
-              title="Chat with Renni — AI log assistant">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 3L13.5 8.5L19 10L13.5 11.5L12 17L10.5 11.5L5 10L10.5 8.5L12 3Z"/>
-          <path d="M5 3L5.75 5.25L8 6L5.75 6.75L5 9L4.25 6.75L2 6L4.25 5.25L5 3Z"/>
-          <path d="M19 14L19.75 16.25L22 17L19.75 17.75L19 20L18.25 17.75L16 17L18.25 16.25L19 14Z"/>
-        </svg>
-      </button>
+      <!-- ── Speed-dial FAB ── -->
+      <ng-container *ngIf="isAuthenticated && !(appState.coverageSheetOpen$ | async)">
+        <!-- backdrop to close on outside tap -->
+        <div class="sd-backdrop" *ngIf="fabOpen" (click)="fabOpen = false"></div>
 
-      <!-- ── 1.61: Log Now FAB ── -->
-      <button class="log-now-fab"
-              *ngIf="isAuthenticated && !(appState.coverageSheetOpen$ | async)"
-              (click)="isJourneysRoute ? appState.createJourneyRequested$.next() : openLogNow()"
-              [title]="isJourneysRoute ? 'New Journey' : 'Log Now — tap to record what you just did'">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <line x1="12" y1="5" x2="12" y2="19"/>
-          <line x1="5"  y1="12" x2="19" y2="12"/>
-        </svg>
-      </button>
+        <div class="sd-wrap">
+          <!-- Sub-actions (visible when open) -->
+          <div class="sd-options" [class.sd-options--open]="fabOpen">
+            <div class="sd-item">
+              <span class="sd-label">Ask Renni</span>
+              <button class="sd-btn sd-btn--renni"
+                      (click)="fabOpen=false; renniChatOpen=true"
+                      title="Chat with Renni">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 3L13.5 8.5L19 10L13.5 11.5L12 17L10.5 11.5L5 10L10.5 8.5L12 3Z"/>
+                  <path d="M5 3L5.75 5.25L8 6L5.75 6.75L5 9L4.25 6.75L2 6L4.25 5.25L5 3Z"/>
+                </svg>
+              </button>
+            </div>
+            <div class="sd-item">
+              <span class="sd-label">{{ isJourneysRoute ? 'New Journey' : 'Log Now' }}</span>
+              <button class="sd-btn sd-btn--primary"
+                      (click)="fabOpen=false; isJourneysRoute ? appState.createJourneyRequested$.next() : openLogNow()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Main FAB -->
+          <button class="sd-main" [class.sd-main--open]="fabOpen" (click)="fabOpen = !fabOpen"
+                  title="Actions">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+        </div>
+      </ng-container>
 
       <!-- ── Renni chat popup ── -->
       <app-renni-chat
@@ -1439,53 +1457,84 @@ const PERF = (() => {
       to   { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
 
-    /* ── Renni FAB ───────────────────────────────────────────── */
-    .renni-fab {
+    /* ── Speed-dial FAB ──────────────────────────────────────── */
+    .sd-backdrop {
       position: fixed;
-      bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 16px + 52px + 8px);
-      right: 20px;
-      z-index: 250;
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #7c3aed, #a78bfa);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: none;
-      cursor: pointer;
-      box-shadow: 0 4px 16px rgba(124,58,237,0.45);
-      transition: transform 0.15s, box-shadow 0.15s;
+      inset: 0;
+      z-index: 249;
     }
-    .renni-fab:hover {
-      transform: scale(1.06);
-      box-shadow: 0 6px 22px rgba(124,58,237,0.6);
-    }
-
-    /* ── 1.61: Log Now FAB ───────────────────────────────────── */
-    .log-now-fab {
+    .sd-wrap {
       position: fixed;
       bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 16px);
       right: 20px;
       z-index: 250;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+    }
+    .sd-main {
       width: 52px;
       height: 52px;
       border-radius: 50%;
       background: var(--nav-bg);
       color: var(--nav-text);
-      display: flex;
-      align-items: center;
-      justify-content: center;
       border: none;
       cursor: pointer;
       box-shadow: 0 4px 18px rgba(0,0,0,0.45);
-      transition: transform 0.15s, box-shadow 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, background 0.2s, box-shadow 0.15s;
     }
-    .log-now-fab:hover {
-      transform: scale(1.06);
-      box-shadow: 0 6px 22px rgba(0,0,0,0.55);
+    .sd-main--open {
+      transform: rotate(45deg);
+      background: var(--accent-bright);
+      color: #fff;
     }
+    .sd-main:hover { box-shadow: 0 6px 22px rgba(0,0,0,0.55); }
+    .sd-options {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.18s, transform 0.18s;
+    }
+    .sd-options--open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .sd-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sd-label {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+    }
+    .sd-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.28);
+      transition: transform 0.15s;
+    }
+    .sd-btn:hover { transform: scale(1.08); }
+    .sd-btn--primary { background: var(--accent-bright); color: #fff; }
+    .sd-btn--renni   { background: linear-gradient(135deg, #7c3aed, #a78bfa); color: #fff; }
 
     /* Log Now Sheet */
     .log-now-backdrop {
@@ -2479,6 +2528,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   shortcutToast: { message: string; logId: string } | null = null;
   private readonly destroy$ = new Subject<void>();
   private toastTimer: ReturnType<typeof setTimeout> | undefined = undefined;
+
+  // ── Speed-dial FAB ────────────────────────────────────────────
+  fabOpen = false;
 
   // ── Renni chat popup ─────────────────────────────────────────
   renniChatOpen = false;

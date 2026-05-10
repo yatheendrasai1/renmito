@@ -2,9 +2,10 @@ const mongoose = require('mongoose');
 
 const journeyConfigSchema = new mongoose.Schema(
   {
-    metricName:    { type: String, default: '' },
-    valueType:     { type: String, enum: ['numeric', 'categorical'], default: 'numeric' },
-    allowedValues: [{ type: String }]
+    metricName:         { type: String, default: '' },
+    valueType:          { type: String, enum: ['numeric', 'categorical'], default: 'numeric' },
+    allowedValues:      [{ type: String }],
+    increaseIsPositive: { type: Boolean, default: true }
   },
   { _id: false }
 );
