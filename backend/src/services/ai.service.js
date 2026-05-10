@@ -129,4 +129,8 @@ async function chatWithRenni(userId, message, date) {
   return _callIcService('/chat', { apiKey, date, message, logTypes, logsContext }, op);
 }
 
-module.exports = { parseLogPrompt, chatWithRenni };
+async function callFoodInsight(apiKey, systemPrompt, userPrompt) {
+  return _callIcService('/food-insight', { apiKey, systemPrompt, userPrompt }, 'foodInsight');
+}
+
+module.exports = { parseLogPrompt, chatWithRenni, callFoodInsight };

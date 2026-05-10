@@ -3,6 +3,8 @@ import {
   HostListener, ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { marked } from 'marked';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -135,12 +137,30 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
       font-size: 0.7rem; font-weight: 700; letter-spacing: 0.07em;
       text-transform: uppercase; color: #fbbf24;
     }
+    .insight-regen-btn {
+      margin-left: auto; display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(251,191,36,0.25);
+      background: transparent; color: #fbbf24; cursor: pointer; opacity: 0.7;
+      transition: opacity 0.14s, background 0.14s; flex-shrink: 0;
+    }
+    .insight-regen-btn:hover:not(:disabled) { opacity: 1; background: rgba(251,191,36,0.12); }
+    .insight-regen-btn:disabled { opacity: 0.3; cursor: not-allowed; }
     .insight-body { padding-bottom: 4px; }
     .insight-text {
       margin: 0; padding: 0 14px 12px;
-      font-family: inherit; font-size: 0.78rem;
-      line-height: 1.65; color: var(--text-secondary, #8090A8);
-      white-space: pre-wrap; word-break: break-word;
+      font-size: 0.78rem; line-height: 1.65;
+      color: var(--text-secondary, #8090A8); word-break: break-word;
+    }
+    .insight-markdown p { margin: 0 0 6px; }
+    .insight-markdown p:last-child { margin-bottom: 0; }
+    .insight-markdown ul, .insight-markdown ol {
+      margin: 4px 0 6px; padding-left: 18px;
+    }
+    .insight-markdown li { margin-bottom: 2px; }
+    .insight-markdown strong { color: var(--text-primary, #CDD6E8); font-weight: 600; }
+    .insight-markdown h1, .insight-markdown h2, .insight-markdown h3 {
+      font-size: 0.8rem; font-weight: 700; margin: 8px 0 4px;
+      color: var(--text-primary, #CDD6E8);
     }
   `],
   template: `
@@ -614,8 +634,17 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
                       <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
                     </svg>
                     Food Analysis
+                    <button class="insight-regen-btn"
+                            (click)="generateInsight(log, $event)"
+                            [disabled]="generatingLogIds.has(log.id)"
+                            title="Re-generate analysis"
+                            type="button">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                      </svg>
+                    </button>
                   </div>
-                  <pre class="insight-text">{{ insightText(log.id) }}</pre>
+                  <div class="insight-text insight-markdown" [innerHTML]="insightHtml(log.id)"></div>
                 </div>
               </div><!-- /insight-panel -->
 
@@ -796,10 +825,12 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
          : 'error';
   }
 
-  insightText(logId: string): string {
+  insightHtml(logId: string): SafeHtml {
     const v = this.insightCache.get(logId);
     if (!v || v === 'loading' || v === 'error') return '';
-    return (v as FoodInsightRecord).analysis || '';
+    const raw = (v as FoodInsightRecord).analysis || '';
+    const html = marked.parse(raw) as string;
+    return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
   generateInsight(log: LogEntry, event: Event): void {
@@ -1188,6 +1219,7 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     private _dayLevelService:  DayLevelService,
     private foodInsightSvc:    FoodInsightService,
     private cdr:               ChangeDetectorRef,
+    private sanitizer:         DomSanitizer,
   ) {}
 
   ngOnInit(): void {

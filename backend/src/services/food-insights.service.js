@@ -1,10 +1,10 @@
-const https          = require('https');
 const UserPreference = require('../models/UserPreference');
 const FoodInsight    = require('../models/FoodInsight');
 const TimeLog        = require('../models/TimeLog');
 const DefaultLogType = require('../models/DefaultLogType');
 const LogType        = require('../models/LogType');
 const configSvc      = require('./config.service');
+const aiSvc          = require('./ai.service');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -16,9 +16,10 @@ Guidelines:
 - Base calorie estimates on standard portion sizes if quantity is not specified
 - Use average values for dishes unless cooking method/oil suggests otherwise
 - For cumulative daily totals, sum across all meals listed as previous meals
-- Keep responses concise and structured exactly as requested
 - If information is insufficient for a field, state "Insufficient data" rather than guessing wildly
-- Express confidence where data allows; flag assumptions clearly`;
+- Express confidence where data allows; flag assumptions clearly
+- Keep the entire response under 150 words — be concise and prioritise numbers
+- Format your response using Markdown (bold for labels, bullet lists for breakdowns)`;
 
 const FOOD_INSIGHTS_USER_PROMPT_TEMPLATE = `Analyse this meal log:
 - Meal: {mealType}
@@ -29,12 +30,12 @@ const FOOD_INSIGHTS_USER_PROMPT_TEMPLATE = `Analyse this meal log:
 Previous meals today:
 {previousMeals}
 
-Return:
+Return (in Markdown, max 150 words total):
 1. Total calories and % of daily quota
 2. Macronutrient breakdown (carbs, protein, fat in g and %)
-3. Fat % of total calories, broken by saturated/unsaturated if possible
-4. Protein and fibre presence (g), with a quality note
-5. Cumulative totals for the day so far (including this meal)`;
+3. Fat % of total calories, split by saturated/unsaturated where possible
+4. Protein and fibre (g) with a one-line quality note
+5. Cumulative day totals so far (including this meal)`;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -118,48 +119,6 @@ function buildPrompt(mealType, time, items, userProfileStr, previousMeals) {
     .replace('{previousMeals}', prevSection);
 }
 
-function callGemini(apiKey, systemPrompt, userPrompt) {
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ parts: [{ text: userPrompt }] }],
-      generationConfig: { maxOutputTokens: 1024, temperature: 0.3 },
-    });
-    const req = https.request(
-      {
-        hostname: 'generativelanguage.googleapis.com',
-        path:     '/v1beta/models/gemini-2.5-flash-lite:generateContent',
-        method:   'POST',
-        headers:  {
-          'Content-Type':    'application/json',
-          'Content-Length':  Buffer.byteLength(body),
-          'X-goog-api-key':  apiKey,
-        },
-      },
-      (res) => {
-        let data = '';
-        res.on('data', chunk => { data += chunk; });
-        res.on('end', () => {
-          if (res.statusCode === 200) {
-            try {
-              const parsed = JSON.parse(data);
-              const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
-              resolve(text);
-            } catch {
-              reject(new Error('Failed to parse Gemini response'));
-            }
-          } else {
-            reject(new Error(`Gemini API error: ${res.statusCode}`));
-          }
-        });
-      }
-    );
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
-
 // ── Shared analysis runner ────────────────────────────────────────────────────
 
 async function _runAnalysis(userId, populatedLog, userProfile) {
@@ -192,8 +151,9 @@ async function _runAnalysis(userId, populatedLog, userProfile) {
 
   try {
     const userProfileStr = formatUserProfile(userProfile);
-    const prompt  = buildPrompt(mealType, time, items, userProfileStr, previousMeals);
-    const analysis = await callGemini(apiKey, FOOD_INSIGHTS_SYSTEM_PROMPT, prompt);
+    const userPrompt = buildPrompt(mealType, time, items, userProfileStr, previousMeals);
+    const result   = await aiSvc.callFoodInsight(apiKey, FOOD_INSIGHTS_SYSTEM_PROMPT, userPrompt);
+    const analysis = result.analysis;
     const updated  = await FoodInsight.findOneAndUpdate(
       { _id: record._id },
       { $set: { status: 'done', analysis } },
