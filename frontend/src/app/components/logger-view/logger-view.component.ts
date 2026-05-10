@@ -11,6 +11,7 @@ import { AppStateService } from '../../services/app-state.service';
 import { LogService } from '../../services/log.service';
 import { DayLevelService, DayType } from '../../services/day-level.service';
 import { NoteItem } from '../../services/notes.service';
+import { FoodInsightService, FoodInsightRecord } from '../../services/food-insight.service';
 
 import { LogEntry } from '../../models/log.model';
 import { LogType } from '../../models/log-type.model';
@@ -68,6 +69,79 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
     .log-group-label { font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.4px; }
     .log-group-count { font-size: 10px; color: var(--text-muted); background: var(--bg-card); padding: 1px 6px; border-radius: 8px; }
     .log-group-line { flex: 1; height: 1px; background: var(--border-subtle, rgba(128,128,128,0.15)); }
+
+    /* ── Food insight button ─────────────────────────────────────────── */
+    .log-list-insight-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; border-radius: 6px;
+      border: 1px solid rgba(251,191,36,0.25);
+      background: rgba(251,191,36,0.08);
+      color: #fbbf24; cursor: pointer;
+      transition: background 0.14s, border-color 0.14s;
+      flex-shrink: 0;
+    }
+    .log-list-insight-btn:hover,
+    .log-list-insight-btn--open { background: rgba(251,191,36,0.18); border-color: rgba(251,191,36,0.45); }
+
+    /* ── Insight panel ───────────────────────────────────────────────── */
+    .insight-panel {
+      margin-top: 4px;
+      border-radius: 10px;
+      border: 1px solid rgba(251,191,36,0.18);
+      background: rgba(251,191,36,0.04);
+      overflow: hidden;
+      animation: insightIn 0.18s ease;
+    }
+    @keyframes insightIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .insight-loading, .insight-pending, .insight-error {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 14px; font-size: 0.78rem;
+      color: var(--text-secondary, #8090A8);
+    }
+    .insight-error { color: #f87171; }
+    .insight-spinner {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid rgba(251,191,36,0.2);
+      border-top-color: #fbbf24;
+      animation: spin 0.7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .insight-generate-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px;
+    }
+    .insight-generate-row--error { color: #f87171; }
+    .insight-generate-hint {
+      flex: 1; font-size: 0.77rem; color: var(--text-muted, #6A7290);
+    }
+    .insight-generate-row--error .insight-generate-hint { color: #f87171; }
+    .insight-generate-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 12px; border-radius: 7px; font-size: 0.76rem; font-weight: 600;
+      background: rgba(251,191,36,0.12);
+      border: 1px solid rgba(251,191,36,0.3);
+      color: #fbbf24; cursor: pointer; flex-shrink: 0;
+      transition: background 0.14s;
+    }
+    .insight-generate-btn:hover:not(:disabled) { background: rgba(251,191,36,0.22); }
+    .insight-generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .insight-header {
+      display: flex; align-items: center; gap: 6px;
+      padding: 10px 14px 6px;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: #fbbf24;
+    }
+    .insight-body { padding-bottom: 4px; }
+    .insight-text {
+      margin: 0; padding: 0 14px 12px;
+      font-family: inherit; font-size: 0.78rem;
+      line-height: 1.65; color: var(--text-secondary, #8090A8);
+      white-space: pre-wrap; word-break: break-word;
+    }
   `],
   template: `
     <!-- ── Day-type pill · Prev · Date (swipeable) · Next · Today ── -->
@@ -403,6 +477,17 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
                         </div>
                       </div>
                       <div class="tl-card-actions">
+                        <button *ngIf="isFoodLog(log)" type="button"
+                                class="log-list-insight-btn"
+                                [class.log-list-insight-btn--open]="openInsightId === log.id"
+                                (click)="toggleInsight(log, $event)"
+                                aria-label="Food insight">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                            <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+                            <path d="M7 2v20"/>
+                            <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+                          </svg>
+                        </button>
                         <button type="button" class="log-list-edit-btn"
                                 (click)="editLog(log); $event.stopPropagation()"
                                 aria-label="Edit">
@@ -475,6 +560,65 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
 
                 </div><!-- /tl-card -->
               </div><!-- /swipe-wrap -->
+
+              <!-- Food insight panel (outside swipe-wrap, inside tl-item) -->
+              <div class="insight-panel" *ngIf="openInsightId === log.id && isFoodLog(log)"
+                   (click)="$event.stopPropagation()">
+                <!-- Loading -->
+                <div class="insight-loading" *ngIf="insightState(log.id) === 'loading'">
+                  <div class="insight-spinner"></div>
+                  <span>Fetching analysis…</span>
+                </div>
+                <!-- Pending (computed but not yet stored) -->
+                <div class="insight-pending" *ngIf="insightState(log.id) === 'pending'">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+                  </svg>
+                  Analysis is still running — check back in a moment.
+                </div>
+                <!-- No insight found -->
+                <div class="insight-generate-row" *ngIf="insightState(log.id) === 'none'">
+                  <span class="insight-generate-hint">No analysis yet.</span>
+                  <button class="insight-generate-btn"
+                          (click)="generateInsight(log, $event)"
+                          [disabled]="generatingLogIds.has(log.id)"
+                          type="button">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                    Generate
+                  </button>
+                </div>
+                <!-- Error -->
+                <div class="insight-generate-row insight-generate-row--error" *ngIf="insightState(log.id) === 'error'">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <span class="insight-generate-hint">Analysis failed.</span>
+                  <button class="insight-generate-btn"
+                          (click)="generateInsight(log, $event)"
+                          [disabled]="generatingLogIds.has(log.id)"
+                          type="button">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                    Retry
+                  </button>
+                </div>
+                <!-- Analysis text -->
+                <div class="insight-body" *ngIf="insightState(log.id) === 'done'">
+                  <div class="insight-header">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+                      <path d="M7 2v20"/>
+                      <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+                    </svg>
+                    Food Analysis
+                  </div>
+                  <pre class="insight-text">{{ insightText(log.id) }}</pre>
+                </div>
+              </div><!-- /insight-panel -->
+
             </div><!-- /tl-item -->
             </ng-container><!-- /collapse -->
             </ng-container><!-- /group -->
@@ -605,6 +749,79 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   toggleLogSort(): void { this.logSortOrder = this.logSortOrder === 'asc' ? 'desc' : 'asc'; }
   setDomainFilter(domain: string): void { this.filterDomain = domain; }
 
+  // ── Food insights ─────────────────────────────────────────────────
+  private readonly FOOD_LOG_NAMES = ['breakfast', 'lunch', 'dinner', 'food intake'];
+  openInsightId:    string | null = null;
+  insightCache      = new Map<string, FoodInsightRecord | 'loading' | 'error'>();
+  generatingLogIds  = new Set<string>();
+
+  isFoodLog(log: LogEntry): boolean {
+    if (log.logType?.domain !== 'personal') return false;
+    return this.FOOD_LOG_NAMES.includes((log.logType?.name ?? '').toLowerCase().trim());
+  }
+
+  toggleInsight(log: LogEntry, event: Event): void {
+    event.stopPropagation();
+    if (this.openInsightId === log.id) {
+      this.openInsightId = null;
+      this.cdr.detectChanges();
+      return;
+    }
+    this.openInsightId = log.id;
+    if (!this.insightCache.has(log.id)) {
+      this.insightCache.set(log.id, 'loading');
+      this.cdr.detectChanges();
+      this.foodInsightSvc.getByLogId(log.id).pipe(takeUntil(this.destroy$)).subscribe({
+        next: rec => {
+          this.insightCache.set(log.id, rec ?? 'error');
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.insightCache.set(log.id, 'error');
+          this.cdr.detectChanges();
+        }
+      });
+    } else {
+      this.cdr.detectChanges();
+    }
+  }
+
+  insightState(logId: string): 'loading' | 'done' | 'pending' | 'error' | 'none' {
+    const v = this.insightCache.get(logId);
+    if (!v)                            return 'none';
+    if (v === 'loading')               return 'loading';
+    if (v === 'error')                 return 'error';
+    return (v as FoodInsightRecord).status === 'done'    ? 'done'
+         : (v as FoodInsightRecord).status === 'pending' ? 'pending'
+         : 'error';
+  }
+
+  insightText(logId: string): string {
+    const v = this.insightCache.get(logId);
+    if (!v || v === 'loading' || v === 'error') return '';
+    return (v as FoodInsightRecord).analysis || '';
+  }
+
+  generateInsight(log: LogEntry, event: Event): void {
+    event.stopPropagation();
+    if (this.generatingLogIds.has(log.id)) return;
+    this.generatingLogIds.add(log.id);
+    this.insightCache.set(log.id, 'loading');
+    this.cdr.detectChanges();
+    this.foodInsightSvc.generate(log.id).pipe(takeUntil(this.destroy$)).subscribe({
+      next: rec => {
+        this.generatingLogIds.delete(log.id);
+        this.insightCache.set(log.id, rec ?? 'error');
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.generatingLogIds.delete(log.id);
+        this.insightCache.set(log.id, 'error');
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
   // ── Inline edit ───────────────────────────────────────────────────
   inlineEditId: string | null = null;
   inlineEdit = { title: '', startAt: '', endAt: '', logTypeId: '' };
@@ -729,8 +946,15 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   }
 
   // ── Inline edit ───────────────────────────────────────────────────
+  private closeInsight(): void {
+    if (this.openInsightId !== null) {
+      this.openInsightId = null;
+    }
+  }
+
   onLogItemClick(log: LogEntry, event: MouseEvent): void {
     event.stopPropagation();
+    this.closeInsight();
     if (this.inlineEditId === log.id) return;
     this.inlineEditId = log.id;
     this.inlineEdit   = {
@@ -797,6 +1021,7 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     const action = this.swipeTranslateX > 72 ? 'edit' : this.swipeTranslateX < -72 ? 'delete' : null;
     this.swipeSnapping   = true;
     this.swipeTranslateX = 0;
+    if (action) this.closeInsight();
     setTimeout(() => {
       this.swipeLogId    = null;
       this.swipeSnapping = false;
@@ -950,18 +1175,19 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   // ── Global click: close day-type dropdown ─────────────────────────
   @HostListener('document:click')
   onDocumentClick(): void {
-    if (this.dayTypeDropdownOpen) {
-      this.dayTypeDropdownOpen = false;
-      this.cdr.markForCheck();
-    }
+    let changed = false;
+    if (this.dayTypeDropdownOpen) { this.dayTypeDropdownOpen = false; changed = true; }
+    if (this.openInsightId !== null) { this.openInsightId = null; changed = true; }
+    if (changed) this.cdr.markForCheck();
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────
   constructor(
-    public  appState:         AppStateService,
-    private logService:       LogService,
-    private _dayLevelService: DayLevelService,
-    private cdr:              ChangeDetectorRef,
+    public  appState:          AppStateService,
+    private logService:        LogService,
+    private _dayLevelService:  DayLevelService,
+    private foodInsightSvc:    FoodInsightService,
+    private cdr:               ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
@@ -976,6 +1202,8 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
       this.selectedDateStr = this.appState.selectedDateStr;
       this.isToday         = this.appState.isToday;
       this.filterDomain    = '';
+      this.openInsightId   = null;
+      this.insightCache.clear();
       this.cdr.markForCheck();
     });
     this.appState.isLoading$.pipe(takeUntil(this.destroy$)).subscribe(v => {

@@ -38,6 +38,30 @@ const quickShortcutSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const userProfileSchema = new mongoose.Schema(
+  {
+    dateOfBirth:   { type: Date, default: null },
+    weight:        { type: Number, default: null },        // kg
+    height:        { type: Number, default: null },        // cm
+    gender:        { type: String, enum: ['male', 'female', 'other', ''], default: '' },
+    activityLevel: {
+      type: String,
+      enum: ['sedentary', 'light', 'moderate', 'active', 'very-active', ''],
+      default: '',
+    },
+  },
+  { _id: false }
+);
+
+const featuresSchema = new mongoose.Schema(
+  {
+    foodInsights: {
+      enabled: { type: Boolean, default: false },
+    },
+  },
+  { _id: false }
+);
+
 /**
  * 1.83 — Day-level preference defaults stored per user.
  * All times are HH:MM strings in local time.
@@ -91,6 +115,12 @@ const userPreferenceSchema = new mongoose.Schema(
 
     /** 1.83 — Day-level schedule preferences (target times). */
     daySettings: { type: daySettingsSchema, default: () => ({}) },
+
+    /** User physical profile used for nutrition and health calculations. */
+    userProfile: { type: userProfileSchema, default: () => ({}) },
+
+    /** Feature flags stored per user (enabled/disabled AI-driven features). */
+    features: { type: featuresSchema, default: () => ({}) },
   },
   { timestamps: true, collection: 'userPreferences' }
 );

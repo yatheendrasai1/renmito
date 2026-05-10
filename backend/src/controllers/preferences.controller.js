@@ -131,6 +131,28 @@ async function updateDaySettings(req, res) {
   }
 }
 
+// ─── PUT /api/preferences/user-profile ───────────────────────────────────────
+async function updateUserProfile(req, res) {
+  try {
+    const result = await preferencesService.updateUserProfile(req.user.userId, req.body);
+    res.json(result.data);
+  } catch (err) {
+    console.error('PUT /preferences/user-profile error:', err.message);
+    res.status(500).json({ error: 'Failed to save user profile.' });
+  }
+}
+
+// ─── PUT /api/preferences/features ───────────────────────────────────────────
+async function updateFeatures(req, res) {
+  try {
+    const result = await preferencesService.updateFeatures(req.user.userId, req.body);
+    res.json(result.data);
+  } catch (err) {
+    console.error('PUT /preferences/features error:', err.message);
+    res.status(500).json({ error: 'Failed to save features.' });
+  }
+}
+
 module.exports = {
   getPreferences,
   upsertPalette,
@@ -141,4 +163,6 @@ module.exports = {
   stopActiveLog,
   updateQuickShortcuts,
   updateDaySettings,
+  updateUserProfile,
+  updateFeatures,
 };

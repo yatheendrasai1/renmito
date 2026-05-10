@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { PreferenceService, DaySettings } from '../../services/preference.service';
+import { PreferenceService, DaySettings, UserProfile } from '../../services/preference.service';
 import { LogTypeService } from '../../services/log-type.service';
 import { LogType } from '../../models/log-type.model';
 import { ThemeEditorComponent } from '../theme-editor/theme-editor.component';
@@ -22,7 +22,15 @@ const DEFAULT_DAY_SETTINGS: DaySettings = {
   bedtimeTarget:   '23:00',
 };
 
-type AccordionSection = 'preferences' | 'theming' | null;
+const DEFAULT_USER_PROFILE: UserProfile = {
+  dateOfBirth:   null,
+  weight:        null,
+  height:        null,
+  gender:        '',
+  activityLevel: '',
+};
+
+type AccordionSection = 'profile' | 'preferences' | 'theming' | null;
 
 @Component({
   selector: 'app-configuration',
@@ -34,6 +42,91 @@ type AccordionSection = 'preferences' | 'theming' | null;
       <div class="cfg-page-header">
         <h2 class="cfg-page-title">Configurations</h2>
         <p class="cfg-page-sub">Manage your preferences and integrations.</p>
+      </div>
+
+      <!-- ── User Profile accordion ───────────────────────────────── -->
+      <div class="acc" [class.acc--open]="openSection === 'profile'">
+        <button class="acc-head" (click)="toggleSection('profile')" type="button">
+          <div class="acc-icon acc-icon--profile">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div class="acc-meta">
+            <span class="acc-title">User Profile</span>
+            <span class="acc-sub">Personal details for health calculations</span>
+          </div>
+          <svg class="acc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+
+        <div class="acc-body" *ngIf="openSection === 'profile'">
+          <div class="pref-section">
+            <div class="ideal-grid">
+
+              <div class="ideal-field">
+                <label class="ideal-label">Date of Birth</label>
+                <input class="ideal-input" type="date"
+                       [value]="profileDraft.dateOfBirth || ''"
+                       (change)="profileDraft.dateOfBirth = $any($event.target).value || null"
+                       color-scheme="dark"/>
+              </div>
+
+              <div class="ideal-field">
+                <label class="ideal-label">Weight (kg)</label>
+                <input class="ideal-input" type="number" min="20" max="300" step="0.1"
+                       [value]="profileDraft.weight ?? ''"
+                       (change)="profileDraft.weight = $any($event.target).value ? +$any($event.target).value : null"
+                       placeholder="e.g. 70"/>
+              </div>
+
+              <div class="ideal-field">
+                <label class="ideal-label">Height (cm)</label>
+                <input class="ideal-input" type="number" min="100" max="250" step="1"
+                       [value]="profileDraft.height ?? ''"
+                       (change)="profileDraft.height = $any($event.target).value ? +$any($event.target).value : null"
+                       placeholder="e.g. 175"/>
+              </div>
+
+              <div class="ideal-field">
+                <label class="ideal-label">Gender</label>
+                <select class="ideal-input" [(ngModel)]="profileDraft.gender">
+                  <option value="">Not specified</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div class="ideal-field" style="grid-column: 1 / -1">
+                <label class="ideal-label">Activity Level</label>
+                <select class="ideal-input" [(ngModel)]="profileDraft.activityLevel">
+                  <option value="">Not specified</option>
+                  <option value="sedentary">Sedentary (little/no exercise)</option>
+                  <option value="light">Light (1–3 days/week)</option>
+                  <option value="moderate">Moderate (3–5 days/week)</option>
+                  <option value="active">Active (6–7 days/week)</option>
+                  <option value="very-active">Very Active (hard exercise daily)</option>
+                </select>
+              </div>
+
+            </div>
+            <div class="cfg-feedback cfg-feedback--error" *ngIf="profileErrorMsg">{{ profileErrorMsg }}</div>
+            <div class="cfg-feedback cfg-feedback--ok"    *ngIf="profileSuccessMsg">{{ profileSuccessMsg }}</div>
+          </div>
+
+          <div class="acc-footer">
+            <button class="acc-cancel-btn" (click)="cancelProfile()" type="button">Cancel</button>
+            <button class="acc-save-btn" (click)="saveProfile()"
+                    [disabled]="savingProfile" type="button">
+              {{ savingProfile ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- ── Preferences accordion ─────────────────────────────── -->
@@ -252,8 +345,9 @@ type AccordionSection = 'preferences' | 'theming' | null;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
     }
-    .acc-icon--pref  { background: rgba(99,179,237,0.12); color: #63b3ed; }
-    .acc-icon--theme { background: rgba(183,148,244,0.12); color: #b794f4; }
+    .acc-icon--profile { background: rgba(251,191,36,0.12);  color: #fbbf24; }
+    .acc-icon--pref    { background: rgba(99,179,237,0.12);  color: #63b3ed; }
+    .acc-icon--theme   { background: rgba(183,148,244,0.12); color: #b794f4; }
 
     .acc-meta { flex: 1; min-width: 0; }
     .acc-title { display: block; font-size: 0.88rem; font-weight: 600; }
@@ -430,6 +524,13 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
   openSection: AccordionSection = null;
 
+  // ── User Profile ──────────────────────────────────────────
+  userProfile:        UserProfile = { ...DEFAULT_USER_PROFILE };
+  profileDraft:       UserProfile = { ...DEFAULT_USER_PROFILE };
+  savingProfile       = false;
+  profileErrorMsg     = '';
+  profileSuccessMsg   = '';
+
   // ── Preferences ───────────────────────────────────────────
   idealDay:      DaySettings = { ...DEFAULT_DAY_SETTINGS };
   idealDayDraft: DaySettings = { ...DEFAULT_DAY_SETTINGS };
@@ -460,6 +561,9 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
         if (prefs?.daySettings) {
           this.idealDay = { ...DEFAULT_DAY_SETTINGS, ...prefs.daySettings };
         }
+        if (prefs?.userProfile) {
+          this.userProfile = { ...DEFAULT_USER_PROFILE, ...prefs.userProfile };
+        }
         this.cdr.markForCheck();
       },
       error: () => {}
@@ -473,11 +577,51 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
       return;
     }
     this.openSection = section;
+    if (section === 'profile') {
+      this.profileDraft     = { ...this.userProfile };
+      this.profileErrorMsg  = '';
+      this.profileSuccessMsg = '';
+    }
     if (section === 'preferences') {
       this.idealDayDraft = { ...this.idealDay };
       this.idealErrorMsg   = '';
       this.idealSuccessMsg = '';
     }
+  }
+
+  // ── User Profile ──────────────────────────────────────────
+  cancelProfile(): void {
+    this.profileDraft      = { ...this.userProfile };
+    this.profileErrorMsg   = '';
+    this.profileSuccessMsg = '';
+    this.openSection = null;
+  }
+
+  saveProfile(): void {
+    if (this.savingProfile) return;
+    this.savingProfile     = true;
+    this.profileErrorMsg   = '';
+    this.profileSuccessMsg = '';
+    this.prefService.updateUserProfile(this.profileDraft).pipe(takeUntil(this.destroy$)).subscribe({
+      next: saved => {
+        this.savingProfile = false;
+        if (saved) {
+          this.userProfile      = { ...DEFAULT_USER_PROFILE, ...saved };
+          this.profileDraft     = { ...this.userProfile };
+          this.profileSuccessMsg = 'Saved.';
+          this.cdr.markForCheck();
+          setTimeout(() => { this.profileSuccessMsg = ''; this.cdr.markForCheck(); }, 2500);
+        } else {
+          this.profileErrorMsg = 'Could not save. Please try again.';
+          this.cdr.markForCheck();
+        }
+      },
+      error: () => {
+        this.savingProfile   = false;
+        this.profileErrorMsg = 'Could not save. Please try again.';
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   // ── Preferences ───────────────────────────────────────────

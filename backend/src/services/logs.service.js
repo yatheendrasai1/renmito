@@ -1,8 +1,9 @@
-const mongoose       = require('mongoose');
-const TimeLog        = require('../models/TimeLog');
-const LogType        = require('../models/LogType');
-const DefaultLogType = require('../models/DefaultLogType');
-const journeysSvc    = require('./journeys.service');
+const mongoose          = require('mongoose');
+const TimeLog           = require('../models/TimeLog');
+const LogType           = require('../models/LogType');
+const DefaultLogType    = require('../models/DefaultLogType');
+const journeysSvc       = require('./journeys.service');
+const foodInsightsSvc   = require('./food-insights.service');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -137,6 +138,7 @@ async function createLog(userId, date, body) {
 
   const populated = await TimeLog.findById(created._id).populate(POPULATE_LOGTYPE).lean();
   journeysSvc.syncLogEntry(userId, created);
+  foodInsightsSvc.triggerFoodInsights(userId, populated).catch(() => {});
   return { data: toResponse(populated), status: 201 };
 }
 
@@ -188,6 +190,7 @@ async function updateLog(userId, date, id, body) {
 
   if (!doc) return { error: 'Log entry not found.', status: 404 };
   journeysSvc.syncLogEntry(userId, doc);
+  foodInsightsSvc.triggerFoodInsights(userId, doc).catch(() => {});
   return { data: toResponse(doc) };
 }
 

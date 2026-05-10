@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ConfigService } from '../../services/config.service';
+import { PreferenceService, Features } from '../../services/preference.service';
 
 type IntelTab  = 'models' | 'prompts' | 'features';
 type IntelStep = 'list' | 'choose' | 'gemini-key';
@@ -199,61 +200,77 @@ const TABS: IntelTab[] = ['models', 'prompts', 'features'];
           </div><!-- /models panel -->
 
           <!-- Prompts ─────────────────────────────────────────── -->
-          <div class="tab-panel tab-panel--soon">
-            <div class="soon-container">
-              <div class="soon-anim">
-                <div class="pot-wrap">
-                  <svg class="pot-svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
-                    <!-- pot body -->
-                    <rect x="12" y="30" width="40" height="26" rx="6" fill="rgba(167,139,250,0.15)" stroke="rgba(167,139,250,0.4)" stroke-width="1.5"/>
-                    <!-- lid -->
-                    <rect x="8" y="24" width="48" height="9" rx="4" fill="rgba(167,139,250,0.2)" stroke="rgba(167,139,250,0.5)" stroke-width="1.5"/>
-                    <!-- handle top -->
-                    <rect x="28" y="18" width="8" height="7" rx="3" fill="rgba(167,139,250,0.3)" stroke="rgba(167,139,250,0.5)" stroke-width="1.5"/>
-                    <!-- handles side left -->
-                    <rect x="4" y="30" width="9" height="6" rx="3" fill="rgba(167,139,250,0.2)" stroke="rgba(167,139,250,0.4)" stroke-width="1.5"/>
-                    <!-- handles side right -->
-                    <rect x="51" y="30" width="9" height="6" rx="3" fill="rgba(167,139,250,0.2)" stroke="rgba(167,139,250,0.4)" stroke-width="1.5"/>
+          <div class="tab-panel">
+            <div class="section-label" style="margin-bottom:12px">System Prompts</div>
+
+            <!-- Food Insights prompt card -->
+            <div class="prompt-card">
+              <div class="prompt-card-head">
+                <div class="prompt-card-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+                    <path d="M7 2v20"/>
+                    <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
                   </svg>
-                  <!-- steam lines -->
-                  <div class="steam steam-1"></div>
-                  <div class="steam steam-2"></div>
-                  <div class="steam steam-3"></div>
+                </div>
+                <div class="prompt-card-meta">
+                  <span class="prompt-card-name">Food Insights Analyser</span>
+                  <span class="prompt-card-tag">system</span>
                 </div>
               </div>
-              <h3 class="soon-title">Something's brewing</h3>
-              <p class="soon-text">Prompt library with editable templates<br>is on its way.</p>
-              <div class="soon-dots">
-                <span class="soon-dot soon-dot--1"></span>
-                <span class="soon-dot soon-dot--2"></span>
-                <span class="soon-dot soon-dot--3"></span>
+              <div class="prompt-card-desc">
+                Used by the <strong>Extract Food Insights</strong> feature to analyse meal logs and return nutritional breakdowns.
+              </div>
+              <div class="prompt-body">
+                <div class="prompt-section-label">System instruction</div>
+                <pre class="prompt-pre">{{ foodInsightsSystemPrompt }}</pre>
+                <div class="prompt-section-label" style="margin-top:10px">User prompt template</div>
+                <pre class="prompt-pre">{{ foodInsightsUserPrompt }}</pre>
               </div>
             </div>
           </div><!-- /prompts panel -->
 
           <!-- Features ────────────────────────────────────────── -->
-          <div class="tab-panel tab-panel--soon">
-            <div class="soon-container">
-              <div class="soon-anim">
-                <div class="pot-wrap">
-                  <svg class="pot-svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
-                    <rect x="12" y="30" width="40" height="26" rx="6" fill="rgba(99,179,237,0.12)" stroke="rgba(99,179,237,0.35)" stroke-width="1.5"/>
-                    <rect x="8" y="24" width="48" height="9" rx="4" fill="rgba(99,179,237,0.18)" stroke="rgba(99,179,237,0.45)" stroke-width="1.5"/>
-                    <rect x="28" y="18" width="8" height="7" rx="3" fill="rgba(99,179,237,0.25)" stroke="rgba(99,179,237,0.45)" stroke-width="1.5"/>
-                    <rect x="4" y="30" width="9" height="6" rx="3" fill="rgba(99,179,237,0.18)" stroke="rgba(99,179,237,0.35)" stroke-width="1.5"/>
-                    <rect x="51" y="30" width="9" height="6" rx="3" fill="rgba(99,179,237,0.18)" stroke="rgba(99,179,237,0.35)" stroke-width="1.5"/>
+          <div class="tab-panel">
+            <div class="section-label" style="margin-bottom:12px">AI Features</div>
+
+            <!-- No model warning -->
+            <div class="feature-no-model" *ngIf="!geminiConfigured">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              Connect a model in the Models tab to enable features.
+            </div>
+
+            <!-- Food Insights feature card -->
+            <div class="feat-card" [class.feat-card--disabled]="!geminiConfigured">
+              <div class="feat-card-top">
+                <div class="feat-card-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                    <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+                    <path d="M7 2v20"/>
+                    <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
                   </svg>
-                  <div class="steam steam-1 steam--blue"></div>
-                  <div class="steam steam-2 steam--blue"></div>
-                  <div class="steam steam-3 steam--blue"></div>
                 </div>
+                <div class="feat-card-meta">
+                  <span class="feat-card-name">Extract Food Insights from food log</span>
+                  <span class="feat-card-sub">Analyses breakfast, lunch, dinner &amp; food intake logs to return calorie counts, macros, and daily totals.</span>
+                </div>
+                <button class="feat-toggle"
+                        [class.feat-toggle--on]="foodInsightsEnabled"
+                        [disabled]="!geminiConfigured || togglingFoodInsights"
+                        (click)="toggleFoodInsights()"
+                        type="button"
+                        [title]="foodInsightsEnabled ? 'Disable' : 'Enable'">
+                  <span class="feat-toggle-knob"></span>
+                </button>
               </div>
-              <h3 class="soon-title">Cooking up features</h3>
-              <p class="soon-text">AI-driven features like smart summaries<br>and activity insights are coming.</p>
-              <div class="soon-dots">
-                <span class="soon-dot soon-dot--1 soon-dot--blue"></span>
-                <span class="soon-dot soon-dot--2 soon-dot--blue"></span>
-                <span class="soon-dot soon-dot--3 soon-dot--blue"></span>
+              <div class="feat-card-footer">
+                <span class="feat-tag">personal domain</span>
+                <span class="feat-tag">auto on log save</span>
+                <span class="feat-status" [class.feat-status--on]="foodInsightsEnabled">
+                  {{ foodInsightsEnabled ? 'Enabled' : 'Disabled' }}
+                </span>
               </div>
             </div>
           </div><!-- /features panel -->
@@ -525,6 +542,128 @@ const TABS: IntelTab[] = ['models', 'prompts', 'features'];
     .btn-save:hover:not(:disabled) { opacity: 0.85; }
     .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
 
+    /* ── Prompts panel ──────────────────────────────────────── */
+    .prompt-card {
+      border-radius: 12px;
+      border: 1px solid var(--border-light, rgba(255,255,255,0.08));
+      background: var(--bg-card, rgba(255,255,255,0.04));
+      overflow: hidden;
+    }
+    .prompt-card-head {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px;
+    }
+    .prompt-card-icon {
+      width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+      background: rgba(251,191,36,0.12); color: #fbbf24;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .prompt-card-meta { flex: 1; min-width: 0; }
+    .prompt-card-name { display: block; font-size: 0.85rem; font-weight: 600; }
+    .prompt-card-tag {
+      display: inline-block; margin-top: 3px;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em;
+      padding: 2px 7px; border-radius: 6px;
+      background: rgba(167,139,250,0.12); color: #a78bfa;
+    }
+    .prompt-card-desc {
+      font-size: 0.76rem; color: var(--text-secondary, #8090A8);
+      padding: 0 14px 10px; line-height: 1.5;
+    }
+    .prompt-card-desc strong { color: var(--text-primary, #E0E4F0); font-weight: 600; }
+    .prompt-body {
+      border-top: 1px solid var(--border-light, rgba(255,255,255,0.07));
+      padding: 12px 14px;
+    }
+    .prompt-section-label {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-muted, #6A7290);
+      margin-bottom: 6px;
+    }
+    .prompt-pre {
+      font-family: monospace; font-size: 0.73rem;
+      white-space: pre-wrap; word-break: break-word;
+      color: var(--text-secondary, #8090A8);
+      background: var(--bg-surface, rgba(255,255,255,0.04));
+      border: 1px solid var(--border-light, rgba(255,255,255,0.07));
+      border-radius: 6px; padding: 10px 12px; margin: 0;
+      line-height: 1.55;
+    }
+
+    /* ── Features panel ─────────────────────────────────────── */
+    .feature-no-model {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.78rem; color: #fbbf24;
+      background: rgba(251,191,36,0.08);
+      border: 1px solid rgba(251,191,36,0.2);
+      border-radius: 8px; padding: 9px 12px; margin-bottom: 12px;
+    }
+    .feat-card {
+      border-radius: 12px;
+      border: 1px solid var(--border-light, rgba(255,255,255,0.08));
+      background: var(--bg-card, rgba(255,255,255,0.04));
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .feat-card--disabled { opacity: 0.55; }
+    .feat-card-top {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px;
+    }
+    .feat-card-icon {
+      width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+      background: rgba(251,191,36,0.12); color: #fbbf24;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .feat-card-meta { flex: 1; min-width: 0; }
+    .feat-card-name {
+      display: block; font-size: 0.87rem; font-weight: 700;
+      color: var(--text-primary, #E0E4F0); margin-bottom: 4px;
+    }
+    .feat-card-sub {
+      display: block; font-size: 0.74rem;
+      color: var(--text-secondary, #8090A8); line-height: 1.5;
+    }
+
+    /* Toggle switch */
+    .feat-toggle {
+      position: relative; width: 42px; height: 24px; flex-shrink: 0;
+      border-radius: 12px; border: none; cursor: pointer;
+      background: var(--bg-surface, rgba(255,255,255,0.1));
+      transition: background 0.2s;
+      padding: 0;
+    }
+    .feat-toggle--on { background: #a78bfa; }
+    .feat-toggle:disabled { cursor: not-allowed; opacity: 0.5; }
+    .feat-toggle-knob {
+      position: absolute; top: 3px; left: 3px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #fff;
+      transition: transform 0.2s cubic-bezier(0.4,0,0.2,1);
+      display: block;
+    }
+    .feat-toggle--on .feat-toggle-knob { transform: translateX(18px); }
+
+    .feat-card-footer {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      padding: 8px 14px 12px;
+      border-top: 1px solid var(--border-light, rgba(255,255,255,0.06));
+    }
+    .feat-tag {
+      font-size: 0.68rem; font-weight: 600; letter-spacing: 0.03em;
+      padding: 2px 8px; border-radius: 6px;
+      background: var(--bg-surface, rgba(255,255,255,0.06));
+      border: 1px solid var(--border-light, rgba(255,255,255,0.09));
+      color: var(--text-muted, #6A7290);
+    }
+    .feat-status {
+      margin-left: auto; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;
+      padding: 2px 9px; border-radius: 8px;
+      background: rgba(255,255,255,0.04); color: var(--text-muted, #6A7290);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .feat-status--on { background: rgba(74,222,128,0.1); color: #4ade80; border-color: rgba(74,222,128,0.2); }
+
     /* ── Coming-soon panels ─────────────────────────────────── */
     .tab-panel--soon {
       display: flex; align-items: center; justify-content: center;
@@ -607,16 +746,53 @@ export class IntelligenceComponent implements OnInit, OnDestroy {
   intelErrorMsg   = '';
   intelSuccessMsg = '';
 
+  foodInsightsEnabled   = false;
+  togglingFoodInsights  = false;
+
+  readonly foodInsightsSystemPrompt = `You are a precise nutrition analysis assistant. When given a meal log, analyse the food items and return a structured nutritional breakdown.
+
+Guidelines:
+- Base calorie estimates on standard portion sizes if quantity is not specified
+- Use average values for dishes unless cooking method/oil suggests otherwise
+- For cumulative daily totals, sum across all meals listed as previous meals
+- Keep responses concise and structured exactly as requested
+- If information is insufficient for a field, state "Insufficient data" rather than guessing wildly
+- Express confidence where data allows; flag assumptions clearly`;
+
+  readonly foodInsightsUserPrompt = `Analyse this meal log:
+- Meal: [breakfast/lunch/dinner]
+- Time: [HH:MM]
+- Items: [dish name, quantity, cooking method, oil used]
+- User profile: [age, weight, height, gender, activity level]
+
+Previous meals today:
+[list of earlier meal logs for the day, or "None yet"]
+
+Return:
+1. Total calories and % of daily quota
+2. Macronutrient breakdown (carbs, protein, fat in g and %)
+3. Fat % of total calories, broken by saturated/unsaturated if possible
+4. Protein and fibre presence (g), with a quality note
+5. Cumulative totals for the day so far (including this meal)`;
+
   private touchStartX = 0;
 
   constructor(
     private configService: ConfigService,
+    private prefService: PreferenceService,
     private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     this.configService.getConfig().pipe(takeUntil(this.destroy$)).subscribe({
       next: cfg => { this.geminiConfigured = cfg.geminiConfigured; this.cdr.markForCheck(); },
+      error: () => {}
+    });
+    this.prefService.getPreferences().pipe(takeUntil(this.destroy$)).subscribe({
+      next: prefs => {
+        this.foodInsightsEnabled = prefs?.features?.foodInsights?.enabled ?? false;
+        this.cdr.markForCheck();
+      },
       error: () => {}
     });
   }
@@ -653,6 +829,25 @@ export class IntelligenceComponent implements OnInit, OnDestroy {
     this.apiKeyInput     = '';
     this.intelErrorMsg   = '';
     this.intelSuccessMsg = '';
+  }
+
+  toggleFoodInsights(): void {
+    if (this.togglingFoodInsights || !this.geminiConfigured) return;
+    this.togglingFoodInsights = true;
+    const next = !this.foodInsightsEnabled;
+    this.prefService.updateFeatures({ foodInsights: { enabled: next } })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: saved => {
+          this.togglingFoodInsights  = false;
+          this.foodInsightsEnabled   = saved?.foodInsights?.enabled ?? next;
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.togglingFoodInsights = false;
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   saveKey(): void {

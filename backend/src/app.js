@@ -15,6 +15,7 @@ const notesRouter            = require('./routes/notes.route');
 const insightsRouter         = require('./routes/insights.route');
 const promptsRouter          = require('./routes/prompts.route');
 const systemPromptsRouter    = require('./routes/systemprompts.route');
+const foodInsightsRouter     = require('./routes/food-insights.route');
 const authMiddleware       = require('./middleware/authMiddleware');
 const seedDefaultLogTypes  = require('./utils/seedDefaults');
 const seedEnhancements     = require('./utils/seedEnhancements');
@@ -77,6 +78,7 @@ app.use('/api/notes',          authMiddleware, notesRouter);
 app.use('/api/insights',       authMiddleware, insightsRouter);
 app.use('/api/prompts',        authMiddleware, promptsRouter);
 app.use('/api/systemprompts',  authMiddleware, systemPromptsRouter);
+app.use('/api/food-insights',  authMiddleware, foodInsightsRouter);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

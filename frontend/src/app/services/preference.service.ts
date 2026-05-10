@@ -8,6 +8,18 @@ const devWarn = (...args: unknown[]) => { if (!environment.production) console.w
 import { ColorPalette } from '../components/theme-editor/theme-editor.component';
 import { DaySettings } from './day-level.service';
 
+export interface UserProfile {
+  dateOfBirth:   string | null;  // ISO date string YYYY-MM-DD
+  weight:        number | null;  // kg
+  height:        number | null;  // cm
+  gender:        'male' | 'female' | 'other' | '';
+  activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very-active' | '';
+}
+
+export interface Features {
+  foodInsights?: { enabled: boolean };
+}
+
 /** 1.82 — A single entry in the user's configured quick shortcuts bar. */
 export interface QuickShortcut {
   logTypeId:   string;
@@ -28,6 +40,8 @@ export interface UserPreferences {
   activeLog:      ActiveLog | null;
   quickShortcuts: QuickShortcut[];
   daySettings:    DaySettings | null;
+  userProfile:    UserProfile | null;
+  features:       Features | null;
 }
 
 export type { DaySettings };
@@ -162,6 +176,34 @@ export class PreferenceService {
         map(res => res?.daySettings ?? null),
         catchError(err => {
           devWarn('Could not update day settings:', err?.message);
+          return of(null);
+        })
+      );
+  }
+
+  /** Saves the user's physical profile (DOB, weight, height, gender, activity level). */
+  updateUserProfile(profile: Partial<UserProfile>): Observable<UserProfile | null> {
+    return this.http
+      .put<{ userProfile: UserProfile }>(`${this.apiBase}/user-profile`, profile)
+      .pipe(
+        tap(() => this.clearPrefsCache()),
+        map(res => res?.userProfile ?? null),
+        catchError(err => {
+          devWarn('Could not update user profile:', err?.message);
+          return of(null);
+        })
+      );
+  }
+
+  /** Saves AI feature flags. */
+  updateFeatures(features: Features): Observable<Features | null> {
+    return this.http
+      .put<{ features: Features }>(`${this.apiBase}/features`, features)
+      .pipe(
+        tap(() => this.clearPrefsCache()),
+        map(res => res?.features ?? null),
+        catchError(err => {
+          devWarn('Could not update features:', err?.message);
           return of(null);
         })
       );

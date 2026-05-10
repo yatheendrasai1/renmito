@@ -15,4 +15,10 @@ router.put('/quick-shortcuts', preferencesController.updateQuickShortcuts);
 // 1.83 — Day-level schedule preferences
 router.put('/day-settings', preferencesController.updateDaySettings);
 
+// User physical profile (DOB, weight, height, gender, activity level)
+router.put('/user-profile', preferencesController.updateUserProfile);
+
+// AI feature flags
+router.put('/features', preferencesController.updateFeatures);
+
 module.exports = router;

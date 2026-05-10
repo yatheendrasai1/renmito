@@ -14,6 +14,8 @@ async function getPreferences(userId) {
     activeLog:      pref.activeLog      ?? null,
     quickShortcuts: pref.quickShortcuts ?? [],
     daySettings:    pref.daySettings    ?? {},
+    userProfile:    pref.userProfile    ?? {},
+    features:       pref.features       ?? {},
   };
 }
 
@@ -148,6 +150,35 @@ async function updateDaySettings(userId, settings) {
   return { data: { daySettings: pref.daySettings } };
 }
 
+async function updateUserProfile(userId, profile) {
+  const allowed = ['dateOfBirth', 'weight', 'height', 'gender', 'activityLevel'];
+  const update = {};
+  for (const key of allowed) {
+    if (profile[key] !== undefined) {
+      update[`userProfile.${key}`] = profile[key] === '' ? null : profile[key];
+    }
+  }
+  const pref = await UserPreference.findOneAndUpdate(
+    { userId },
+    { $set: update },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  return { data: { userProfile: pref.userProfile } };
+}
+
+async function updateFeatures(userId, features) {
+  const update = {};
+  if (features?.foodInsights?.enabled !== undefined) {
+    update['features.foodInsights.enabled'] = !!features.foodInsights.enabled;
+  }
+  const pref = await UserPreference.findOneAndUpdate(
+    { userId },
+    { $set: update },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  return { data: { features: pref.features } };
+}
+
 module.exports = {
   getPreferences,
   upsertPalette,
@@ -158,4 +189,6 @@ module.exports = {
   stopActiveLog,
   updateQuickShortcuts,
   updateDaySettings,
+  updateUserProfile,
+  updateFeatures,
 };
