@@ -37,4 +37,9 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./components/eagle-view/eagle-view.component').then(m => m.EagleViewComponent),
   },
+  {
+    path: 'diary',
+    loadComponent: () =>
+      import('./components/diary/diary.component').then(m => m.DiaryComponent),
+  },
 ];
