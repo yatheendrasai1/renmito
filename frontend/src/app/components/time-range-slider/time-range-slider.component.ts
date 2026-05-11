@@ -51,7 +51,7 @@ export interface TimeRange { from: string; to: string; }
 
       <!-- ── Time cards (click to open native time picker) ── -->
       <div class="trs-cards">
-        <div class="trs-card trs-card--tap" (click)="fromInputRef.click()">
+        <div class="trs-card trs-card--tap" (click)="fromInputRef.nativeElement.click()">
           <span class="trs-card-lbl">{{ mode === 'point' ? 'TIME' : 'START' }}</span>
           <span class="trs-card-time">{{ startLabel }}</span>
         </div>
@@ -60,7 +60,7 @@ export interface TimeRange { from: string; to: string; }
             <span class="trs-sep-arrow">→</span>
             <span class="trs-sep-dur">{{ durationLabel }}</span>
           </div>
-          <div class="trs-card trs-card--tap" (click)="toInputRef.click()">
+          <div class="trs-card trs-card--tap" (click)="toInputRef.nativeElement.click()">
             <span class="trs-card-lbl">END</span>
             <span class="trs-card-time">{{ endLabel }}</span>
           </div>
