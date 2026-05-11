@@ -1587,18 +1587,20 @@ const PERF = (() => {
     .uni-sheet {
       display: flex;
       flex-direction: column;
-      height: 520px;
-      max-height: 80dvh;
+      height: 728px;
+      max-height: 95dvh;
       padding: 12px 20px 36px;
       overflow: hidden;
     }
     .uni-sheet .uni-tabs { flex-shrink: 0; }
+    .uni-sheet .uni-date-context { flex-shrink: 0; }
     .uni-sheet ng-container { display: contents; }
     .uni-sheet .log-now-fields {
       flex: 1;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       padding-top: 8px;
+      padding-bottom: 24px;
       min-height: 0;
     }
     .uni-sheet .log-now-actions { flex-shrink: 0; padding-top: 12px; }
@@ -2665,7 +2667,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       this.unifiedSheetOpen       = true;
       if (params.prepDomain && params.prepTypeId) {
         setTimeout(() => this.unifiedSheetRef?.prepForAddPoint(
-          params.prepDomain!, params.prepTypeId!, params.prepTime ?? this._currentTimeStr()
+          params.prepDomain!, params.prepTypeId!, params.prepTime ?? this._currentTimeStr(), params.prepTitle
+        ), 20);
+      } else if (params.prepTime) {
+        setTimeout(() => this.unifiedSheetRef?.setAddPointTime(
+          params.prepTime!, params.prepDomain, params.prepTypeId, params.prepTitle
         ), 20);
       }
     });
