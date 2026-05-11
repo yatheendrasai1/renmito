@@ -21,6 +21,7 @@ export interface OpenUnifiedSheetParams {
   prepDomain?:  'work' | 'personal';
   prepTypeId?:  string;
   prepTime?:    string;
+  prepTitle?:   string;
 }
 
 export interface ConfirmDialogParams {
