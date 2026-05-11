@@ -17,13 +17,25 @@ async function addNote(req, res) {
   try {
     const { date } = req.params;
     if (!DATE_RE.test(date)) return res.status(400).json({ error: 'Invalid date format' });
-    const { content = '', type = 'regular' } = req.body || {};
+    const { content = '', type = 'regular', logTypeId = null, logTypeName = null, domain = null, logTypeColor = null } = req.body || {};
     if (!['regular', 'tapper'].includes(type)) return res.status(400).json({ error: 'Invalid note type' });
     if (type === 'tapper' && content.length > 30) return res.status(400).json({ error: 'Tapper note exceeds 30 characters' });
-    res.json(await service.addNote(req.user.userId, date, { content, type }));
+    res.json(await service.addNote(req.user.userId, date, { content, type, logTypeId, logTypeName, domain, logTypeColor }));
   } catch (err) {
     console.error('notes.addNote:', err.message);
     res.status(500).json({ error: 'Failed to add note' });
+  }
+}
+
+async function updateTapperLogType(req, res) {
+  try {
+    const { date, noteId } = req.params;
+    if (!DATE_RE.test(date)) return res.status(400).json({ error: 'Invalid date format' });
+    const { logTypeId = null, logTypeName = null, domain = null, logTypeColor = null } = req.body || {};
+    res.json(await service.updateTapperLogType(req.user.userId, date, noteId, { logTypeId, logTypeName, domain, logTypeColor }));
+  } catch (err) {
+    console.error('notes.updateTapperLogType:', err.message);
+    res.status(500).json({ error: 'Failed to update tapper log type' });
   }
 }
 
@@ -52,4 +64,4 @@ async function deleteNote(req, res) {
   }
 }
 
-module.exports = { getNotes, addNote, updateNote, deleteNote };
+module.exports = { getNotes, addNote, updateNote, updateTapperLogType, deleteNote };

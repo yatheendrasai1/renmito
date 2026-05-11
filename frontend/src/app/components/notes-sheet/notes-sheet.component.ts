@@ -1,13 +1,15 @@
 import {
   Component, Input, Output, EventEmitter,
   OnInit, OnChanges, OnDestroy, SimpleChanges, ViewChildren, QueryList, ElementRef,
-  ChangeDetectionStrategy, ChangeDetectorRef
+  ChangeDetectionStrategy, ChangeDetectorRef, HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { retry, takeUntil } from 'rxjs/operators';
 import { NotesService, NoteItem } from '../../services/notes.service';
+import { AppStateService } from '../../services/app-state.service';
+import { LogType } from '../../models/log-type.model';
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog.component';
 
 interface LocalNote {
@@ -20,7 +22,14 @@ interface LocalNote {
   deleting: boolean;
   type: 'regular' | 'tapper';
   timestamp?: string;
+  logTypeId?:    string | null;
+  logTypeName?:  string | null;
+  domain?:       string | null;
+  logTypeColor?: string | null;
 }
+
+const DOMAIN_ORDER  = ['work', 'personal', 'family'] as const;
+const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Personal', family: 'Family' };
 
 @Component({
   selector: 'app-notes-sheet',
@@ -115,17 +124,64 @@ interface LocalNote {
                   </svg>
                   {{ note.timestamp | date:'h:mm a' }}
                 </span>
-                <button class="ns-tapper-delete-btn" (click)="pendingDeleteNote = note"
-                        [disabled]="note.deleting" title="Delete tap">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                    <path d="M10 11v6M14 11v6"/>
-                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                <div class="ns-tapper-actions">
+                  <button class="ns-tapper-log-btn" (click)="openPointLogger(note)" title="Log at this time">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 20h9"/>
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                    </svg>
+                  </button>
+                  <button class="ns-tapper-delete-btn" (click)="pendingDeleteNote = note"
+                          [disabled]="note.deleting" title="Delete tap">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                      <path d="M10 11v6M14 11v6"/>
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Log type picker -->
+              <div class="ns-lt-picker" [class.ns-lt-picker--open]="openTypePickerNoteId === note._id">
+                <button class="ns-lt-trigger"
+                        (click)="toggleTypePicker(note, $event)"
+                        [title]="note.logTypeName || 'Associate a log type'">
+                  <span class="ns-lt-dot"
+                        [style.background]="note.logTypeColor || 'var(--border)'"></span>
+                  <span class="ns-lt-label">{{ note.logTypeName || 'Pick category…' }}</span>
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" class="ns-lt-chevron">
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
+                          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </button>
+
+                <div class="ns-lt-panel" *ngIf="openTypePickerNoteId === note._id"
+                     (click)="$event.stopPropagation()">
+                  <ng-container *ngFor="let grp of logTypeGroups">
+                    <div class="ns-lt-group-header">
+                      <span class="ns-lt-group-dot" [style.background]="grp.color"></span>
+                      {{ grp.label }}
+                    </div>
+                    <button *ngFor="let lt of grp.types"
+                            class="ns-lt-option"
+                            [class.ns-lt-option--active]="note.logTypeId === lt._id"
+                            (click)="selectLogType(note, lt)">
+                      <span class="ns-lt-option-dot" [style.background]="lt.color"></span>
+                      <span class="ns-lt-option-name">{{ lt.name }}</span>
+                      <svg *ngIf="note.logTypeId === lt._id" width="11" height="11" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor"
+                              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                  </ng-container>
+                  <div *ngIf="logTypeGroups.length === 0" class="ns-lt-empty">Loading…</div>
+                </div>
               </div>
+
               <input
                 #tapperInput
                 class="ns-tapper-input"
@@ -359,6 +415,24 @@ interface LocalNote {
       letter-spacing: 0.02em;
     }
 
+    .ns-tapper-actions {
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    .ns-tapper-log-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      color: #9D8FDE;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s, color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .ns-tapper-wrap:hover .ns-tapper-log-btn { opacity: 1; }
+    .ns-tapper-log-btn:hover { color: #B8ADFF; border-color: #7C6FCD; background: rgba(124,111,205,0.12); }
+
     .ns-tapper-delete-btn {
       display: flex; align-items: center; justify-content: center;
       width: 22px; height: 22px;
@@ -373,6 +447,82 @@ interface LocalNote {
     .ns-tapper-wrap:hover .ns-tapper-delete-btn { opacity: 1; }
     .ns-tapper-delete-btn:hover:not(:disabled) { color: #e05252; border-color: #e05252; }
     .ns-tapper-delete-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ── Log type picker ── */
+
+    .ns-lt-picker {
+      position: relative;
+      margin-bottom: 8px;
+    }
+
+    .ns-lt-trigger {
+      display: flex; align-items: center; gap: 6px;
+      width: 100%;
+      padding: 5px 8px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 12px; font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s;
+    }
+    .ns-lt-trigger:hover, .ns-lt-picker--open .ns-lt-trigger { border-color: #7C6FCD; }
+
+    .ns-lt-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .ns-lt-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .ns-lt-chevron {
+      flex-shrink: 0; color: var(--text-muted);
+      transition: transform 0.15s;
+    }
+    .ns-lt-picker--open .ns-lt-chevron { transform: rotate(180deg); }
+
+    .ns-lt-panel {
+      position: absolute;
+      top: calc(100% + 3px);
+      left: 0; right: 0;
+      z-index: 600;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.28);
+      max-height: 220px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 4px 0;
+    }
+
+    .ns-lt-group-header {
+      display: flex; align-items: center; gap: 5px;
+      padding: 6px 10px 3px;
+      font-size: 9.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+    .ns-lt-group-dot { width: 6px; height: 6px; border-radius: 50%; opacity: 0.7; }
+
+    .ns-lt-option {
+      width: 100%;
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px 7px 18px;
+      background: none; border: none;
+      color: var(--text-primary);
+      font-size: 12.5px; font-family: inherit;
+      text-align: left; cursor: pointer;
+      transition: background 0.1s;
+    }
+    .ns-lt-option:hover { background: var(--nav-item-hover); }
+    .ns-lt-option--active { background: color-mix(in srgb, #7C6FCD 10%, var(--bg-card)); }
+    .ns-lt-option-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .ns-lt-option-name { flex: 1; }
+    .ns-lt-empty { padding: 10px 14px; font-size: 12px; color: var(--text-muted); }
 
     .ns-tapper-input {
       width: 100%;
@@ -441,6 +591,20 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
   addingTapper       = false;
   pendingDeleteNote: LocalNote | null = null;
 
+  logTypes:           LogType[] = [];
+  openTypePickerNoteId: string | null = null;
+
+  get logTypeGroups(): Array<{ domain: string; label: string; color: string; types: LogType[] }> {
+    const buckets: Record<string, LogType[]> = {};
+    for (const lt of this.logTypes) {
+      const d = lt.domain ?? 'personal';
+      (buckets[d] ??= []).push(lt);
+    }
+    return DOMAIN_ORDER
+      .filter(d => buckets[d]?.length)
+      .map(d => ({ domain: d, label: DOMAIN_LABELS[d] ?? d, color: buckets[d][0]?.color ?? '#9B9B9B', types: buckets[d] }));
+  }
+
   get dateLabel(): string {
     if (!this.date) return '';
     return this.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -451,14 +615,41 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  constructor(private notesService: NotesService, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private notesService: NotesService,
+    private appState: AppStateService,
+    private cdr: ChangeDetectorRef,
+  ) {}
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  ngOnInit(): void { this.loadNotes(); }
+  ngOnInit(): void {
+    this.loadNotes();
+    if (!this.appState.inlineLogTypes$.value.length) this.appState.loadLogTypes();
+    this.appState.inlineLogTypes$.pipe(takeUntil(this.destroy$)).subscribe(types => {
+      this.logTypes = types;
+      this.cdr.markForCheck();
+    });
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.openTypePickerNoteId !== null) {
+      this.openTypePickerNoteId = null;
+      this.cdr.markForCheck();
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEsc(): void {
+    if (this.openTypePickerNoteId !== null) {
+      this.openTypePickerNoteId = null;
+      this.cdr.markForCheck();
+    }
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['date'] && !changes['date'].firstChange) this.loadNotes();
@@ -466,19 +657,45 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   private loadNotes(): void {
     this.loading = true;
-    this.notesService.getNotes(this.dateStr).pipe(takeUntil(this.destroy$)).subscribe({
+    this.notesService.invalidateCache(this.dateStr);
+    this.notesService.getNotes(this.dateStr).pipe(
+      retry(2),
+      takeUntil(this.destroy$),
+    ).subscribe({
       next: (d) => {
         this.notes = d.notes.map(n => ({
           _id: n._id, content: n.content, savedContent: n.content,
           saving: false, isNew: false, copied: false, deleting: false,
           type: n.type ?? 'regular',
           timestamp: n.timestamp,
+          logTypeId:    n.logTypeId    ?? null,
+          logTypeName:  n.logTypeName  ?? null,
+          domain:       n.domain       ?? null,
+          logTypeColor: n.logTypeColor ?? null,
         }));
         this.loading = false;
         this.cdr.markForCheck();
       },
       error: () => { this.loading = false; this.cdr.markForCheck(); }
     });
+  }
+
+  toggleTypePicker(note: LocalNote, e: Event): void {
+    e.stopPropagation();
+    this.openTypePickerNoteId = this.openTypePickerNoteId === note._id ? null : note._id;
+    this.cdr.markForCheck();
+  }
+
+  selectLogType(note: LocalNote, lt: LogType): void {
+    note.logTypeId    = lt._id;
+    note.logTypeName  = lt.name;
+    note.domain       = lt.domain;
+    note.logTypeColor = lt.color;
+    this.openTypePickerNoteId = null;
+    this.cdr.markForCheck();
+    this.notesService.updateTapperLogType(this.dateStr, note._id, {
+      logTypeId: lt._id, logTypeName: lt.name, domain: lt.domain, logTypeColor: lt.color,
+    }).pipe(takeUntil(this.destroy$)).subscribe();
   }
 
   onBlur(note: LocalNote): void {
@@ -542,6 +759,7 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
           saving: false, isNew: true, copied: false, deleting: false,
           type: 'tapper',
           timestamp: n.timestamp ?? now.toISOString(),
+          logTypeId: null, logTypeName: null, domain: null, logTypeColor: null,
         });
         this.addingTapper = false;
         this.cdr.markForCheck();
@@ -551,6 +769,23 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
         }, 50);
       },
       error: () => { this.addingTapper = false; this.cdr.markForCheck(); }
+    });
+  }
+
+  openPointLogger(note: LocalNote): void {
+    const ts = note.timestamp ? new Date(note.timestamp) : new Date();
+    const hh = String(ts.getHours()).padStart(2, '0');
+    const mm = String(ts.getMinutes()).padStart(2, '0');
+    const prepTime = `${hh}:${mm}`;
+    // Map domain: 'family' collapses to 'personal' (unified sheet only has work/personal tabs)
+    const prepDomain = note.domain === 'work' ? 'work' : note.domain ? 'personal' : undefined;
+    this.close.emit();
+    this.appState.openUnifiedSheetRequested$.next({
+      tab:        2,
+      prepTime,
+      prepDomain:  prepDomain as 'work' | 'personal' | undefined,
+      prepTypeId:  note.logTypeId  ?? undefined,
+      prepTitle:   note.content    || undefined,
     });
   }
 

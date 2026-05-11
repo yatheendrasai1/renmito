@@ -9,6 +9,10 @@ export interface NoteItem {
   content: string;
   type: 'regular' | 'tapper';
   timestamp?: string;
+  logTypeId?:    string | null;
+  logTypeName?:  string | null;
+  domain?:       string | null;
+  logTypeColor?: string | null;
 }
 
 export interface DayNotes {
@@ -34,13 +38,27 @@ export class NotesService {
     );
   }
 
-  addNote(date: string, type: 'regular' | 'tapper' = 'regular', content = ''): Observable<NoteItem> {
-    return this.http.post<NoteItem>(`${this.apiBase}/${date}/notes`, { type, content }).pipe(
+  addNote(date: string, type: 'regular' | 'tapper' = 'regular', content = '', logTypeData?: Pick<NoteItem, 'logTypeId' | 'logTypeName' | 'domain' | 'logTypeColor'>): Observable<NoteItem> {
+    const body = { type, content, ...logTypeData };
+    return this.http.post<NoteItem>(`${this.apiBase}/${date}/notes`, body).pipe(
       tap(n => {
         const cached = this.cache.get(date);
         if (cached) cached.notes.push(n);
       }),
       catchError(() => of({ _id: `tmp-${Date.now()}`, content, type, timestamp: new Date().toISOString() }))
+    );
+  }
+
+  updateTapperLogType(date: string, noteId: string, data: Pick<NoteItem, 'logTypeId' | 'logTypeName' | 'domain' | 'logTypeColor'>): Observable<NoteItem> {
+    return this.http.patch<NoteItem>(`${this.apiBase}/${date}/notes/${noteId}/logtype`, data).pipe(
+      tap(n => {
+        const cached = this.cache.get(date);
+        if (cached) {
+          const idx = cached.notes.findIndex(x => x._id === noteId);
+          if (idx !== -1) Object.assign(cached.notes[idx], data);
+        }
+      }),
+      catchError(() => of({ _id: noteId, content: '', type: 'tapper' as const, ...data }))
     );
   }
 

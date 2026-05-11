@@ -2,9 +2,13 @@ const mongoose = require('mongoose');
 
 const noteItemSchema = new mongoose.Schema(
   {
-    content:   { type: String, default: '', maxlength: 500 },
-    type:      { type: String, enum: ['regular', 'tapper'], default: 'regular' },
-    timestamp: { type: Date, default: Date.now },
+    content:      { type: String, default: '', maxlength: 500 },
+    type:         { type: String, enum: ['regular', 'tapper'], default: 'regular' },
+    timestamp:    { type: Date, default: Date.now },
+    logTypeId:    { type: String, default: null },
+    logTypeName:  { type: String, default: null },
+    domain:       { type: String, default: null },
+    logTypeColor: { type: String, default: null },
   }
 );
 
