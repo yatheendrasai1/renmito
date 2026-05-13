@@ -114,7 +114,7 @@ const PERF = (() => {
 
     <!-- ── Main app ────────────────────────────────────── -->
     <ng-container *ngIf="isAuthenticated">
-    <div class="app-shell">
+    <div class="app-shell" [class.diary-mode]="isDiaryRoute">
 
       <!-- ── Top strip ─────────────────────────────────── -->
       <div class="top-strip">
@@ -260,7 +260,7 @@ const PERF = (() => {
       </div>
 
       <!-- ── Speed-dial FAB ── -->
-      <ng-container *ngIf="isAuthenticated && !(appState.coverageSheetOpen$ | async)">
+      <ng-container *ngIf="isAuthenticated && !(appState.coverageSheetOpen$ | async) && !isDiaryRoute">
         <!-- backdrop to close on outside tap -->
         <div class="sd-backdrop" *ngIf="fabOpen" (click)="fabOpen = false"></div>
 
@@ -402,7 +402,7 @@ const PERF = (() => {
       </footer>
 
       <!-- ── Bottom Tab Bar ── -->
-      <nav class="bottom-tab-bar" (click)="navOverlayOpen = false">
+      <nav class="bottom-tab-bar" *ngIf="!isDiaryRoute" (click)="navOverlayOpen = false">
         <a class="bottom-tab" routerLink="/logger" routerLinkActive="bottom-tab--active">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -844,6 +844,17 @@ const PERF = (() => {
     .content-area {
       display: flex; flex-direction: column;
       gap: 14px; min-width: 0;
+    }
+
+    /* ── Diary fullscreen mode ────────────────────────────── */
+    .app-shell.diary-mode { background: #0f1021; }
+    .app-shell.diary-mode .top-strip { display: none; }
+    .app-shell.diary-mode .view-area {
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      scrollbar-gutter: auto;
     }
 
     /* ── Date bar — 1.23 ─────────────────────────────────── */
@@ -2498,6 +2509,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   theme: 'dark' | 'light' = 'dark';
   readonly currentYear = new Date().getFullYear();
 
+  get isDiaryRoute(): boolean     { return this.router.url.startsWith('/diary'); }
   get isJourneysRoute(): boolean { return this.router.url === '/journeys'; }
   get isDateNavRoute(): boolean {
     return this.router.url === '/logger' || this.router.url === '/timeline';

@@ -1,10 +1,17 @@
 const Season = require('../models/Season');
 
+const SEASON_COLORS = ['#f4845f', '#7c6cf5', '#4ade80', '#f59e0b', '#60a5fa', '#f472b6', '#34d399', '#fb923c'];
+
+function randomColor() {
+  return SEASON_COLORS[Math.floor(Math.random() * SEASON_COLORS.length)];
+}
+
 function fmt(doc) {
   return {
     _id:       doc._id.toString(),
     name:      doc.name,
     startDate: doc.startDate,
+    color:     doc.color || '#f4845f',
     createdAt: doc.createdAt,
   };
 }
@@ -14,8 +21,8 @@ async function listSeasons(userId) {
   return docs.map(fmt);
 }
 
-async function createSeason(userId, { name, startDate }) {
-  const doc = await Season.create({ userId, name, startDate });
+async function createSeason(userId, { name, startDate, color }) {
+  const doc = await Season.create({ userId, name, startDate, color: color || randomColor() });
   return fmt(doc);
 }
 

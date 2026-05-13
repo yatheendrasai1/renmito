@@ -9,7 +9,7 @@ const devLog = (...args: unknown[]) => { if (!environment.production) console.er
 
 @Injectable({ providedIn: 'root' })
 export class DiaryService {
-  private readonly seasonsBase = `${environment.apiBase}/seasons`;
+  private readonly seasonsBase  = `${environment.apiBase}/seasons`;
   private readonly episodesBase = `${environment.apiBase}/episodes`;
 
   private seasons$: Observable<Season[]> | null = null;
@@ -59,7 +59,7 @@ export class DiaryService {
       tap(ep => this.episodeCache.set(date, ep)),
       catchError(err => {
         devLog('Failed to fetch episode:', err);
-        return of({ date, seasonId: null, episodeName: '', content: '', lastAccessAt: null });
+        return of({ date, seasonId: null, episodeName: '', content: '', sentiment: { label: '', emoji: '' }, startedWritingAt: null, dayNumber: 1, lastAccessAt: null });
       })
     );
   }
@@ -68,6 +68,13 @@ export class DiaryService {
     return this.http.put<Episode>(`${this.episodesBase}/${date}`, payload).pipe(
       tap(ep => this.episodeCache.set(date, ep)),
       catchError(err => { devLog('Failed to save episode:', err); throw err; })
+    );
+  }
+
+  deleteEpisode(date: string): Observable<{ deleted: boolean }> {
+    return this.http.delete<{ deleted: boolean }>(`${this.episodesBase}/${date}`).pipe(
+      tap(() => this.episodeCache.delete(date)),
+      catchError(err => { devLog('Failed to delete episode:', err); throw err; })
     );
   }
 
