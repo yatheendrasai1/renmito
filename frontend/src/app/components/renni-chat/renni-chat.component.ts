@@ -535,6 +535,7 @@ import { LogEntry, CreateLogEntry } from '../../models/log.model';
 export class RenniChatComponent implements OnInit, OnDestroy {
   @Input() selectedDate: Date = new Date();
   @Input() logs: LogEntry[] = [];
+  @Input() set prefillText(val: string) { if (val) this.renniInput = val; }
 
   @Output() closed     = new EventEmitter<void>();
   @Output() logCreated = new EventEmitter<void>();

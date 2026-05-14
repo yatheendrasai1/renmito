@@ -19,6 +19,9 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
   styles: [`:host { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
     .date-title-row { display: flex; align-items: center; gap: 8px; }
     .date-above-bar { font-size: 17px; font-weight: 700; color: var(--text-primary); line-height: 1; cursor: pointer; text-decoration: none; }
+    .action-btns-row { display: flex; gap: 8px; }
+    .action-btns-row .add-point-wrap { flex: 1; }
+    .action-btns-row .btn-add-entry { flex: 1; }
   `],
   template: `
     <!-- ── Day-type pill · Date · Nav buttons ───────────── -->
@@ -99,6 +102,49 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
         (mergePointsSelected)="onMergePointsSelected($event)"
       ></app-timeline>
     </div>
+
+    <!-- ── Action Buttons ──────────────────────────── -->
+    <div class="action-btns-row">
+      <button class="btn-add-entry" (click)="openLogNow()">
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        Add log
+      </button>
+      <div class="add-point-wrap"
+           (pointerdown)="onAddPointPointerDown($event)"
+           (pointerup)="onAddPointPointerUp()"
+           (pointerleave)="onAddPointPointerUp()"
+           (click)="onAddPointClick($event)">
+        <button class="btn-add-entry" style="pointer-events:none; width:100%">
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.6"/>
+            <circle cx="6" cy="6" r="1.5" fill="currentColor"/>
+          </svg>
+          Add point
+        </button>
+        <div class="add-point-backdrop" *ngIf="addPointMenuOpen" (click)="closeAddPointMenu(); $event.stopPropagation()"></div>
+        <div class="add-point-menu" *ngIf="addPointMenuOpen" (click)="$event.stopPropagation()">
+          <button class="add-point-menu-item" (click)="openAddPoint(); closeAddPointMenu(); $event.stopPropagation()">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M5 3V1.5M11 3V1.5M2 7h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            <div class="add-point-menu-text">
+              <span>Log time</span>
+              <span class="add-point-menu-sub">Pick a time</span>
+            </div>
+          </button>
+        </div>
+      </div>
+      <button class="btn-add-entry btn-add-entry--activity" (click)="appState.startTimerRequested$.next()">
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M4.5 3.5l5 2.5-5 2.5V3.5z" fill="currentColor"/>
+        </svg>
+        Start activity
+      </button>
+    </div>
   `,
 })
 export class TimelineViewComponent implements OnInit, OnDestroy {
@@ -113,6 +159,30 @@ export class TimelineViewComponent implements OnInit, OnDestroy {
   highlightedLogId: string | null      = null;
   metricLogIds:     Set<string> | null = null;
   dayTypeDropdownOpen = false;
+
+  // ── Action buttons ────────────────────────────────────────────────
+  addPointMenuOpen = false;
+  private addPointLongPressTimer: ReturnType<typeof setTimeout> | undefined;
+  private addPointLongPressTriggered = false;
+
+  openLogNow(): void { this.appState.openUnifiedSheetRequested$.next({ tab: 1 }); }
+  openAddPoint(): void { this.appState.openUnifiedSheetRequested$.next({ tab: 2 }); }
+  closeAddPointMenu(): void { this.addPointMenuOpen = false; }
+
+  onAddPointPointerDown(_event: PointerEvent): void {
+    this.addPointLongPressTriggered = false;
+    this.addPointLongPressTimer = setTimeout(() => {
+      this.addPointLongPressTriggered = true;
+      this.addPointMenuOpen = true;
+      this.cdr.markForCheck();
+    }, 500);
+  }
+  onAddPointPointerUp(): void { clearTimeout(this.addPointLongPressTimer); }
+  onAddPointClick(event: MouseEvent): void {
+    if (this.addPointLongPressTriggered) { this.addPointLongPressTriggered = false; return; }
+    if (this.addPointMenuOpen) { this.addPointMenuOpen = false; return; }
+    this.openAddPoint();
+  }
 
   readonly dayTypeOptions: { value: DayType; label: string; color: string }[] = [
     { value: 'working',    label: 'Working Day', color: '#4ade80' },
@@ -161,7 +231,10 @@ export class TimelineViewComponent implements OnInit, OnDestroy {
 
   @HostListener('document:click')
   onDocumentClick(): void {
-    if (this.dayTypeDropdownOpen) { this.dayTypeDropdownOpen = false; this.cdr.markForCheck(); }
+    let changed = false;
+    if (this.dayTypeDropdownOpen) { this.dayTypeDropdownOpen = false; changed = true; }
+    if (this.addPointMenuOpen)    { this.addPointMenuOpen    = false; changed = true; }
+    if (changed) { this.cdr.markForCheck(); }
   }
 
   ngOnDestroy(): void {

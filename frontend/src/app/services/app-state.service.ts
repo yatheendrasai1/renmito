@@ -64,7 +64,8 @@ export class AppStateService {
   readonly openNavRequested$           = new Subject<void>();
   readonly openCalendarRequested$      = new Subject<void>();
   readonly openImportantLogsRequested$ = new Subject<void>();
-  readonly openNotesRequested$         = new Subject<void>();
+  readonly openNotesRequested$         = new Subject<string | undefined>();
+  readonly openRenniWithTextRequested$ = new Subject<string>();
   readonly openLogFormRequested$       = new Subject<OpenLogFormParams>();
   readonly openUnifiedSheetRequested$  = new Subject<OpenUnifiedSheetParams>();
   readonly openTimerEditRequested$     = new Subject<void>();

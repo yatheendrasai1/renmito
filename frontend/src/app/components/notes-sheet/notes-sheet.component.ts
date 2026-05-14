@@ -83,6 +83,12 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                   <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
                 </svg>
               </button>
+              <button class="ns-log-btn" (click)="logToRenni(note)" title="Send to Renni chat">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </button>
               <button class="ns-copy-btn" (click)="copyNote(note)" [title]="note.copied ? 'Copied!' : 'Copy'">
                 <svg *ngIf="!note.copied" width="12" height="12" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -100,13 +106,13 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
                 rows="6"
                 [(ngModel)]="note.content"
                 placeholder="Note…"
-                maxlength="500"
+                maxlength="1000"
                 (blur)="onBlur(note)"
               ></textarea>
               <div class="ns-note-footer">
                 <span class="ns-saving-badge" *ngIf="note.saving">saving…</span>
-                <span class="ns-char-count" [class.ns-char-count--near]="note.content.length >= 450">
-                  {{ note.content.length }}/500
+                <span class="ns-char-count" [class.ns-char-count--near]="note.content.length >= 900">
+                  {{ note.content.length }}/1000
                 </span>
               </div>
             </div>
@@ -317,7 +323,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     }
 
     .ns-delete-btn {
-      position: absolute; top: 8px; right: 38px;
+      position: absolute; top: 8px; right: 68px;
       display: flex; align-items: center; justify-content: center;
       width: 24px; height: 24px;
       background: var(--bg-surface);
@@ -332,6 +338,22 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
     .ns-note-wrap:hover .ns-delete-btn { opacity: 1; }
     .ns-delete-btn:hover:not(:disabled) { color: #e05252; border-color: #e05252; }
     .ns-delete-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .ns-log-btn {
+      position: absolute; top: 8px; right: 38px;
+      display: flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+      z-index: 1;
+    }
+    .ns-note-wrap:hover .ns-log-btn { opacity: 1; }
+    .ns-log-btn:hover { color: #9D8FDE; border-color: #7C6FCD; }
 
     .ns-copy-btn {
       position: absolute; top: 8px; right: 8px;
@@ -579,6 +601,7 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
 })
 export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
   @Input() date!: Date;
+  @Input() focusNoteId: string | undefined = undefined;
   @Output() close = new EventEmitter<void>();
 
   @ViewChildren('noteTA') noteTAs!: QueryList<ElementRef<HTMLTextAreaElement>>;
@@ -675,6 +698,9 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
         }));
         this.loading = false;
         this.cdr.markForCheck();
+        if (this.focusNoteId) {
+          setTimeout(() => this.focusNote(this.focusNoteId!), 80);
+        }
       },
       error: () => { this.loading = false; this.cdr.markForCheck(); }
     });
@@ -725,6 +751,12 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
       this.cdr.markForCheck();
       setTimeout(() => { note.copied = false; this.cdr.markForCheck(); }, 1500);
     });
+  }
+
+  logToRenni(note: LocalNote): void {
+    if (!note.content) return;
+    this.close.emit();
+    this.appState.openRenniWithTextRequested$.next(note.content);
   }
 
   addNote(): void {
@@ -787,6 +819,17 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
       prepTypeId:  note.logTypeId  ?? undefined,
       prepTitle:   note.content    || undefined,
     });
+  }
+
+  focusNote(noteId: string): void {
+    const regularNotes = this.notes.filter(n => n.type !== 'tapper');
+    const idx = regularNotes.findIndex(n => n._id === noteId);
+    if (idx === -1) return;
+    const tas = this.noteTAs.toArray();
+    const el = tas[idx]?.nativeElement;
+    if (!el) return;
+    el.focus();
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   trackById(_i: number, note: LocalNote): string { return note._id; }

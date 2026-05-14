@@ -62,26 +62,6 @@ export interface DragSelection {
           <button class="btn-cancel-merge" (click)="cancelMerge()">Cancel</button>
         </div>
 
-        <!-- Info slot: fixed height, hint and sel-info are absolutely overlaid -->
-        <div class="tl-center" *ngIf="!mergeMode">
-          <span class="tl-tap-hint" [class.tl-fade-out]="hasDragSelection">Tap or drag to select</span>
-          <div class="tl-sel-info" [class.tl-fade-in]="hasDragSelection && !!dragSelection">
-            <span class="tl-sel-times">{{ dragSelection?.startTime ?? '' }}&thinsp;–&thinsp;{{ dragSelection?.endTime ?? '' }}</span>
-            <span class="tl-sel-dur" *ngIf="selectionDuration">{{ selectionDuration }}</span>
-          </div>
-        </div>
-
-        <!-- Add button: always in DOM to prevent layout shift; visible only when selection exists -->
-        <button class="tl-add-btn" *ngIf="!mergeMode"
-                [class.tl-add-btn--active]="hasDragSelection && !!dragSelection"
-                (pointerdown)="$event.stopPropagation()"
-                (click)="openCreateForm(); $event.stopPropagation()">
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <line x1="7" y1="1.5" x2="7" y2="12.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-            <line x1="1.5" y1="7" x2="12.5" y2="7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-          </svg>
-          Add block
-        </button>
 
       </div>
 
@@ -202,18 +182,6 @@ export interface DragSelection {
         <div class="bar-tooltip-dur" *ngIf="barTooltipDuration">{{ barTooltipDuration }}</div>
       </div>
 
-      <!-- ── Work-domain legend ──────────────────────── -->
-      <div class="tl-legend" *ngIf="workLegendTypes.length">
-        <button class="tl-legend-item"
-                *ngFor="let lt of workLegendTypes"
-                [class.tl-legend-item--active]="selectedLegendTypeId === lt.id"
-                [title]="lt.name"
-                (click)="onLegendClick(lt); $event.stopPropagation()">
-          <span class="tl-legend-dot" [style.background]="lt.color"></span>
-          <span class="tl-legend-name">{{ lt.name }}</span>
-          <span class="tl-legend-total" *ngIf="selectedLegendTypeId === lt.id && legendTotalLabel(lt.id)">{{ legendTotalLabel(lt.id) }}</span>
-        </button>
-      </div>
 
     </div>
   `,

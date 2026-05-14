@@ -306,7 +306,8 @@ const PERF = (() => {
         *ngIf="renniChatOpen"
         [selectedDate]="appState.selectedDate"
         [logs]="appState.logs$.value"
-        (closed)="renniChatOpen = false"
+        [prefillText]="renniPrefillText"
+        (closed)="renniChatOpen = false; renniPrefillText = ''"
         (logCreated)="appState.reloadLogs()">
       </app-renni-chat>
 
@@ -589,6 +590,7 @@ const PERF = (() => {
     <app-notes-sheet
       *ngIf="showNotesSheet"
       [date]="appState.selectedDate"
+      [focusNoteId]="notesFocusId"
       (close)="closeNotesSheet()"
     ></app-notes-sheet>
 
@@ -707,14 +709,23 @@ const PERF = (() => {
       overflow: hidden;
     }
     .notes-preview-item {
+      display: block;
+      width: 100%;
       padding: 8px 14px;
       font-size: 12px;
+      font-family: inherit;
+      text-align: left;
       color: var(--text-secondary);
+      background: none;
+      border: none;
       border-top: 1px solid var(--border-subtle, rgba(128,128,128,0.12));
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
     }
+    .notes-preview-item:hover { background: var(--nav-item-hover); color: var(--text-primary); }
     .notes-preview-item:first-child { border-top: none; }
     .notes-col--expanded {
       border-radius: var(--radius) var(--radius) 0 0;
@@ -2583,8 +2594,12 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   private uniTouchStartY = 0;
 
   // ── Important Logs / Notes sheet ──────────────────────────────
-  showImportantLogs = false;
-  showNotesSheet    = false;
+  showImportantLogs  = false;
+  showNotesSheet     = false;
+  notesFocusId: string | undefined = undefined;
+
+  // ── Renni chat ────────────────────────────────────────────────
+  renniPrefillText = '';
 
   // ── Running Log / Timer-edit sheet ───────────────────────────
   timerEditOpen     = false;
@@ -2663,8 +2678,13 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.appState.openImportantLogsRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.showImportantLogs = true;
     });
-    this.appState.openNotesRequested$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+    this.appState.openNotesRequested$.pipe(takeUntil(this.destroy$)).subscribe(focusId => {
+      this.notesFocusId  = focusId;
       this.showNotesSheet = true;
+    });
+    this.appState.openRenniWithTextRequested$.pipe(takeUntil(this.destroy$)).subscribe(text => {
+      this.renniPrefillText = text;
+      this.renniChatOpen    = true;
     });
     this.appState.openLogFormRequested$.pipe(takeUntil(this.destroy$)).subscribe(params => {
       this.formStartTime    = params.startTime;
@@ -2930,6 +2950,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   closeNotesSheet(): void {
     this.showNotesSheet = false;
+    this.notesFocusId   = undefined;
     this.appState.reloadNotesCount();
   }
 

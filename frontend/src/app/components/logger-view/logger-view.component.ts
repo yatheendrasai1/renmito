@@ -1,6 +1,6 @@
 import {
   Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef,
-  HostListener, ViewChild,
+  HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -21,7 +21,6 @@ import { LogType } from '../../models/log-type.model';
 import { MetricsComponent } from '../metrics/metrics.component';
 import { ActiveLogBarComponent } from '../active-log-bar/active-log-bar.component';
 import { LogTypeSelectComponent } from '../log-type-select/log-type-select.component';
-import { TimelineComponent, DragSelection } from '../timeline/timeline.component';
 
 @Component({
   selector: 'app-logger-view',
@@ -33,25 +32,29 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
     MetricsComponent,
     ActiveLogBarComponent,
     LogTypeSelectComponent,
-    TimelineComponent,
   ],
   styles: [`:host { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
     .date-title-row { display: flex; align-items: center; gap: 6px; }
     .date-swipe-zone { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; min-width: 0; user-select: none; touch-action: pan-y; }
-    .date-above-bar { font-size: 13px; font-weight: 700; color: var(--text-primary); line-height: 1; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; will-change: transform; }
+    .date-above-bar { font-size: 10.5px; font-weight: 700; color: var(--text-primary); line-height: 1; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; will-change: transform; }
     .date-above-bar.date-animated { transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1); }
     .date-dropdown-icon { color: var(--text-muted); opacity: 0.75; flex-shrink: 0; }
     .action-btns-row { display: flex; gap: 8px; }
     .action-btns-row .add-point-wrap { flex: 1; }
     .action-btns-row .btn-add-entry { flex: 1; }
-    .domain-filter-row { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; margin-top: -6px; padding-bottom: 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-    .domain-filter-row::-webkit-scrollbar { display: none; }
-    .domain-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 9px; border-radius: 6px; border: 1px solid var(--border-subtle, rgba(128,128,128,0.2)); border-left: 3px solid var(--chip-color, var(--border)); background: var(--bg-card); color: var(--text-secondary); font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.14s, color 0.14s, border-color 0.14s; white-space: nowrap; flex-shrink: 0; }
-    .domain-chip:hover { background: color-mix(in srgb, var(--chip-color, #9B9B9B) 8%, var(--bg-card)); color: var(--text-primary); }
-    .domain-chip--active { background: color-mix(in srgb, var(--chip-color, #9B9B9B) 15%, var(--bg-card)); border-color: var(--chip-color, #9B9B9B); border-left-color: var(--chip-color, #9B9B9B); color: var(--chip-color, var(--text-primary)); font-weight: 600; }
-    .domain-chip--all { --chip-color: var(--text-muted); }
-    .domain-chip-badge { font-size: 10px; font-weight: 700; padding: 0 5px; min-width: 16px; height: 16px; background: color-mix(in srgb, var(--chip-color, #9B9B9B) 20%, var(--bg-surface)); color: var(--text-muted); border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .domain-chip--active .domain-chip-badge { background: var(--chip-color, #9B9B9B); color: #fff; }
+    /* domain dropdown */
+    .domain-dd-wrap { position: relative; margin-left: 4px; }
+    .domain-dd-trigger { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 5px; border: 1px solid var(--border-subtle, rgba(128,128,128,0.2)); background: var(--bg-card); color: var(--text-secondary); font-size: 11px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: border-color 0.14s, color 0.14s; }
+    .domain-dd-trigger:hover { border-color: var(--border); color: var(--text-primary); }
+    .domain-dd-trigger--active { border-color: var(--chip-color, var(--border)); color: var(--chip-color, var(--text-primary)); }
+    .domain-dd-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .domain-dd-chevron { color: var(--text-muted); transition: transform 0.15s; flex-shrink: 0; }
+    .domain-dd-chevron--open { transform: rotate(180deg); }
+    .domain-dd-panel { position: absolute; top: calc(100% + 3px); left: 0; z-index: 200; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 6px 20px rgba(0,0,0,0.28); min-width: 100px; padding: 4px 0; }
+    .domain-dd-option { display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 10px; background: none; border: none; color: var(--text-primary); font-size: 12px; font-family: inherit; cursor: pointer; text-align: left; transition: background 0.1s; white-space: nowrap; }
+    .domain-dd-option:hover { background: var(--nav-item-hover); }
+    .domain-dd-option--active { background: color-mix(in srgb, var(--chip-color, #9B9B9B) 10%, var(--bg-card)); color: var(--chip-color, var(--text-primary)); font-weight: 600; }
+    .domain-dd-count { margin-left: auto; font-size: 10px; color: var(--text-muted); background: var(--bg-surface); padding: 0 5px; border-radius: 6px; }
     .tl-card--ai { border-left: 3px solid #9B6DBF; }
     .log-group-header {
       position: sticky; top: 0; z-index: 5;
@@ -259,14 +262,17 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
           </div>
           <span class="notes-row-count" *ngIf="notesCount > 0">{{ notesCount }}</span>
         </button>
-        <button class="notes-col-edit-btn" (click)="appState.openNotesRequested$.next()" title="Open notes">
+        <button class="notes-col-edit-btn" (click)="appState.openNotesRequested$.next(undefined)" title="Open notes">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
             <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
           </svg>
         </button>
       </div>
       <div class="notes-preview" *ngIf="notesExpanded && notesList.length > 0">
-        <div class="notes-preview-item" *ngFor="let note of notesList">{{ note.content }}</div>
+        <button class="notes-preview-item" *ngFor="let note of notesList"
+                (click)="openNotesAtNote(note._id); $event.stopPropagation()">
+          {{ note.content }}
+        </button>
       </div>
     </div>
 
@@ -280,72 +286,7 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
       (stop)="appState.stopRunningLogRequested$.next()">
     </app-active-log-bar>
 
-    <!-- ── Embedded Timeline (vertical, compact) ──────── -->
-    <app-timeline
-      #embeddedTimelineRef
-      [logs]="logs"
-      [selectedDate]="selectedDate"
-      [highlightedLogId]="highlightedLogId"
-      [metricLogIds]="metricLogIds"
-      [collapsible]="false"
-      [scrollHeight]="'220px'"
-      (createLogClicked)="onTimelineCreate($event)"
-      (logClicked)="onTimelineLogClick($event)"
-      (mergePointsSelected)="onTimelineMerge($event)"
-    ></app-timeline>
 
-    <!-- ── Action Buttons ────────────────────────────── -->
-    <div class="action-btns-row" *ngIf="!isLoading">
-      <button class="btn-add-entry" (click)="openLogNow()">
-        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-        Add log
-      </button>
-      <div class="add-point-wrap"
-           (pointerdown)="onAddPointPointerDown($event)"
-           (pointerup)="onAddPointPointerUp()"
-           (pointerleave)="onAddPointPointerUp()"
-           (click)="onAddPointClick($event)">
-        <button class="btn-add-entry" style="pointer-events:none; width:100%">
-          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.6"/>
-            <circle cx="6" cy="6" r="1.5" fill="currentColor"/>
-          </svg>
-          Add point
-        </button>
-        <div class="add-point-backdrop" *ngIf="addPointMenuOpen" (click)="closeAddPointMenu(); $event.stopPropagation()"></div>
-        <div class="add-point-menu" *ngIf="addPointMenuOpen" (click)="$event.stopPropagation()">
-          <button class="add-point-menu-item" (click)="addPointLogNow(); closeAddPointMenu(); $event.stopPropagation()">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/>
-              <path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-            </svg>
-            <div class="add-point-menu-text">
-              <span>Log now</span>
-              <span class="add-point-menu-sub">Stamp at {{ currentTimeStr() }}</span>
-            </div>
-          </button>
-          <button class="add-point-menu-item" (click)="openAddPoint(); closeAddPointMenu(); $event.stopPropagation()">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-              <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
-              <path d="M5 3V1.5M11 3V1.5M2 7h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-            </svg>
-            <div class="add-point-menu-text">
-              <span>Log time</span>
-              <span class="add-point-menu-sub">Pick a time</span>
-            </div>
-          </button>
-        </div>
-      </div>
-      <button class="btn-add-entry btn-add-entry--activity" (click)="appState.startTimerRequested$.next()">
-        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M4.5 3.5l5 2.5-5 2.5V3.5z" fill="currentColor"/>
-        </svg>
-        Start activity
-      </button>
-    </div>
 
     <!-- ── Wrap-Up Banner ───────────────────────────── -->
     <div class="wrapup-banner" *ngIf="showWrapUpBanner">
@@ -364,13 +305,41 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
 
     <!-- ── Log List ─────────────────────────────────── -->
     <div class="content-header">
-      <h2 class="section-title">Logs for the day</h2>
-      <span class="log-count" *ngIf="logs.length > 0">
-        <ng-container *ngIf="filterDomain; else noFilter">
-          {{ filteredCount }}/{{ logs.length }}
-        </ng-container>
-        <ng-template #noFilter>{{ logs.length }} entr{{ logs.length === 1 ? 'y' : 'ies' }}</ng-template>
-      </span>
+      <h2 class="section-title">Activities</h2>
+      <!-- Domain filter dropdown -->
+      <div class="domain-dd-wrap" *ngIf="!isLoading && availableDomains.length > 1"
+           (click)="$event.stopPropagation()">
+        <button class="domain-dd-trigger"
+                [class.domain-dd-trigger--active]="!!filterDomain"
+                (click)="domainDropdownOpen = !domainDropdownOpen"
+                [style.--chip-color]="filterDomain ? domainColor(filterDomain) : 'var(--text-muted)'">
+          <span class="domain-dd-dot" *ngIf="filterDomain"
+                [style.background]="domainColor(filterDomain)"></span>
+          {{ filterDomain || 'All' }}
+          <svg width="9" height="9" viewBox="0 0 12 12" fill="none" class="domain-dd-chevron"
+               [class.domain-dd-chevron--open]="domainDropdownOpen">
+            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="domain-dd-panel" *ngIf="domainDropdownOpen">
+          <button class="domain-dd-option"
+                  [class.domain-dd-option--active]="filterDomain === ''"
+                  (click)="setDomainFilter(''); domainDropdownOpen = false">
+            All
+            <span class="domain-dd-count">{{ logs.length }}</span>
+          </button>
+          <button *ngFor="let d of availableDomains"
+                  class="domain-dd-option"
+                  [class.domain-dd-option--active]="filterDomain === d"
+                  [style.--chip-color]="domainColor(d)"
+                  (click)="setDomainFilter(d); domainDropdownOpen = false">
+            <span class="domain-dd-dot" [style.background]="domainColor(d)"></span>
+            {{ d }}
+            <span class="domain-dd-count">{{ domainCount(d) }}</span>
+          </button>
+        </div>
+      </div>
       <button type="button" class="btn-sort"
               *ngIf="!isLoading && logs.length > 1"
               (click)="toggleLogSort()"
@@ -384,24 +353,6 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
                 [attr.opacity]="logSortOrder === 'asc' ? '1' : '0.35'"/>
         </svg>
         <span>{{ logSortOrder === 'asc' ? 'Earliest' : 'Latest' }}</span>
-      </button>
-    </div>
-
-    <!-- ── Domain filter chips ─────────────────────────────────────── -->
-    <div class="domain-filter-row" *ngIf="!isLoading && availableDomains.length > 1">
-      <button class="domain-chip domain-chip--all"
-              [class.domain-chip--active]="filterDomain === ''"
-              (click)="setDomainFilter('')">
-        All
-        <span class="domain-chip-badge">{{ logs.length }}</span>
-      </button>
-      <button *ngFor="let d of availableDomains"
-              class="domain-chip"
-              [class.domain-chip--active]="filterDomain === d"
-              [style.--chip-color]="domainColor(d)"
-              (click)="setDomainFilter(d)">
-        {{ d }}
-        <span class="domain-chip-badge">{{ domainCount(d) }}</span>
       </button>
     </div>
 
@@ -670,7 +621,6 @@ import { TimelineComponent, DragSelection } from '../timeline/timeline.component
 export class LoggerViewComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
 
-  @ViewChild('embeddedTimelineRef') embeddedTimelineRef?: TimelineComponent;
 
   // ── Derived from AppStateService ──────────────────────────────────
   logs:           LogEntry[]         = [];
@@ -713,7 +663,8 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
 
   // ── Log list ──────────────────────────────────────────────────────
   logSortOrder: 'asc' | 'desc' = 'desc';
-  filterDomain = '';
+  filterDomain     = '';
+  domainDropdownOpen = false;
 
   get availableDomains(): string[] {
     const seen = new Set<string>();
@@ -770,13 +721,17 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     if (this.notesList.length > 0) {
       this.notesExpanded = !this.notesExpanded;
     } else {
-      this.appState.openNotesRequested$.next();
+      this.appState.openNotesRequested$.next(undefined);
     }
     this.cdr.markForCheck();
   }
 
   toggleLogSort(): void { this.logSortOrder = this.logSortOrder === 'asc' ? 'desc' : 'asc'; }
   setDomainFilter(domain: string): void { this.filterDomain = domain; }
+
+  openNotesAtNote(noteId: string): void {
+    this.appState.openNotesRequested$.next(noteId);
+  }
 
   // ── Food insights ─────────────────────────────────────────────────
   private readonly FOOD_LOG_NAMES = ['breakfast', 'lunch', 'dinner', 'food intake'];
@@ -871,44 +826,6 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   private swipeStartY        = 0;
   private swipeIsHorizontal: boolean | null = null;
 
-  // ── Add-point long-press ──────────────────────────────────────────
-  addPointMenuOpen = false;
-  private addPointLongPressTimer: ReturnType<typeof setTimeout> | undefined;
-  private addPointLongPressTriggered = false;
-
-  onAddPointPointerDown(_event: PointerEvent): void {
-    this.addPointLongPressTriggered = false;
-    this.addPointLongPressTimer = setTimeout(() => {
-      this.addPointLongPressTriggered = true;
-      this.addPointMenuOpen = true;
-      this.cdr.markForCheck();
-    }, 500);
-  }
-  onAddPointPointerUp(): void {
-    clearTimeout(this.addPointLongPressTimer);
-  }
-  onAddPointClick(event: MouseEvent): void {
-    if (this.addPointLongPressTriggered) { this.addPointLongPressTriggered = false; return; }
-    if (this.addPointMenuOpen) { this.addPointMenuOpen = false; return; }
-    this.openAddPoint();
-  }
-  closeAddPointMenu(): void { this.addPointMenuOpen = false; }
-
-  addPointLogNow(): void {
-    const pt      = this.currentTimeStr();
-    const logTypes = this.logTypes;
-    const typeId  = logTypes[0]?._id;
-    if (!typeId) return;
-    const lt      = logTypes.find(t => t._id === typeId);
-    const title   = lt?.name ?? 'Point';
-    this.logService.createLog(this.selectedDate, {
-      title, logTypeId: typeId, entryType: 'point',
-      pointTime: pt, startTime: pt, endTime: pt,
-    }).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => this.appState.reloadLogs(),
-      error: () => {}
-    });
-  }
 
   // ── Wrap-up ───────────────────────────────────────────────────────
   private wrapUpDismissedDate = '';
@@ -966,14 +883,6 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
         });
       }
     });
-  }
-
-  openLogNow(): void {
-    this.appState.openUnifiedSheetRequested$.next({ tab: 1 });
-  }
-
-  openAddPoint(): void {
-    this.appState.openUnifiedSheetRequested$.next({ tab: 2 });
   }
 
   // ── Inline edit ───────────────────────────────────────────────────
@@ -1117,45 +1026,6 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ── Embedded timeline events ──────────────────────────────────────
-  onTimelineCreate(selection: DragSelection): void {
-    this.appState.openLogFormRequested$.next({
-      startTime: selection.startTime,
-      endTime:   selection.endTime,
-      editEntry: null,
-    });
-  }
-
-  onTimelineLogClick(log: LogEntry): void {
-    this.appState.openLogFormRequested$.next({
-      startTime: log.startAt,
-      endTime:   log.endAt ?? '01:00',
-      editEntry: log,
-    });
-  }
-
-  onTimelineMerge(selection: DragSelection): void {
-    const diff   = selection.endMinutes - selection.startMinutes;
-    const h      = Math.floor(diff / 60), m = diff % 60;
-    const durStr = h && m ? `${h}h ${m}m` : h ? `${h}h` : `${m}m`;
-    this.appState.confirmDialogRequested$.next({
-      title:   'Merge into time range?',
-      message: 'The two point logs will be deleted after the new entry is saved.',
-      detail:  `${selection.startTime} – ${selection.endTime}  (${durStr})`,
-      okLabel: 'Merge',
-      onConfirm: () => {
-        this.appState.openLogFormRequested$.next({
-          startTime:      selection.startTime,
-          endTime:        selection.endTime,
-          editEntry:      null,
-          logTypeId:      selection.mergeLogTypeId ?? null,
-          mergeSourceIds: selection.mergeSourceIds ?? null,
-        });
-        this.embeddedTimelineRef?.cancelMerge();
-      }
-    });
-  }
-
   onCardHighlight(ids: string[] | null): void {
     this.appState.metricLogIds$.next(ids ? new Set(ids) : null);
     this.cdr.markForCheck();
@@ -1207,7 +1077,8 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   @HostListener('document:click')
   onDocumentClick(): void {
     let changed = false;
-    if (this.dayTypeDropdownOpen) { this.dayTypeDropdownOpen = false; changed = true; }
+    if (this.dayTypeDropdownOpen)  { this.dayTypeDropdownOpen  = false; changed = true; }
+    if (this.domainDropdownOpen)   { this.domainDropdownOpen   = false; changed = true; }
     if (this.openInsightId !== null) { this.openInsightId = null; changed = true; }
     if (changed) this.cdr.markForCheck();
   }
@@ -1276,6 +1147,5 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    clearTimeout(this.addPointLongPressTimer);
   }
 }
