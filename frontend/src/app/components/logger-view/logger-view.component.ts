@@ -1,6 +1,6 @@
 import {
-  Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef,
-  HostListener,
+  Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef,
+  HostListener, ViewChild, ElementRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -34,14 +34,264 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
     LogTypeSelectComponent,
   ],
   styles: [`:host { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-    .date-title-row { display: flex; align-items: center; gap: 6px; }
-    .date-swipe-zone { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; min-width: 0; user-select: none; touch-action: pan-y; }
-    .date-above-bar { font-size: 10.5px; font-weight: 700; color: var(--text-primary); line-height: 1; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; will-change: transform; }
-    .date-above-bar.date-animated { transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1); }
-    .date-dropdown-icon { color: var(--text-muted); opacity: 0.75; flex-shrink: 0; }
-    .action-btns-row { display: flex; gap: 8px; }
-    .action-btns-row .add-point-wrap { flex: 1; }
-    .action-btns-row .btn-add-entry { flex: 1; }
+
+    /* ── Hero card — structural only, no color overrides ────────────── */
+    .hero-card {
+      border-radius: 0 0 32px 32px;
+      overflow: hidden;
+      box-shadow: 0 20px 20px -4px rgba(0,0,0,0.22);
+      /* Matches view-area's default 24px horizontal padding */
+      margin: 0 -24px 0;
+    }
+    @media (max-width: 390px) {
+      .hero-card { margin: 0 -10px 0; }
+    }
+    @media (min-width: 412px) {
+      .hero-card { margin: 0 -20px 0; }
+    }
+    .hero-content {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 20px 40px 16px;
+      touch-action: pan-y;
+      overflow: hidden;
+    }
+    /* Left: date */
+    .hero-left {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      will-change: transform;
+    }
+.hero-date-line {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .hero-day-num {
+      font-size: 42px;
+      font-weight: 900;
+      color: var(--text-primary);
+      line-height: 1;
+      letter-spacing: -1px;
+      font-variant-numeric: tabular-nums;
+    }
+    .hero-day-suffix {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0;
+      vertical-align: super;
+      opacity: 0.65;
+    }
+    .hero-month-year-col {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-bottom: 5px;
+    }
+    .hero-month-year-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-family: inherit;
+      line-height: 1;
+    }
+    .hero-month-year-btn:hover { color: var(--text-secondary); }
+    .hero-cal-icon { color: var(--text-muted); flex-shrink: 0; }
+    .hero-weekday {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      line-height: 1;
+    }
+    .hero-chips-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hero-today-chip {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--highlight-selected, #5A9CB5);
+      border: 1px solid var(--highlight-selected, #5A9CB5);
+      padding: 2px 8px;
+      border-radius: 20px;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+
+    /* Right: day type + important times */
+    .hero-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .hero-daytype-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px 3px 6px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.07);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: border-color 0.14s;
+      white-space: nowrap;
+    }
+    .hero-daytype-wrap:hover { border-color: var(--border); }
+    .hero-daytype-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .hero-daytype-lbl { font-size: 10.5px; }
+    .hero-imp-times {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+    .hero-imp-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .hero-imp-key {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .hero-imp-val {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+    .hero-imp-open-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle, rgba(128,128,128,0.18));
+      background: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background 0.13s, color 0.13s;
+      margin-top: 2px;
+    }
+    .hero-imp-open-btn:hover { background: var(--accent-hover); color: var(--text-primary); }
+    .hero-right-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .hero-today-chip--sm {
+      font-size: 7px;
+      padding: 1.5px 6px;
+    }
+    .hero-goto-today-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: none;
+      background: none;
+      color: var(--highlight-selected, #5A9CB5);
+      cursor: pointer;
+      transition: background 0.13s;
+    }
+    .hero-goto-today-btn:hover { background: var(--accent-hover); }
+
+
+    /* ── Day scroll strip ──────────────────────────────────────────── */
+    .day-strip {
+      position: relative;
+      display: flex;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 8px 28px 28px;
+      gap: 2px;
+    }
+    .day-strip::-webkit-scrollbar { display: none; }
+    /* Floating indicator — sits behind items, moves continuously with swipe */
+    .day-strip-selector {
+      position: absolute;
+      top: 8px;
+      bottom: 28px;
+      width: 42px;
+      background: var(--highlight-selected, #5A9CB5);
+      border-radius: 8px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .day-strip-item {
+      flex: 0 0 auto;
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      width: 42px;
+      padding: 5px 0;
+      border-radius: 8px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      transition: background 0.13s;
+    }
+    .day-strip-item:hover:not(:disabled):not(.day-strip-item--selected) {
+      background: var(--accent-hover);
+    }
+    .day-strip-item--selected {
+      background: none;
+    }
+    .day-strip-item--selected .day-strip-dow,
+    .day-strip-item--selected .day-strip-num { color: #fff; }
+    .day-strip-item--today .day-strip-num {
+      color: var(--highlight-selected, #5A9CB5);
+      font-weight: 800;
+    }
+    .day-strip-item--future { opacity: 0.3; cursor: not-allowed; }
+    .day-strip-dow {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .day-strip-num {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
     /* domain dropdown */
     .domain-dd-wrap { position: relative; margin-left: 4px; }
     .domain-dd-trigger { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 5px; border: 1px solid var(--border-subtle, rgba(128,128,128,0.2)); background: var(--bg-card); color: var(--text-secondary); font-size: 11px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: border-color 0.14s, color 0.14s; }
@@ -87,6 +337,18 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
     }
     .log-list-insight-btn:hover,
     .log-list-insight-btn--open { background: rgba(251,191,36,0.18); border-color: rgba(251,191,36,0.45); }
+
+    /* ── Duration chip in action row ────────────────────────────────── */
+    .log-list-dur-chip {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      padding: 1px 6px;
+      border-radius: 6px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
 
     /* ── Insight panel ───────────────────────────────────────────────── */
     .insight-panel {
@@ -167,74 +429,94 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
     }
   `],
   template: `
-    <!-- ── Day-type pill · Prev · Date (swipeable) · Next · Today ── -->
-    <div class="date-title-row">
-      <div class="hdr-dt" *ngIf="dayMetadata">
-        <button class="hdr-dt-trigger"
-                (click)="dayTypeDropdownOpen = !dayTypeDropdownOpen; $event.stopPropagation()"
-                [attr.aria-expanded]="dayTypeDropdownOpen"
-                [style.background]="dayTypePastel">
-          <span class="hdr-dt-dot" [style.background]="dayTypeColor"></span>
-        </button>
-        <div class="hdr-dt-panel" *ngIf="dayTypeDropdownOpen" (click)="$event.stopPropagation()">
-          <button *ngFor="let opt of dayTypeOptions"
-                  class="hdr-dt-option"
-                  [class.hdr-dt-option--active]="dayMetadata?.dayType === opt.value"
-                  (click)="setDayType(opt.value); dayTypeDropdownOpen = false">
-            <span class="hdr-dt-dot" [style.background]="opt.color"></span>
-            {{ opt.label }}
-          </button>
-        </div>
-      </div>
+    <!-- ── Hero Card ─────────────────────────────────────────────── -->
+    <div class="hero-card">
 
-      <button class="date-bar-btn" (click)="appState.prevDay()"
-              title="Previous day" aria-label="Previous day">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-      </button>
-
-      <div class="date-swipe-zone"
+      <!-- Swipeable main area -->
+      <div class="hero-content"
            (touchstart)="onDateSwipeStart($event)"
            (touchmove)="onDateSwipeMove($event)"
            (touchend)="onDateSwipeEnd()">
-        <span class="date-above-bar"
-              [class.date-animated]="!dateSwipeActive"
-              [style.transform]="'translateX(' + dateSlideX + 'px)'"
-              (click)="appState.openCalendarRequested$.next()">
-          {{ appState.dateShortLabel }}
-          <svg class="date-dropdown-icon" width="10" height="10" viewBox="0 0 12 12" fill="none">
-            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
-                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </span>
+
+        <!-- Left: date + weekday + nav -->
+        <div class="hero-left"
+             [style.opacity]="heroDateOpacity"
+             [style.transform]="'translateX(' + dateSlideX + 'px)'"
+             [style.transition]="dateSwipeActive ? 'none' : 'opacity 0.2s ease, transform 0.22s cubic-bezier(0.4,0,0.2,1)'">
+          <div class="hero-date-line">
+            <span class="hero-day-num">{{ heroDateDayNum }}<span class="hero-day-suffix">{{ heroDateDaySuffix }}</span></span>
+            <div class="hero-month-year-col">
+              <button class="hero-month-year-btn"
+                      (click)="appState.openCalendarRequested$.next(); $event.stopPropagation()">
+                {{ heroDateMonthYear }}
+                <svg class="hero-cal-icon" width="9" height="9" viewBox="0 0 12 12" fill="none">
+                  <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
+                        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <span class="hero-weekday">{{ heroDateWeekday }}</span>
+            </div>
+          </div>
+          <div class="hero-chips-row"></div>
+        </div>
+
+        <!-- Right: day type + important times -->
+        <div class="hero-right">
+          <div class="hero-daytype-wrap" *ngIf="dayMetadata"
+               (click)="dayTypeDropdownOpen = !dayTypeDropdownOpen; $event.stopPropagation()">
+            <span class="hero-daytype-dot" [style.background]="dayTypeColor"></span>
+            <span class="hero-daytype-lbl">{{ dayTypeLabel }}</span>
+            <div class="hdr-dt-panel" *ngIf="dayTypeDropdownOpen" (click)="$event.stopPropagation()">
+              <button *ngFor="let opt of dayTypeOptions"
+                      class="hdr-dt-option"
+                      [class.hdr-dt-option--active]="dayMetadata?.dayType === opt.value"
+                      (click)="setDayType(opt.value); dayTypeDropdownOpen = false">
+                <span class="hdr-dt-dot" [style.background]="opt.color"></span>
+                {{ opt.label }}
+              </button>
+            </div>
+          </div>
+          <div class="hero-right-actions">
+            <span class="hero-today-chip hero-today-chip--sm" *ngIf="isToday">current day</span>
+            <button class="hero-goto-today-btn" *ngIf="!isToday"
+                    (click)="appState.goToToday(); $event.stopPropagation()"
+                    title="Go to today" aria-label="Go to today">
+              <svg width="9" height="9" viewBox="0 0 14 14" fill="none">
+                <circle cx="7" cy="7" r="5.5" fill="currentColor"/>
+              </svg>
+            </button>
+            <button class="hero-imp-open-btn"
+                    (click)="appState.openImportantLogsRequested$.next(); $event.stopPropagation()"
+                    title="Capture important times" aria-label="Important logs">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /hero-content -->
+
+      <!-- Day scroll strip -->
+      <div class="day-strip" #dayStripRef>
+        <!-- Floating selection indicator — moves continuously with swipe -->
+        <div class="day-strip-selector"
+             [style.left.px]="indicatorLeft"
+             [style.transition]="dateSwipeActive ? 'none' : 'left 0.22s cubic-bezier(0.4,0,0.2,1)'">
+        </div>
+        <button *ngFor="let d of scrollDays; trackBy: trackByDayDate"
+                class="day-strip-item"
+                [class.day-strip-item--selected]="d.isSelected"
+                [class.day-strip-item--today]="d.isToday && !d.isSelected"
+                [class.day-strip-item--future]="d.isFuture"
+                [disabled]="d.isFuture"
+                (click)="onScrollDayClick(d)">
+          <span class="day-strip-dow">{{ d.dowLabel }}</span>
+          <span class="day-strip-num">{{ d.dayNum }}</span>
+        </button>
       </div>
 
-      <button class="date-bar-btn" (click)="appState.nextDay()"
-              [disabled]="appState.isToday"
-              title="Next day" aria-label="Next day">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
-      </button>
-
-      <button class="date-bar-btn date-bar-btn--today"
-              [disabled]="appState.isToday"
-              (click)="appState.goToToday()" title="Go to today" aria-label="Go to today">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="7" cy="7" r="5.5" fill="currentColor"/>
-        </svg>
-      </button>
-
-      <button class="date-bar-btn" (click)="appState.openImportantLogsRequested$.next()" title="Important logs" aria-label="Important logs">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-        </svg>
-      </button>
-    </div>
+    </div><!-- /hero-card -->
 
     <!-- ── Metrics ────────────────────────────────────── -->
     <app-metrics
@@ -429,53 +711,58 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
 
                   <!-- View mode -->
                   <ng-container *ngIf="inlineEditId !== log.id">
-                    <div class="tl-card-header">
-                      <div class="tl-card-body">
-                        <div class="log-list-label">{{ log.title }}</div>
-                        <div class="log-list-meta">
-                          <span class="log-list-time">
+                    <div class="tl-card-body">
+                      <div class="tl-card-top-row">
+                        <div class="tl-card-chip-time">
+                          <span class="log-list-type-chip"
+                                [style.background]="(log.logType?.color ?? '#9B9B9B') + '22'"
+                                [style.color]="'#000000'"
+                                (click)="toggleTitleExpand(log.id, $event)"
+                                title="{{ log.logType?.name ?? '—' }}">
+                            {{ log.logType?.name ?? '—' }}
+                          </span>
+                          <span class="log-list-time"
+                                (click)="toggleTitleExpand(log.id, $event)">
                             <ng-container *ngIf="log.entryType === 'point'">⏱ {{ log.startAt }}</ng-container>
                             <ng-container *ngIf="log.entryType !== 'point'">
                               <span *ngIf="log.date !== selectedDateStr" class="log-prev-day-date">{{ shortDate(log.date) }}, </span>{{ log.startAt }} – <span *ngIf="log.endDate && log.endDate !== log.date && log.endDate !== selectedDateStr" class="log-prev-day-date">{{ shortDate(log.endDate) }}, </span>{{ log.endAt }}
                             </ng-container>
                           </span>
-                          <span class="log-list-type-badge"
-                                [style.background]="(log.logType?.color ?? '#9B9B9B') + '22'"
-                                [style.color]="log.logType?.color ?? '#9B9B9B'">
-                            {{ log.logType?.name ?? '—' }}
-                          </span>
-                          <span class="log-list-duration" *ngIf="getDuration(log)">{{ getDuration(log) }}</span>
+                        </div>
+                        <div class="tl-card-actions">
+                          <span class="log-list-dur-chip" *ngIf="getDuration(log)">{{ getDuration(log) }}</span>
+                          <button *ngIf="isFoodLog(log)" type="button"
+                                  class="log-list-insight-btn"
+                                  [class.log-list-insight-btn--open]="openInsightId === log.id"
+                                  (click)="toggleInsight(log, $event)"
+                                  aria-label="Food insight">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                              <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+                              <path d="M7 2v20"/>
+                              <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+                            </svg>
+                          </button>
+                          <button type="button" class="log-list-edit-btn"
+                                  (click)="editLog(log); $event.stopPropagation()"
+                                  aria-label="Edit">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                              <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
+                                    stroke-width="1.5" stroke-linejoin="round"/>
+                            </svg>
+                          </button>
+                          <button type="button" class="log-list-delete-btn"
+                                  (click)="confirmDeleteLog(log); $event.stopPropagation()"
+                                  aria-label="Delete">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                              <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"
+                                    stroke="currentColor" stroke-width="1.4"
+                                    stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                          </button>
                         </div>
                       </div>
-                      <div class="tl-card-actions">
-                        <button *ngIf="isFoodLog(log)" type="button"
-                                class="log-list-insight-btn"
-                                [class.log-list-insight-btn--open]="openInsightId === log.id"
-                                (click)="toggleInsight(log, $event)"
-                                aria-label="Food insight">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
-                            <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
-                            <path d="M7 2v20"/>
-                            <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
-                          </svg>
-                        </button>
-                        <button type="button" class="log-list-edit-btn"
-                                (click)="editLog(log); $event.stopPropagation()"
-                                aria-label="Edit">
-                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                            <path d="M11 2l3 3L5 14H2v-3L11 2z" stroke="currentColor"
-                                  stroke-width="1.5" stroke-linejoin="round"/>
-                          </svg>
-                        </button>
-                        <button type="button" class="log-list-delete-btn"
-                                (click)="confirmDeleteLog(log); $event.stopPropagation()"
-                                aria-label="Delete">
-                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                            <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9"
-                                  stroke="currentColor" stroke-width="1.4"
-                                  stroke-linecap="round" stroke-linejoin="round"/>
-                          </svg>
-                        </button>
+                      <div class="log-list-title-reveal" *ngIf="isTitleExpanded(log.id) && log.title">
+                        {{ log.title }}
                       </div>
                     </div>
                   </ng-container>
@@ -618,9 +905,10 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
     </div><!-- /log-list-section -->
   `,
 })
-export class LoggerViewComponent implements OnInit, OnDestroy {
+export class LoggerViewComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
 
+  @ViewChild('dayStripRef') dayStripRef!: ElementRef<HTMLDivElement>;
 
   // ── Derived from AppStateService ──────────────────────────────────
   logs:           LogEntry[]         = [];
@@ -659,7 +947,149 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     return `color-mix(in srgb, ${c} 28%, var(--bg-card))`;
   }
 
+  get dayTypeLabel(): string {
+    return this.dayTypeOptions.find(o => o.value === this.dayMetadata?.dayType)?.label ?? 'Working Day';
+  }
+
   setDayType(dayType: DayType): void { this.appState.setDayType(dayType); }
+
+  // ── Hero date getters ─────────────────────────────────────────────
+  get heroDateDayNum(): string {
+    return String(this.selectedDate.getDate());
+  }
+
+  get heroDateDaySuffix(): string {
+    const d = this.selectedDate.getDate();
+    const m = d % 100;
+    return (m >= 11 && m <= 13) ? 'th'
+         : d % 10 === 1 ? 'st' : d % 10 === 2 ? 'nd' : d % 10 === 3 ? 'rd' : 'th';
+  }
+
+  get heroDateOpacity(): number {
+    return Math.max(0, 1 - Math.abs(this.dateSlideX) / 60);
+  }
+
+  get heroDateMonthYear(): string {
+    return this.selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  get heroDateWeekday(): string {
+    return this.selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
+  }
+
+  get prevDayLabel(): string {
+    const d = new Date(this.selectedDate);
+    d.setDate(d.getDate() - 1);
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  get nextDayLabel(): string {
+    const d = new Date(this.selectedDate);
+    d.setDate(d.getDate() + 1);
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  // ── Day scroll strip ──────────────────────────────────────────────
+  // Anchor stays stable; only shifts ±1 day when selected date goes outside ±5 of anchor.
+  private _stripAnchorDate: Date = new Date(this.selectedDate);
+
+  // Index (0–12) of the committed selected date within the 13-day strip window.
+  // Uses local-midnight dates to avoid time-component / DST off-by-one errors.
+  get selectedStripIndex(): number {
+    const a = this._stripAnchorDate;
+    const s = this.selectedDate;
+    const anchorMid = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+    const selMid    = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+    const diffDays  = Math.round((selMid.getTime() - anchorMid.getTime()) / 86400000);
+    return Math.max(0, Math.min(12, diffDays + 6));
+  }
+
+  // Holds the target strip index during the commit handoff window so the indicator
+  // does not bounce back to the old slot before selectedDate catches up.
+  private _pendingStripIndex: number | null = null;
+
+  // Pixel left-offset of the floating indicator inside the scrollable strip content.
+  get indicatorLeft(): number {
+    const ITEM_W = 44; // 42px item + 2px gap
+    const PAD_L  = 28; // strip padding-left
+    // During an active user gesture apply the live proportional offset.
+    if (this.dateSwipeActive && Math.abs(this.dateSlideX) <= 100) {
+      const idx      = this._pendingStripIndex ?? this.selectedStripIndex;
+      const basePx   = PAD_L + idx * ITEM_W;
+      const maxRight = this.isToday ? 0 : ITEM_W;
+      const rawOff   = -(this.dateSlideX / 45) * ITEM_W;
+      const swipePx  = Math.max(-ITEM_W, Math.min(maxRight, rawOff));
+      return basePx + swipePx;
+    }
+    // At rest (or during hero-text exit animation): use pending or committed index.
+    const idx = this._pendingStripIndex ?? this.selectedStripIndex;
+    return PAD_L + idx * ITEM_W;
+  }
+
+  get scrollDays(): Array<{ date: Date; dayNum: number; dowLabel: string; isSelected: boolean; isToday: boolean; isFuture: boolean }> {
+    const today    = AppStateService.logicalToday();
+    const todayStr = this._localDateKey(today);
+    const selStr   = this._localDateKey(this.selectedDate);
+    const result   = [];
+    for (let i = -6; i <= 6; i++) {
+      const d = new Date(this._stripAnchorDate);
+      d.setDate(d.getDate() + i);
+      const dStr = this._localDateKey(d);
+      result.push({
+        date:       d,
+        dayNum:     d.getDate(),
+        dowLabel:   d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2),
+        isSelected: dStr === selStr,
+        isToday:    dStr === todayStr,
+        isFuture:   dStr > todayStr,
+      });
+    }
+    return result;
+  }
+
+  // Shift anchor one day at a time until newDate is within ±5 of anchor.
+  private _updateStripAnchor(newDate: Date): void {
+    const newStr = this._localDateKey(newDate);
+    let shifted  = false;
+    for (let i = 0; i < 20; i++) {
+      const lo    = new Date(this._stripAnchorDate);
+      lo.setDate(lo.getDate() - 5);
+      const hi    = new Date(this._stripAnchorDate);
+      hi.setDate(hi.getDate() + 5);
+      if (newStr < this._localDateKey(lo)) {
+        const a = new Date(this._stripAnchorDate);
+        a.setDate(a.getDate() - 1);
+        this._stripAnchorDate = a;
+        shifted = true;
+      } else if (newStr > this._localDateKey(hi)) {
+        const a = new Date(this._stripAnchorDate);
+        a.setDate(a.getDate() + 1);
+        this._stripAnchorDate = a;
+        shifted = true;
+      } else {
+        break;
+      }
+    }
+    if (shifted) {
+      setTimeout(() => this.scrollDayStripToCenter(), 0);
+    }
+  }
+
+  onScrollDayClick(day: { date: Date; isFuture: boolean }): void {
+    if (day.isFuture) return;
+    this.appState.selectDate(day.date);
+  }
+
+  scrollDayStripToCenter(): void {
+    const strip = this.dayStripRef?.nativeElement;
+    if (!strip) return;
+    const items = strip.querySelectorAll<HTMLElement>('.day-strip-item');
+    const center = items[6];
+    if (!center) return;
+    strip.scrollLeft = center.offsetLeft - strip.clientWidth / 2 + center.offsetWidth / 2;
+  }
+
+  trackByDayDate(_i: number, d: { date: Date }): number { return d.date.getTime(); }
 
   // ── Log list ──────────────────────────────────────────────────────
   logSortOrder: 'asc' | 'desc' = 'desc';
@@ -808,10 +1238,36 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ── Title expand (chip click) ─────────────────────────────────────
+  private expandedTitleLogIds = new Set<string>();
+
+  isTitleExpanded(logId: string): boolean {
+    return this.expandedTitleLogIds.has(logId);
+  }
+
+  toggleTitleExpand(logId: string, event: Event): void {
+    event.stopPropagation();
+    if (this.expandedTitleLogIds.has(logId)) {
+      this.expandedTitleLogIds.delete(logId);
+    } else {
+      this.expandedTitleLogIds.add(logId);
+    }
+    this.cdr.markForCheck();
+  }
+
   // ── Inline edit ───────────────────────────────────────────────────
   inlineEditId: string | null = null;
   inlineEdit = { title: '', startAt: '', endAt: '', logTypeId: '' };
+  private inlineEditOriginal = { title: '', startAt: '', endAt: '', logTypeId: '' };
   inlineSaving = false;
+
+  private get hasInlineEditChanges(): boolean {
+    return this.inlineEdit.title     !== this.inlineEditOriginal.title
+        || this.inlineEdit.startAt   !== this.inlineEditOriginal.startAt
+        || this.inlineEdit.endAt     !== this.inlineEditOriginal.endAt
+        || this.inlineEdit.logTypeId !== this.inlineEditOriginal.logTypeId;
+  }
+
 
   // ── Date swipe ────────────────────────────────────────────────────
   dateSlideX     = 0;
@@ -903,6 +1359,7 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
       endAt:     log.endAt ?? '',
       logTypeId: log.logType?.id ?? ''
     };
+    this.inlineEditOriginal = { ...this.inlineEdit };
     this.appState.highlightedLogId$.next(log.id);
   }
 
@@ -993,10 +1450,13 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     this.dateSwipeActive = false;
 
     if (dx > 45) {
+      // Pin indicator to prev-day slot immediately — prevents bounce-back animation.
+      this._pendingStripIndex = Math.max(0, this.selectedStripIndex - 1);
       this.dateSlideX = 150;
       this.cdr.markForCheck();
       setTimeout(() => {
-        this.appState.prevDay();
+        this.appState.prevDay();   // selectedDate updates; selectedStripIndex now equals _pendingStripIndex
+        this._pendingStripIndex = null;
         this.dateSwipeActive = true;
         this.dateSlideX = -150;
         this.cdr.markForCheck();
@@ -1007,10 +1467,13 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
         }, 16);
       }, 200);
     } else if (dx < -45 && !this.appState.isToday) {
+      // Pin indicator to next-day slot immediately.
+      this._pendingStripIndex = Math.min(12, this.selectedStripIndex + 1);
       this.dateSlideX = -150;
       this.cdr.markForCheck();
       setTimeout(() => {
-        this.appState.nextDay();
+        this.appState.nextDay();   // selectedDate updates; selectedStripIndex now equals _pendingStripIndex
+        this._pendingStripIndex = null;
         this.dateSwipeActive = true;
         this.dateSlideX = 150;
         this.cdr.markForCheck();
@@ -1073,13 +1536,14 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
   trackByIndex(index: number): number { return index; }
   trackByLogId(_i: number, log: LogEntry): string { return log.id; }
 
-  // ── Global click: close day-type dropdown ─────────────────────────
+  // ── Global click: close dropdowns, insight panel, and inline edit ──
   @HostListener('document:click')
   onDocumentClick(): void {
     let changed = false;
-    if (this.dayTypeDropdownOpen)  { this.dayTypeDropdownOpen  = false; changed = true; }
-    if (this.domainDropdownOpen)   { this.domainDropdownOpen   = false; changed = true; }
+    if (this.dayTypeDropdownOpen)    { this.dayTypeDropdownOpen  = false; changed = true; }
+    if (this.domainDropdownOpen)     { this.domainDropdownOpen   = false; changed = true; }
     if (this.openInsightId !== null) { this.openInsightId = null; changed = true; }
+    if (this.inlineEditId !== null)  { this.cancelInlineEdit();           changed = true; }
     if (changed) this.cdr.markForCheck();
   }
 
@@ -1107,6 +1571,8 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
       this.filterDomain    = '';
       this.openInsightId   = null;
       this.insightCache.clear();
+      this.expandedTitleLogIds.clear();
+      this._updateStripAnchor(v);
       this.cdr.markForCheck();
     });
     this.appState.isLoading$.pipe(takeUntil(this.destroy$)).subscribe(v => {
@@ -1142,6 +1608,10 @@ export class LoggerViewComponent implements OnInit, OnDestroy {
     if (!this.appState.inlineLogTypes$.value.length) {
       this.appState.loadLogTypes();
     }
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.scrollDayStripToCenter(), 0);
   }
 
   ngOnDestroy(): void {

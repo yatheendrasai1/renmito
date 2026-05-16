@@ -849,7 +849,8 @@ const PERF = (() => {
     /* ── View area ──────────────────────────────────────── */
     /* 1.53: scrollbar-gutter:stable reserves scrollbar lane so it never
              causes a layout shift when it appears / disappears            */
-    .view-area { flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: 10px 24px calc(58px + env(safe-area-inset-bottom, 0px) + 16px + 52px + 8px + 48px + 24px); min-width: 0; }
+    .view-area { flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: 0 24px calc(58px + env(safe-area-inset-bottom, 0px) + 16px + 52px + 8px + 48px + 24px); min-width: 0; }
+    @media (pointer: coarse) { .view-area { scrollbar-gutter: auto; } }
 
     /* ── Content area (full width now — no calendar panel) ─ */
     .content-area {
@@ -1081,16 +1082,18 @@ const PERF = (() => {
     .tl-item--editing .tl-card  { border-color: var(--border-light) !important; background: var(--bg-card) !important; }
     .tl-item--active:hover .tl-card, .tl-item--metric-active:hover .tl-card { background: unset; }
 
-    .tl-card-header { display: flex; align-items: flex-start; gap: 6px; }
-    .tl-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-    .tl-card-actions { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: 2px; }
+    .tl-card-body { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+    .tl-card-top-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .tl-card-actions { display: flex; flex-direction: row; align-items: center; flex-shrink: 0; gap: 2px; }
 
-    .log-list-label { font-size: 13px; font-weight: 600; color: var(--text-primary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
-    .log-list-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .log-list-type-badge { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.4px; }
-    .log-list-time { font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .tl-card-chip-time { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; overflow: hidden; }
+    .log-list-type-chip { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; transition: opacity 0.15s; flex-shrink: 0; }
+    .log-list-type-chip:hover { opacity: 0.75; }
+    .log-list-time { font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; cursor: pointer; }
+    .log-list-time:hover { color: var(--text-primary); }
     .log-prev-day-date { color: var(--text-muted); font-style: italic; }
     .log-list-duration { font-size: 11px; color: var(--text-muted); background: var(--bg-surface); padding: 1px 6px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+    .log-list-title-reveal { font-size: 12px; color: var(--text-secondary); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; padding-top: 4px; border-top: 1px solid var(--border-subtle, rgba(128,128,128,0.12)); }
 
     /* Action buttons — low opacity by default, full on hover */
     .log-list-edit-btn {
@@ -1460,10 +1463,24 @@ const PERF = (() => {
     @media (max-width: 700px) {
       .header-date { display: none; }
       .timeline-view-container { padding: 10px; }
-
-      /* Footer is replaced by the bottom tab bar on mobile */
       .app-footer { display: none; }
+    }
 
+    /* Small phones (≤390dp — S25, Pixel 7a, iPhone SE) */
+    @media (max-width: 390px) {
+      .view-area { padding-left: 10px; padding-right: 10px; }
+      .content-area { gap: 10px; }
+
+      /* Inline edit: larger touch targets + scroll above keyboard */
+      .btn-time-step { min-height: 44px; }
+      .btn-inline-save,
+      .btn-inline-cancel { min-height: 44px; }
+      .log-list-inline { scroll-margin-bottom: 120px; }
+    }
+
+    /* Large phones (≥412dp — Moto Edge 50 Pro, S26 Ultra) */
+    @media (min-width: 412px) {
+      .view-area { padding-left: 20px; padding-right: 20px; }
     }
 
     /* Toast */
