@@ -42,4 +42,14 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./components/diary/diary.component').then(m => m.DiaryComponent),
   },
+  {
+    path: 'expense-guide/configuration',
+    loadComponent: () =>
+      import('./components/expense-guide-config/expense-guide-config.component').then(m => m.ExpenseGuideConfigComponent),
+  },
+  {
+    path: 'expense-guide/expenses',
+    loadComponent: () =>
+      import('./components/expense-guide-expenses/expense-guide-expenses.component').then(m => m.ExpenseGuideExpensesComponent),
+  },
 ];

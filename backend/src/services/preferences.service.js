@@ -16,6 +16,7 @@ async function getPreferences(userId) {
     daySettings:    pref.daySettings    ?? {},
     userProfile:    pref.userProfile    ?? {},
     features:       pref.features       ?? {},
+    expenseGuide:   pref.expenseGuide   ?? {},
   };
 }
 
@@ -179,6 +180,20 @@ async function updateFeatures(userId, features) {
   return { data: { features: pref.features } };
 }
 
+async function updateExpenseGuide(userId, settings) {
+  const allowed = ['smsListenerEnabled', 'notificationEnabled', 'currency', 'defaultCategory'];
+  const update  = {};
+  for (const key of allowed) {
+    if (settings[key] !== undefined) update[`expenseGuide.${key}`] = settings[key];
+  }
+  const pref = await UserPreference.findOneAndUpdate(
+    { userId },
+    { $set: update },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  return { data: { expenseGuide: pref.expenseGuide } };
+}
+
 module.exports = {
   getPreferences,
   upsertPalette,
@@ -191,4 +206,5 @@ module.exports = {
   updateDaySettings,
   updateUserProfile,
   updateFeatures,
+  updateExpenseGuide,
 };

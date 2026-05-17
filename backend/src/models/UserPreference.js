@@ -43,12 +43,17 @@ const userProfileSchema = new mongoose.Schema(
     dateOfBirth:   { type: Date, default: null },
     weight:        { type: Number, default: null },        // kg
     height:        { type: Number, default: null },        // cm
+    targetWeight:  { type: Number, default: null },        // kg
     gender:        { type: String, enum: ['male', 'female', 'other', ''], default: '' },
     activityLevel: {
       type: String,
       enum: ['sedentary', 'light', 'moderate', 'active', 'very-active', ''],
       default: '',
     },
+    designation:         { type: String, default: '' },
+    designationSince:    { type: Date, default: null },    // when they started current role
+    yearsOfExperience:   { type: Number, default: null },
+    workDomain:          { type: String, default: '' },
   },
   { _id: false }
 );
@@ -58,6 +63,17 @@ const featuresSchema = new mongoose.Schema(
     foodInsights: {
       enabled: { type: Boolean, default: false },
     },
+  },
+  { _id: false }
+);
+
+/** Per-user ExpenseGuide settings — SMS listener toggle + currency preference. */
+const expenseGuideSchema = new mongoose.Schema(
+  {
+    smsListenerEnabled:    { type: Boolean, default: false },
+    notificationEnabled:   { type: Boolean, default: true },
+    currency:              { type: String,  default: 'INR' },
+    defaultCategory:       { type: String,  default: 'Uncategorized' },
   },
   { _id: false }
 );
@@ -121,6 +137,9 @@ const userPreferenceSchema = new mongoose.Schema(
 
     /** Feature flags stored per user (enabled/disabled AI-driven features). */
     features: { type: featuresSchema, default: () => ({}) },
+
+    /** ExpenseGuide settings — SMS listener, currency, notification. */
+    expenseGuide: { type: expenseGuideSchema, default: () => ({}) },
   },
   { timestamps: true, collection: 'userPreferences' }
 );

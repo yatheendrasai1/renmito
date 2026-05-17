@@ -21,4 +21,7 @@ router.put('/user-profile', preferencesController.updateUserProfile);
 // AI feature flags
 router.put('/features', preferencesController.updateFeatures);
 
+// ExpenseGuide settings (SMS listener, currency, notifications)
+router.put('/expense-guide', preferencesController.updateExpenseGuide);
+
 module.exports = router;

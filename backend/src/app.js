@@ -18,6 +18,7 @@ const systemPromptsRouter    = require('./routes/systemprompts.route');
 const foodInsightsRouter     = require('./routes/food-insights.route');
 const seasonsRouter          = require('./routes/seasons.route');
 const episodesRouter         = require('./routes/episodes.route');
+const expensesRouter         = require('./routes/expenses.route');
 const authMiddleware       = require('./middleware/authMiddleware');
 const seedDefaultLogTypes  = require('./utils/seedDefaults');
 const seedEnhancements     = require('./utils/seedEnhancements');
@@ -83,6 +84,7 @@ app.use('/api/systemprompts',  authMiddleware, systemPromptsRouter);
 app.use('/api/food-insights',  authMiddleware, foodInsightsRouter);
 app.use('/api/seasons',        authMiddleware, seasonsRouter);
 app.use('/api/episodes',       authMiddleware, episodesRouter);
+app.use('/api/expenses',       authMiddleware, expensesRouter);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

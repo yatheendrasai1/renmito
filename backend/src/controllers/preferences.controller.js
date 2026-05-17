@@ -153,6 +153,17 @@ async function updateFeatures(req, res) {
   }
 }
 
+// ─── PUT /api/preferences/expense-guide ──────────────────────────────────────
+async function updateExpenseGuide(req, res) {
+  try {
+    const result = await preferencesService.updateExpenseGuide(req.user.userId, req.body);
+    res.json(result.data);
+  } catch (err) {
+    console.error('PUT /preferences/expense-guide error:', err.message);
+    res.status(500).json({ error: 'Failed to save expense guide settings.' });
+  }
+}
+
 module.exports = {
   getPreferences,
   upsertPalette,
@@ -165,4 +176,5 @@ module.exports = {
   updateDaySettings,
   updateUserProfile,
   updateFeatures,
+  updateExpenseGuide,
 };

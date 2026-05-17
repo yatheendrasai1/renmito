@@ -53,6 +53,22 @@
                 android:resource="@xml/tapper_icon_widget_info" />
         </receiver>
 
+        <!-- ExpenseGuide: SMS BroadcastReceiver -->
+        <receiver
+            android:name=".SmsBroadcastReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ExpenseGuide: Foreground service (sticky notification) -->
+        <service
+            android:name=".ExpenseNotificationService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -63,4 +79,11 @@
     </application>
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- ExpenseGuide: SMS transaction listener -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- Foreground service to keep listener alive in background -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

@@ -137,19 +137,44 @@ const PERF = (() => {
         <nav class="left-nav"
              [class.left-nav--collapsed]="!navOverlayOpen"
              [class.left-nav--overlay]="navOverlayOpen"
-             (click)="navOverlayOpen = false">
+             (click)="navOverlayOpen = false; showNavGear = false">
           <div class="nav-group">
-            <span class="nav-group-label">Renmito</span>
+            <div class="nav-group-header">
+              <span class="nav-group-label">Renmito</span>
+              <button class="nav-gear-btn" (click)="$event.stopPropagation(); toggleNavGear()" title="Settings" aria-label="Settings">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+              </button>
+            </div>
 
-            <!-- Profile -->
-            <button class="left-nav-item" *ngIf="currentUser" (click)="openProfile(); navOverlayOpen = false">
+            <!-- Gear dropdown menu -->
+            <div class="nav-gear-menu" *ngIf="showNavGear" (click)="$event.stopPropagation()">
+              <button class="nav-gear-item" (click)="openResetPassword(); showNavGear = false; navOverlayOpen = false">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Reset Password
+              </button>
+            </div>
+
+            <!-- Preferences (full settings page) -->
+            <a
+              class="left-nav-item"
+              routerLink="/configuration"
+              routerLinkActive="left-nav-item--active"
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
               </svg>
-              <span>{{ currentUser.userName }}</span>
-            </button>
+              <span>Preferences</span>
+            </a>
 
             <!-- Diary -->
             <a
@@ -166,20 +191,6 @@ const PERF = (() => {
                 <line x1="10" y1="9" x2="8" y2="9"/>
               </svg>
               <span>Diary</span>
-            </a>
-
-            <!-- Configurations -->
-            <a
-              class="left-nav-item"
-              routerLink="/configuration"
-              routerLinkActive="left-nav-item--active"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-              </svg>
-              <span>Configurations</span>
             </a>
 
             <!-- Intelligence -->
@@ -242,6 +253,51 @@ const PERF = (() => {
               <span>Log out</span>
             </button>
           </div>
+
+          <!-- ── ExpenseGuide section ── -->
+          <div class="nav-group">
+            <div class="nav-group-header">
+              <span class="nav-group-label">ExpenseGuide</span>
+              <button class="nav-section-toggle"
+                      (click)="$event.stopPropagation(); expenseGuideExpanded = !expenseGuideExpanded"
+                      [attr.aria-expanded]="expenseGuideExpanded"
+                      title="Toggle ExpenseGuide">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                     [style.transform]="expenseGuideExpanded ? 'rotate(90deg)' : 'rotate(0)'"
+                     style="transition: transform 0.18s ease">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            </div>
+
+            <ng-container *ngIf="expenseGuideExpanded">
+              <!-- Configurations -->
+              <a class="left-nav-item left-nav-item--sub"
+                 routerLink="/expense-guide/configuration"
+                 routerLinkActive="left-nav-item--active">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                <span>Configurations</span>
+              </a>
+
+              <!-- Expenses -->
+              <a class="left-nav-item left-nav-item--sub"
+                 routerLink="/expense-guide/expenses"
+                 routerLinkActive="left-nav-item--active">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23"/>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                <span>Expenses</span>
+              </a>
+            </ng-container>
+          </div>
+
         </nav>
 
         <!-- ── View area ───────────────────────────────── -->
@@ -515,7 +571,7 @@ const PERF = (() => {
     <div class="profile-overlay" *ngIf="showProfile" (click)="onProfileOverlayClick($event)">
       <div class="profile-popup">
         <div class="profile-header">
-          <span class="profile-title">My Profile</span>
+          <span class="profile-title">Reset Password</span>
           <button class="profile-close-btn" (click)="closeProfile()" aria-label="Close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
@@ -816,12 +872,37 @@ const PERF = (() => {
     .left-nav--overlay   { transform: translateX(0); }
 
     .nav-group { display: flex; flex-direction: column; gap: 4px; }
+    .nav-group-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 4px 6px 10px;
+    }
     .nav-group-label {
       font-size: 10px; font-weight: 700; color: var(--nav-text-muted);
       text-transform: uppercase; letter-spacing: 1.2px;
-      padding: 0 10px 6px;
       white-space: nowrap; overflow: hidden;
     }
+    .nav-gear-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 4px;
+      background: transparent; color: var(--nav-text-muted);
+      border: none; cursor: pointer; flex-shrink: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-gear-btn:hover { background: var(--nav-item-hover); color: var(--nav-text); }
+    .nav-gear-menu {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      margin-bottom: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .nav-gear-item {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 9px 12px;
+      background: transparent; color: var(--nav-text);
+      font-size: 13px; font-weight: 500; text-align: left;
+      border: none; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .nav-gear-item:hover { background: var(--nav-item-hover); }
 
     .left-nav-item {
       display: flex; align-items: center; gap: 10px;
@@ -845,6 +926,23 @@ const PERF = (() => {
     .nav-group--bottom { margin-top: auto; }
     .nav-logout { color: var(--text-muted) !important; }
     .nav-logout:hover { color: #f87171 !important; background: rgba(248,113,113,0.08) !important; }
+
+    /* ── ExpenseGuide nav section ────────────────────────── */
+    .nav-section-toggle {
+      display: flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px;
+      border-radius: 4px;
+      background: transparent; color: var(--nav-text-muted);
+      border: none; cursor: pointer; flex-shrink: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-section-toggle:hover { background: var(--nav-item-hover); color: var(--nav-text); }
+
+    /* Sub-items are indented and slightly smaller */
+    .left-nav-item--sub {
+      padding-left: 22px;
+      font-size: 12px;
+    }
 
     /* ── View area ──────────────────────────────────────── */
     /* 1.53: scrollbar-gutter:stable reserves scrollbar lane so it never
@@ -2558,6 +2656,12 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly builtinPalettePresets = PALETTE_PRESETS;
   navCustomPresets: ColorPalette[] = [];
 
+  // ── Nav gear menu ─────────────────────────────────────────
+  showNavGear = false;
+
+  // ── ExpenseGuide section expanded state ───────────────────
+  expenseGuideExpanded = false;
+
   // ── 1.50: Profile popup ───────────────────────────────────
   showProfile    = false;
   profileChanging = false;
@@ -2898,6 +3002,16 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   onDocTouchEnd(): void {
     this.navEdgeSwipeTracking = false;
     this.navEdgeIsHorizontal = null;
+  }
+
+  // ── Nav gear menu ─────────────────────────────────────────
+  toggleNavGear(): void { this.showNavGear = !this.showNavGear; }
+
+  openResetPassword(): void {
+    this.profilePass    = { current: '', next: '', confirm: '' };
+    this.profileError   = '';
+    this.profileSuccess = '';
+    this.showProfile    = true;
   }
 
   // ── 1.50: Profile popup ───────────────────────────────────
