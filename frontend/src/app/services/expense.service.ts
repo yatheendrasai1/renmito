@@ -33,6 +33,7 @@ export interface ExpenseListResult {
 export interface ExpenseGuideSettings {
   smsListenerEnabled:  boolean;
   notificationEnabled: boolean;
+  testListenerEnabled: boolean;
   currency:            string;
   defaultCategory:     string;
 }
@@ -114,6 +115,6 @@ export class ExpenseService {
   }
 
   private defaultSettings(): ExpenseGuideSettings {
-    return { smsListenerEnabled: false, notificationEnabled: true, currency: 'INR', defaultCategory: 'Uncategorized' };
+    return { smsListenerEnabled: false, notificationEnabled: true, testListenerEnabled: false, currency: 'INR', defaultCategory: 'Uncategorized' };
   }
 }

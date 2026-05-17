@@ -7,6 +7,7 @@ import { PreferenceService, DaySettings, UserProfile } from '../../services/pref
 import { LogTypeService } from '../../services/log-type.service';
 import { LogType } from '../../models/log-type.model';
 import { ThemeEditorComponent } from '../theme-editor/theme-editor.component';
+import { AuthService, AuthUser } from '../../services/auth.service';
 
 const DEFAULT_DAY_SETTINGS: DaySettings = {
   wakeTarget:      '06:30',
@@ -23,11 +24,16 @@ const DEFAULT_DAY_SETTINGS: DaySettings = {
 };
 
 const DEFAULT_USER_PROFILE: UserProfile = {
-  dateOfBirth:   null,
-  weight:        null,
-  height:        null,
-  gender:        '',
-  activityLevel: '',
+  dateOfBirth:       null,
+  weight:            null,
+  height:            null,
+  targetWeight:      null,
+  gender:            '',
+  activityLevel:     '',
+  designation:       '',
+  designationSince:  null,
+  yearsOfExperience: null,
+  workDomain:        '',
 };
 
 type AccordionSection = 'profile' | 'preferences' | 'theming' | null;
@@ -40,8 +46,23 @@ type AccordionSection = 'profile' | 'preferences' | 'theming' | null;
   template: `
     <div class="cfg-page">
       <div class="cfg-page-header">
-        <h2 class="cfg-page-title">Configurations</h2>
-        <p class="cfg-page-sub">Manage your preferences and integrations.</p>
+        <h2 class="cfg-page-title">Preferences</h2>
+        <p class="cfg-page-sub">Manage your account, profile, and integrations.</p>
+      </div>
+
+      <!-- ── Account info ───────────────────────────────── -->
+      <div class="acc-account" *ngIf="currentUser">
+        <div class="acc-account-avatar">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="acc-account-info">
+          <span class="acc-account-name">{{ currentUser.userName }}</span>
+          <span class="acc-account-email">{{ currentUser.email }}</span>
+        </div>
       </div>
 
       <!-- ── User Profile accordion ───────────────────────────────── -->
@@ -85,6 +106,14 @@ type AccordionSection = 'profile' | 'preferences' | 'theming' | null;
               </div>
 
               <div class="ideal-field">
+                <label class="ideal-label">Target Weight (kg)</label>
+                <input class="ideal-input" type="number" min="20" max="300" step="0.1"
+                       [value]="profileDraft.targetWeight ?? ''"
+                       (change)="profileDraft.targetWeight = $any($event.target).value ? +$any($event.target).value : null"
+                       placeholder="e.g. 65"/>
+              </div>
+
+              <div class="ideal-field">
                 <label class="ideal-label">Height (cm)</label>
                 <input class="ideal-input" type="number" min="100" max="250" step="1"
                        [value]="profileDraft.height ?? ''"
@@ -112,6 +141,40 @@ type AccordionSection = 'profile' | 'preferences' | 'theming' | null;
                   <option value="active">Active (6–7 days/week)</option>
                   <option value="very-active">Very Active (hard exercise daily)</option>
                 </select>
+              </div>
+
+              <div class="ideal-field profile-section-divider" style="grid-column: 1 / -1">
+                <span class="profile-section-label">Professional</span>
+              </div>
+
+              <div class="ideal-field" style="grid-column: 1 / -1">
+                <label class="ideal-label">Current Designation</label>
+                <input class="ideal-input" type="text"
+                       [(ngModel)]="profileDraft.designation"
+                       placeholder="e.g. Senior Software Engineer"/>
+              </div>
+
+              <div class="ideal-field">
+                <label class="ideal-label">In Role Since</label>
+                <input class="ideal-input" type="date"
+                       [value]="profileDraft.designationSince || ''"
+                       (change)="profileDraft.designationSince = $any($event.target).value || null"
+                       color-scheme="dark"/>
+              </div>
+
+              <div class="ideal-field">
+                <label class="ideal-label">Years of Experience</label>
+                <input class="ideal-input" type="number" min="0" max="60" step="0.5"
+                       [value]="profileDraft.yearsOfExperience ?? ''"
+                       (change)="profileDraft.yearsOfExperience = $any($event.target).value ? +$any($event.target).value : null"
+                       placeholder="e.g. 5"/>
+              </div>
+
+              <div class="ideal-field" style="grid-column: 1 / -1">
+                <label class="ideal-label">Domain / Industry</label>
+                <input class="ideal-input" type="text"
+                       [(ngModel)]="profileDraft.workDomain"
+                       placeholder="e.g. Software, Finance, Healthcare"/>
               </div>
 
             </div>
@@ -311,6 +374,24 @@ type AccordionSection = 'profile' | 'preferences' | 'theming' | null;
     .cfg-page-title { font-size: 1.05rem; font-weight: 700; margin: 0 0 3px; color: var(--text-primary, #E0E4F0); }
     .cfg-page-sub   { font-size: 0.8rem; margin: 0; color: var(--text-muted, #6A7290); }
 
+    /* ── Account info card ───────────────────────────────────── */
+    .acc-account {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border-light, rgba(255,255,255,0.08));
+      background: var(--bg-card, rgba(255,255,255,0.04));
+      margin-bottom: 2px;
+    }
+    .acc-account-avatar {
+      display: flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(99,102,241,0.15); color: #818cf8;
+    }
+    .acc-account-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .acc-account-name { font-size: 0.9rem; font-weight: 600; color: var(--text-primary, #E0E4F0); }
+    .acc-account-email { font-size: 0.78rem; color: var(--text-muted, #6A7290); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
     /* ── Accordion group ─────────────────────────────────────── */
     .acc {
       border-radius: 12px;
@@ -400,6 +481,8 @@ type AccordionSection = 'profile' | 'preferences' | 'theming' | null;
     .ideal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
     .ideal-field { display: flex; flex-direction: column; gap: 4px; }
     .ideal-label { font-size: 0.74rem; font-weight: 500; color: var(--text-secondary, #8090A8); }
+    .profile-section-divider { justify-content: center; margin-top: 4px; }
+    .profile-section-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted, #5a6a7a); }
     .ideal-input {
       padding: 7px 9px;
       background: var(--bg-surface, rgba(255,255,255,0.06));
@@ -524,6 +607,8 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
   openSection: AccordionSection = null;
 
+  currentUser: AuthUser | null = null;
+
   // ── User Profile ──────────────────────────────────────────
   userProfile:        UserProfile = { ...DEFAULT_USER_PROFILE };
   profileDraft:       UserProfile = { ...DEFAULT_USER_PROFILE };
@@ -548,6 +633,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
     private prefService: PreferenceService,
     private ltService:   LogTypeService,
     private cdr:         ChangeDetectorRef,
+    private authService: AuthService,
   ) {}
 
   ngOnDestroy(): void {
@@ -556,6 +642,7 @@ export class ConfigurationComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.currentUser = this.authService.getUser();
     this.prefService.getPreferences().pipe(takeUntil(this.destroy$)).subscribe({
       next: prefs => {
         if (prefs?.daySettings) {

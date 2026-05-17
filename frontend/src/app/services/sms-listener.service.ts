@@ -4,6 +4,18 @@ import { ExpenseService } from './expense.service';
 
 type PermStatus = 'granted' | 'denied' | 'unknown';
 
+export interface SmsTestLog {
+  id:        string;
+  timestamp: string;
+  smsRaw:    string;
+  smsSender: string;
+  amount?:   number;
+  merchant?: string;
+  referenceId?: string;
+}
+
+const TEST_LOGS_KEY = 'renmito-sms-test-logs';
+
 /**
  * Bridges the native SmsPlugin (Android Capacitor plugin) to Angular.
  *
@@ -19,6 +31,7 @@ export class SmsListenerService implements OnDestroy {
   private listenerHandle: any = null;
   private pendingBatch: any[] = [];
   private batchTimer: any = null;
+  private testMode = false;
 
   constructor(private expenseService: ExpenseService) {}
 
@@ -78,6 +91,42 @@ export class SmsListenerService implements OnDestroy {
     }
   }
 
+  // ─── Test mode ────────────────────────────────────────────────────────────
+
+  setTestMode(enabled: boolean): void {
+    this.testMode = enabled;
+  }
+
+  getTestLogs(): SmsTestLog[] {
+    try {
+      const raw = localStorage.getItem(TEST_LOGS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  clearTestLogs(): void {
+    localStorage.removeItem(TEST_LOGS_KEY);
+  }
+
+  private appendTestLog(data: any): void {
+    const logs = this.getTestLogs();
+    const entry: SmsTestLog = {
+      id:          Math.random().toString(36).slice(2),
+      timestamp:   new Date().toISOString(),
+      smsRaw:      data.smsRaw   ?? data.body ?? '',
+      smsSender:   data.smsSender ?? data.sender ?? '',
+      amount:      data.amount,
+      merchant:    data.merchant,
+      referenceId: data.referenceId,
+    };
+    logs.unshift(entry);
+    try {
+      localStorage.setItem(TEST_LOGS_KEY, JSON.stringify(logs.slice(0, 200)));
+    } catch {}
+  }
+
   // ─── Internals ────────────────────────────────────────────────────────────
 
   private attachListener(): void {
@@ -101,6 +150,9 @@ export class SmsListenerService implements OnDestroy {
   }
 
   private onTransaction(data: any): void {
+    if (this.testMode) {
+      this.appendTestLog(data);
+    }
     if (!data?.amount) return;
     this.pendingBatch.push(data);
 

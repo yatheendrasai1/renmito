@@ -108,7 +108,7 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
     .hero-month-year-btn:hover { color: var(--text-secondary); }
     .hero-cal-icon { color: var(--text-muted); flex-shrink: 0; }
     .hero-weekday {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 500;
       color: var(--text-muted);
       line-height: 1;
@@ -206,23 +206,28 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
       gap: 6px;
     }
     .hero-today-chip--sm {
-      font-size: 7px;
-      padding: 1.5px 6px;
+      font-size: 10px;
+      padding: 2px 8px;
     }
     .hero-goto-today-btn {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      border: none;
-      background: none;
+      padding: 2px 8px;
+      border-radius: 20px;
+      border: 1px solid var(--highlight-selected, #5A9CB5);
+      background: color-mix(in srgb, var(--highlight-selected, #5A9CB5) 12%, transparent);
       color: var(--highlight-selected, #5A9CB5);
+      font-size: 10px;
+      font-weight: 600;
+      font-family: inherit;
+      white-space: nowrap;
       cursor: pointer;
-      transition: background 0.13s;
+      transition: background 0.13s, border-color 0.13s;
     }
-    .hero-goto-today-btn:hover { background: var(--accent-hover); }
+    .hero-goto-today-btn:hover {
+      background: color-mix(in srgb, var(--highlight-selected, #5A9CB5) 22%, transparent);
+    }
 
 
     /* ── Day scroll strip ──────────────────────────────────────────── */
@@ -233,18 +238,18 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
       scrollbar-width: none;
       -webkit-overflow-scrolling: touch;
       border-top: 1px solid rgba(255,255,255,0.08);
-      padding: 8px 28px 28px;
+      padding: 6px 28px 22px;
       gap: 2px;
     }
     .day-strip::-webkit-scrollbar { display: none; }
     /* Floating indicator — sits behind items, moves continuously with swipe */
     .day-strip-selector {
       position: absolute;
-      top: 8px;
-      bottom: 28px;
-      width: 42px;
+      top: 6px;
+      bottom: 22px;
+      width: 32px;
       background: var(--highlight-selected, #5A9CB5);
-      border-radius: 8px;
+      border-radius: 7px;
       pointer-events: none;
       z-index: 0;
     }
@@ -255,10 +260,10 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
-      width: 42px;
-      padding: 5px 0;
-      border-radius: 8px;
+      gap: 2px;
+      width: 32px;
+      padding: 4px 0;
+      border-radius: 7px;
       border: none;
       background: none;
       cursor: pointer;
@@ -278,14 +283,14 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
     }
     .day-strip-item--future { opacity: 0.3; cursor: not-allowed; }
     .day-strip-dow {
-      font-size: 9.5px;
+      font-size: 8px;
       font-weight: 600;
       color: var(--text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.2px;
     }
     .day-strip-num {
-      font-size: 14px;
+      font-size: 11px;
       font-weight: 700;
       color: var(--text-primary);
       line-height: 1;
@@ -481,14 +486,12 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
             <button class="hero-goto-today-btn" *ngIf="!isToday"
                     (click)="appState.goToToday(); $event.stopPropagation()"
                     title="Go to today" aria-label="Go to today">
-              <svg width="9" height="9" viewBox="0 0 14 14" fill="none">
-                <circle cx="7" cy="7" r="5.5" fill="currentColor"/>
-              </svg>
+              go to today
             </button>
             <button class="hero-imp-open-btn"
                     (click)="appState.openImportantLogsRequested$.next(); $event.stopPropagation()"
                     title="Capture important times" aria-label="Important logs">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
               </svg>
             </button>
@@ -993,7 +996,7 @@ export class LoggerViewComponent implements OnInit, AfterViewInit, OnDestroy {
   // Anchor stays stable; only shifts ±1 day when selected date goes outside ±5 of anchor.
   private _stripAnchorDate: Date = new Date(this.selectedDate);
 
-  // Index (0–12) of the committed selected date within the 13-day strip window.
+  // Index (0–30) of the committed selected date within the 31-day strip window.
   // Uses local-midnight dates to avoid time-component / DST off-by-one errors.
   get selectedStripIndex(): number {
     const a = this._stripAnchorDate;
@@ -1001,7 +1004,7 @@ export class LoggerViewComponent implements OnInit, AfterViewInit, OnDestroy {
     const anchorMid = new Date(a.getFullYear(), a.getMonth(), a.getDate());
     const selMid    = new Date(s.getFullYear(), s.getMonth(), s.getDate());
     const diffDays  = Math.round((selMid.getTime() - anchorMid.getTime()) / 86400000);
-    return Math.max(0, Math.min(12, diffDays + 6));
+    return Math.max(0, Math.min(30, diffDays + 15));
   }
 
   // Holds the target strip index during the commit handoff window so the indicator
@@ -1010,7 +1013,7 @@ export class LoggerViewComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Pixel left-offset of the floating indicator inside the scrollable strip content.
   get indicatorLeft(): number {
-    const ITEM_W = 44; // 42px item + 2px gap
+    const ITEM_W = 34; // 32px item + 2px gap
     const PAD_L  = 28; // strip padding-left
     // During an active user gesture apply the live proportional offset.
     if (this.dateSwipeActive && Math.abs(this.dateSlideX) <= 100) {
@@ -1031,7 +1034,7 @@ export class LoggerViewComponent implements OnInit, AfterViewInit, OnDestroy {
     const todayStr = this._localDateKey(today);
     const selStr   = this._localDateKey(this.selectedDate);
     const result   = [];
-    for (let i = -6; i <= 6; i++) {
+    for (let i = -15; i <= 15; i++) {
       const d = new Date(this._stripAnchorDate);
       d.setDate(d.getDate() + i);
       const dStr = this._localDateKey(d);
@@ -1047,15 +1050,15 @@ export class LoggerViewComponent implements OnInit, AfterViewInit, OnDestroy {
     return result;
   }
 
-  // Shift anchor one day at a time until newDate is within ±5 of anchor.
+  // Shift anchor one day at a time until newDate is within ±14 of anchor.
   private _updateStripAnchor(newDate: Date): void {
     const newStr = this._localDateKey(newDate);
     let shifted  = false;
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 30; i++) {
       const lo    = new Date(this._stripAnchorDate);
-      lo.setDate(lo.getDate() - 5);
+      lo.setDate(lo.getDate() - 14);
       const hi    = new Date(this._stripAnchorDate);
-      hi.setDate(hi.getDate() + 5);
+      hi.setDate(hi.getDate() + 14);
       if (newStr < this._localDateKey(lo)) {
         const a = new Date(this._stripAnchorDate);
         a.setDate(a.getDate() - 1);
@@ -1084,7 +1087,7 @@ export class LoggerViewComponent implements OnInit, AfterViewInit, OnDestroy {
     const strip = this.dayStripRef?.nativeElement;
     if (!strip) return;
     const items = strip.querySelectorAll<HTMLElement>('.day-strip-item');
-    const center = items[6];
+    const center = items[15];
     if (!center) return;
     strip.scrollLeft = center.offsetLeft - strip.clientWidth / 2 + center.offsetWidth / 2;
   }

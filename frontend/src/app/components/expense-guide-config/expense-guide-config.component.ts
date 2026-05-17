@@ -104,6 +104,42 @@ const CATEGORIES  = ['Uncategorized', 'Food & Dining', 'Transport', 'Shopping', 
           </div>
         </div>
 
+        <!-- Test Notification Listener Section -->
+        <div class="egc-card">
+          <div class="egc-card-header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+            <span class="egc-card-title">Test Notification Listener</span>
+            <div class="egc-badge" [class.egc-badge--test]="settings.testListenerEnabled">
+              {{ settings.testListenerEnabled ? 'ON' : 'OFF' }}
+            </div>
+          </div>
+          <p class="egc-card-desc">
+            When enabled, every SMS transaction event received by the listener is also
+            saved as a <strong>Test Log</strong> entry — visible in the Expenses screen under the
+            "Test" tab. Use this to verify the listener is picking up messages without
+            creating real expense records. The raw SMS body is shown alongside parsed data.
+          </p>
+          <div class="egc-row">
+            <span class="egc-row-label">Enable test logging</span>
+            <button class="egc-toggle" [class.egc-toggle--on]="settings.testListenerEnabled"
+                    (click)="toggleTestListener()" [disabled]="saving">
+              <span class="egc-toggle-knob"></span>
+            </button>
+          </div>
+          <div class="egc-android-note" *ngIf="!isAndroid">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            SMS test logging is only meaningful on the Android app.
+          </div>
+        </div>
+
         <!-- Currency & Category -->
         <div class="egc-card">
           <div class="egc-card-header">
@@ -204,7 +240,8 @@ const CATEGORIES  = ['Uncategorized', 'Food & Dining', 'Transport', 'Shopping', 
       font-size: 10px; font-weight: 700;
       background: var(--border); color: var(--text-muted);
     }
-    .egc-badge--on { background: var(--accent); color: #fff; }
+    .egc-badge--on   { background: var(--accent); color: #fff; }
+    .egc-badge--test { background: #f59e0b; color: #fff; }
 
     .egc-row {
       display: flex; align-items: center; justify-content: space-between;
@@ -311,6 +348,7 @@ export class ExpenseGuideConfigComponent implements OnInit, OnDestroy {
   settings: ExpenseGuideSettings = {
     smsListenerEnabled:  false,
     notificationEnabled: true,
+    testListenerEnabled: false,
     currency:            'INR',
     defaultCategory:     'Uncategorized',
   };
@@ -325,6 +363,7 @@ export class ExpenseGuideConfigComponent implements OnInit, OnDestroy {
       this.settings = { ...this.settings, ...s };
       this.loading  = false;
       if (this.isAndroid && this.settings.smsListenerEnabled) this.checkPermissions();
+      this.smsListener.setTestMode(this.settings.testListenerEnabled);
     });
   }
 
@@ -341,6 +380,12 @@ export class ExpenseGuideConfigComponent implements OnInit, OnDestroy {
     if (this.isAndroid) {
       this.applyNativeListenerState();
     }
+    this.save();
+  }
+
+  toggleTestListener(): void {
+    this.settings.testListenerEnabled = !this.settings.testListenerEnabled;
+    this.smsListener.setTestMode(this.settings.testListenerEnabled);
     this.save();
   }
 

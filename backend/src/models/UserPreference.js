@@ -72,6 +72,7 @@ const expenseGuideSchema = new mongoose.Schema(
   {
     smsListenerEnabled:    { type: Boolean, default: false },
     notificationEnabled:   { type: Boolean, default: true },
+    testListenerEnabled:   { type: Boolean, default: false },
     currency:              { type: String,  default: 'INR' },
     defaultCategory:       { type: String,  default: 'Uncategorized' },
   },

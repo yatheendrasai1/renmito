@@ -9,11 +9,16 @@ import { ColorPalette } from '../components/theme-editor/theme-editor.component'
 import { DaySettings } from './day-level.service';
 
 export interface UserProfile {
-  dateOfBirth:   string | null;  // ISO date string YYYY-MM-DD
-  weight:        number | null;  // kg
-  height:        number | null;  // cm
-  gender:        'male' | 'female' | 'other' | '';
-  activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very-active' | '';
+  dateOfBirth:        string | null;  // ISO date string YYYY-MM-DD
+  weight:             number | null;  // kg
+  height:             number | null;  // cm
+  targetWeight:       number | null;  // kg
+  gender:             'male' | 'female' | 'other' | '';
+  activityLevel:      'sedentary' | 'light' | 'moderate' | 'active' | 'very-active' | '';
+  designation:        string;
+  designationSince:   string | null;  // ISO date string YYYY-MM-DD
+  yearsOfExperience:  number | null;
+  workDomain:         string;
 }
 
 export interface Features {

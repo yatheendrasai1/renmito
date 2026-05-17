@@ -74,32 +74,34 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
             <div *ngIf="note.type !== 'tapper'"
                  class="ns-note-wrap"
                  [class.ns-note-wrap--new]="note.isNew">
-              <button class="ns-delete-btn" (click)="pendingDeleteNote = note" [disabled]="note.deleting" title="Delete note">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"/>
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                  <path d="M10 11v6M14 11v6"/>
-                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                </svg>
-              </button>
-              <button class="ns-log-btn" (click)="logToRenni(note)" title="Send to Renni chat">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
-              </button>
-              <button class="ns-copy-btn" (click)="copyNote(note)" [title]="note.copied ? 'Copied!' : 'Copy'">
-                <svg *ngIf="!note.copied" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-                <svg *ngIf="note.copied" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-              </button>
+              <div class="ns-note-actions">
+                <button class="ns-delete-btn" (click)="pendingDeleteNote = note" [disabled]="note.deleting" title="Delete note">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                  </svg>
+                </button>
+                <button class="ns-log-btn" (click)="logToRenni(note)" title="Send to Renni chat">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </button>
+                <button class="ns-copy-btn" (click)="copyNote(note)" [title]="note.copied ? 'Copied!' : 'Copy'">
+                  <svg *ngIf="!note.copied" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  <svg *ngIf="note.copied" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </button>
+              </div>
               <textarea
                 #noteTA
                 class="ns-note-ta"
@@ -322,53 +324,31 @@ const DOMAIN_LABELS: Record<string, string> = { work: 'Work', personal: 'Persona
       position: relative;
     }
 
-    .ns-delete-btn {
-      position: absolute; top: 8px; right: 68px;
-      display: flex; align-items: center; justify-content: center;
-      width: 24px; height: 24px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-sm);
-      color: var(--text-muted);
-      cursor: pointer;
-      opacity: 0;
-      transition: opacity 0.15s, color 0.15s, border-color 0.15s;
-      z-index: 1;
+    /* Icon bar always visible above the textarea */
+    .ns-note-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 2px 6px;
+      min-height: 34px;
     }
-    .ns-note-wrap:hover .ns-delete-btn { opacity: 1; }
-    .ns-delete-btn:hover:not(:disabled) { color: #e05252; border-color: #e05252; }
-    .ns-delete-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-    .ns-log-btn {
-      position: absolute; top: 8px; right: 38px;
-      display: flex; align-items: center; justify-content: center;
-      width: 24px; height: 24px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius-sm);
-      color: var(--text-muted);
-      cursor: pointer;
-      opacity: 0;
-      transition: opacity 0.15s, color 0.15s, border-color 0.15s;
-      z-index: 1;
-    }
-    .ns-note-wrap:hover .ns-log-btn { opacity: 1; }
-    .ns-log-btn:hover { color: #9D8FDE; border-color: #7C6FCD; }
-
+    .ns-delete-btn,
+    .ns-log-btn,
     .ns-copy-btn {
-      position: absolute; top: 8px; right: 8px;
       display: flex; align-items: center; justify-content: center;
-      width: 24px; height: 24px;
+      width: 28px; height: 28px;
       background: var(--bg-surface);
       border: 1px solid var(--border-light);
       border-radius: var(--radius-sm);
       color: var(--text-muted);
       cursor: pointer;
-      opacity: 0;
-      transition: opacity 0.15s, color 0.15s, border-color 0.15s;
-      z-index: 1;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+      flex-shrink: 0;
     }
-    .ns-note-wrap:hover .ns-copy-btn { opacity: 1; }
+    .ns-delete-btn:hover:not(:disabled) { color: #e05252; border-color: #e05252; }
+    .ns-delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .ns-log-btn:hover { color: #9D8FDE; border-color: #7C6FCD; }
     .ns-copy-btn:hover { color: var(--text-primary); border-color: var(--highlight-selected); }
 
     @keyframes ns-note-in {
@@ -755,8 +735,10 @@ export class NotesSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   logToRenni(note: LocalNote): void {
     if (!note.content) return;
+    const contentSnapshot = note.content;
+    this.onBlur(note); // persist any unsaved edits before closing
     this.close.emit();
-    this.appState.openRenniWithTextRequested$.next(note.content);
+    this.appState.openRenniWithTextRequested$.next(contentSnapshot);
   }
 
   addNote(): void {

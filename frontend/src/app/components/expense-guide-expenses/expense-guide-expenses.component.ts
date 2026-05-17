@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ExpenseService, Expense, CreateExpensePayload } from '../../services/expense.service';
+import { SmsListenerService, SmsTestLog } from '../../services/sms-listener.service';
 
 const CATEGORIES = ['Uncategorized', 'Food & Dining', 'Transport', 'Shopping', 'Entertainment', 'Bills & Utilities', 'Health', 'Travel', 'Education', 'Other'];
 const PAY_METHODS = ['', 'UPI', 'Debit Card', 'Credit Card', 'Net Banking', 'Cash', 'Wallet'];
@@ -38,29 +39,32 @@ const PAY_METHODS = ['', 'UPI', 'Debit Card', 'Credit Card', 'Net Banking', 'Cas
           <input class="ege-filter-input" type="date" [(ngModel)]="filter.endDate" (change)="loadExpenses()" placeholder="To" title="To date"/>
         </div>
         <div class="ege-filter-tabs">
-          <button class="ege-filter-tab" [class.ege-filter-tab--active]="filter.entryType === ''"
-                  (click)="setEntryTypeFilter('')">All</button>
-          <button class="ege-filter-tab" [class.ege-filter-tab--active]="filter.entryType === 'manual'"
-                  (click)="setEntryTypeFilter('manual')">Manual</button>
-          <button class="ege-filter-tab" [class.ege-filter-tab--active]="filter.entryType === 'automatic'"
-                  (click)="setEntryTypeFilter('automatic')">Auto (SMS)</button>
+          <button class="ege-filter-tab" [class.ege-filter-tab--active]="activeTab === 'all' && filter.entryType === ''"
+                  (click)="setTab('all', '')">All</button>
+          <button class="ege-filter-tab" [class.ege-filter-tab--active]="activeTab === 'all' && filter.entryType === 'manual'"
+                  (click)="setTab('all', 'manual')">Manual</button>
+          <button class="ege-filter-tab" [class.ege-filter-tab--active]="activeTab === 'all' && filter.entryType === 'automatic'"
+                  (click)="setTab('all', 'automatic')">Auto</button>
+          <button class="ege-filter-tab ege-filter-tab--test" *ngIf="testListenerEnabled"
+                  [class.ege-filter-tab--active]="activeTab === 'test'"
+                  (click)="setTab('test', '')">Test Logs</button>
         </div>
       </div>
 
       <!-- Summary bar -->
-      <div class="ege-summary" *ngIf="expenses.length > 0">
+      <div class="ege-summary" *ngIf="activeTab !== 'test' && expenses.length > 0">
         <span class="ege-summary-label">Total shown</span>
         <span class="ege-summary-amount">{{ currencySymbol }} {{ totalAmount | number:'1.2-2' }}</span>
       </div>
 
       <!-- Loading -->
-      <div class="ege-empty" *ngIf="loading">
+      <div class="ege-empty" *ngIf="activeTab !== 'test' && loading">
         <div class="ege-spinner"></div>
         <span>Loading expenses…</span>
       </div>
 
       <!-- Empty -->
-      <div class="ege-empty" *ngIf="!loading && expenses.length === 0">
+      <div class="ege-empty" *ngIf="activeTab !== 'test' && !loading && expenses.length === 0">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
              style="opacity:0.3">
@@ -71,7 +75,7 @@ const PAY_METHODS = ['', 'UPI', 'Debit Card', 'Credit Card', 'Net Banking', 'Cas
       </div>
 
       <!-- List -->
-      <div class="ege-list" *ngIf="!loading && expenses.length > 0">
+      <div class="ege-list" *ngIf="activeTab !== 'test' && !loading && expenses.length > 0">
         <div class="ege-item" *ngFor="let e of expenses; trackBy: trackById">
           <div class="ege-item-left">
             <div class="ege-item-dot"
@@ -116,8 +120,59 @@ const PAY_METHODS = ['', 'UPI', 'Debit Card', 'Credit Card', 'Net Banking', 'Cas
         </div>
       </div>
 
+      <!-- Test Logs -->
+      <ng-container *ngIf="activeTab === 'test'">
+        <div class="ege-test-header">
+          <span class="ege-test-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+            Listener test logs
+          </span>
+          <button class="ege-test-clear" *ngIf="testLogs.length > 0" (click)="clearTestLogs()">Clear all</button>
+        </div>
+        <div class="ege-empty" *ngIf="testLogs.length === 0">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+               style="opacity:0.3">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          <span>No test logs yet. Send an SMS and check back here.</span>
+        </div>
+        <div class="ege-list" *ngIf="testLogs.length > 0">
+          <div class="ege-test-item" *ngFor="let t of testLogs">
+            <div class="ege-test-item-top">
+              <span class="ege-test-sender">{{ t.smsSender || 'Unknown sender' }}</span>
+              <span class="ege-test-time">{{ t.timestamp | date:'d MMM, h:mm:ss a' }}</span>
+            </div>
+            <div class="ege-test-raw">{{ t.smsRaw || '(no message body)' }}</div>
+            <div class="ege-test-parsed" *ngIf="t.amount != null">
+              <span class="ege-test-parsed-chip">
+                Amount: <strong>{{ currencySymbol }} {{ t.amount | number:'1.2-2' }}</strong>
+              </span>
+              <span class="ege-test-parsed-chip" *ngIf="t.merchant">
+                Merchant: <strong>{{ t.merchant }}</strong>
+              </span>
+              <span class="ege-test-parsed-chip" *ngIf="t.referenceId">
+                Ref: <strong>{{ t.referenceId }}</strong>
+              </span>
+            </div>
+            <div class="ege-test-no-parse" *ngIf="t.amount == null">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              Not parsed as a transaction
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
       <!-- Pagination -->
-      <div class="ege-pagination" *ngIf="total > limit">
+      <div class="ege-pagination" *ngIf="activeTab !== 'test' && total > limit">
         <button class="ege-page-btn" [disabled]="page <= 1" (click)="goPage(page - 1)">← Prev</button>
         <span class="ege-page-info">{{ page }} / {{ totalPages }}</span>
         <button class="ege-page-btn" [disabled]="page >= totalPages" (click)="goPage(page + 1)">Next →</button>
@@ -428,6 +483,65 @@ const PAY_METHODS = ['', 'UPI', 'Debit Card', 'Credit Card', 'Net Banking', 'Cas
       padding: 12px 20px 4px; font-size: 13px;
       color: var(--text-secondary); line-height: 1.5; margin: 0;
     }
+
+    /* Test tab chip */
+    .ege-filter-tab--test { border-color: #f59e0b; color: #f59e0b; }
+    .ege-filter-tab--test.ege-filter-tab--active { background: #f59e0b; color: #fff; border-color: #f59e0b; }
+
+    /* Test log list */
+    .ege-test-header {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .ege-test-title {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 600; color: #f59e0b;
+    }
+    .ege-test-clear {
+      font-size: 11px; color: var(--text-muted);
+      background: transparent; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 3px 10px; cursor: pointer;
+    }
+    .ege-test-clear:hover { color: #f87171; border-color: #f87171; }
+
+    .ege-test-item {
+      background: var(--bg-surface);
+      border: 1px solid rgba(245,158,11,0.25);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .ege-test-item-top {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .ege-test-sender {
+      font-size: 12px; font-weight: 600; color: #f59e0b;
+    }
+    .ege-test-time {
+      font-size: 11px; color: var(--text-muted);
+    }
+    .ege-test-raw {
+      font-size: 12px; color: var(--text-secondary);
+      background: var(--bg-primary);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      line-height: 1.5;
+      white-space: pre-wrap; word-break: break-word;
+      font-family: monospace;
+    }
+    .ege-test-parsed {
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .ege-test-parsed-chip {
+      font-size: 11px; color: var(--text-secondary);
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-radius: 8px; padding: 2px 8px;
+    }
+    .ege-test-parsed-chip strong { color: var(--text-primary); }
+    .ege-test-no-parse {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--text-muted);
+    }
   `]
 })
 export class ExpenseGuideExpensesComponent implements OnInit, OnDestroy {
@@ -444,6 +558,10 @@ export class ExpenseGuideExpensesComponent implements OnInit, OnDestroy {
 
   filter = { startDate: '', endDate: '', entryType: '' as '' | 'manual' | 'automatic' };
 
+  activeTab: 'all' | 'test' = 'all';
+  testListenerEnabled = false;
+  testLogs: SmsTestLog[] = [];
+
   formOpen      = false;
   formSaving    = false;   // true only while the add/edit API call is in-flight
   isDeleting    = false;   // separate flag for the delete dialog
@@ -458,11 +576,17 @@ export class ExpenseGuideExpensesComponent implements OnInit, OnDestroy {
 
   currencySymbol = '₹';
 
-  constructor(private expenseService: ExpenseService) {}
+  constructor(
+    private expenseService: ExpenseService,
+    private smsListener: SmsListenerService,
+  ) {}
 
   ngOnInit(): void {
     this.loadCurrency();
     this.loadExpenses();
+    this.expenseService.getSettings().pipe(takeUntil(this.destroy$)).subscribe(s => {
+      this.testListenerEnabled = s.testListenerEnabled ?? false;
+    });
   }
 
   ngOnDestroy(): void {
@@ -497,6 +621,22 @@ export class ExpenseGuideExpensesComponent implements OnInit, OnDestroy {
       this.total    = result.total;
       this.loading  = false;
     });
+  }
+
+  setTab(tab: 'all' | 'test', entryType: '' | 'manual' | 'automatic'): void {
+    this.activeTab = tab;
+    if (tab === 'test') {
+      this.testLogs = this.smsListener.getTestLogs();
+    } else {
+      this.filter.entryType = entryType;
+      this.page = 1;
+      this.loadExpenses();
+    }
+  }
+
+  clearTestLogs(): void {
+    this.smsListener.clearTestLogs();
+    this.testLogs = [];
   }
 
   setEntryTypeFilter(type: '' | 'manual' | 'automatic'): void {
