@@ -59,10 +59,12 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
             String sender = sms.getDisplayOriginatingAddress();
             String body   = sms.getMessageBody();
 
-            // Only process messages that look transactional
-            if (!TXN_PATTERN.matcher(body).find()) continue;
+            boolean isTestPhrase = body.toLowerCase(Locale.ROOT).contains("zero eg");
 
-            JSONObject parsed = parseTransaction(body, sender);
+            // Drop messages that are neither transactional nor the test phrase
+            if (!TXN_PATTERN.matcher(body).find() && !isTestPhrase) continue;
+
+            JSONObject parsed = parseTransaction(body, sender, isTestPhrase);
             if (parsed == null) continue;
 
             // Forward to SmsPlugin via a local Intent (caught by SmsPlugin's receiver)
@@ -74,15 +76,15 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
 
     // ─── Parser ──────────────────────────────────────────────────────────────
 
-    private JSONObject parseTransaction(String body, String sender) {
+    private JSONObject parseTransaction(String body, String sender, boolean isTestPhrase) {
         Matcher amountMatcher = AMOUNT_PATTERN.matcher(body);
-        if (!amountMatcher.find()) return null;
-
-        double amount;
-        try {
-            String raw = amountMatcher.group(1).replace(",", "");
-            amount = Double.parseDouble(raw);
-        } catch (Exception e) {
+        double amount = 0;
+        if (amountMatcher.find()) {
+            try {
+                amount = Double.parseDouble(amountMatcher.group(1).replace(",", ""));
+            } catch (Exception ignored) {}
+        } else if (!isTestPhrase) {
+            // Real transactions must have a parseable amount; test phrases don't
             return null;
         }
 
@@ -105,6 +107,7 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
             obj.put("smsSender",     sender != null ? sender : "");
             obj.put("referenceId",   reference);
             obj.put("paymentMethod", detectPaymentMethod(body));
+            obj.put("isTestPhrase",  isTestPhrase);
             return obj;
         } catch (Exception e) {
             return null;
