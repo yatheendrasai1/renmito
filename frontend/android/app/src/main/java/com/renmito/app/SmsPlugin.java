@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.util.Log;
 
 import androidx.core.content.ContextCompat;
 
@@ -42,6 +43,8 @@ import org.json.JSONObject;
 )
 public class SmsPlugin extends Plugin {
 
+    private static final String TAG = "RenmitoSmsPlugin";
+
     private BroadcastReceiver parsedReceiver;
     private BroadcastReceiver rawReceiver;
     private boolean listening = false;
@@ -51,8 +54,10 @@ public class SmsPlugin extends Plugin {
     @PluginMethod
     public void startListening(PluginCall call) {
         boolean showNotification = call.getBoolean("showNotification", true);
+        Log.d(TAG, "startListening called, hasPermissions=" + hasSmsPermissions() + " alreadyListening=" + listening);
 
         if (!hasSmsPermissions()) {
+            Log.w(TAG, "startListening rejected — SMS permissions not granted");
             call.reject("SMS permissions not granted. Call requestPermissions() first.");
             return;
         }
@@ -61,6 +66,9 @@ public class SmsPlugin extends Plugin {
             registerParsedReceiver();
             registerRawReceiver();
             listening = true;
+            Log.d(TAG, "Receivers registered, listening=true");
+        } else {
+            Log.d(TAG, "Already listening, skipping receiver registration");
         }
 
         if (showNotification) startForegroundService();
@@ -136,16 +144,21 @@ public class SmsPlugin extends Plugin {
     }
 
     private void registerRawReceiver() {
+        Log.d(TAG, "registerRawReceiver called");
         rawReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
+                Log.d(TAG, "rawReceiver.onReceive fired");
                 String json = intent.getStringExtra("json");
-                if (json == null) return;
+                if (json == null) { Log.w(TAG, "rawReceiver: json extra is null"); return; }
                 try {
                     org.json.JSONObject obj = new org.json.JSONObject(json);
+                    Log.d(TAG, "rawReceiver: emitting smsRaw event, body=" + obj.optString("body"));
                     JSObject jsObj = JSObject.fromJSONObject(obj);
                     notifyListeners("smsRaw", jsObj);
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    Log.e(TAG, "rawReceiver: error emitting smsRaw: " + e.getMessage());
+                }
             }
         };
         IntentFilter filter = new IntentFilter(SmsBroadcastReceiver.ACTION_SMS_RAW);

@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.telephony.SmsMessage;
+import android.util.Log;
 
 import org.json.JSONObject;
 
@@ -20,6 +21,8 @@ import java.util.regex.Pattern;
  * can pick them up without launching a full Activity.
  */
 public class SmsBroadcastReceiver extends BroadcastReceiver {
+
+    private static final String TAG = "RenmitoSMS";
 
     static final String ACTION_SMS_PARSED = "com.renmito.app.SMS_PARSED";
     static final String ACTION_SMS_RAW    = "com.renmito.app.SMS_RAW";
@@ -44,21 +47,27 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        Log.d(TAG, "onReceive fired, action=" + intent.getAction());
+
         if (!"android.provider.Telephony.SMS_RECEIVED".equals(intent.getAction())) return;
 
         Bundle bundle = intent.getExtras();
-        if (bundle == null) return;
+        if (bundle == null) { Log.w(TAG, "bundle is null, ignoring"); return; }
 
         Object[] pdus = (Object[]) bundle.get("pdus");
         String format = bundle.getString("format");
-        if (pdus == null) return;
+        if (pdus == null) { Log.w(TAG, "pdus is null, ignoring"); return; }
+
+        Log.d(TAG, "SMS received, pdu count=" + pdus.length);
 
         for (Object pdu : pdus) {
             SmsMessage sms = SmsMessage.createFromPdu((byte[]) pdu, format);
-            if (sms == null) continue;
+            if (sms == null) { Log.w(TAG, "createFromPdu returned null"); continue; }
 
             String sender = sms.getDisplayOriginatingAddress();
             String body   = sms.getMessageBody();
+
+            Log.d(TAG, "SMS from=" + sender + " body_len=" + (body != null ? body.length() : 0) + " body=" + body);
 
             // Always forward every SMS as a raw event so the test log can capture it
             try {
@@ -69,20 +78,29 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
                 Intent rawIntent = new Intent(ACTION_SMS_RAW);
                 rawIntent.putExtra("json", raw.toString());
                 context.sendBroadcast(rawIntent);
-            } catch (Exception ignored) {}
+                Log.d(TAG, "ACTION_SMS_RAW broadcast sent for body: " + body);
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to send ACTION_SMS_RAW: " + e.getMessage());
+            }
 
             boolean isTestPhrase = body.toLowerCase(Locale.ROOT).contains("zero eg");
+            boolean isTxn        = TXN_PATTERN.matcher(body).find();
+            Log.d(TAG, "isTestPhrase=" + isTestPhrase + " isTxn=" + isTxn);
 
             // Drop messages that are neither transactional nor the test phrase
-            if (!TXN_PATTERN.matcher(body).find() && !isTestPhrase) continue;
+            if (!isTxn && !isTestPhrase) {
+                Log.d(TAG, "Not transactional and not test phrase — skipping ACTION_SMS_PARSED");
+                continue;
+            }
 
             JSONObject parsed = parseTransaction(body, sender, isTestPhrase);
-            if (parsed == null) continue;
+            if (parsed == null) { Log.w(TAG, "parseTransaction returned null"); continue; }
 
             // Forward parsed transaction to SmsPlugin
             Intent forward = new Intent(ACTION_SMS_PARSED);
             forward.putExtra("json", parsed.toString());
             context.sendBroadcast(forward);
+            Log.d(TAG, "ACTION_SMS_PARSED broadcast sent");
         }
     }
 

@@ -45,14 +45,17 @@ export class SmsListenerService implements OnDestroy {
   }
 
   async startListening(showNotification = true): Promise<void> {
+    console.log(`[RenmitoSmsListener] startListening called, isAndroid=${this.isAndroid}`);
     if (!this.isAndroid) return;
     try {
       const plugin = this.getPlugin();
+      console.log(`[RenmitoSmsListener] plugin found=${!!plugin}`);
       if (!plugin) return;
-      await plugin.startListening({ showNotification });
+      const result = await plugin.startListening({ showNotification });
+      console.log(`[RenmitoSmsListener] startListening result`, result);
       this.attachListener();
     } catch (err) {
-      console.warn('[SmsListener] startListening failed', err);
+      console.warn('[RenmitoSmsListener] startListening failed', err);
     }
   }
 
@@ -95,6 +98,7 @@ export class SmsListenerService implements OnDestroy {
 
   setTestMode(enabled: boolean): void {
     this.testMode = enabled;
+    console.log(`[RenmitoSmsListener] testMode set to ${enabled}`);
   }
 
   getTestLogs(): SmsTestLog[] {
@@ -138,20 +142,24 @@ export class SmsListenerService implements OnDestroy {
   private attachListener(): void {
     this.removeListener();
     const plugin = this.getPlugin();
-    if (!plugin) return;
+    if (!plugin) { console.warn('[RenmitoSmsListener] attachListener: plugin not found'); return; }
+    console.log('[RenmitoSmsListener] attaching smsTransaction + smsRaw listeners');
 
     plugin.addListener('smsTransaction', (data: any) => {
+      console.log('[RenmitoSmsListener] smsTransaction event received', data);
       this.onTransaction(data);
     }).then((handle: any) => {
       this.listenerHandle = handle;
-    }).catch(() => {});
+      console.log('[RenmitoSmsListener] smsTransaction listener registered');
+    }).catch((e: any) => console.warn('[RenmitoSmsListener] smsTransaction addListener failed', e));
 
-    // Raw listener: every SMS regardless of transaction pattern
     plugin.addListener('smsRaw', (data: any) => {
+      console.log('[RenmitoSmsListener] smsRaw event received', data);
       this.onRawSms(data);
     }).then((handle: any) => {
       this.rawListenerHandle = handle;
-    }).catch(() => {});
+      console.log('[RenmitoSmsListener] smsRaw listener registered');
+    }).catch((e: any) => console.warn('[RenmitoSmsListener] smsRaw addListener failed', e));
   }
 
   private removeListener(): void {
@@ -166,13 +174,18 @@ export class SmsListenerService implements OnDestroy {
   }
 
   private onRawSms(data: any): void {
-    if (!this.testMode) return;
+    console.log(`[RenmitoSmsListener] onRawSms called, testMode=${this.testMode}, body="${data?.body}"`);
+    if (!this.testMode) {
+      console.log('[RenmitoSmsListener] onRawSms: testMode is OFF, skipping');
+      return;
+    }
     this.appendTestLog({
       smsRaw:    data.body    ?? '',
       smsSender: data.sender  ?? '',
       amount:    undefined,
       merchant:  undefined,
     });
+    console.log('[RenmitoSmsListener] test log appended for raw SMS');
   }
 
   private onTransaction(data: any): void {
