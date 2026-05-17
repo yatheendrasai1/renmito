@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 public class SmsBroadcastReceiver extends BroadcastReceiver {
 
     static final String ACTION_SMS_PARSED = "com.renmito.app.SMS_PARSED";
+    static final String ACTION_SMS_RAW    = "com.renmito.app.SMS_RAW";
 
     // Matches patterns like "debited by Rs.1,234.56", "INR 2500 debited", "spent Rs 450"
     private static final Pattern AMOUNT_PATTERN = Pattern.compile(
@@ -59,6 +60,17 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
             String sender = sms.getDisplayOriginatingAddress();
             String body   = sms.getMessageBody();
 
+            // Always forward every SMS as a raw event so the test log can capture it
+            try {
+                JSONObject raw = new JSONObject();
+                raw.put("body",      body);
+                raw.put("sender",    sender != null ? sender : "");
+                raw.put("timestamp", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).format(new Date()));
+                Intent rawIntent = new Intent(ACTION_SMS_RAW);
+                rawIntent.putExtra("json", raw.toString());
+                context.sendBroadcast(rawIntent);
+            } catch (Exception ignored) {}
+
             boolean isTestPhrase = body.toLowerCase(Locale.ROOT).contains("zero eg");
 
             // Drop messages that are neither transactional nor the test phrase
@@ -67,7 +79,7 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
             JSONObject parsed = parseTransaction(body, sender, isTestPhrase);
             if (parsed == null) continue;
 
-            // Forward to SmsPlugin via a local Intent (caught by SmsPlugin's receiver)
+            // Forward parsed transaction to SmsPlugin
             Intent forward = new Intent(ACTION_SMS_PARSED);
             forward.putExtra("json", parsed.toString());
             context.sendBroadcast(forward);

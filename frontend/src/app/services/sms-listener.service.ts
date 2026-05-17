@@ -133,16 +133,24 @@ export class SmsListenerService implements OnDestroy {
 
   // ─── Internals ────────────────────────────────────────────────────────────
 
+  private rawListenerHandle: any = null;
+
   private attachListener(): void {
     this.removeListener();
     const plugin = this.getPlugin();
     if (!plugin) return;
 
-    // addListener returns a handle with a remove() method
     plugin.addListener('smsTransaction', (data: any) => {
       this.onTransaction(data);
     }).then((handle: any) => {
       this.listenerHandle = handle;
+    }).catch(() => {});
+
+    // Raw listener: every SMS regardless of transaction pattern
+    plugin.addListener('smsRaw', (data: any) => {
+      this.onRawSms(data);
+    }).then((handle: any) => {
+      this.rawListenerHandle = handle;
     }).catch(() => {});
   }
 
@@ -151,6 +159,20 @@ export class SmsListenerService implements OnDestroy {
       try { this.listenerHandle.remove(); } catch {}
       this.listenerHandle = null;
     }
+    if (this.rawListenerHandle) {
+      try { this.rawListenerHandle.remove(); } catch {}
+      this.rawListenerHandle = null;
+    }
+  }
+
+  private onRawSms(data: any): void {
+    if (!this.testMode) return;
+    this.appendTestLog({
+      smsRaw:    data.body    ?? '',
+      smsSender: data.sender  ?? '',
+      amount:    undefined,
+      merchant:  undefined,
+    });
   }
 
   private onTransaction(data: any): void {

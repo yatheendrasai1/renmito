@@ -43,6 +43,7 @@ import org.json.JSONObject;
 public class SmsPlugin extends Plugin {
 
     private BroadcastReceiver parsedReceiver;
+    private BroadcastReceiver rawReceiver;
     private boolean listening = false;
 
     // ─── Public plugin methods ────────────────────────────────────────────────
@@ -58,6 +59,7 @@ public class SmsPlugin extends Plugin {
 
         if (!listening) {
             registerParsedReceiver();
+            registerRawReceiver();
             listening = true;
         }
 
@@ -72,6 +74,7 @@ public class SmsPlugin extends Plugin {
     public void stopListening(PluginCall call) {
         if (listening) {
             unregisterParsedReceiver();
+            unregisterRawReceiver();
             listening = false;
         }
         stopForegroundService();
@@ -129,6 +132,34 @@ public class SmsPlugin extends Plugin {
         if (parsedReceiver != null) {
             try { getContext().unregisterReceiver(parsedReceiver); } catch (Exception ignored) {}
             parsedReceiver = null;
+        }
+    }
+
+    private void registerRawReceiver() {
+        rawReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String json = intent.getStringExtra("json");
+                if (json == null) return;
+                try {
+                    org.json.JSONObject obj = new org.json.JSONObject(json);
+                    JSObject jsObj = JSObject.fromJSONObject(obj);
+                    notifyListeners("smsRaw", jsObj);
+                } catch (Exception ignored) {}
+            }
+        };
+        IntentFilter filter = new IntentFilter(SmsBroadcastReceiver.ACTION_SMS_RAW);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            getContext().registerReceiver(rawReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            getContext().registerReceiver(rawReceiver, filter);
+        }
+    }
+
+    private void unregisterRawReceiver() {
+        if (rawReceiver != null) {
+            try { getContext().unregisterReceiver(rawReceiver); } catch (Exception ignored) {}
+            rawReceiver = null;
         }
     }
 
