@@ -3,11 +3,12 @@ const expensesService = require('../services/expenses.service');
 // ─── GET /api/expenses ────────────────────────────────────────────────────────
 async function listExpenses(req, res) {
   try {
-    const { startDate, endDate, entryType, page, limit } = req.query;
+    const { startDate, endDate, entryType, testOnly, page, limit } = req.query;
     const result = await expensesService.listExpenses(req.user.userId, {
       startDate,
       endDate,
       entryType,
+      testOnly: testOnly === 'true',
       page:  page  ? parseInt(page,  10) : 1,
       limit: limit ? parseInt(limit, 10) : 50,
     });

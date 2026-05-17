@@ -110,6 +110,10 @@ export class SmsListenerService implements OnDestroy {
     localStorage.removeItem(TEST_LOGS_KEY);
   }
 
+  appendTestLogEntry(data: { smsRaw: string; smsSender: string; amount?: number; merchant?: string; referenceId?: string }): void {
+    this.appendTestLog(data);
+  }
+
   private appendTestLog(data: any): void {
     const logs = this.getTestLogs();
     const entry: SmsTestLog = {
@@ -153,6 +157,25 @@ export class SmsListenerService implements OnDestroy {
     if (this.testMode) {
       this.appendTestLog(data);
     }
+
+    // "zero eg" test phrase: save as real expense tagged isTestExpense, skip normal batch
+    if (this.testMode && (data.smsRaw ?? data.body ?? '').toLowerCase().includes('zero eg')) {
+      this.expenseService.create({
+        amount:        data.amount ?? 0,
+        currency:      data.currency ?? 'INR',
+        merchant:      data.merchant || 'Test',
+        category:      'Uncategorized',
+        date:          data.date ?? new Date().toISOString().substring(0, 10),
+        entryType:     'automatic',
+        smsRaw:        data.smsRaw ?? '',
+        smsSender:     data.smsSender ?? '',
+        referenceId:   data.referenceId ?? '',
+        paymentMethod: data.paymentMethod ?? '',
+        isTestExpense: true,
+      } as any).subscribe();
+      return;
+    }
+
     if (!data?.amount) return;
     this.pendingBatch.push(data);
 

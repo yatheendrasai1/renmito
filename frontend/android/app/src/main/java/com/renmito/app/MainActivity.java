@@ -7,6 +7,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(android.os.Bundle savedInstanceState) {
         registerPlugin(TokenSyncPlugin.class);
         registerPlugin(SmsPlugin.class);
+        registerPlugin(NotificationPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

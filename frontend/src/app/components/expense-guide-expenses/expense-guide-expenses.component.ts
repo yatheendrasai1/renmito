@@ -169,6 +169,46 @@ const PAY_METHODS = ['', 'UPI', 'Debit Card', 'Credit Card', 'Net Banking', 'Cas
             </div>
           </div>
         </div>
+
+        <!-- Test Expenses (isTestExpense: true from backend) -->
+        <div class="ege-test-header" style="margin-top:16px">
+          <span class="ege-test-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            Tracked test expenses
+          </span>
+          <span class="ege-test-time" *ngIf="!testExpensesLoading">{{ testExpenses.length }} saved</span>
+        </div>
+        <div class="ege-empty" *ngIf="testExpensesLoading">
+          <div class="ege-spinner"></div>
+          <span>Loading…</span>
+        </div>
+        <div class="ege-empty" *ngIf="!testExpensesLoading && testExpenses.length === 0">
+          <span style="font-size:12px">No test expenses yet. Send a message with "zero eg" while test logging is on.</span>
+        </div>
+        <div class="ege-list" *ngIf="!testExpensesLoading && testExpenses.length > 0">
+          <div class="ege-test-item" *ngFor="let e of testExpenses">
+            <div class="ege-test-item-top">
+              <span class="ege-test-sender">{{ e.merchant || 'Unknown' }}</span>
+              <span class="ege-test-time">{{ e.createdAt | date:'d MMM, h:mm:ss a' }}</span>
+            </div>
+            <div class="ege-test-raw">{{ e.smsRaw || '(no message body)' }}</div>
+            <div class="ege-test-parsed">
+              <span class="ege-test-parsed-chip">
+                Amount: <strong>{{ currencySymbol }} {{ e.amount | number:'1.2-2' }}</strong>
+              </span>
+              <span class="ege-test-parsed-chip" *ngIf="e.smsSender">
+                Source: <strong>{{ e.smsSender }}</strong>
+              </span>
+              <span class="ege-test-parsed-chip" style="background:rgba(248,113,113,0.1);border-color:rgba(248,113,113,0.3);color:#f87171">
+                isTestExpense: <strong>true</strong>
+              </span>
+            </div>
+          </div>
+        </div>
       </ng-container>
 
       <!-- Pagination -->
@@ -561,6 +601,8 @@ export class ExpenseGuideExpensesComponent implements OnInit, OnDestroy {
   activeTab: 'all' | 'test' = 'all';
   testListenerEnabled = false;
   testLogs: SmsTestLog[] = [];
+  testExpenses: Expense[] = [];
+  testExpensesLoading = false;
 
   formOpen      = false;
   formSaving    = false;   // true only while the add/edit API call is in-flight
@@ -627,11 +669,20 @@ export class ExpenseGuideExpensesComponent implements OnInit, OnDestroy {
     this.activeTab = tab;
     if (tab === 'test') {
       this.testLogs = this.smsListener.getTestLogs();
+      this.loadTestExpenses();
     } else {
       this.filter.entryType = entryType;
       this.page = 1;
       this.loadExpenses();
     }
+  }
+
+  loadTestExpenses(): void {
+    this.testExpensesLoading = true;
+    this.expenseService.listTestExpenses().pipe(takeUntil(this.destroy$)).subscribe(result => {
+      this.testExpenses         = result.items;
+      this.testExpensesLoading  = false;
+    });
   }
 
   clearTestLogs(): void {

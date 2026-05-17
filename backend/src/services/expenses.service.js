@@ -1,6 +1,6 @@
 const Expense = require('../models/Expense');
 
-async function listExpenses(userId, { startDate, endDate, entryType, page = 1, limit = 50 } = {}) {
+async function listExpenses(userId, { startDate, endDate, entryType, testOnly = false, page = 1, limit = 50 } = {}) {
   const query = { userId };
   if (startDate || endDate) {
     query.date = {};
@@ -8,6 +8,12 @@ async function listExpenses(userId, { startDate, endDate, entryType, page = 1, l
     if (endDate)   query.date.$lte = new Date(endDate);
   }
   if (entryType) query.entryType = entryType;
+  // Isolate test expenses from real ones
+  if (testOnly) {
+    query.isTestExpense = true;
+  } else {
+    query.isTestExpense = { $ne: true };
+  }
 
   const skip  = (page - 1) * limit;
   const [items, total] = await Promise.all([

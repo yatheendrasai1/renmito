@@ -19,6 +19,7 @@ export interface Expense {
   paymentMethod: string;
   referenceId:   string;
   tags:          string[];
+  isTestExpense: boolean;
   createdAt:     string;
   updatedAt:     string;
 }
@@ -31,11 +32,12 @@ export interface ExpenseListResult {
 }
 
 export interface ExpenseGuideSettings {
-  smsListenerEnabled:  boolean;
-  notificationEnabled: boolean;
-  testListenerEnabled: boolean;
-  currency:            string;
-  defaultCategory:     string;
+  smsListenerEnabled:          boolean;
+  notificationEnabled:         boolean;
+  testListenerEnabled:         boolean;
+  notificationListenerEnabled: boolean;
+  currency:                    string;
+  defaultCategory:             string;
 }
 
 export type CreateExpensePayload = Partial<Omit<Expense, '_id' | 'userId' | 'createdAt' | 'updatedAt'>>;
@@ -51,19 +53,25 @@ export class ExpenseService {
     startDate?: string;
     endDate?:   string;
     entryType?: 'manual' | 'automatic';
+    testOnly?:  boolean;
     page?:      number;
     limit?:     number;
   } = {}): Observable<ExpenseListResult> {
     let p = new HttpParams();
-    if (params.startDate) p = p.set('startDate', params.startDate);
-    if (params.endDate)   p = p.set('endDate',   params.endDate);
-    if (params.entryType) p = p.set('entryType', params.entryType);
-    if (params.page)      p = p.set('page',  String(params.page));
-    if (params.limit)     p = p.set('limit', String(params.limit));
+    if (params.startDate)        p = p.set('startDate', params.startDate);
+    if (params.endDate)          p = p.set('endDate',   params.endDate);
+    if (params.entryType)        p = p.set('entryType', params.entryType);
+    if (params.testOnly)         p = p.set('testOnly',  'true');
+    if (params.page)             p = p.set('page',  String(params.page));
+    if (params.limit)            p = p.set('limit', String(params.limit));
 
     return this.http.get<ExpenseListResult>(this.api, { params: p }).pipe(
       catchError(() => of({ items: [], total: 0, page: 1, limit: 50 }))
     );
+  }
+
+  listTestExpenses(): Observable<ExpenseListResult> {
+    return this.list({ testOnly: true, limit: 100 });
   }
 
   get(id: string): Observable<Expense | null> {
@@ -115,6 +123,6 @@ export class ExpenseService {
   }
 
   private defaultSettings(): ExpenseGuideSettings {
-    return { smsListenerEnabled: false, notificationEnabled: true, testListenerEnabled: false, currency: 'INR', defaultCategory: 'Uncategorized' };
+    return { smsListenerEnabled: false, notificationEnabled: true, testListenerEnabled: false, notificationListenerEnabled: false, currency: 'INR', defaultCategory: 'Uncategorized' };
   }
 }

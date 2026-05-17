@@ -181,7 +181,7 @@ async function updateFeatures(userId, features) {
 }
 
 async function updateExpenseGuide(userId, settings) {
-  const allowed = ['smsListenerEnabled', 'notificationEnabled', 'testListenerEnabled', 'currency', 'defaultCategory'];
+  const allowed = ['smsListenerEnabled', 'notificationEnabled', 'testListenerEnabled', 'notificationListenerEnabled', 'currency', 'defaultCategory'];
   const update  = {};
   for (const key of allowed) {
     if (settings[key] !== undefined) update[`expenseGuide.${key}`] = settings[key];

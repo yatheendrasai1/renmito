@@ -33,6 +33,9 @@ const expenseSchema = new mongoose.Schema(
     referenceId:   { type: String, default: '' }, // bank/UPI transaction reference
 
     tags: [{ type: String }],
+
+    /** True for expenses auto-created from test messages (e.g. "zero eg"). */
+    isTestExpense: { type: Boolean, default: false, index: true },
   },
   { timestamps: true, collection: 'expenses' }
 );

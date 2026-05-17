@@ -5,6 +5,7 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ExpenseService, ExpenseGuideSettings } from '../../services/expense.service';
 import { SmsListenerService } from '../../services/sms-listener.service';
+import { NotificationListenerService } from '../../services/notification-listener.service';
 import { Capacitor } from '@capacitor/core';
 
 const CURRENCIES = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD', 'CAD', 'JPY'];
@@ -77,6 +78,66 @@ const CATEGORIES  = ['Uncategorized', 'Food & Dining', 'Transport', 'Shopping', 
             </div>
             <button class="egc-btn egc-btn--sm" *ngIf="permStatus !== 'granted'"
                     (click)="requestPermissions()">Grant permissions</button>
+          </div>
+        </div>
+
+        <!-- Notification Listener Section -->
+        <div class="egc-card">
+          <div class="egc-card-header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+            <span class="egc-card-title">Notification Listener</span>
+            <div class="egc-badge" [class.egc-badge--on]="settings.notificationListenerEnabled">
+              {{ settings.notificationListenerEnabled ? 'ON' : 'OFF' }}
+            </div>
+          </div>
+          <p class="egc-card-desc">
+            When enabled, Renmito reads incoming notifications from all apps (banking, payment,
+            UPI apps) and auto-detects transaction amounts. Works alongside the SMS listener
+            — useful when banks send push notifications instead of SMS.
+            All parsing happens on-device; no notification content leaves your phone.
+          </p>
+
+          <div class="egc-row">
+            <span class="egc-row-label">Enable notification listener</span>
+            <button class="egc-toggle" [class.egc-toggle--on]="settings.notificationListenerEnabled"
+                    (click)="toggleNotificationListener()" [disabled]="saving">
+              <span class="egc-toggle-knob"></span>
+            </button>
+          </div>
+
+          <div class="egc-android-note" *ngIf="!isAndroid">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Notification listening is only available on the Android app.
+          </div>
+
+          <div class="egc-perm-status" *ngIf="isAndroid && settings.notificationListenerEnabled">
+            <div class="egc-perm-row" [class.egc-perm-row--ok]="notifPermStatus === 'granted'">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline *ngIf="notifPermStatus === 'granted'" points="20 6 9 17 4 12"/>
+                <circle *ngIf="notifPermStatus !== 'granted'" cx="12" cy="12" r="10"/>
+                <line *ngIf="notifPermStatus !== 'granted'" x1="12" y1="8" x2="12" y2="12"/>
+                <line *ngIf="notifPermStatus !== 'granted'" x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              Notification access: {{ notifPermStatus === 'granted' ? 'Granted' : 'Not granted' }}
+            </div>
+            <button class="egc-btn egc-btn--sm" *ngIf="notifPermStatus !== 'granted'"
+                    (click)="openNotificationSettings()">
+              Grant access in settings
+            </button>
+            <span class="egc-card-desc" *ngIf="notifPermStatus !== 'granted'" style="margin:0;font-size:11px">
+              Tap the button above, find Renmito, and toggle on "Allow notification access".
+            </span>
           </div>
         </div>
 
@@ -341,21 +402,24 @@ export class ExpenseGuideConfigComponent implements OnInit, OnDestroy {
 
   isAndroid  = Capacitor.getPlatform() === 'android';
   permStatus: 'granted' | 'denied' | 'unknown' = 'unknown';
+  notifPermStatus: 'granted' | 'denied' | 'unknown' = 'unknown';
 
   currencies = CURRENCIES;
   categories = CATEGORIES;
 
   settings: ExpenseGuideSettings = {
-    smsListenerEnabled:  false,
-    notificationEnabled: true,
-    testListenerEnabled: false,
-    currency:            'INR',
-    defaultCategory:     'Uncategorized',
+    smsListenerEnabled:          false,
+    notificationEnabled:         true,
+    testListenerEnabled:         false,
+    notificationListenerEnabled: false,
+    currency:                    'INR',
+    defaultCategory:             'Uncategorized',
   };
 
   constructor(
     private expenseService: ExpenseService,
     private smsListener: SmsListenerService,
+    private notifListener: NotificationListenerService,
   ) {}
 
   ngOnInit(): void {
@@ -364,6 +428,11 @@ export class ExpenseGuideConfigComponent implements OnInit, OnDestroy {
       this.loading  = false;
       if (this.isAndroid && this.settings.smsListenerEnabled) this.checkPermissions();
       this.smsListener.setTestMode(this.settings.testListenerEnabled);
+      this.notifListener.setTestMode(this.settings.testListenerEnabled);
+      if (this.isAndroid && this.settings.notificationListenerEnabled) {
+        this.applyNativeNotificationListenerState();
+        this.checkNotifPermission();
+      }
     });
   }
 
@@ -386,7 +455,34 @@ export class ExpenseGuideConfigComponent implements OnInit, OnDestroy {
   toggleTestListener(): void {
     this.settings.testListenerEnabled = !this.settings.testListenerEnabled;
     this.smsListener.setTestMode(this.settings.testListenerEnabled);
+    this.notifListener.setTestMode(this.settings.testListenerEnabled);
     this.save();
+  }
+
+  toggleNotificationListener(): void {
+    this.settings.notificationListenerEnabled = !this.settings.notificationListenerEnabled;
+    if (this.isAndroid) this.applyNativeNotificationListenerState();
+    if (this.isAndroid && this.settings.notificationListenerEnabled) this.checkNotifPermission();
+    this.save();
+  }
+
+  openNotificationSettings(): void {
+    this.notifListener.openNotificationSettings();
+  }
+
+  private checkNotifPermission(): void {
+    this.notifListener.checkPermission().then(status => {
+      this.notifPermStatus = status;
+    });
+  }
+
+  private applyNativeNotificationListenerState(): void {
+    if (!this.isAndroid) return;
+    if (this.settings.notificationListenerEnabled) {
+      this.notifListener.startListening();
+    } else {
+      this.notifListener.stopListening();
+    }
   }
 
   toggleNotification(): void {
