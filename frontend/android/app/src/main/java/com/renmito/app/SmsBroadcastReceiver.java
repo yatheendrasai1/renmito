@@ -19,30 +19,41 @@ import java.util.regex.Pattern;
  * Receives android.provider.Telephony.SMS_RECEIVED broadcasts and forwards
  * transactional messages to SmsPlugin via a local broadcast so the WebView
  * can pick them up without launching a full Activity.
+ *
+ * Only two categories of SMS are forwarded:
+ *   1. Messages matching TXN_PATTERN (real bank/UPI transactions)
+ *   2. Messages containing "zero eg" (test phrase for manual verification)
+ * All other SMS are silently ignored.
  */
 public class SmsBroadcastReceiver extends BroadcastReceiver {
 
     private static final String TAG = "RenmitoSMS";
 
     static final String ACTION_SMS_PARSED = "com.renmito.app.SMS_PARSED";
-    static final String ACTION_SMS_RAW    = "com.renmito.app.SMS_RAW";
 
-    // Matches patterns like "debited by Rs.1,234.56", "INR 2500 debited", "spent Rs 450"
-    private static final Pattern AMOUNT_PATTERN = Pattern.compile(
-            "(?:rs\\.?|inr|₹)\\s*([\\d,]+(?:\\.\\d{1,2})?)",
-            Pattern.CASE_INSENSITIVE
-    );
-
-    // Matches "transaction reference", "txn id", "ref no", "utr"
-    private static final Pattern REF_PATTERN = Pattern.compile(
-            "(?:txn(?:\\s+id)?|ref(?:\\s+no)?|utr|transaction(?:\\s+id)?)\\s*[:#]?\\s*([A-Z0-9]{6,24})",
-            Pattern.CASE_INSENSITIVE
-    );
-
-    // Known transaction keywords
+    // Debit/credit transaction keywords — covers HDFC, IDFC and common bank patterns
     private static final Pattern TXN_PATTERN = Pattern.compile(
-            "debited|deducted|paid|spent|transferred|purchase|payment|charged|withdrawn",
-            Pattern.CASE_INSENSITIVE
+        "\\bdebited\\b|\\bcredited\\b|\\bspent\\b|sent\\s+rs|\\brefunded\\b|credit\\s+alert" +
+        "|\\bdeducted\\b|\\bpaid\\b|\\btransferred\\b|\\bpurchase\\b|\\bpayment\\b|\\bcharged\\b|\\bwithdrawn\\b",
+        Pattern.CASE_INSENSITIVE
+    );
+
+    // Determines if the transaction is a credit (inflow) vs debit (outflow)
+    private static final Pattern CREDIT_PATTERN = Pattern.compile(
+        "\\bcredited\\b|credit\\s+alert|\\brefunded\\b|\\breceived\\b",
+        Pattern.CASE_INSENSITIVE
+    );
+
+    // Matches: Rs.312.61 / Rs. 1500.00 / Rs. 60,740.00 / INR 491.00 / ₹500
+    private static final Pattern AMOUNT_PATTERN = Pattern.compile(
+        "(?:rs\\.?\\s*|inr\\s*|₹\\s*)([\\d,]+(?:\\.\\d{1,2})?)",
+        Pattern.CASE_INSENSITIVE
+    );
+
+    // Matches: Ref 256270695080 / RRN 609168171796 / UPI Ref No. 122460070572 / UPI 754973861386
+    private static final Pattern REF_PATTERN = Pattern.compile(
+        "(?:upi\\s+ref(?:\\s+no\\.?)?|rrn|ref(?:\\s+no\\.?)?|upi|txn(?:\\s+id)?|utr)\\s*[:#.]?\\s*([0-9]{10,20})",
+        Pattern.CASE_INSENSITIVE
     );
 
     @Override
@@ -52,59 +63,38 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
         if (!"android.provider.Telephony.SMS_RECEIVED".equals(intent.getAction())) return;
 
         Bundle bundle = intent.getExtras();
-        if (bundle == null) { Log.w(TAG, "bundle is null, ignoring"); return; }
+        if (bundle == null) return;
 
         Object[] pdus = (Object[]) bundle.get("pdus");
         String format = bundle.getString("format");
-        if (pdus == null) { Log.w(TAG, "pdus is null, ignoring"); return; }
+        if (pdus == null) return;
 
         Log.d(TAG, "SMS received, pdu count=" + pdus.length);
 
         for (Object pdu : pdus) {
             SmsMessage sms = SmsMessage.createFromPdu((byte[]) pdu, format);
-            if (sms == null) { Log.w(TAG, "createFromPdu returned null"); continue; }
+            if (sms == null) continue;
 
             String sender = sms.getDisplayOriginatingAddress();
             String body   = sms.getMessageBody();
-
-            Log.d(TAG, "SMS from=" + sender + " body_len=" + (body != null ? body.length() : 0) + " body=" + body);
-
-            // Always forward every SMS as a raw event so the test log can capture it
-            try {
-                JSONObject raw = new JSONObject();
-                raw.put("body",      body);
-                raw.put("sender",    sender != null ? sender : "");
-                raw.put("timestamp", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).format(new Date()));
-                Intent rawIntent = new Intent(ACTION_SMS_RAW);
-                rawIntent.putExtra("json", raw.toString());
-                context.sendBroadcast(rawIntent);
-                Log.d(TAG, "ACTION_SMS_RAW broadcast sent for body: " + body);
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to send ACTION_SMS_RAW: " + e.getMessage());
-            }
+            if (body == null) continue;
 
             boolean isTestPhrase = body.toLowerCase(Locale.ROOT).contains("zero eg");
             boolean isTxn        = TXN_PATTERN.matcher(body).find();
-            Log.d(TAG, "isTestPhrase=" + isTestPhrase + " isTxn=" + isTxn);
+            Log.d(TAG, "SMS from=" + sender + " isTxn=" + isTxn + " isTestPhrase=" + isTestPhrase);
 
-            // Drop messages that are neither transactional nor the test phrase
-            if (!isTxn && !isTestPhrase) {
-                Log.d(TAG, "Not transactional and not test phrase — skipping ACTION_SMS_PARSED");
-                continue;
-            }
+            if (!isTxn && !isTestPhrase) continue;
 
             JSONObject parsed = parseTransaction(body, sender, isTestPhrase);
-            if (parsed == null) { Log.w(TAG, "parseTransaction returned null"); continue; }
+            if (parsed == null) continue;
 
-            // Forward parsed transaction to SmsPlugin
             Intent forward = new Intent(ACTION_SMS_PARSED);
+            forward.setPackage(context.getPackageName());
             forward.putExtra("json", parsed.toString());
             context.sendBroadcast(forward);
             Log.d(TAG, "ACTION_SMS_PARSED broadcast sent");
         }
     }
-
-    // ─── Parser ──────────────────────────────────────────────────────────────
 
     private JSONObject parseTransaction(String body, String sender, boolean isTestPhrase) {
         Matcher amountMatcher = AMOUNT_PATTERN.matcher(body);
@@ -114,7 +104,6 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
                 amount = Double.parseDouble(amountMatcher.group(1).replace(",", ""));
             } catch (Exception ignored) {}
         } else if (!isTestPhrase) {
-            // Real transactions must have a parseable amount; test phrases don't
             return null;
         }
 
@@ -122,22 +111,24 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
         Matcher refMatcher = REF_PATTERN.matcher(body);
         if (refMatcher.find()) reference = refMatcher.group(1);
 
-        String merchant = extractMerchant(body);
-        String dateStr  = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        boolean isCredit = CREDIT_PATTERN.matcher(body).find();
+        String merchant  = extractMerchant(body);
+        String dateStr   = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
         try {
             JSONObject obj = new JSONObject();
-            obj.put("amount",        amount);
-            obj.put("currency",      "INR");
-            obj.put("merchant",      merchant);
-            obj.put("category",      "Uncategorized");
-            obj.put("date",          dateStr);
-            obj.put("entryType",     "automatic");
-            obj.put("smsRaw",        body);
-            obj.put("smsSender",     sender != null ? sender : "");
-            obj.put("referenceId",   reference);
-            obj.put("paymentMethod", detectPaymentMethod(body));
-            obj.put("isTestPhrase",  isTestPhrase);
+            obj.put("amount",          amount);
+            obj.put("currency",        "INR");
+            obj.put("merchant",        merchant);
+            obj.put("category",        "Uncategorized");
+            obj.put("date",            dateStr);
+            obj.put("entryType",       "automatic");
+            obj.put("transactionType", isCredit ? "credit" : "debit");
+            obj.put("smsRaw",          body);
+            obj.put("smsSender",       sender != null ? sender : "");
+            obj.put("referenceId",     reference);
+            obj.put("paymentMethod",   detectPaymentMethod(body));
+            obj.put("isTestPhrase",    isTestPhrase);
             return obj;
         } catch (Exception e) {
             return null;
@@ -145,23 +136,36 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
     }
 
     private String extractMerchant(String body) {
-        // Try "at <Merchant>" / "to <Merchant>" patterns
-        Pattern atPat = Pattern.compile("(?:at|to)\\s+([A-Za-z][A-Za-z0-9\\s&.'-]{1,30}?)(?:\\s+on|\\s+via|\\s+ref|\\.|,|$)", Pattern.CASE_INSENSITIVE);
-        Matcher m = atPat.matcher(body);
-        if (m.find()) {
-            return m.group(1).trim();
-        }
+        // Multiline UPI format: "Sent Rs.X\nFrom ...\nTo MERCHANT\nOn..."
+        Pattern toPat = Pattern.compile("^To\\s+(.+?)\\s*$", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+        Matcher m = toPat.matcher(body);
+        if (m.find()) return m.group(1).trim();
+
+        // "at Swiggy Limited on 16 MAY" — stop before on/via/ref/avbl/punctuation
+        Pattern atPat = Pattern.compile(
+            "(?:^|\\s)at\\s+([A-Za-z][A-Za-z0-9\\s&.'-]{1,40}?)(?:\\s+on|\\s+via|\\s+ref|\\s+avbl|\\.|,|$)",
+            Pattern.CASE_INSENSITIVE
+        );
+        m = atPat.matcher(body);
+        if (m.find()) return m.group(1).trim();
+
+        // "from VPA user@bank" or "from user@bank" — credit/received
+        Pattern vpaPat = Pattern.compile("from\\s+(?:vpa\\s+)?(\\S+@\\S+)", Pattern.CASE_INSENSITIVE);
+        m = vpaPat.matcher(body);
+        if (m.find()) return m.group(1).trim();
+
         return "";
     }
 
     private String detectPaymentMethod(String body) {
         String lower = body.toLowerCase(Locale.ROOT);
-        if (lower.contains("upi"))                    return "UPI";
-        if (lower.contains("credit card"))            return "Credit Card";
-        if (lower.contains("debit card"))             return "Debit Card";
-        if (lower.contains("net banking") || lower.contains("netbanking")) return "Net Banking";
-        if (lower.contains("wallet"))                 return "Wallet";
-        if (lower.contains("neft") || lower.contains("imps") || lower.contains("rtgs")) return "Net Banking";
+        if (lower.contains("credit card"))  return "Credit Card";
+        if (lower.contains("debit card"))   return "Debit Card";
+        if (lower.contains("upi") || lower.contains("vpa"))
+                                             return "UPI";
+        if (lower.contains("neft") || lower.contains("imps") || lower.contains("rtgs") || lower.contains("rrn"))
+                                             return "Net Banking";
+        if (lower.contains("wallet"))        return "Wallet";
         return "";
     }
 }

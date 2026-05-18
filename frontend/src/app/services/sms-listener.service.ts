@@ -20,8 +20,9 @@ const TEST_LOGS_KEY = 'renmito-sms-test-logs';
  * Bridges the native SmsPlugin (Android Capacitor plugin) to Angular.
  *
  * On Android the plugin emits a "smsTransaction" event for every SMS that
- * matches a transactional pattern.  This service subscribes to that event,
- * batches the parsed entries, and POSTs them to the backend via ExpenseService.
+ * matches a transactional pattern or contains the "zero eg" test phrase.
+ * This service subscribes to that event, batches parsed entries, and POSTs
+ * them to the backend via ExpenseService.
  *
  * On non-Android platforms all methods are safe no-ops.
  */
@@ -45,17 +46,14 @@ export class SmsListenerService implements OnDestroy {
   }
 
   async startListening(showNotification = true): Promise<void> {
-    console.log(`[RenmitoSmsListener] startListening called, isAndroid=${this.isAndroid}`);
     if (!this.isAndroid) return;
     try {
       const plugin = this.getPlugin();
-      console.log(`[RenmitoSmsListener] plugin found=${!!plugin}`);
       if (!plugin) return;
-      const result = await plugin.startListening({ showNotification });
-      console.log(`[RenmitoSmsListener] startListening result`, result);
+      await plugin.startListening({ showNotification });
       this.attachListener();
     } catch (err) {
-      console.warn('[RenmitoSmsListener] startListening failed', err);
+      console.warn('[SmsListener] startListening failed', err);
     }
   }
 
@@ -98,7 +96,6 @@ export class SmsListenerService implements OnDestroy {
 
   setTestMode(enabled: boolean): void {
     this.testMode = enabled;
-    console.log(`[RenmitoSmsListener] testMode set to ${enabled}`);
   }
 
   getTestLogs(): SmsTestLog[] {
@@ -115,16 +112,12 @@ export class SmsListenerService implements OnDestroy {
   }
 
   appendTestLogEntry(data: { smsRaw: string; smsSender: string; amount?: number; merchant?: string; referenceId?: string }): void {
-    this.appendTestLog(data);
-  }
-
-  private appendTestLog(data: any): void {
     const logs = this.getTestLogs();
     const entry: SmsTestLog = {
       id:          Math.random().toString(36).slice(2),
       timestamp:   new Date().toISOString(),
-      smsRaw:      data.smsRaw   ?? data.body ?? '',
-      smsSender:   data.smsSender ?? data.sender ?? '',
+      smsRaw:      data.smsRaw,
+      smsSender:   data.smsSender,
       amount:      data.amount,
       merchant:    data.merchant,
       referenceId: data.referenceId,
@@ -137,29 +130,19 @@ export class SmsListenerService implements OnDestroy {
 
   // ─── Internals ────────────────────────────────────────────────────────────
 
-  private rawListenerHandle: any = null;
-
   private attachListener(): void {
     this.removeListener();
     const plugin = this.getPlugin();
-    if (!plugin) { console.warn('[RenmitoSmsListener] attachListener: plugin not found'); return; }
-    console.log('[RenmitoSmsListener] attaching smsTransaction + smsRaw listeners');
+    if (!plugin) return;
 
-    plugin.addListener('smsTransaction', (data: any) => {
-      console.log('[RenmitoSmsListener] smsTransaction event received', data);
+    const result = plugin.addListener('smsTransaction', (data: any) => {
       this.onTransaction(data);
-    }).then((handle: any) => {
-      this.listenerHandle = handle;
-      console.log('[RenmitoSmsListener] smsTransaction listener registered');
-    }).catch((e: any) => console.warn('[RenmitoSmsListener] smsTransaction addListener failed', e));
-
-    plugin.addListener('smsRaw', (data: any) => {
-      console.log('[RenmitoSmsListener] smsRaw event received', data);
-      this.onRawSms(data);
-    }).then((handle: any) => {
-      this.rawListenerHandle = handle;
-      console.log('[RenmitoSmsListener] smsRaw listener registered');
-    }).catch((e: any) => console.warn('[RenmitoSmsListener] smsRaw addListener failed', e));
+    });
+    if (result && typeof (result as any).then === 'function') {
+      (result as any).then((h: any) => { this.listenerHandle = h; }).catch(() => {});
+    } else {
+      this.listenerHandle = result;
+    }
   }
 
   private removeListener(): void {
@@ -167,46 +150,34 @@ export class SmsListenerService implements OnDestroy {
       try { this.listenerHandle.remove(); } catch {}
       this.listenerHandle = null;
     }
-    if (this.rawListenerHandle) {
-      try { this.rawListenerHandle.remove(); } catch {}
-      this.rawListenerHandle = null;
-    }
-  }
-
-  private onRawSms(data: any): void {
-    console.log(`[RenmitoSmsListener] onRawSms called, testMode=${this.testMode}, body="${data?.body}"`);
-    if (!this.testMode) {
-      console.log('[RenmitoSmsListener] onRawSms: testMode is OFF, skipping');
-      return;
-    }
-    this.appendTestLog({
-      smsRaw:    data.body    ?? '',
-      smsSender: data.sender  ?? '',
-      amount:    undefined,
-      merchant:  undefined,
-    });
-    console.log('[RenmitoSmsListener] test log appended for raw SMS');
   }
 
   private onTransaction(data: any): void {
     if (this.testMode) {
-      this.appendTestLog(data);
+      this.appendTestLogEntry({
+        smsRaw:      data.smsRaw ?? '',
+        smsSender:   data.smsSender ?? '',
+        amount:      data.amount,
+        merchant:    data.merchant,
+        referenceId: data.referenceId,
+      });
     }
 
-    // "zero eg" test phrase: save as real expense tagged isTestExpense, skip normal batch
-    if (this.testMode && (data.smsRaw ?? data.body ?? '').toLowerCase().includes('zero eg')) {
+    // "zero eg" test phrase: save as real expense tagged isTestExpense, skip batch
+    if (this.testMode && (data.smsRaw ?? '').toLowerCase().includes('zero eg')) {
       this.expenseService.create({
-        amount:        data.amount ?? 0,
-        currency:      data.currency ?? 'INR',
-        merchant:      data.merchant || 'Test',
-        category:      'Uncategorized',
-        date:          data.date ?? new Date().toISOString().substring(0, 10),
-        entryType:     'automatic',
-        smsRaw:        data.smsRaw ?? '',
-        smsSender:     data.smsSender ?? '',
-        referenceId:   data.referenceId ?? '',
-        paymentMethod: data.paymentMethod ?? '',
-        isTestExpense: true,
+        amount:          data.amount ?? 0,
+        currency:        data.currency ?? 'INR',
+        merchant:        data.merchant || 'Test',
+        category:        'Uncategorized',
+        date:            data.date ?? new Date().toISOString().substring(0, 10),
+        entryType:       'automatic',
+        transactionType: data.transactionType ?? 'debit',
+        smsRaw:          data.smsRaw ?? '',
+        smsSender:       data.smsSender ?? '',
+        referenceId:     data.referenceId ?? '',
+        paymentMethod:   data.paymentMethod ?? '',
+        isTestExpense:   true,
       } as any).subscribe();
       return;
     }
@@ -214,7 +185,6 @@ export class SmsListenerService implements OnDestroy {
     if (!data?.amount) return;
     this.pendingBatch.push(data);
 
-    // Debounce: flush the batch 2 seconds after the last incoming SMS
     if (this.batchTimer) clearTimeout(this.batchTimer);
     this.batchTimer = setTimeout(() => this.flushBatch(), 2000);
   }
@@ -228,7 +198,6 @@ export class SmsListenerService implements OnDestroy {
 
   private getPlugin(): any {
     try {
-      // Capacitor 8: registered plugins are available on the Capacitor global
       return (window as any)?.Capacitor?.Plugins?.SmsPlugin ?? null;
     } catch {
       return null;

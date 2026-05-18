@@ -46,7 +46,6 @@ public class SmsPlugin extends Plugin {
     private static final String TAG = "RenmitoSmsPlugin";
 
     private BroadcastReceiver parsedReceiver;
-    private BroadcastReceiver rawReceiver;
     private boolean listening = false;
 
     // ─── Public plugin methods ────────────────────────────────────────────────
@@ -64,9 +63,8 @@ public class SmsPlugin extends Plugin {
 
         if (!listening) {
             registerParsedReceiver();
-            registerRawReceiver();
             listening = true;
-            Log.d(TAG, "Receivers registered, listening=true");
+            Log.d(TAG, "Receiver registered, listening=true");
         } else {
             Log.d(TAG, "Already listening, skipping receiver registration");
         }
@@ -82,7 +80,6 @@ public class SmsPlugin extends Plugin {
     public void stopListening(PluginCall call) {
         if (listening) {
             unregisterParsedReceiver();
-            unregisterRawReceiver();
             listening = false;
         }
         stopForegroundService();
@@ -140,39 +137,6 @@ public class SmsPlugin extends Plugin {
         if (parsedReceiver != null) {
             try { getContext().unregisterReceiver(parsedReceiver); } catch (Exception ignored) {}
             parsedReceiver = null;
-        }
-    }
-
-    private void registerRawReceiver() {
-        Log.d(TAG, "registerRawReceiver called");
-        rawReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                Log.d(TAG, "rawReceiver.onReceive fired");
-                String json = intent.getStringExtra("json");
-                if (json == null) { Log.w(TAG, "rawReceiver: json extra is null"); return; }
-                try {
-                    org.json.JSONObject obj = new org.json.JSONObject(json);
-                    Log.d(TAG, "rawReceiver: emitting smsRaw event, body=" + obj.optString("body"));
-                    JSObject jsObj = JSObject.fromJSONObject(obj);
-                    notifyListeners("smsRaw", jsObj);
-                } catch (Exception e) {
-                    Log.e(TAG, "rawReceiver: error emitting smsRaw: " + e.getMessage());
-                }
-            }
-        };
-        IntentFilter filter = new IntentFilter(SmsBroadcastReceiver.ACTION_SMS_RAW);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getContext().registerReceiver(rawReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            getContext().registerReceiver(rawReceiver, filter);
-        }
-    }
-
-    private void unregisterRawReceiver() {
-        if (rawReceiver != null) {
-            try { getContext().unregisterReceiver(rawReceiver); } catch (Exception ignored) {}
-            rawReceiver = null;
         }
     }
 

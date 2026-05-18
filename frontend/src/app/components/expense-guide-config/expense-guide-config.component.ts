@@ -77,7 +77,7 @@ const CATEGORIES  = ['Uncategorized', 'Food & Dining', 'Transport', 'Shopping', 
               SMS permission: {{ permStatus === 'granted' ? 'Granted' : 'Not granted' }}
             </div>
             <button class="egc-btn egc-btn--sm" *ngIf="permStatus !== 'granted'"
-                    (click)="requestPermissions()">Grant permissions</button>
+                    (click)="grantSmsPermissions()">Grant permissions</button>
           </div>
         </div>
 
@@ -426,7 +426,10 @@ export class ExpenseGuideConfigComponent implements OnInit, OnDestroy {
     this.expenseService.getSettings().pipe(takeUntil(this.destroy$)).subscribe(s => {
       this.settings = { ...this.settings, ...s };
       this.loading  = false;
-      if (this.isAndroid && this.settings.smsListenerEnabled) this.checkPermissions();
+      if (this.isAndroid && this.settings.smsListenerEnabled) {
+        this.checkPermissions();
+        this.applyNativeListenerState();
+      }
       this.smsListener.setTestMode(this.settings.testListenerEnabled);
       this.notifListener.setTestMode(this.settings.testListenerEnabled);
       if (this.isAndroid && this.settings.notificationListenerEnabled) {
@@ -441,10 +444,11 @@ export class ExpenseGuideConfigComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  toggleSmsListener(): void {
+  async toggleSmsListener(): Promise<void> {
     this.settings.smsListenerEnabled = !this.settings.smsListenerEnabled;
     if (this.isAndroid && this.settings.smsListenerEnabled) {
-      this.requestPermissions();
+      const status = await this.smsListener.requestPermissions();
+      this.permStatus = status;
     }
     if (this.isAndroid) {
       this.applyNativeListenerState();
@@ -501,11 +505,13 @@ export class ExpenseGuideConfigComponent implements OnInit, OnDestroy {
     });
   }
 
-  requestPermissions(): void {
+  async grantSmsPermissions(): Promise<void> {
     if (!this.isAndroid) return;
-    this.smsListener.requestPermissions().then(status => {
-      this.permStatus = status;
-    });
+    const status = await this.smsListener.requestPermissions();
+    this.permStatus = status;
+    if (status === 'granted') {
+      this.applyNativeListenerState();
+    }
   }
 
   private checkPermissions(): void {

@@ -94,11 +94,14 @@ export class NotificationListenerService implements OnDestroy {
     const plugin = this.getPlugin();
     if (!plugin) return;
 
-    plugin.addListener('notificationTransaction', (data: any) => {
+    const result = plugin.addListener('notificationTransaction', (data: any) => {
       this.onTransaction(data);
-    }).then((handle: any) => {
-      this.listenerHandle = handle;
-    }).catch(() => {});
+    });
+    if (result && typeof (result as any).then === 'function') {
+      (result as any).then((h: any) => { this.listenerHandle = h; }).catch(() => {});
+    } else {
+      this.listenerHandle = result;
+    }
   }
 
   private removeListener(): void {
