@@ -1,0 +1,68 @@
+/* ── Shell — root flex column ─────────────────────────────────────────────── */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+/* ── Diary fullscreen mode ────────────────────────────────────────────────── */
+.app-shell--diary {
+  background: #0f1021;
+}
+.app-shell--diary .view-area {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  scrollbar-gutter: auto;
+}
+
+/* ── Body — flex row holding the scrollable view ─────────────────────────── */
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── View area — the scrollable content column ───────────────────────────── */
+/* Bottom padding accounts for:
+     58px  bottom tab bar
+   + env() safe-area-inset-bottom
+   + 16px  gap above FAB
+   + 52px  FAB height
+   + 8px   clearance
+*/
+.view-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: clip; /* allows negative-margin bleed without horizontal scroll */
+  scrollbar-gutter: stable;
+  min-width: 0;
+  padding: 0 24px calc(58px + env(safe-area-inset-bottom, 0px) + 16px + 52px + 24px);
+}
+
+/* Avoid stable scrollbar on touch devices (Android WebView / iOS) */
+@media (pointer: coarse) {
+  .view-area {
+    scrollbar-gutter: auto;
+  }
+}
+
+/* ── Responsive horizontal padding ──────────────────────────────────────── */
+/* Small phones (≤ 390 dp) */
+@media (max-width: 390px) {
+  .view-area {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+/* Mid phones (412 dp +) */
+@media (min-width: 412px) {
+  .view-area {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}

@@ -1,0 +1,248 @@
+/* ── Page ─────────────────────────────────────────────── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: row;
+  background: #FFFDEB;
+}
+
+/* ── Left panel ────────────────────────────────────────── */
+.login-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 28px 40px 40px;
+}
+
+.hero-frame {
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - 80px);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 16px 56px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.10);
+}
+
+.hero-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ── Right panel ───────────────────────────────────────── */
+.login-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 40px 40px 28px;
+}
+
+.login-panel {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: transparent;
+}
+
+/* ── Brand ─────────────────────────────────────────────── */
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.login-product-name {
+  font-family: 'Google Sans Flex', sans-serif;
+  font-weight: 700;
+  font-size: 62px;
+  color: #1a1a1a;
+  letter-spacing: -1px;
+  line-height: 1;
+  margin: 0;
+}
+
+.login-tagline {
+  margin: 0;
+  font-size: 13px;
+  color: #7a7a6a;
+  letter-spacing: 0.3px;
+}
+
+/* ── Tabs ──────────────────────────────────────────────── */
+.login-tabs {
+  display: flex;
+  background: rgba(0,0,0,0.07);
+  border-radius: 9px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.login-tab {
+  flex: 1;
+  padding: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 7px;
+  color: #7a7a6a;
+  background: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+
+.login-tab--active {
+  background: #fff;
+  color: #1a1a1a;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
+.login-tab:hover:not(.login-tab--active) { color: #3a3a2a; }
+
+/* ── Error ─────────────────────────────────────────────── */
+.login-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(239,83,80,0.10);
+  border: 1px solid rgba(239,83,80,0.30);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #c0392b;
+}
+
+/* ── Form ──────────────────────────────────────────────── */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7a7a6a;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.form-field input {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.75);
+  border: 1px solid rgba(0,0,0,0.14);
+  border-radius: 8px;
+  color: #1a1a1a;
+  font-size: 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+
+.form-field input:focus {
+  outline: none;
+  border-color: #e94f37;
+  box-shadow: 0 0 0 3px rgba(233,79,55,0.12);
+  background: #fff;
+}
+
+.form-field input::placeholder { color: #b0af9f; }
+.form-field input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Password wrap ─────────────────────────────────────── */
+.password-wrap { position: relative; }
+.password-wrap input { padding-right: 40px; }
+
+.show-pw-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  color: #aaa;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+}
+
+.show-pw-btn:hover { color: #555; }
+
+/* ── Submit ────────────────────────────────────────────── */
+.login-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px;
+  margin-top: 4px;
+  background: #e94f37;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: background 0.2s, opacity 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.login-submit:hover:not(:disabled) { background: #d43d27; }
+.login-submit:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Footer switch ─────────────────────────────────────── */
+.login-switch {
+  margin: 0;
+  font-size: 12px;
+  color: #7a7a6a;
+  text-align: center;
+}
+
+.login-switch-btn {
+  background: none;
+  border: none;
+  color: #e94f37;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  margin-left: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.login-switch-btn:hover { color: #c0392b; }
+
+/* ── Mobile: hide left panel ───────────────────────────── */
+@media (max-width: 700px) {
+  .login-left { display: none; }
+  .login-right {
+    padding: 40px 24px;
+    align-items: center;
+  }
+  .login-panel { max-width: 100%; }
+  .login-product-name { font-size: 40px; }
+}

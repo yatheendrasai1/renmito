@@ -1,10 +1,11 @@
-import { Component, OnInit, OnDestroy, AfterViewChecked, Input, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewChecked, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { Chart, registerables } from 'chart.js';
 import { JourneyService } from '../../services/journey.service';
+import { LogTypeService } from '../../services/log-type.service';
 import {
   Journey, CreateJourney, JourneyEntry, CreateJourneyEntry,
   JourneySpan, ValueType, JourneyConfig, ValueMetric
@@ -2008,7 +2009,7 @@ type SubView = 'list' | 'detail';
   `]
 })
 export class JourneysComponent implements OnInit, OnDestroy, AfterViewChecked {
-  @Input() availableLogTypes: any[] = [];
+  availableLogTypes: any[] = [];
   @ViewChild('chartCanvas') private chartCanvasRef?: ElementRef<HTMLCanvasElement>;
 
   private readonly destroy$ = new Subject<void>();
@@ -2101,7 +2102,11 @@ export class JourneysComponent implements OnInit, OnDestroy, AfterViewChecked {
   get personalLogTypes(): any[] { return this.availableLogTypes.filter(lt => lt.domain === 'personal'); }
   get familyLogTypes():   any[] { return this.availableLogTypes.filter(lt => lt.domain === 'family'); }
 
-  constructor(private journeyService: JourneyService, private cdr: ChangeDetectorRef) {}
+  constructor(
+    private journeyService: JourneyService,
+    private logTypeService: LogTypeService,
+    private cdr: ChangeDetectorRef,
+  ) {}
 
   ngAfterViewChecked(): void {
     if (this.chartDirty && this.chartCanvasRef?.nativeElement) {
@@ -2118,6 +2123,12 @@ export class JourneysComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   ngOnInit() {
     this.loadJourneys();
+    this.logTypeService.getLogTypes()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(types => {
+        this.availableLogTypes = types;
+        this.cdr.markForCheck();
+      });
   }
 
   // ── Chart ────────────────────────────────────────────────

@@ -1,0 +1,305 @@
+/*
+ * All text / border / surface colours inside the hero card read from CSS
+ * custom properties that are set inline on .hero-card by the component.
+ * This makes them instantly reactive to palette changes and avoids the
+ * "white text on light background" problem entirely.
+ *
+ * Dark bg defaults (var fallbacks in case the JS hasn't run yet):
+ *   --hero-fg        rgba(255,255,255,0.95)
+ *   --hero-fg-sub    rgba(255,255,255,0.75)
+ *   --hero-fg-dim    rgba(255,255,255,0.55)
+ *   --hero-border    rgba(255,255,255,0.25)
+ *   --hero-surface   rgba(255,255,255,0.10)
+ *   --hero-hover     rgba(255,255,255,0.14)
+ *   --hero-selected  rgba(255,255,255,0.20)
+ */
+
+/* ── Hero card ───────────────────────────────────────────────────────────── */
+.hero-card {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  margin: 0;
+  background: linear-gradient(135deg, #3b1f6e 0%, #7b2d6e 100%);
+  position: relative;
+  /* Always dark — force dark token values */
+  --hero-fg:       rgba(255, 255, 255, 0.95);
+  --hero-fg-sub:   rgba(255, 255, 255, 0.75);
+  --hero-fg-dim:   rgba(255, 255, 255, 0.55);
+  --hero-border:   rgba(255, 255, 255, 0.25);
+  --hero-surface:  rgba(255, 255, 255, 0.10);
+  --hero-hover:    rgba(255, 255, 255, 0.14);
+  --hero-selected: rgba(255, 255, 255, 0.20);
+}
+
+/* Full-height edge fades — sit above content, don't intercept pointer events */
+.hero-card::before,
+.hero-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 48px;
+  z-index: 3;
+  pointer-events: none;
+}
+.hero-card::before {
+  left: 0;
+  background: linear-gradient(to right, #3b1f6e 0%, transparent 100%);
+}
+.hero-card::after {
+  right: 0;
+  background: linear-gradient(to left, #7b2d6e 0%, transparent 100%);
+}
+
+/* ── Content row ─────────────────────────────────────────────────────────── */
+.hero-content {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  overflow: hidden;
+}
+
+/* ── Left — date ─────────────────────────────────────────────────────────── */
+.hero-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  will-change: transform, opacity;
+  padding-left: 10px;
+}
+
+.hero-date-line {
+  display: flex;
+  align-items: center;
+}
+
+.hero-day-num {
+  font-size: 48px;
+  font-weight: 900;
+  color: var(--hero-fg);
+  line-height: 1;
+  letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-day-sub {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--hero-fg-sub);
+  margin-top: 2px;
+  letter-spacing: 0.1px;
+}
+
+.hero-today-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.hero-today-chip {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--hero-fg);
+  border: 1px solid var(--hero-border);
+  padding: 2px 8px;
+  border-radius: 20px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.hero-goto-today-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--hero-border);
+  background: var(--hero-surface);
+  color: var(--hero-fg);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.13s;
+}
+.hero-goto-today-btn:hover {
+  background: var(--hero-hover);
+}
+
+/* ── Right — day type pill + star ────────────────────────────────────────── */
+.hero-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-right: 10px;
+}
+
+.hero-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Day type pill */
+.hero-daytype-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 20px;
+  border: 1px solid var(--hero-border);
+  background: var(--hero-surface);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--hero-fg);
+  transition: border-color 0.14s, background 0.14s;
+  white-space: nowrap;
+  user-select: none;
+}
+.hero-daytype-wrap:hover {
+  border-color: var(--hero-fg-sub);
+  background: var(--hero-hover);
+}
+
+.hero-daytype-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hero-daytype-lbl {
+  font-size: 10.5px;
+}
+
+/* Star button */
+.hero-imp-open-btn {
+  background: var(--hero-surface);
+  border: 1px solid var(--hero-border);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--hero-fg-dim);
+  transition: color 0.14s, background 0.14s, border-color 0.14s;
+  flex-shrink: 0;
+  padding: 0;
+}
+.hero-imp-open-btn:hover {
+  color: var(--hero-fg);
+  background: var(--hero-hover);
+  border-color: var(--hero-fg-sub);
+}
+
+/* ── Day-type dropdown panel (fixed, so outside the card's overflow) ─────── */
+.hdr-dt-panel {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.32);
+  padding: 4px 0;
+  min-width: 140px;
+  top: auto;
+  right: 14px;
+}
+
+.hdr-dt-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.hdr-dt-option:hover        { background: var(--accent-hover); }
+.hdr-dt-option--active      { color: var(--highlight-selected); font-weight: 600; }
+
+.hdr-dt-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Day strip ───────────────────────────────────────────────────────────── */
+.day-strip-wrapper {
+  border-top: 1px solid var(--hero-border);
+}
+
+.day-strip {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px 22px 20px;
+  gap: 2px;
+}
+.day-strip::-webkit-scrollbar { display: none; }
+
+.day-strip-item {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 32px;
+  padding: 4px 0;
+  border-radius: 7px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: background 0.13s;
+}
+.day-strip-item:hover:not(:disabled):not(.day-strip-item--selected) {
+  background: var(--hero-hover);
+}
+.day-strip-item--selected {
+  background: var(--hero-selected);
+}
+.day-strip-item--future {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.day-strip-dow {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--hero-fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.day-strip-item--selected .day-strip-dow,
+.day-strip-item--selected .day-strip-num {
+  color: var(--hero-fg);
+}
+.day-strip-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--hero-fg-sub);
+  font-variant-numeric: tabular-nums;
+}
+.day-strip-item--today .day-strip-num {
+  color: var(--hero-fg);
+  font-weight: 800;
+}

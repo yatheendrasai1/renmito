@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Renmito</string>
+    <string name="title_activity_main">Renmito</string>
+    <string name="package_name">com.renmito.app</string>
+    <string name="custom_url_scheme">com.renmito.app</string>
+</resources>

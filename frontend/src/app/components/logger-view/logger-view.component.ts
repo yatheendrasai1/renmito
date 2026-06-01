@@ -161,6 +161,40 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
       flex-shrink: 0;
     }
     .hero-daytype-lbl { font-size: 10.5px; }
+    .hdr-dt-panel {
+      position: fixed;
+      z-index: 1000;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius, 10px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.32);
+      padding: 4px 0;
+      min-width: 140px;
+    }
+    .hdr-dt-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 8px 14px;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.12s;
+    }
+    .hdr-dt-option:hover { background: var(--accent-hover); }
+    .hdr-dt-option--active { color: var(--highlight-selected, #5A9CB5); font-weight: 600; }
+    .hdr-dt-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
     .hero-imp-times {
       display: flex;
       flex-direction: column;
@@ -467,19 +501,10 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
 
         <!-- Right: day type + important times -->
         <div class="hero-right">
-          <div class="hero-daytype-wrap" *ngIf="dayMetadata"
-               (click)="dayTypeDropdownOpen = !dayTypeDropdownOpen; $event.stopPropagation()">
+          <div class="hero-daytype-wrap" #daytypeWrap *ngIf="dayMetadata"
+               (click)="toggleDayTypeDropdown($event)">
             <span class="hero-daytype-dot" [style.background]="dayTypeColor"></span>
             <span class="hero-daytype-lbl">{{ dayTypeLabel }}</span>
-            <div class="hdr-dt-panel" *ngIf="dayTypeDropdownOpen" (click)="$event.stopPropagation()">
-              <button *ngFor="let opt of dayTypeOptions"
-                      class="hdr-dt-option"
-                      [class.hdr-dt-option--active]="dayMetadata?.dayType === opt.value"
-                      (click)="setDayType(opt.value); dayTypeDropdownOpen = false">
-                <span class="hdr-dt-dot" [style.background]="opt.color"></span>
-                {{ opt.label }}
-              </button>
-            </div>
           </div>
           <div class="hero-right-actions">
             <span class="hero-today-chip hero-today-chip--sm" *ngIf="isToday">current day</span>
@@ -520,6 +545,20 @@ import { LogTypeSelectComponent } from '../log-type-select/log-type-select.compo
       </div>
 
     </div><!-- /hero-card -->
+
+    <!-- Day type dropdown portal — outside hero-card to escape overflow:hidden -->
+    <div class="hdr-dt-panel" *ngIf="dayTypeDropdownOpen"
+         [style.top.px]="dayTypePanelTop"
+         [style.right.px]="dayTypePanelRight"
+         (click)="$event.stopPropagation()">
+      <button *ngFor="let opt of dayTypeOptions"
+              class="hdr-dt-option"
+              [class.hdr-dt-option--active]="dayMetadata?.dayType === opt.value"
+              (click)="setDayType(opt.value); dayTypeDropdownOpen = false">
+        <span class="hdr-dt-dot" [style.background]="opt.color"></span>
+        {{ opt.label }}
+      </button>
+    </div>
 
     <!-- ── Metrics ────────────────────────────────────── -->
     <app-metrics
@@ -932,7 +971,10 @@ export class LoggerViewComponent implements OnInit, AfterViewInit, OnDestroy {
   activeLogPlannedPct = 0;
 
   // ── Day type ──────────────────────────────────────────────────────
+  @ViewChild('daytypeWrap') daytypeWrapRef?: ElementRef;
   dayTypeDropdownOpen = false;
+  dayTypePanelTop = 0;
+  dayTypePanelRight = 0;
   readonly dayTypeOptions: { value: DayType; label: string; color: string }[] = [
     { value: 'working',    label: 'Working Day', color: '#4ade80' },
     { value: 'wfh',        label: 'WFH',         color: '#facc15' },
@@ -955,6 +997,16 @@ export class LoggerViewComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   setDayType(dayType: DayType): void { this.appState.setDayType(dayType); }
+
+  toggleDayTypeDropdown(event: Event): void {
+    event.stopPropagation();
+    if (!this.dayTypeDropdownOpen && this.daytypeWrapRef) {
+      const rect: DOMRect = this.daytypeWrapRef.nativeElement.getBoundingClientRect();
+      this.dayTypePanelTop = rect.bottom + 6;
+      this.dayTypePanelRight = window.innerWidth - rect.right;
+    }
+    this.dayTypeDropdownOpen = !this.dayTypeDropdownOpen;
+  }
 
   // ── Hero date getters ─────────────────────────────────────────────
   get heroDateDayNum(): string {

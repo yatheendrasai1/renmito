@@ -1,0 +1,58 @@
+.logger-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.logger-log-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.logger-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logger-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+
+.logger-log-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.logger-notes-btn {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.13s, color 0.13s, border-color 0.13s;
+  letter-spacing: 0.2px;
+}
+.logger-notes-btn:hover {
+  background: var(--accent-hover);
+  color: var(--text-primary);
+  border-color: var(--border-light, var(--border));
+}

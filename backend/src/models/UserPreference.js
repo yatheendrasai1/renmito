@@ -58,6 +58,19 @@ const userProfileSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/**
+ * Per-user JIRA integration config.
+ * apiToken is stored AES-256-GCM encrypted — never returned to the client in plaintext.
+ */
+const jiraConfigSchema = new mongoose.Schema(
+  {
+    baseUrl:  { type: String, default: '' },  // e.g. https://yourcompany.atlassian.net
+    email:    { type: String, default: '' },
+    apiToken: { type: String, default: '' },  // encrypted ciphertext
+  },
+  { _id: false }
+);
+
 const featuresSchema = new mongoose.Schema(
   {
     foodInsights: {
@@ -142,6 +155,9 @@ const userPreferenceSchema = new mongoose.Schema(
 
     /** ExpenseGuide settings — SMS listener, currency, notification. */
     expenseGuide: { type: expenseGuideSchema, default: () => ({}) },
+
+    /** Per-user JIRA integration credentials (apiToken stored encrypted). */
+    jiraConfig: { type: jiraConfigSchema, default: null },
   },
   { timestamps: true, collection: 'userPreferences' }
 );

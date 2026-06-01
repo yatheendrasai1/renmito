@@ -19,6 +19,9 @@ const timeLogSchema = new mongoose.Schema(
     tags:               [{ type: String }],
     satisfactoryScore:  { type: Number, min: 1, max: 10, default: null },
     crucialPerson:      { type: String, enum: ['Yes', 'No', 'Shared'], default: null },
+    jiraTicketId:      { type: String, default: null },      // internal JIRA issue ID
+    jiraTicketKey:     { type: String, default: null },      // e.g. ENG-1234
+    jiraTicketSummary: { type: String, default: null },      // cached title
     source:             { type: String, enum: ['manual', 'auto', 'imported', 'ai'], default: 'manual' },
     entryType:       { type: String, enum: ['range', 'point'], default: 'range' },
     lastHeartbeatAt: { type: Date, default: null }

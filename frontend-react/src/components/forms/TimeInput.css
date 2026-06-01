@@ -1,0 +1,58 @@
+.time-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.time-input-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+
+.time-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.time-step-btn {
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.time-step-btn:hover {
+  background: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.time-input-field {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  padding: 0 8px;
+  font-family: inherit;
+}
+.time-input-field:focus {
+  outline: none;
+  border-color: var(--highlight-selected);
+}

@@ -1,0 +1,35 @@
+.top-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(8px + env(safe-area-inset-top)) 14px 2px;
+  flex-shrink: 0;
+  background: var(--bg-primary);
+}
+
+.top-strip-menu {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.top-strip-menu:hover {
+  background: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.top-strip-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+  font-family: 'Google Sans Flex', sans-serif;
+}

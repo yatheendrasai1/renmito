@@ -298,6 +298,37 @@ const PERF = (() => {
             </ng-container>
           </div>
 
+          <!-- ── External Configurations section ── -->
+          <div class="nav-group">
+            <div class="nav-group-header">
+              <span class="nav-group-label">External Configs</span>
+              <button class="nav-section-toggle"
+                      (click)="$event.stopPropagation(); externalConfigsExpanded = !externalConfigsExpanded"
+                      [attr.aria-expanded]="externalConfigsExpanded"
+                      title="Toggle External Configurations">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                     [style.transform]="externalConfigsExpanded ? 'rotate(90deg)' : 'rotate(0)'"
+                     style="transition: transform 0.18s ease">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            </div>
+
+            <ng-container *ngIf="externalConfigsExpanded">
+              <a class="left-nav-item left-nav-item--sub"
+                 routerLink="/external-configs/jira"
+                 routerLinkActive="left-nav-item--active">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <path d="M9 9h6M9 12h6M9 15h4"/>
+                </svg>
+                <span>JIRA</span>
+              </a>
+            </ng-container>
+          </div>
+
         </nav>
 
         <!-- ── View area ───────────────────────────────── -->
@@ -2661,6 +2692,9 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── ExpenseGuide section expanded state ───────────────────
   expenseGuideExpanded = false;
+
+  // ── External Configurations section expanded state ────────
+  externalConfigsExpanded = false;
 
   // ── 1.50: Profile popup ───────────────────────────────────
   showProfile    = false;

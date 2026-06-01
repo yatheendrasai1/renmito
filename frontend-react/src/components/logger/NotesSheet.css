@@ -1,0 +1,531 @@
+/* ── Backdrop ─────────────────────────────────────────────────────────────── */
+.ns-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  animation: ns-fade-in 0.2s ease;
+}
+
+@keyframes ns-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Sheet panel ──────────────────────────────────────────────────────────── */
+.ns-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  background: var(--bg-surface);
+  border-radius: 14px 14px 0 0;
+  height: 78vh;
+  display: flex;
+  flex-direction: column;
+  animation: ns-slide-up 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes ns-slide-up {
+  from { transform: translateY(100%); opacity: 0.5; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.ns-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.ns-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.ns-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.1px;
+}
+
+.ns-close-btn {
+  background: var(--bg-card);
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding: 0;
+  transition: background 0.13s, color 0.13s;
+}
+.ns-close-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+/* ── Body ─────────────────────────────────────────────────────────────────── */
+.ns-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 12px 8px;
+  overscroll-behavior: contain;
+}
+
+.ns-loading {
+  text-align: center;
+  padding: 24px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.ns-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  opacity: 0.55;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Regular note ─────────────────────────────────────────────────────────── */
+.ns-note-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: note-drop-in 0.18s ease;
+}
+
+@keyframes note-drop-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Note action bar */
+.ns-note-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.ns-delete-btn,
+.ns-log-btn,
+.ns-copy-btn {
+  background: none;
+  border: none;
+  padding: 5px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.55;
+  transition: opacity 0.14s, background 0.14s, color 0.14s;
+}
+.ns-delete-btn:hover  { opacity: 1; background: rgba(248, 113, 113, 0.12); color: #f87171; }
+.ns-delete-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+.ns-log-btn:hover     { opacity: 1; background: var(--accent-hover); color: var(--text-primary); }
+.ns-copy-btn:hover    { opacity: 1; background: var(--accent-hover); color: var(--text-primary); }
+.ns-copy-btn--copied  { opacity: 1 !important; color: #4ade80 !important; }
+
+/* Note textarea */
+.ns-note-ta {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 8px 10px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+  transition: border-color 0.15s;
+}
+.ns-note-ta:focus       { border-color: var(--border-light, var(--border)); }
+.ns-note-ta::placeholder { color: var(--text-muted); opacity: 0.6; }
+
+/* Note footer */
+.ns-note-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 16px;
+}
+
+.ns-saving-badge {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+  opacity: 0.7;
+  animation: saving-pulse 1s infinite;
+}
+.ns-saving-badge--tapper {
+  display: block;
+  text-align: right;
+  margin-top: 2px;
+}
+
+@keyframes saving-pulse {
+  0%, 100% { opacity: 0.7; }
+  50%       { opacity: 0.4; }
+}
+
+.ns-char-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
+.ns-char-count--near {
+  color: #f59e0b;
+  opacity: 1;
+}
+
+/* ── Tapper note ──────────────────────────────────────────────────────────── */
+.ns-tapper-wrap {
+  background: var(--bg-card);
+  border: 1px solid rgba(124, 111, 205, 0.25);
+  border-left: 3px solid #7C6FCD;
+  border-radius: var(--radius-sm);
+  padding: 9px 10px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  animation: note-drop-in 0.18s ease;
+}
+
+.ns-tapper-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ns-tapper-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(124, 111, 205, 0.15);
+  color: #7C6FCD;
+  border-radius: 20px;
+  padding: 2px 8px 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ns-tapper-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ns-tapper-log-btn,
+.ns-tapper-delete-btn {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.55;
+  transition: opacity 0.14s, background 0.14s, color 0.14s;
+}
+.ns-tapper-log-btn:hover    { opacity: 1; background: rgba(124, 111, 205, 0.12); color: #7C6FCD; }
+.ns-tapper-delete-btn:hover { opacity: 1; background: rgba(248, 113, 113, 0.12); color: #f87171; }
+.ns-tapper-delete-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+
+/* Tapper log-type picker */
+.ns-lt-picker {
+  position: relative;
+}
+
+.ns-lt-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  width: 100%;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: inherit;
+  transition: border-color 0.13s, background 0.13s;
+  text-align: left;
+  box-sizing: border-box;
+}
+.ns-lt-trigger:hover { background: var(--accent-hover); border-color: var(--border-light, var(--border)); }
+
+.ns-lt-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ns-lt-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ns-lt-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.18s;
+}
+.ns-lt-picker--open .ns-lt-chevron {
+  transform: rotate(180deg);
+}
+
+.ns-lt-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+  max-height: 220px;
+  overflow-y: auto;
+  animation: lt-panel-in 0.14s ease;
+}
+
+@keyframes lt-panel-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ns-lt-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ns-lt-group-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ns-lt-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+}
+.ns-lt-option:hover       { background: var(--accent-hover); color: var(--text-primary); }
+.ns-lt-option--active     { color: var(--text-primary); }
+
+.ns-lt-option-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ns-lt-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ns-lt-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Tapper text input */
+.ns-tapper-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 7px 10px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.ns-tapper-input:focus       { border-color: rgba(124, 111, 205, 0.5); }
+.ns-tapper-input::placeholder { color: var(--text-muted); opacity: 0.6; }
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+.ns-footer {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+}
+
+.ns-add-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+.ns-add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ns-add-btn--note {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.ns-add-btn--note:hover:not(:disabled) {
+  background: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.ns-add-btn--tapper {
+  background: rgba(124, 111, 205, 0.15);
+  color: #7C6FCD;
+  border: 1px solid rgba(124, 111, 205, 0.3);
+}
+.ns-add-btn--tapper:hover:not(:disabled) {
+  background: rgba(124, 111, 205, 0.25);
+}
+
+/* ── Delete confirm overlay ───────────────────────────────────────────────── */
+.ns-delete-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.ns-delete-confirm-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  width: 100%;
+  max-width: 280px;
+  text-align: center;
+  animation: confirm-pop 0.16s ease;
+}
+
+@keyframes confirm-pop {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.ns-delete-confirm-panel p {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin: 0 0 16px;
+  font-weight: 500;
+}
+
+.ns-delete-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ns-delete-confirm-cancel,
+.ns-delete-confirm-ok {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+  transition: opacity 0.15s;
+}
+
+.ns-delete-confirm-cancel {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.ns-delete-confirm-cancel:hover { background: var(--accent-hover); }
+
+.ns-delete-confirm-ok {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+.ns-delete-confirm-ok:hover { background: rgba(248, 113, 113, 0.25); }

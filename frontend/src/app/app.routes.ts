@@ -52,4 +52,9 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./components/expense-guide-expenses/expense-guide-expenses.component').then(m => m.ExpenseGuideExpensesComponent),
   },
+  {
+    path: 'external-configs/jira',
+    loadComponent: () =>
+      import('./components/jira-config/jira-config.component').then(m => m.JiraConfigComponent),
+  },
 ];

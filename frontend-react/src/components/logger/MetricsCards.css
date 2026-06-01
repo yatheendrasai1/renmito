@@ -1,0 +1,410 @@
+/* ── Summary cards row ───────────────────────────────────────────────────── */
+.metrics-wrapper {
+  position: relative;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.14);
+}
+
+.summary-card--clickable {
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.summary-card--clickable:hover {
+  background: var(--bg-card);
+  border-color: var(--border-light, var(--border));
+}
+.summary-card--clickable:active {
+  opacity: 0.85;
+}
+
+/* Break day variants */
+.summary-card--break-msg {
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px;
+  text-align: center;
+  background: var(--bg-surface);
+}
+
+.summary-card--break-logged {
+  /* single-card layout on break day with logged time */
+}
+
+.break-msg-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Card internals ──────────────────────────────────────────────────────── */
+.summary-card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.summary-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+}
+
+.summary-baseline {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.summary-val {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.summary-val--goal-met {
+  font-size: 13px;
+  color: #4ade80;
+}
+
+/* Chevron indicator on coverage card */
+.summary-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+.summary-chevron--open {
+  transform: rotate(180deg);
+}
+
+/* Coverage progress bar */
+.coverage-bar-track {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.coverage-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* ── Breakdown popup ─────────────────────────────────────────────────────── */
+.metrics-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: transparent;
+}
+
+.metrics-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 401;
+  background: var(--bg-card, #1a1c2a);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  animation: mp-drop-in 0.15s ease;
+}
+
+@keyframes mp-drop-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+/* Header */
+.metrics-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.metrics-popup-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.metrics-popup-date {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.metrics-popup-daytype {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mp-daytype-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.metrics-popup-close {
+  width: 26px;
+  height: 26px;
+  background: var(--bg-surface);
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.metrics-popup-close:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+/* ── Summary bar ─────────────────────────────────────────────────────────── */
+.breakdown-summary-hdr {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.bsh-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.bsh-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 2px;
+}
+
+.bsh-logged {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.bsh-sep {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.bsh-target {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.bsh-overflow-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a3d4ac;
+  margin-left: auto;
+}
+
+.bsh-track {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+  gap: 0;
+}
+
+.bsh-fill {
+  height: 100%;
+  border-radius: 2px 0 0 2px;
+  transition: width 0.3s ease;
+}
+
+.bsh-fill--overflow {
+  background: #a3d4ac;
+  border-radius: 0 2px 2px 0;
+  opacity: 0.55;
+}
+
+/* ── Breakdown section ───────────────────────────────────────────────────── */
+.breakdown-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px 4px;
+}
+
+.breakdown-section-header--bordered {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.breakdown-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.breakdown-section-total {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Breakdown items ─────────────────────────────────────────────────────── */
+.breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 12px 2px;
+}
+
+.breakdown-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.breakdown-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.breakdown-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.breakdown-name {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.breakdown-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.breakdown-pct {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.breakdown-track {
+  height: 2px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.breakdown-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ── Expand button ───────────────────────────────────────────────────────── */
+.breakdown-expand-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 12px 0;
+  padding: 5px 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.breakdown-expand-btn:hover {
+  background: var(--border);
+  color: var(--text-secondary);
+}
+
+/* ── Footnote + empty state ──────────────────────────────────────────────── */
+.breakdown-footnote {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  text-align: right;
+  padding: 4px 12px 8px;
+  letter-spacing: 0.3px;
+}
+
+.breakdown-empty {
+  padding: 16px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}

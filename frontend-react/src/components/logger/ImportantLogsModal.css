@@ -1,0 +1,361 @@
+/* ── Overlay ─────────────────────────────────────────────────────────────── */
+.il-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  backdrop-filter: blur(2px);
+  padding: 16px;
+}
+
+/* ── Panel ───────────────────────────────────────────────────────────────── */
+.il-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light, var(--border));
+  border-radius: var(--radius, 12px);
+  width: 100%;
+  max-width: 400px;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  animation: il-slide-in 0.2s ease;
+}
+
+@keyframes il-slide-in {
+  from { opacity: 0; transform: translateY(-10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)     scale(1);    }
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.il-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border-light, var(--border));
+  flex-shrink: 0;
+}
+
+.il-header-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.il-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+}
+.il-close:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+/* ── Loading ─────────────────────────────────────────────────────────────── */
+.il-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.il-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: il-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes il-spin { to { transform: rotate(360deg); } }
+
+/* ── Slots ───────────────────────────────────────────────────────────────── */
+.il-slots {
+  flex: 1;
+}
+
+.il-slot-wrap {
+  border-bottom: 1px solid var(--border-light, var(--border));
+}
+.il-slot-wrap:last-child {
+  border-bottom: none;
+}
+
+.il-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 16px;
+  gap: 10px;
+}
+
+.il-slot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.il-slot-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.il-slot-time-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.il-slot-time {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.il-slot-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.il-day-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.il-day-badge--prev { background: rgba(100, 120, 200, 0.15); color: #7090d0; }
+.il-day-badge--next { background: rgba(100, 180, 120, 0.15); color: #50a06a; }
+
+.il-stale-warn {
+  display: flex;
+  align-items: center;
+  cursor: default;
+}
+
+/* ── Slot action buttons ─────────────────────────────────────────────────── */
+.il-slot-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.il-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.il-btn--edit {
+  background: none;
+  color: var(--text-muted);
+}
+.il-btn--edit:hover {
+  background: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.il-btn--add {
+  background: rgba(74, 144, 226, 0.1);
+  color: var(--highlight-selected, #4a90e2);
+}
+.il-btn--add:hover {
+  background: rgba(74, 144, 226, 0.22);
+}
+
+/* ── Inline slot form ────────────────────────────────────────────────────── */
+.il-slot-form {
+  padding: 10px 16px 14px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.il-slot-form-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.il-slot-type-select {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 7px 8px;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.il-slot-type-select:focus { border-color: var(--accent); }
+
+.il-slot-time-row-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.il-step-btn {
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-secondary, var(--text-muted));
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0 7px;
+  height: 30px;
+  cursor: pointer;
+  transition: background 0.13s, color 0.13s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.il-step-btn:hover {
+  background: var(--accent-hover);
+  color: var(--text-primary);
+}
+
+.il-time-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 5px 8px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  text-align: center;
+  font-family: inherit;
+}
+.il-time-input:focus { border-color: var(--accent); }
+
+.il-slot-form-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.il-btn-cancel {
+  flex: 1;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 8px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.13s;
+  font-family: inherit;
+}
+.il-btn-cancel:hover { background: var(--accent-hover); }
+
+.il-btn-save {
+  flex: 1;
+  background: var(--highlight-selected, #4a90e2);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.13s;
+  font-family: inherit;
+}
+.il-btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.il-btn-save:hover:not(:disabled) { opacity: 0.85; }
+
+/* ── Stale row ───────────────────────────────────────────────────────────── */
+.il-stale-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 11px;
+  color: #c98800;
+  background: rgba(245, 166, 35, 0.07);
+  border-top: 1px solid var(--border);
+}
+
+/* ── Captured row ────────────────────────────────────────────────────────── */
+.il-captured-row {
+  padding: 6px 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.il-footer {
+  padding: 12px 16px 14px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border-light, var(--border));
+  flex-shrink: 0;
+}
+
+.il-capture-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  background: var(--highlight-selected, #4a90e2);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-sm, 8px);
+  cursor: pointer;
+  transition: opacity 0.15s;
+  font-family: inherit;
+}
+.il-capture-btn:hover:not(:disabled) { opacity: 0.88; }
+.il-capture-btn:disabled { opacity: 0.5; cursor: not-allowed; }
