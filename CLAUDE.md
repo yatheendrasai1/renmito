@@ -10,29 +10,33 @@ cd backend && npm run dev      # nodemon auto-reload
 cd backend && npm start        # plain node
 ```
 
-### Frontend (port 4200)
+### Frontend — React (port 4200) ← **active development target**
 ```bash
-cd frontend && npm start       # ng serve
-cd frontend && npm run build   # build only
+cd frontend-react && npm start          # Vite dev server
+cd frontend-react && npm run build      # production build
+cd frontend-react && npm run build:mobile  # mobile build (Capacitor)
 ```
+
+> **Do all frontend work in `frontend-react/`** (React + Vite + TypeScript).  
+> The legacy Angular app in `frontend/` is frozen — do not modify it.
 
 ### Production build (from repo root)
 ```bash
-npm run build    # builds Angular, outputs to frontend/dist/renmito-frontend/browser
+npm run build    # builds React app, outputs to frontend-react/dist
 ```
 
 Vercel runs `npm run build` automatically on deploy. No test suite exists — testing is manual.
 
 ## Architecture
 
-Full-stack app: Angular 19 frontend + Node/Express backend + MongoDB Atlas. In production both are served under the same Vercel domain; the backend rewrites `/api/*` to `backend/src/app.js`.
+Full-stack app: React frontend (Vite) + Node/Express backend + MongoDB Atlas. In production both are served under the same Vercel domain; the backend rewrites `/api/*` to `backend/src/app.js`.
 
-**Frontend** (`frontend/src/app/`)
-- Angular 19 standalone components throughout — no NgModules.
-- Service-based state, no NgRx/Redux. Services use RxJS Observables; components `.subscribe()` or use `async` pipe.
-- `authInterceptor` (functional `HttpInterceptorFn`) auto-attaches `Authorization: Bearer <token>` to every request except `/api/auth/*`.
+**Frontend** (`frontend-react/src/`)
+- React 18 + TypeScript + Vite.
 - Token and user stored in `localStorage` under keys `renmito-token` / `renmito-user`.
-- `AppComponent` owns the root layout, current-date state, login-gate, and date-change events.
+- All API calls use `environment.apiBase` (never hardcode `/api`).
+
+> The legacy Angular app in `frontend/` is no longer actively developed.
 
 **Backend** (`backend/src/`)
 - Standard controller → service → model layering. Routes in `routes/`, handlers in `controllers/`, business logic in `services/`, Mongoose schemas in `models/`.
@@ -41,8 +45,9 @@ Full-stack app: Angular 19 frontend + Node/Express backend + MongoDB Atlas. In p
 - All routes except `/api/auth/*` require a valid JWT Bearer token (7-day expiry, validated in `middleware/authMiddleware.js`).
 
 **API base URLs**
-- Dev: `http://localhost:5890/api` (set in `frontend/src/environments/environment.ts`)
+- Dev: `http://localhost:5890/api` (set in `frontend-react/src/environments/environment.ts`)
 - Prod: `/api` (set in `environment.prod.ts`, same domain)
+- Mobile: `https://renmito.vercel.app/api` (set in `environment.mobile.ts`)
 
 ## Core Data Models
 
@@ -71,7 +76,7 @@ Full-stack app: Angular 19 frontend + Node/Express backend + MongoDB Atlas. In p
 
 **Theme/palette**: active palette is stored in `UserPreference.palette`; custom presets in `UserPreference.customPresets` (max 10).
 
-**Performance profiler**: `AppComponent` wraps startup HTTP calls in `performance.mark()` / `performance.measure()`. Output appears in DevTools User Timings or the `[Renmito Perf]` console group.
+**Performance profiler**: startup HTTP calls are wrapped in `performance.mark()` / `performance.measure()`. Output appears in DevTools User Timings or the `[Renmito Perf]` console group.
 
 ## Environment Variables
 
@@ -85,23 +90,22 @@ CORS_ORIGIN=http://localhost:4200,https://localhost,capacitor://localhost
 PORT=5890
 ```
 
-**Frontend** — controlled by `frontend/src/environments/environment*.ts`, no `.env` needed locally.
+**Frontend** — controlled by `frontend-react/src/environments/environment*.ts`, no `.env` needed locally.
 
 **CORS_ORIGIN default** (when unset) covers web + mobile: `http://localhost:4200,https://localhost,capacitor://localhost`. Vercel production uses `*`.
 
 ## Mobile App (Android — Capacitor)
 
-A native Android app is maintained alongside the web app using **Capacitor 8**. The Android project lives at `frontend/android/`. The web app and mobile app share the same Angular codebase — no separate React Native project.
+A native Android app is maintained alongside the web app using **Capacitor 8**. The Android project lives at `frontend-react/android/`. The web app and mobile app share the same React codebase.
 
 **Key files:**
-- `frontend/capacitor.config.ts` — app ID `com.renmito.app`, `webDir: dist/renmito-frontend/browser`
-- `frontend/src/environments/environment.mobile.ts` — uses absolute API URL `https://renmito.vercel.app/api` (not relative `/api`)
-- `frontend/angular.json` — `mobile` build configuration (uses `environment.mobile.ts`, larger budgets)
+- `frontend-react/capacitor.config.ts` — app ID `com.renmito.app`, `webDir: dist`
+- `frontend-react/src/environments/environment.mobile.ts` — uses absolute API URL `https://renmito.vercel.app/api` (not relative `/api`)
 
 **Mobile build workflow:**
 ```bash
-cd frontend
-npm run android:build   # ng build --configuration mobile + cap sync android
+cd frontend-react
+npm run android:build   # vite build --mode mobile + cap sync android
 npm run android:open    # above + opens Android Studio (then Build → Build APK)
 ```
 
@@ -111,10 +115,10 @@ npm run android:open    # above + opens Android Studio (then Build → Build APK
 
 2. **New top-level UI chrome** (headers, banners, sticky bars added above the main content): Add `padding-top: env(safe-area-inset-top)` to the outermost element. Bottom chrome (tab bars, FABs): use `padding-bottom: env(safe-area-inset-bottom)`.
 
-3. **New environment variable usage in Angular**: If a service or component reads from `environment.*`, add the same key to `environment.mobile.ts` with the correct production value.
+3. **New environment variable usage**: If a component reads from `environment.*`, add the same key to `environment.mobile.ts` with the correct production value.
 
 4. **New API base URL references**: Never hardcode `/api` — always use `environment.apiBase`. The mobile build uses the absolute Vercel URL; relative paths break in a Capacitor WebView.
 
-5. **After any frontend change**: remind to run `npm run android:build` from `frontend/` and rebuild the APK in Android Studio to get the change on device.
+5. **After any frontend change**: remind to run `npm run android:build` from `frontend-react/` and rebuild the APK in Android Studio to get the change on device.
 
 6. **CORS changes** (new origins, new methods): Update `backend/src/config.js` CORS default and `backend/.env.example` to keep mobile origins (`https://localhost`, `capacitor://localhost`) in the allowed list.
