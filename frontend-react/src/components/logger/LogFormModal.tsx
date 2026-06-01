@@ -150,9 +150,6 @@ export default function LogFormModal({
   const [ctxMenu, setCtxMenu] = useState<{ visible: boolean; x: number; y: number; logType: LogType | null }>({
     visible: false, x: 0, y: 0, logType: null,
   });
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressActivated = useRef(false);
-
   // Rename overlay
   const [renameId,    setRenameId]    = useState<string | null>(null);
   const [renameName,  setRenameName]  = useState('');
