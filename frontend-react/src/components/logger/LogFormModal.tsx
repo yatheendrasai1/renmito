@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useCreateLog, useUpdateLog, useDeleteLog } from '@/hooks/useLogs';
 import {
   useLogTypes,
-  useCreateLogType,
   useRenameLogType,
   useDeleteLogType,
 } from '@/hooks/useLogTypes';
@@ -13,11 +12,6 @@ import './LogFormModal.css';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const PALETTE_COLORS = [
-  '#F2A65A', '#D97D55', '#C4844A', '#9E3B3B', '#703B3B',
-  '#6F8F72', '#4D7A60', '#5A9CB5', '#3E6480', '#213C51',
-  '#7898A8', '#574964', '#7A5A74', '#BFC6C4', '#8C8C8C',
-];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -154,7 +148,6 @@ export default function LogFormModal({
   const createLog    = useCreateLog(date);
   const updateLog    = useUpdateLog(isEdit ? (editEntry?.date ?? date) : date);
   const deleteLog    = useDeleteLog(isEdit ? (editEntry?.date ?? date) : date);
-  const createType   = useCreateLogType();
   const renameType   = useRenameLogType();
   const deleteType   = useDeleteLogType();
 
@@ -202,18 +195,11 @@ export default function LogFormModal({
 
   // UI state
   const [optionalOpen,    setOptionalOpen]    = useState(false);
-  const [showCreateType,  setShowCreateType]  = useState(false);
-
   // Save / delete states
   const [saving,       setSaving]       = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting,     setDeleting]     = useState(false);
 
-  // Create type inline
-  const [newTypeName,   setNewTypeName]   = useState('');
-  const [newTypeDomain, setNewTypeDomain] = useState<'work' | 'personal'>('work');
-  const [newTypeColor,  setNewTypeColor]  = useState('#F2A65A');
-  const [createTypeErr, setCreateTypeErr] = useState('');
 
   // Context menu (long-press / right-click on user chips)
   const [ctxMenu, setCtxMenu] = useState<{ visible: boolean; x: number; y: number; logType: LogType | null }>({
@@ -402,27 +388,6 @@ export default function LogFormModal({
   const selectedQueryJql = savedQueries.find(x => x._id === selectedQueryId)?.jql ?? '';
   const activePlaceholders = extractPlaceholders(jqlEditorOpen ? editJql : selectedQueryJql);
   const allPlaceholdersFilled = activePlaceholders.every(k => (placeholderValues[k] ?? '').trim() !== '');
-
-  // ── Create log type ────────────────────────────────────────────────────────
-  function submitCreateType() {
-    if (!newTypeName.trim() || createType.isPending) return;
-    setCreateTypeErr('');
-    createType.mutate(
-      { name: newTypeName.trim(), domain: newTypeDomain, color: newTypeColor },
-      {
-        onSuccess: (created) => {
-          setSelectedType(created);
-          setSelectedDomain(created.domain as 'work' | 'personal');
-          setShowCreateType(false);
-          setNewTypeName(''); setNewTypeColor('#F2A65A'); setNewTypeDomain('work');
-        },
-        onError: (err: unknown) => {
-          const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-          setCreateTypeErr(msg ?? 'Failed to create log type.');
-        },
-      },
-    );
-  }
 
   // ── Rename log type ────────────────────────────────────────────────────────
   function startRename() {
