@@ -174,7 +174,7 @@ export default function LogFormModal({
   const [jiraSearchError,   setJiraSearchError]   = useState('');
   const [linkedTicket,      setLinkedTicket]      = useState<JiraTicket | null>(
     isEdit && editEntry?.jiraTicketId
-      ? { id: editEntry.jiraTicketId!, key: editEntry.jiraTicketKey!, summary: editEntry.jiraTicketSummary ?? '', status: '', url: '' }
+      ? { id: editEntry.jiraTicketId!, key: editEntry.jiraTicketKey!, summary: editEntry.jiraTicketSummary ?? '', status: '', url: '', assignee: null, dueDate: null, storyPoints: null, customer: null }
       : null,
   );
 
@@ -309,7 +309,7 @@ export default function LogFormModal({
     let resolvedJql = jqlEditorOpen ? editJql : q.jql;
     // Substitute all {{key}} placeholders
     Object.entries(placeholderValues).forEach(([k, v]) => {
-      resolvedJql = resolvedJql.replaceAll(`{{${k}}}`, v);
+      resolvedJql = resolvedJql.split(`{{${k}}}`).join(v);
     });
 
     setJiraSearchError('');
@@ -331,33 +331,6 @@ export default function LogFormModal({
   const selectedQueryJql = savedQueries.find(x => x._id === selectedQueryId)?.jql ?? '';
   const activePlaceholders = extractPlaceholders(jqlEditorOpen ? editJql : selectedQueryJql);
   const allPlaceholdersFilled = activePlaceholders.every(k => (placeholderValues[k] ?? '').trim() !== '');
-
-  // ── Chip long-press ────────────────────────────────────────────────────────
-  function onChipPointerDown(e: React.PointerEvent, lt: LogType) {
-    if (lt.source !== 'user' || e.button !== 0) return;
-    longPressActivated.current = false;
-    longPressTimer.current = setTimeout(() => {
-      longPressActivated.current = true;
-      const cx = Math.min(e.clientX, window.innerWidth  - 145);
-      const cy = Math.min(e.clientY, window.innerHeight - 90);
-      setCtxMenu({ visible: true, x: cx, y: cy, logType: lt });
-    }, 500);
-  }
-  function onChipPointerUp()   { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }
-  function onChipPointerMove() { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }
-  function onChipContextMenu(e: React.MouseEvent, lt: LogType) {
-    if (lt.source !== 'user') return;
-    e.preventDefault();
-    const cx = Math.min(e.clientX, window.innerWidth  - 145);
-    const cy = Math.min(e.clientY, window.innerHeight - 90);
-    setCtxMenu({ visible: true, x: cx, y: cy, logType: lt });
-  }
-  function onChipClick(lt: LogType) {
-    if (longPressActivated.current) { longPressActivated.current = false; return; }
-    setSelectedType(lt);
-    setSelectedDomain(lt.domain as 'work' | 'personal');
-    if (lt.category === 'food') setEntryType('point');
-  }
 
   // ── Create log type ────────────────────────────────────────────────────────
   function submitCreateType() {

@@ -327,8 +327,6 @@ export default function JiraConfigPage() {
     }
   }
 
-  const editingQuery = queries.find(q => q._id === editingId) ?? null;
-
   return (
     <div className="jira-page">
 
