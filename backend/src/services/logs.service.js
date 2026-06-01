@@ -34,8 +34,8 @@ function toResponse(doc) {
     id:           doc._id.toString(),
     date:         toDateStr(doc.startAt),
     endDate:      doc.endAt ? toDateStr(doc.endAt) : null,
-    startAt:      toTimeStr(doc.startAt),
-    endAt:        toTimeStr(doc.endAt),
+    startAt:      doc.startAt ? doc.startAt.toISOString() : null,
+    endAt:        doc.endAt   ? doc.endAt.toISOString()   : null,
     title:        doc.title ?? '',
     durationMins: doc.durationMins ?? null,
     logType:      lt ? {

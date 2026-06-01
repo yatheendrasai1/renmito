@@ -5,9 +5,8 @@ import './MetricsCards.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function toMins(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
+function isoToMins(iso: string): number {
+  return new Date(iso).getTime() / 60000;
 }
 
 function fmtMins(totalMins: number): string {
@@ -64,7 +63,7 @@ function BreakdownPopup({ logs, typeMap, date, dayType, onClose }: PopupProps) {
       return l.entryType !== 'point' && l.endAt &&
         lt?.domain === 'work' && lt?.category !== 'transit' && lt?.category !== 'break';
     })
-    .reduce((s, l) => s + Math.max(0, toMins(l.endAt!) - toMins(l.startAt)), 0);
+    .reduce((s, l) => s + Math.max(0, isoToMins(l.endAt!) - isoToMins(l.startAt)), 0);
 
   // All-log breakdown (by type)
   const breakdownMap = new Map<string, Breakdown>();
@@ -72,7 +71,7 @@ function BreakdownPopup({ logs, typeMap, date, dayType, onClose }: PopupProps) {
     if (log.entryType === 'point' || !log.endAt) continue;
     const lt = resolveType(log);
     if (!lt) continue;
-    const mins = Math.max(0, toMins(log.endAt) - toMins(log.startAt));
+    const mins = Math.max(0, isoToMins(log.endAt) - isoToMins(log.startAt));
     if (!mins) continue;
     const key = lt._id;
     if (!breakdownMap.has(key)) {
@@ -274,7 +273,7 @@ export default function MetricsCards({ logs, dayType, date }: Props) {
       return l.entryType !== 'point' && l.endAt &&
         lt?.domain === 'work' && lt?.category !== 'transit' && lt?.category !== 'break';
     })
-    .reduce((s, l) => s + Math.max(0, toMins(l.endAt!) - toMins(l.startAt)), 0);
+    .reduce((s, l) => s + Math.max(0, isoToMins(l.endAt!) - isoToMins(l.startAt)), 0);
 
   const totalWorkHours = totalWorkMins / 60;
   const coveragePct    = Math.round((totalWorkHours / 8) * 100);

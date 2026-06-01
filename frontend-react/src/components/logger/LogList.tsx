@@ -8,18 +8,84 @@ import './LogList.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDuration(mins: number | null): string {
-  if (!mins) return '';
-  const h = Math.floor(mins / 60), m = mins % 60;
-  if (h > 0 && m > 0) return `${h}h ${m}m`;
-  if (h > 0) return `${h}h`;
-  return `${m}m`;
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/** "4:30 PM" — 12h display for the log row */
+function isoToHHMM(iso: string): string {
+  const d = new Date(iso);
+  const h = d.getUTCHours(), m = d.getUTCMinutes();
+  const period = h < 12 ? 'AM' : 'PM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${period}`;
 }
 
-function timeRange(log: LogEntry): string {
-  if (log.entryType === 'point') return log.startAt;
-  if (!log.endAt) return log.startAt;
-  return `${log.startAt} – ${log.endAt}`;
+/** "HH:MM" in 24h — for <input type="time"> */
+function isoToHHMM24(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`;
+}
+
+function isoToDateStr(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+function isoCrossesDay(startISO: string, endISO: string | null): boolean {
+  if (!endISO) return false;
+  return isoToDateStr(startISO) !== isoToDateStr(endISO);
+}
+
+function isoSpanDays(startISO: string, endISO: string): number {
+  const s = new Date(isoToDateStr(startISO) + 'T00:00:00Z');
+  const e = new Date(isoToDateStr(endISO)   + 'T00:00:00Z');
+  return Math.round((e.getTime() - s.getTime()) / 86400000);
+}
+
+/** "29 May '26" */
+function isoToDayLabel(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} '${String(d.getUTCFullYear()).slice(2)}`;
+}
+
+/** Full label: "29 May '26 4:30 PM" */
+function isoToFullLabel(iso: string): string {
+  return `${isoToDayLabel(iso)} ${isoToHHMM(iso)}`;
+}
+
+function fmtMins(m: number): string {
+  const h = Math.floor(m / 60), min = m % 60;
+  if (h > 0 && min > 0) return `${h}h ${min}m`;
+  if (h > 0) return `${h}h`;
+  return `${min}m`;
+}
+
+function formatDuration(mins: number | null): string {
+  if (!mins) return '';
+  return fmtMins(mins);
+}
+
+/** Returns duration chip label — cross-day logs get "Xh+Yh*" or "Nh*" format. */
+function formatDurationChip(log: LogEntry): string {
+  if (!log.durationMins) return '';
+  if (!log.endAt || !isoCrossesDay(log.startAt, log.endAt)) {
+    return formatDuration(log.durationMins);
+  }
+  const spanDays = isoSpanDays(log.startAt, log.endAt);
+  if (spanDays > 1) {
+    return `${Math.floor(log.durationMins / 60)}h*`;
+  }
+  const midnight = new Date(isoToDateStr(log.endAt) + 'T00:00:00Z');
+  const day1Mins = Math.round((midnight.getTime() - new Date(log.startAt).getTime()) / 60000);
+  const day2Mins = Math.round((new Date(log.endAt).getTime() - midnight.getTime()) / 60000);
+  return `${fmtMins(day1Mins)}+${fmtMins(day2Mins)}*`;
+}
+
+/** Plain text range string — used only in the inline-edit header */
+function timeRangeText(log: LogEntry): string {
+  const crossDay = isoCrossesDay(log.startAt, log.endAt);
+  const startLabel = crossDay ? isoToFullLabel(log.startAt) : isoToHHMM(log.startAt);
+  if (log.entryType === 'point' || !log.endAt) return startLabel;
+  const endLabel = crossDay ? isoToFullLabel(log.endAt) : isoToHHMM(log.endAt);
+  return `${startLabel} – ${endLabel}`;
 }
 
 function addMins(hhmm: string, delta: number): string {
@@ -52,8 +118,8 @@ function InlineEditForm({ log, logType, allTypes, date, onClose }: InlineEditPro
   const [title,  setTitle]  = useState(log.title);
   // Prefer the resolved logType (handles DefaultLogType), fall back to log.logType
   const [typeId, setTypeId] = useState(logType?._id ?? log.logType?._id ?? '');
-  const [start,  setStart]  = useState(log.startAt);
-  const [end,    setEnd]    = useState(log.endAt ?? log.startAt);
+  const [start,  setStart]  = useState(isoToHHMM(log.startAt));
+  const [end,    setEnd]    = useState(isoToHHMM(log.endAt ?? log.startAt));
 
   const isPoint = log.entryType === 'point';
 
@@ -137,56 +203,61 @@ interface RowProps {
 
 function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
   const deleteMutation = useDeleteLog(date);
+  const updateMutation = useUpdateLog(log.date);
   const showToast      = useAppStore(s => s.showToast);
 
-  const [rowState,   setRowState]   = useState<RowState>('collapsed');
-  const [confirming, setConfirming] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const [rowState,      setRowState]      = useState<RowState>('collapsed');
+  const [confirming,    setConfirming]    = useState(false);
+  const [pickerField,   setPickerField]   = useState<'start' | 'end' | null>(null);
+  const [pickerDate,    setPickerDate]    = useState('');
+  const [pickerTime,    setPickerTime]    = useState('');
+  const [pickerSaving,  setPickerSaving]  = useState(false);
+  const cardRef    = useRef<HTMLDivElement>(null);
+  const pickerDateRef = useRef<HTMLInputElement>(null);
+  const pickerTimeRef = useRef<HTMLInputElement>(null);
 
   const color    = logType?.color ?? '#6b7280';
   const name     = logType?.name  ?? 'Unknown';
   const hasTitle = !!log.title;
+  const isRange  = log.entryType === 'range' && !!log.endAt;
 
-  // Collapse / close when clicking outside the card (expanded or inline-editing)
+  // Close on outside click
   useEffect(() => {
-    if (rowState !== 'expanded' && rowState !== 'inline-editing') return;
+    const active = rowState !== 'collapsed' || pickerField !== null;
+    if (!active) return;
     function handler(e: MouseEvent) {
       if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
         setRowState('collapsed');
+        setPickerField(null);
       }
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [rowState]);
+  }, [rowState, pickerField]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  /** Card background / empty-space click → open inline edit */
   function handleCardClick() {
-    if (rowState === 'inline-editing') return;
+    if (rowState === 'inline-editing' || pickerField) return;
     setRowState('inline-editing');
   }
 
-  /** Chip + time area click → toggle expanded / collapsed */
-  function handleChipTimeClick(e: React.MouseEvent) {
+  function handleChipClick(e: React.MouseEvent) {
     e.stopPropagation();
-    if (rowState === 'inline-editing') return;
+    if (rowState === 'inline-editing' || pickerField) return;
     setRowState(s => s === 'expanded' ? 'collapsed' : 'expanded');
   }
 
-  /** Clicking the revealed title while expanded → open inline edit */
   function handleTitleClick(e: React.MouseEvent) {
     e.stopPropagation();
     setRowState('inline-editing');
   }
 
-  /** Edit icon → full LogFormModal */
   function handleEditIcon(e: React.MouseEvent) {
     e.stopPropagation();
     onEdit(log);
   }
 
-  /** Delete icon */
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
     if (!confirming) { setConfirming(true); return; }
@@ -197,34 +268,46 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
     setConfirming(false);
   }
 
+  function openPicker(field: 'start' | 'end', e: React.MouseEvent) {
+    e.stopPropagation();
+    const iso = field === 'start' ? log.startAt : log.endAt!;
+    setPickerDate(isoToDateStr(iso));
+    setPickerTime(isoToHHMM24(iso));
+    setPickerField(field);
+  }
+
+  function closePicker() { setPickerField(null); }
+
+  function savePicker() {
+    if (!pickerDate || !pickerTime || pickerSaving) return;
+    setPickerSaving(true);
+    const entry = pickerField === 'start'
+      ? { startTime: pickerTime, date: pickerDate }
+      : { endTime: pickerTime, endDate: pickerDate };
+    updateMutation.mutate({ id: log.id, entry }, {
+      onSuccess: () => { setPickerSaving(false); setPickerField(null); showToast('Log updated'); },
+      onError:   () => { setPickerSaving(false); showToast('Failed to update log'); },
+    });
+  }
+
   // ── Inline editing state ───────────────────────────────────────────────────
   if (rowState === 'inline-editing') {
     return (
       <div ref={cardRef} className="tl-item tl-item--editing">
         <div className="tl-card tl-card--editing">
-          {/* Mini header: type chip + time, close button */}
           <div className="tl-edit-header">
             <span className="log-list-type-chip" style={{ background: color + '28', color }}>
               {name}
             </span>
-            <span className="tl-edit-header-time">{timeRange(log)}</span>
-            <button
-              className="tl-edit-close-btn"
-              onClick={() => setRowState('collapsed')}
-              aria-label="Close"
-            >
+            <span className="tl-edit-header-time">{timeRangeText(log)}</span>
+            <button className="tl-edit-close-btn" onClick={() => setRowState('collapsed')} aria-label="Close">
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
                 <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
               </svg>
             </button>
           </div>
-          <InlineEditForm
-            log={log}
-            logType={logType}
-            allTypes={allTypes}
-            date={date}
-            onClose={() => setRowState('collapsed')}
-          />
+          <InlineEditForm log={log} logType={logType} allTypes={allTypes} date={date}
+                          onClose={() => setRowState('collapsed')} />
         </div>
       </div>
     );
@@ -240,23 +323,53 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
       <div className="tl-card">
         <div className="tl-card-body">
 
-          {/* Top row ─ chip+time (expansion toggle) │ action buttons */}
+          {/* Top row */}
           <div className="tl-card-top-row">
 
-            {/* Clicking here toggles title expansion */}
-            <div
-              className="tl-card-chip-time"
-              onClick={handleChipTimeClick}
-              role="button"
-              tabIndex={0}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setRowState(s => s === 'expanded' ? 'collapsed' : 'expanded'); } }}
-            >
-              <span className="log-list-type-chip" style={{ background: color + '28', color }}>
+            <div className="tl-card-chip-time">
+              {/* Type chip — click to toggle title expansion */}
+              <span
+                className="log-list-type-chip"
+                style={{ background: color + '28', color }}
+                onClick={handleChipClick}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleChipClick(e as unknown as React.MouseEvent); }}
+              >
                 {name}
               </span>
-              <span className="log-list-time">{timeRange(log)}</span>
+
+              {/* Time range — start and end are separately clickable */}
+              <div className="tl-timerange" onClick={e => e.stopPropagation()}>
+                <button
+                  className={`tl-tr-part${pickerField === 'start' ? ' tl-tr-part--active' : ''}`}
+                  onClick={e => openPicker('start', e)}
+                  title="Edit start time"
+                >
+                  {isoCrossesDay(log.startAt, log.endAt) ? isoToFullLabel(log.startAt) : isoToHHMM(log.startAt)}
+                </button>
+
+                {isRange && (
+                  <>
+                    <span className="tl-tr-sep">–</span>
+                    <button
+                      className={`tl-tr-part${pickerField === 'end' ? ' tl-tr-part--active' : ''}`}
+                      onClick={e => openPicker('end', e)}
+                      title="Edit end time"
+                    >
+                      {isoCrossesDay(log.startAt, log.endAt) ? isoToFullLabel(log.endAt!) : isoToHHMM(log.endAt!)}
+                    </button>
+                  </>
+                )}
+              </div>
+
               {hasTitle && (
-                <span className={`tl-title-chevron${rowState === 'expanded' ? ' tl-title-chevron--open' : ''}`}>
+                <span
+                  className={`tl-title-chevron${rowState === 'expanded' ? ' tl-title-chevron--open' : ''}`}
+                  onClick={handleChipClick}
+                  role="button"
+                  tabIndex={-1}
+                >
                   <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
                     <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.8"
                           strokeLinecap="round" strokeLinejoin="round"/>
@@ -265,21 +378,14 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
               )}
             </div>
 
-            {/* Duration — pinned right, left of action buttons */}
             {log.durationMins != null && (
               <span className="log-list-duration log-list-duration--pinned">
-                {formatDuration(log.durationMins)}
+                {formatDurationChip(log)}
               </span>
             )}
 
-            {/* Action buttons */}
             <div className="tl-card-actions">
-              {/* Edit → full LogFormModal */}
-              <button
-                className="log-list-edit-btn"
-                onClick={handleEditIcon}
-                title="Full edit form"
-              >
+              <button className="log-list-edit-btn" onClick={handleEditIcon} title="Full edit form">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -287,7 +393,6 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
                 </svg>
               </button>
 
-              {/* Delete */}
               <button
                 className={`log-list-delete-btn${confirming ? ' log-list-delete-btn--confirm' : ''}`}
                 onClick={handleDelete}
@@ -311,7 +416,46 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
             </div>
           </div>
 
-          {/* Title text — revealed when expanded; clicking it opens inline edit */}
+          {/* Inline datetime picker — combined button */}
+          {pickerField && (
+            <div className="tl-dt-picker" onClick={e => e.stopPropagation()}>
+              <span className="tl-dt-picker-lbl">{pickerField === 'start' ? 'Start' : 'End'}</span>
+
+              {/* Combined date·time button with hidden inputs */}
+              <div className="tl-dt-combined" style={{ position: 'relative', display: 'inline-flex' }}>
+                <div className="tl-dt-combined-btn">
+                  <button type="button" className="tl-dt-seg tl-dt-seg--date"
+                          onClick={() => pickerDateRef.current?.showPicker?.()}>
+                    {isoToDayLabel(pickerDate || new Date().toISOString().slice(0,10))}
+                  </button>
+                  <span className="tl-dt-dot">·</span>
+                  <button type="button" className="tl-dt-seg tl-dt-seg--time"
+                          onClick={() => pickerTimeRef.current?.showPicker?.()}>
+                    {(() => {
+                      if (!pickerTime) return '—';
+                      const [h, m] = pickerTime.split(':').map(Number);
+                      const p = h < 12 ? 'AM' : 'PM';
+                      const h12 = h % 12 === 0 ? 12 : h % 12;
+                      return `${h12}:${String(m).padStart(2,'0')} ${p}`;
+                    })()}
+                  </button>
+                </div>
+                <input ref={pickerDateRef} type="date"
+                       style={{ position:'absolute', inset:0, opacity:0, width:'1px', height:'1px', pointerEvents:'none' }}
+                       value={pickerDate} onChange={e => setPickerDate(e.target.value)} tabIndex={-1} />
+                <input ref={pickerTimeRef} type="time"
+                       style={{ position:'absolute', inset:0, opacity:0, width:'1px', height:'1px', pointerEvents:'none' }}
+                       value={pickerTime} onChange={e => setPickerTime(e.target.value)} tabIndex={-1} />
+              </div>
+
+              <button className="tl-dt-save" onClick={savePicker} disabled={pickerSaving}>
+                {pickerSaving ? '…' : 'Save'}
+              </button>
+              <button className="tl-dt-cancel" onClick={closePicker}>✕</button>
+            </div>
+          )}
+
+          {/* Title reveal */}
           {rowState === 'expanded' && hasTitle && (
             <p className="log-list-title-reveal" onClick={handleTitleClick}>
               {log.title}
@@ -329,7 +473,7 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
 const PERIOD_ORDER_DESC = ['Night', 'Evening', 'Afternoon', 'Morning', 'Late Night'];
 
 function periodOf(startAt: string): string {
-  const h = parseInt(startAt.split(':')[0], 10);
+  const h = new Date(startAt).getUTCHours();
   if (h < 6)             return 'Late Night';
   if (h >= 6  && h < 12) return 'Morning';
   if (h >= 12 && h < 17) return 'Afternoon';

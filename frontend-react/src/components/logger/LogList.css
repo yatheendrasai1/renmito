@@ -152,7 +152,129 @@
   flex-shrink: 0;
 }
 
-/* ── Time & duration ─────────────────────────────────────────────────────── */
+/* ── Time range (split start / end buttons) ──────────────────────────────── */
+.tl-timerange {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.tl-tr-part {
+  background: none;
+  border: none;
+  padding: 1px 3px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  line-height: 1.4;
+}
+.tl-tr-part:hover { background: var(--bg-surface); color: var(--highlight-selected); }
+.tl-tr-part--active { background: color-mix(in srgb, var(--highlight-selected) 12%, transparent); color: var(--highlight-selected); }
+
+.tl-tr-sep {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* ── Inline datetime picker ──────────────────────────────────────────────── */
+.tl-dt-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.tl-dt-picker-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  flex-shrink: 0;
+}
+
+.tl-dt-input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 3px 6px;
+  outline: none;
+  cursor: pointer;
+}
+.tl-dt-input:focus { border-color: var(--highlight-selected); }
+.tl-dt-input--date { width: 120px; }
+.tl-dt-input--time { width: 100px; color: var(--highlight-selected); font-weight: 600; }
+.tl-dt-input::-webkit-calendar-picker-indicator { opacity: 0.4; cursor: pointer; }
+
+/* Combined date·time pill in picker row */
+.tl-dt-combined-btn {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.tl-dt-seg {
+  background: none;
+  border: none;
+  padding: 3px 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  outline: none;
+  color: var(--text-secondary);
+  transition: background 0.12s, color 0.12s;
+}
+.tl-dt-seg--date { border-right: 1px solid var(--border); }
+.tl-dt-seg--time { color: var(--highlight-selected); }
+.tl-dt-seg:hover { background: color-mix(in srgb, var(--highlight-selected) 10%, transparent); color: var(--highlight-selected); }
+.tl-dt-dot {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 0 2px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.tl-dt-save {
+  background: var(--highlight-selected);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.tl-dt-save:disabled { opacity: 0.6; cursor: default; }
+
+.tl-dt-cancel {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 4px;
+  flex-shrink: 0;
+}
+.tl-dt-cancel:hover { color: var(--text-primary); }
+
+/* ── Time & duration (kept for inline-edit header fallback) ──────────────── */
 .log-list-time {
   font-size: 11px;
   color: var(--text-secondary);

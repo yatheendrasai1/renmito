@@ -2,10 +2,10 @@ import type { LogType } from './log-type';
 
 export interface LogEntry {
   id: string;
-  date: string;               // YYYY-MM-DD — start date
-  endDate: string | null;     // YYYY-MM-DD — end date (differs only for cross-midnight logs)
-  startAt: string;            // HH:MM — range: start; point: the moment
-  endAt: string | null;       // HH:MM — null for point logs
+  date: string;               // YYYY-MM-DD — start date (derived from startAt)
+  endDate: string | null;     // YYYY-MM-DD — end date (derived from endAt)
+  startAt: string;            // ISO datetime — range: start; point: the moment
+  endAt: string | null;       // ISO datetime — null for point logs
   title: string;
   durationMins: number | null;
   logType: LogType | null;

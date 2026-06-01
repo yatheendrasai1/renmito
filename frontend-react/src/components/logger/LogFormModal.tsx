@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useCreateLog, useUpdateLog, useDeleteLog } from '@/hooks/useLogs';
 import {
   useLogTypes,
@@ -31,6 +31,75 @@ function addDaysToISO(iso: string, days: number): string {
   const d = new Date(iso + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+/** Extract HH:MM from an ISO datetime string (UTC). Falls back to the raw value if not ISO. */
+function isoToHHMM(iso: string): string {
+  if (!iso) return '';
+  // If already HH:MM (legacy), return as-is
+  if (/^\d{2}:\d{2}$/.test(iso)) return iso;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`;
+}
+
+/** Extract YYYY-MM-DD from an ISO datetime string. Falls back to raw value if already a date. */
+function isoToDateStr(iso: string): string {
+  if (!iso) return '';
+  return iso.slice(0, 10);
+}
+
+const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/** Format "YYYY-MM-DD" → "02 Jun '26" */
+function formatDateLabel(ymd: string): string {
+  if (!ymd || ymd.length < 10) return ymd;
+  const [y, m, d] = ymd.split('-').map(Number);
+  return `${String(d).padStart(2,'0')} ${SHORT_MONTHS[m - 1]} '${String(y).slice(2)}`;
+}
+
+/** Format "HH:MM" (24h) → "4:30 PM" for display */
+function formatTimeLabel(hhmm: string): string {
+  if (!hhmm || !hhmm.includes(':')) return hhmm || '—';
+  const [h, m] = hhmm.split(':').map(Number);
+  const period = h < 12 ? 'AM' : 'PM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${period}`;
+}
+
+/**
+ * Combined date+time button — one styled pill showing "02 Jun '26 · 4:30 PM".
+ * Clicking the date segment opens the native date picker;
+ * clicking the time segment opens the native time picker.
+ */
+function DateTimeButton({
+  date, time, onDateChange, onTimeChange,
+}: {
+  date: string; time: string;
+  onDateChange: (v: string) => void;
+  onTimeChange: (v: string) => void;
+}) {
+  const dateRef = React.useRef<HTMLInputElement>(null);
+  const timeRef = React.useRef<HTMLInputElement>(null);
+  return (
+    <div className="lfm-dtt-wrap">
+      <div className="lfm-dtt-btn">
+        <button type="button" className="lfm-dtt-seg lfm-dtt-seg--date"
+                onClick={() => dateRef.current?.showPicker?.()}>
+          {formatDateLabel(date)}
+        </button>
+        <span className="lfm-dtt-dot">·</span>
+        <button type="button" className="lfm-dtt-seg lfm-dtt-seg--time"
+                onClick={() => timeRef.current?.showPicker?.()}>
+          {formatTimeLabel(time)}
+        </button>
+      </div>
+      <input ref={dateRef} type="date" className="lfm-dtt-hidden" value={date}
+             onChange={e => onDateChange(e.target.value)} tabIndex={-1} aria-hidden="true" />
+      <input ref={timeRef} type="time" className="lfm-dtt-hidden" value={time}
+             onChange={e => onTimeChange(e.target.value)} tabIndex={-1} aria-hidden="true" />
+    </div>
+  );
 }
 
 function fmtDuration(start: string, end: string, nextDay: boolean): string {
@@ -97,16 +166,16 @@ export default function LogFormModal({
     isEdit ? (editEntry?.entryType ?? 'range') : 'point',
   );
   const [formStart,    setFormStart]    = useState(
-    isEdit ? (editEntry?.startAt ?? startTime) : startTime,
+    isEdit ? (isoToHHMM(editEntry?.startAt ?? '') || startTime) : startTime,
   );
   const [formEnd,      setFormEnd]      = useState(
-    isEdit ? (editEntry?.endAt ?? endTime) : endTime,
+    isEdit ? (isoToHHMM(editEntry?.endAt ?? '') || endTime) : endTime,
   );
   const [formDate,     setFormDate]     = useState(
-    isEdit ? (editEntry?.date ?? date) : date,
+    isEdit ? (isoToDateStr(editEntry?.startAt ?? '') || editEntry?.date || date) : date,
   );
   const [formEndDate,  setFormEndDate]  = useState(
-    isEdit ? (editEntry?.endDate ?? editEntry?.date ?? date) : date,
+    isEdit ? (isoToDateStr(editEntry?.endAt ?? '') || editEntry?.endDate || editEntry?.date || date) : date,
   );
   const [selectedType, setSelectedType] = useState<LogType | null>(
     isEdit ? (editEntry?.logType ?? null) : null,
@@ -169,6 +238,8 @@ export default function LogFormModal({
   const [jiraSearching,     setJiraSearching]     = useState(false);
   const [jiraResults,       setJiraResults]       = useState<JiraTicket[]>([]);
   const [jiraSearchError,   setJiraSearchError]   = useState('');
+  const [jiraPopupOpen,     setJiraPopupOpen]     = useState(false);
+  const [jiraConfirmTicket, setJiraConfirmTicket] = useState<JiraTicket | null>(null);
   const [linkedTicket,      setLinkedTicket]      = useState<JiraTicket | null>(
     isEdit && editEntry?.jiraTicketId
       ? { id: editEntry.jiraTicketId!, key: editEntry.jiraTicketKey!, summary: editEntry.jiraTicketSummary ?? '', status: '', url: '', assignee: null, dueDate: null, storyPoints: null, customer: null }
@@ -217,12 +288,7 @@ export default function LogFormModal({
   useEffect(() => {
     const q = savedQueries.find(x => x._id === selectedQueryId);
     if (!q) return;
-    const keys = extractPlaceholders(q.jql);
-    const initial: Record<string, string> = {};
-    keys.forEach(k => {
-      initial[k] = k === 'log-title' ? title : '';
-    });
-    setPlaceholderValues(initial);
+    setPlaceholderValues({});
     setJqlEditorOpen(false);
     setEditJql(q.jql);
     setJiraResults([]);
@@ -244,10 +310,11 @@ export default function LogFormModal({
   // ── Time helpers ───────────────────────────────────────────────────────────
   function handleEndChange(val: string) {
     setFormEnd(val);
-    if (toMins(val) < toMins(formStart)) {
-      setFormEndDate(addDaysToISO(formDate, 1));
-    } else {
-      setFormEndDate(formDate);
+    // Only auto-adjust end date when dates are currently the same (user hasn't manually set a cross-day end date)
+    if (formEndDate === formDate) {
+      if (toMins(val) < toMins(formStart)) {
+        setFormEndDate(addDaysToISO(formDate, 1));
+      }
     }
   }
 
@@ -273,9 +340,8 @@ export default function LogFormModal({
 
   // ── JIRA helpers ──────────────────────────────────────────────────────────
   function openJiraPanel() {
-    const next = activeField === 'jira' ? null : 'jira';
-    setActiveField(next);
-    if (next === 'jira' && jiraConfigured === null) {
+    setJiraPopupOpen(true);
+    if (jiraConfigured === null) {
       jiraApi.getConfig()
         .then(cfg => {
           setJiraConfigured(!!cfg);
@@ -283,6 +349,14 @@ export default function LogFormModal({
         })
         .catch(() => setJiraConfigured(false));
     }
+  }
+
+  function confirmJiraTicket() {
+    if (!jiraConfirmTicket) return;
+    setLinkedTicket(jiraConfirmTicket);
+    setTicketId(jiraConfirmTicket.key);
+    setJiraConfirmTicket(null);
+    setJiraPopupOpen(false);
   }
 
   async function loadSavedQueries() {
@@ -505,60 +579,32 @@ export default function LogFormModal({
 
             {/* ── Time + Date card ── */}
             <div className="lfm-time-card">
-              <div className="lfm-time-row">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, color: 'var(--highlight-selected)' }}>
-                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5"/>
-                  <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-
-                {entryType === 'range' ? (
-                  <>
-                    <div className="lfm-time-field">
-                      <span className="lfm-time-lbl">Start</span>
-                      <input type="time" className="lfm-time-input" value={formStart}
-                             onChange={e => handleStartChange(e.target.value)} />
-                    </div>
-                    <span className="lfm-time-arrow">→</span>
-                    <div className="lfm-time-field">
-                      <span className="lfm-time-lbl">End</span>
-                      <input type="time" className="lfm-time-input" value={formEnd}
-                             onChange={e => handleEndChange(e.target.value)} />
-                      {isNextDay && (
-                        <span className="lfm-next-day-badge"
-                              onClick={() => setFormEndDate(formDate)}
-                              title="Ends next day — click to reset">
-                          +1 day ×
-                        </span>
-                      )}
-                    </div>
-                    {durationStr && <span className="lfm-duration-lbl">{durationStr}</span>}
-                    {endInvalid && <span className="lfm-duration-lbl lfm-duration-lbl--error">end ≤ start</span>}
-                  </>
-                ) : (
-                  <>
-                    <div className="lfm-time-field">
-                      <span className="lfm-time-lbl">Time</span>
-                      <input type="time" className="lfm-time-input" value={formStart}
-                             onChange={e => setFormStart(e.target.value)} />
-                    </div>
-                    <span className="lfm-point-hint">Exact moment — no duration</span>
-                  </>
-                )}
-              </div>
-
-              <div className="lfm-time-card-divider" />
-
-              <div className="lfm-date-row">
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, color: 'var(--text-muted)' }}>
-                  <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
-                  <path d="M1.5 6h13M5 1v3M11 1v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                </svg>
-                <span className="lfm-time-lbl" style={{ alignSelf: 'center' }}>
-                  {entryType === 'range' ? 'Start Date' : 'Date'}
-                </span>
-                <input type="date" className="lfm-date-input" value={formDate}
-                       onChange={e => handleDateChange(e.target.value)} />
-              </div>
+              {entryType === 'range' ? (
+                <div className="lfm-datetime-row">
+                  <div className="lfm-datetime-group">
+                    <span className="lfm-time-lbl">Start</span>
+                    <DateTimeButton date={formDate} time={formStart}
+                      onDateChange={handleDateChange} onTimeChange={handleStartChange} />
+                  </div>
+                  <span className="lfm-time-arrow">→</span>
+                  <div className="lfm-datetime-group">
+                    <span className="lfm-time-lbl">End</span>
+                    <DateTimeButton date={formEndDate} time={formEnd}
+                      onDateChange={setFormEndDate} onTimeChange={handleEndChange} />
+                  </div>
+                  {durationStr && <span className="lfm-duration-lbl">{durationStr}</span>}
+                  {endInvalid && <span className="lfm-duration-lbl lfm-duration-lbl--error">end ≤ start</span>}
+                </div>
+              ) : (
+                <div className="lfm-datetime-row">
+                  <div className="lfm-datetime-group">
+                    <span className="lfm-time-lbl">Time</span>
+                    <DateTimeButton date={formDate} time={formStart}
+                      onDateChange={handleDateChange} onTimeChange={setFormStart} />
+                  </div>
+                  <span className="lfm-point-hint">Exact moment</span>
+                </div>
+              )}
             </div>
 
             {/* ── Description ── */}
@@ -618,89 +664,6 @@ export default function LogFormModal({
               </div>
             </div>
 
-            {/* ── Create new log type ── */}
-            <button
-              type="button"
-              className="lfm-create-type-link"
-              onClick={() => setShowCreateType(v => !v)}
-            >
-              {showCreateType ? (
-                <>
-                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                    <path d="M2 6h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                  </svg>
-                  Cancel
-                </>
-              ) : (
-                <>
-                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                    <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                  </svg>
-                  Create new type
-                </>
-              )}
-            </button>
-
-            {showCreateType && (
-              <div className="lfm-create-type-panel">
-                {createTypeErr && <div className="lfm-create-error">{createTypeErr}</div>}
-                <div className="lfm-create-fields">
-                  <div className="lfm-create-top-row">
-                    <div className="lfm-create-field lfm-create-field--name">
-                      <label className="lfm-create-lbl">Name</label>
-                      <input
-                        type="text"
-                        className="lfm-create-input"
-                        value={newTypeName}
-                        onChange={e => setNewTypeName(e.target.value)}
-                        placeholder="e.g. Deep Work, Therapy…"
-                        maxLength={40}
-                        disabled={createType.isPending}
-                      />
-                    </div>
-                    <div className="lfm-create-field lfm-create-field--domain">
-                      <label className="lfm-create-lbl">Domain</label>
-                      <select
-                        className="lfm-create-select"
-                        value={newTypeDomain}
-                        onChange={e => setNewTypeDomain(e.target.value as 'work' | 'personal')}
-                        disabled={createType.isPending}
-                      >
-                        <option value="work">Work</option>
-                        <option value="personal">Personal</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="lfm-create-field">
-                    <label className="lfm-create-lbl">Color</label>
-                    <div className="lfm-swatch-grid">
-                      {PALETTE_COLORS.map(c => (
-                        <button
-                          key={c}
-                          type="button"
-                          className={`lfm-swatch-btn${newTypeColor === c ? ' lfm-swatch-btn--active' : ''}`}
-                          style={{ background: c }}
-                          disabled={createType.isPending}
-                          onClick={() => setNewTypeColor(c)}
-                          aria-label={c}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="lfm-create-actions">
-                  <button
-                    type="button"
-                    className="lfm-btn-create-submit"
-                    onClick={submitCreateType}
-                    disabled={createType.isPending || !newTypeName.trim()}
-                  >
-                    {createType.isPending && <span className="lfm-spinner" />}
-                    {createType.isPending ? 'Creating…' : 'Create & Select'}
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* ── Work chips: Ticket ID + JIRA ── */}
             {showTicketChips && (
@@ -719,7 +682,7 @@ export default function LogFormModal({
 
                 <button
                   type="button"
-                  className={`lfm-field-chip lfm-field-chip--jira${linkedTicket ? ' lfm-field-chip--filled' : ''}${activeField === 'jira' ? ' lfm-field-chip--active' : ''}`}
+                  className={`lfm-field-chip lfm-field-chip--jira${linkedTicket ? ' lfm-field-chip--filled' : ''}${jiraPopupOpen ? ' lfm-field-chip--active' : ''}`}
                   onClick={openJiraPanel}
                   title={linkedTicket ? linkedTicket.key : 'Link JIRA ticket'}
                 >
@@ -748,261 +711,6 @@ export default function LogFormModal({
               </div>
             )}
 
-            {/* ── JIRA expand — query picker ── */}
-            {activeField === 'jira' && showTicketChips && (
-              <div className="lfm-field-expand">
-                <div className="lfm-fe-jira">
-
-                  {/* Not connected */}
-                  {jiraConfigured === false && (
-                    <div className="lfm-jira-not-configured">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                           stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M12 8v4M12 16h.01"/>
-                      </svg>
-                      <span>
-                        JIRA is not connected.{' '}
-                        <a className="lfm-jira-config-link" href="/external-configs/jira" target="_blank" rel="noopener noreferrer">
-                          Configure it here
-                        </a>
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Checking */}
-                  {jiraConfigured === null && (
-                    <div className="lfm-jira-checking">
-                      <span className="lfm-spinner" />
-                      Checking JIRA connection…
-                    </div>
-                  )}
-
-                  {jiraConfigured === true && (
-                    <>
-                      {/* Linked ticket display */}
-                      {linkedTicket && (
-                        <div className="lfm-jira-linked-chip">
-                          <a className="lfm-jira-linked-key" href={linkedTicket.url}
-                             target="_blank" rel="noopener noreferrer"
-                             onClick={e => e.stopPropagation()}>
-                            {linkedTicket.key}
-                          </a>
-                          <span className="lfm-jira-linked-summary">{linkedTicket.summary}</span>
-                          <button type="button" className="lfm-jira-linked-remove"
-                            onClick={() => { setLinkedTicket(null); setJiraResults([]); setTicketId(''); }}
-                            title="Remove linked ticket">×</button>
-                        </div>
-                      )}
-
-                      {/* Loading queries */}
-                      {queriesLoading && (
-                        <div className="lfm-jira-checking">
-                          <span className="lfm-spinner" /> Loading saved queries…
-                        </div>
-                      )}
-
-                      {/* No saved queries */}
-                      {!queriesLoading && savedQueries.length === 0 && (
-                        <div className="lfm-jira-not-configured">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                               stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                          </svg>
-                          <span>
-                            No saved queries yet.{' '}
-                            <a className="lfm-jira-config-link" href="/external-configs/jira" target="_blank" rel="noopener noreferrer">
-                              Create one in JIRA settings
-                            </a>
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Query picker */}
-                      {!queriesLoading && savedQueries.length > 0 && (
-                        <>
-                          {/* Form: query select + placeholder fields + search — always visible */}
-                          <div className="lfm-jira-form">
-                              {/* Query selector row */}
-                              <div className="lfm-jira-query-row">
-                                <select
-                                  className="lfm-jira-query-select"
-                                  value={selectedQueryId}
-                                  onChange={e => setSelectedQueryId(e.target.value)}
-                                >
-                                  {savedQueries.map(q => (
-                                    <option key={q._id} value={q._id}>{q.name}</option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              {/* JQL editor (when open) */}
-                              {jqlEditorOpen ? (
-                                <div className="lfm-jira-jql-editor">
-                                  <textarea
-                                    className="lfm-jira-jql-textarea"
-                                    value={editJql}
-                                    onChange={e => setEditJql(e.target.value)}
-                                    rows={3}
-                                    spellCheck={false}
-                                  />
-                                  <button
-                                    type="button"
-                                    className="lfm-jira-cancel-edit-btn"
-                                    onClick={() => {
-                                      setJqlEditorOpen(false);
-                                      setEditJql(selectedQueryJql);
-                                    }}
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              ) : (
-                                /* Placeholder inputs */
-                                activePlaceholders.length > 0 && (
-                                  <div className="lfm-jira-placeholders">
-                                    {activePlaceholders.map(key => (
-                                      <div key={key} className="lfm-jira-placeholder-row">
-                                        <label className="lfm-jira-placeholder-label">{`{{${key}}}`}</label>
-                                        <input
-                                          type="text"
-                                          className="lfm-jira-placeholder-input"
-                                          value={placeholderValues[key] ?? ''}
-                                          onChange={e => setPlaceholderValues(prev => ({ ...prev, [key]: e.target.value }))}
-                                          placeholder={`Enter ${key}`}
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                )
-                              )}
-
-                              {/* Edit pencil + Search row */}
-                              <div className="lfm-jira-actions-row">
-                                {!jqlEditorOpen && (
-                                  <button
-                                    type="button"
-                                    className="lfm-jira-pencil-btn"
-                                    title="Edit JQL"
-                                    onClick={() => {
-                                      setEditJql(selectedQueryJql);
-                                      setJqlEditorOpen(true);
-                                    }}
-                                  >
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                                         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                    </svg>
-                                    Edit JQL
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  className="lfm-jira-fetch-btn"
-                                  onClick={() => runSelectedQuery(selectedQueryId)}
-                                  disabled={jiraSearching || !selectedQueryId || (!jqlEditorOpen && !allPlaceholdersFilled)}
-                                  title={!allPlaceholdersFilled ? 'Fill in all placeholder fields first' : undefined}
-                                >
-                                  {jiraSearching
-                                    ? <><span className="lfm-spinner lfm-spinner--dark" />Searching…</>
-                                    : <>
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                             stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                                        </svg>
-                                        Search
-                                      </>
-                                  }
-                                </button>
-                              </div>
-                            </div>
-                        </>
-                      )}
-
-                      {jiraSearchError && <div className="lfm-jira-error">{jiraSearchError}</div>}
-
-                      {jiraResults.length > 0 && (
-                        <div className="lfm-jira-results">
-                          {jiraResults.map(ticket => {
-                            const selected = linkedTicket?.id === ticket.id;
-                            return (
-                              <button
-                                key={ticket.id}
-                                type="button"
-                                className={`lfm-jira-result-card${selected ? ' lfm-jira-result-card--selected' : ''}`}
-                                onClick={() => {
-                                  const picking = selected ? null : ticket;
-                                  setLinkedTicket(picking);
-                                  if (!picking) setTicketId('');
-                                }}
-                              >
-                                {/* Row 1 — key · status · sp · check */}
-                                <div className="lfm-jira-result-top">
-                                  <a className="lfm-jira-result-key"
-                                     href={ticket.url} target="_blank" rel="noopener noreferrer"
-                                     onClick={e => e.stopPropagation()}>
-                                    {ticket.key}
-                                  </a>
-                                  <span className="lfm-jira-result-status">{ticket.status}</span>
-                                  {ticket.storyPoints !== null && (
-                                    <span className="lfm-jira-result-sp" title="Story Points">
-                                      {ticket.storyPoints} SP
-                                    </span>
-                                  )}
-                                  {selected && (
-                                    <svg className="lfm-jira-result-check" width="13" height="13" viewBox="0 0 24 24" fill="none"
-                                         stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <polyline points="20 6 9 17 4 12"/>
-                                    </svg>
-                                  )}
-                                </div>
-
-                                {/* Row 2 — summary */}
-                                <p className="lfm-jira-result-summary">{ticket.summary}</p>
-
-                                {/* Row 3 — meta: assignee · customer · due-in */}
-                                <div className="lfm-jira-result-meta">
-                                  {ticket.assignee && (
-                                    <span className="lfm-jira-result-assignee">
-                                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
-                                        <circle cx="8" cy="5.5" r="3" stroke="currentColor" strokeWidth="1.4"/>
-                                        <path d="M2 13.5c0-3 2.686-5 6-5s6 2 6 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                                      </svg>
-                                      {ticket.assignee}
-                                    </span>
-                                  )}
-                                  {ticket.customer && (
-                                    <span className="lfm-jira-result-customer">
-                                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
-                                        <rect x="2" y="2" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
-                                        <path d="M5 14h6M8 11v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                                      </svg>
-                                      {ticket.customer}
-                                    </span>
-                                  )}
-                                  <span className={`lfm-jira-result-due${
-                                    !ticket.dueDate ? ' lfm-jira-result-due--none' :
-                                    formatDueIn(ticket.dueDate) === 'Due today' ? ' lfm-jira-result-due--today' :
-                                    formatDueIn(ticket.dueDate).includes('overdue') ? ' lfm-jira-result-due--over' : ''
-                                  }`}>
-                                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
-                                      <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
-                                      <path d="M1.5 6h13M5 1v3M11 1v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                                    </svg>
-                                    {formatDueIn(ticket.dueDate)}
-                                  </span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* ── Optional fields accordion ── */}
             <div className="lfm-optional-section">
@@ -1203,6 +911,235 @@ export default function LogFormModal({
           </div>{/* /lfm-body */}
         </div>{/* /lfm-panel */}
       </div>{/* /lfm-overlay */}
+
+      {/* ── JIRA popup ── */}
+      {jiraPopupOpen && (
+        <div className="lfm-jira-popup-overlay" onClick={() => { setJiraPopupOpen(false); setJiraConfirmTicket(null); }}>
+          <div className="lfm-jira-popup" onClick={e => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="lfm-jira-popup-hdr">
+              <span className="lfm-jira-popup-title">Link JIRA Ticket</span>
+              <button type="button" className="lfm-jira-popup-close"
+                      onClick={() => { setJiraPopupOpen(false); setJiraConfirmTicket(null); }}>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="lfm-jira-popup-body">
+
+              {/* Linked ticket */}
+              {linkedTicket && (
+                <div className="lfm-jira-linked-chip">
+                  <a className="lfm-jira-linked-key" href={linkedTicket.url}
+                     target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+                    {linkedTicket.key}
+                  </a>
+                  <span className="lfm-jira-linked-summary">{linkedTicket.summary}</span>
+                  <button type="button" className="lfm-jira-linked-remove"
+                    onClick={() => { setLinkedTicket(null); setJiraResults([]); setTicketId(''); }}
+                    title="Remove linked ticket">×</button>
+                </div>
+              )}
+
+              {/* Not connected */}
+              {jiraConfigured === false && (
+                <div className="lfm-jira-not-configured">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+                  </svg>
+                  <span>JIRA is not connected.{' '}
+                    <a className="lfm-jira-config-link" href="/external-configs/jira"
+                       target="_blank" rel="noopener noreferrer">Configure it here</a>
+                  </span>
+                </div>
+              )}
+
+              {jiraConfigured === null && (
+                <div className="lfm-jira-checking"><span className="lfm-spinner" /> Checking JIRA connection…</div>
+              )}
+
+              {jiraConfigured === true && (
+                <>
+                  {queriesLoading && (
+                    <div className="lfm-jira-checking"><span className="lfm-spinner" /> Loading saved queries…</div>
+                  )}
+
+                  {!queriesLoading && savedQueries.length === 0 && (
+                    <div className="lfm-jira-not-configured">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                           stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                      </svg>
+                      <span>No saved queries yet.{' '}
+                        <a className="lfm-jira-config-link" href="/external-configs/jira"
+                           target="_blank" rel="noopener noreferrer">Create one in JIRA settings</a>
+                      </span>
+                    </div>
+                  )}
+
+                  {!queriesLoading && savedQueries.length > 0 && (
+                    <div className="lfm-jira-form">
+                      {/* Query selector */}
+                      <div className="lfm-jira-query-row">
+                        <select className="lfm-jira-query-select" value={selectedQueryId}
+                                onChange={e => setSelectedQueryId(e.target.value)}>
+                          {savedQueries.map(q => (
+                            <option key={q._id} value={q._id}>{q.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* JQL editor or placeholders */}
+                      {jqlEditorOpen ? (
+                        <div className="lfm-jira-jql-editor">
+                          <textarea className="lfm-jira-jql-textarea" value={editJql}
+                                    onChange={e => setEditJql(e.target.value)} rows={3} spellCheck={false} />
+                          <button type="button" className="lfm-jira-cancel-edit-btn"
+                                  onClick={() => { setJqlEditorOpen(false); setEditJql(selectedQueryJql); }}>
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        activePlaceholders.length > 0 && (
+                          <div className="lfm-jira-placeholders">
+                            {activePlaceholders.map(key => (
+                              <div key={key} className="lfm-jira-placeholder-row">
+                                <label className="lfm-jira-placeholder-label">{`{{${key}}}`}</label>
+                                <input type="text" className="lfm-jira-placeholder-input"
+                                       value={placeholderValues[key] ?? ''}
+                                       onChange={e => setPlaceholderValues(prev => ({ ...prev, [key]: e.target.value }))}
+                                       placeholder={`Enter ${key}`} />
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      )}
+
+                      {/* Actions row: Search left, pencil icon right */}
+                      <div className="lfm-jira-actions-row">
+                        <button type="button" className="lfm-jira-fetch-btn"
+                                onClick={() => runSelectedQuery(selectedQueryId)}
+                                disabled={jiraSearching || !selectedQueryId || (!jqlEditorOpen && !allPlaceholdersFilled)}
+                                title={!allPlaceholdersFilled ? 'Fill in all placeholder fields first' : undefined}>
+                          {jiraSearching
+                            ? <><span className="lfm-spinner lfm-spinner--dark" />Searching…</>
+                            : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                     stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                               </svg> Search</>
+                          }
+                        </button>
+                        {!jqlEditorOpen && (
+                          <button type="button" className="lfm-jira-pencil-btn lfm-jira-pencil-btn--right"
+                                  title="Edit JQL"
+                                  onClick={() => { setEditJql(selectedQueryJql); setJqlEditorOpen(true); }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {jiraSearchError && <div className="lfm-jira-error">{jiraSearchError}</div>}
+
+                  {/* Results */}
+                  {jiraResults.length > 0 && (
+                    <div className="lfm-jira-results">
+                      {jiraResults.map(ticket => {
+                        const isLinked = linkedTicket?.id === ticket.id;
+                        return (
+                          <button key={ticket.id} type="button"
+                                  className={`lfm-jira-result-card${isLinked ? ' lfm-jira-result-card--selected' : ''}`}
+                                  onClick={() => setJiraConfirmTicket(ticket)}>
+                            <div className="lfm-jira-result-top">
+                              <a className="lfm-jira-result-key" href={ticket.url}
+                                 target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+                                {ticket.key}
+                              </a>
+                              <span className="lfm-jira-result-status">{ticket.status}</span>
+                              {ticket.storyPoints !== null && (
+                                <span className="lfm-jira-result-sp" title="Story Points">{ticket.storyPoints} SP</span>
+                              )}
+                              {isLinked && (
+                                <svg className="lfm-jira-result-check" width="13" height="13" viewBox="0 0 24 24" fill="none"
+                                     stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                              )}
+                            </div>
+                            <p className="lfm-jira-result-summary">{ticket.summary}</p>
+                            <div className="lfm-jira-result-meta">
+                              {ticket.assignee && (
+                                <span className="lfm-jira-result-assignee">
+                                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                                    <circle cx="8" cy="5.5" r="3" stroke="currentColor" strokeWidth="1.4"/>
+                                    <path d="M2 13.5c0-3 2.686-5 6-5s6 2 6 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                                  </svg>
+                                  {ticket.assignee}
+                                </span>
+                              )}
+                              {ticket.customer && (
+                                <span className="lfm-jira-result-customer">
+                                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                                    <rect x="2" y="2" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                                    <path d="M5 14h6M8 11v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                                  </svg>
+                                  {ticket.customer}
+                                </span>
+                              )}
+                              <span className={`lfm-jira-result-due${
+                                !ticket.dueDate ? ' lfm-jira-result-due--none' :
+                                formatDueIn(ticket.dueDate) === 'Due today' ? ' lfm-jira-result-due--today' :
+                                formatDueIn(ticket.dueDate).includes('overdue') ? ' lfm-jira-result-due--over' : ''
+                              }`}>
+                                <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                                  <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                                  <path d="M1.5 6h13M5 1v3M11 1v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                                </svg>
+                                {formatDueIn(ticket.dueDate)}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Confirmation dialog */}
+            {jiraConfirmTicket && (
+              <div className="lfm-jira-confirm-overlay" onClick={() => setJiraConfirmTicket(null)}>
+                <div className="lfm-jira-confirm" onClick={e => e.stopPropagation()}>
+                  <p className="lfm-jira-confirm-msg">
+                    Use <strong>{jiraConfirmTicket.key}</strong> as the ticket ID?
+                  </p>
+                  <p className="lfm-jira-confirm-summary">{jiraConfirmTicket.summary}</p>
+                  <div className="lfm-jira-confirm-btns">
+                    <button type="button" className="lfm-rename-cancel" onClick={() => setJiraConfirmTicket(null)}>
+                      Cancel
+                    </button>
+                    <button type="button" className="lfm-btn-save" onClick={confirmJiraTicket}>
+                      Use Ticket
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
 
       {/* ── Context menu ── */}
       {ctxMenu.visible && (
