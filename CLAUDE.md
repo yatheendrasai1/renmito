@@ -122,3 +122,5 @@ npm run android:open    # above + opens Android Studio (then Build → Build APK
 5. **After any frontend change**: remind to run `npm run android:build` from `frontend-react/` and rebuild the APK in Android Studio to get the change on device.
 
 6. **CORS changes** (new origins, new methods): Update `backend/src/config.js` CORS default and `backend/.env.example` to keep mobile origins (`https://localhost`, `capacitor://localhost`) in the allowed list.
+
+7. **No unused variables/imports**: The mobile build runs `tsc -b` with strict settings — any declared-but-unused variable, state, import, or function is a hard error (`TS6133`). After removing a feature or refactoring, always delete all related state, mutations, imports, and helper functions. Run `npx tsc -b --noEmit` from `frontend-react/` to verify before committing.
