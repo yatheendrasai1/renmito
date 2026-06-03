@@ -125,6 +125,12 @@ npm run android:open    # above + opens Android Studio (then Build → Build APK
 
 7. **No unused variables/imports**: The mobile build runs `tsc -b` with strict settings — any declared-but-unused variable, state, import, or function is a hard error (`TS6133`). After removing a feature or refactoring, always delete all related state, mutations, imports, and helper functions. Run `npx tsc -b --noEmit` from `frontend-react/` to verify before committing.
 
+8. **Never gitignore frontend env files that contain non-secret config**: `frontend-react/.env.production` and `frontend-react/.env.mobile` must be committed. They contain only the API base URL — no secrets. If they are missing from git, Vercel builds without them, `VITE_API_BASE` is `undefined`, and every API call hits the wrong path (returns HTML instead of JSON). Rule: if an `.env.*` file has no credentials, commit it.
+
+9. **`?? []` does not protect against wrong-type API responses**: `someApiData ?? []` only falls back for `null`/`undefined`. If the API returns a truthy non-array (e.g. an HTML string or an error object with HTTP 200), `??` passes it through and `.map()`/`.filter()` will crash. Always normalize array-returning fetch functions with `Array.isArray(res.data) ? res.data : []` at the hook level.
+
+10. **Verify the API base URL is baked correctly into every Vercel build**: After any change to `vercel.json` or build pipeline, confirm `ENV.apiBase` resolves to `/api` in the production bundle (not `undefined`). A quick check: open DevTools on the deployed site, run `fetch('/api/health')` in the console — if it returns JSON the routing is correct; if it returns HTML the base URL is broken.
+
 ## Frontend Code Registry
 
 **Workflow rule**: Before modifying any feature or introducing new functionality, consult this registry to identify the affected files and their dependencies. Then confirm the scope with the user before making any changes.
