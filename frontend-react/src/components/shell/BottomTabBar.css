@@ -13,6 +13,14 @@
   z-index: 150;
 }
 
+@media (min-width: 768px) {
+  .bottom-tab-bar {
+    /* inner content aligns with the 600px content column */
+    padding-left: calc(50vw - 300px + 24px);
+    padding-right: calc(50vw - 300px + 24px);
+  }
+}
+
 .bottom-tab {
   flex: 1;
   display: flex;

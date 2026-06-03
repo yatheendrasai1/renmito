@@ -11,22 +11,33 @@
 .app-shell--diary {
   background: #0f1021;
 }
+.app-shell--diary .app-body {
+  overflow: hidden;
+}
 .app-shell--diary .view-area {
   padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  scrollbar-gutter: auto;
 }
 
 /* ── Body — flex row holding the scrollable view ─────────────────────────── */
 .app-body {
   display: flex;
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 
-/* ── View area — the scrollable content column ───────────────────────────── */
+/* Avoid stable scrollbar on touch devices (Android WebView / iOS) */
+@media (pointer: coarse) {
+  .app-body {
+    scrollbar-gutter: auto;
+  }
+}
+
+/* ── View area — centered content column (no scroll of its own) ──────────── */
 /* Bottom padding accounts for:
      58px  bottom tab bar
    + env() safe-area-inset-bottom
@@ -36,18 +47,9 @@
 */
 .view-area {
   flex: 1;
-  overflow-y: auto;
   overflow-x: clip; /* allows negative-margin bleed without horizontal scroll */
-  scrollbar-gutter: stable;
   min-width: 0;
   padding: 0 24px calc(58px + env(safe-area-inset-bottom, 0px) + 16px + 52px + 24px);
-}
-
-/* Avoid stable scrollbar on touch devices (Android WebView / iOS) */
-@media (pointer: coarse) {
-  .view-area {
-    scrollbar-gutter: auto;
-  }
 }
 
 /* ── Responsive horizontal padding ──────────────────────────────────────── */
@@ -64,5 +66,18 @@
   .view-area {
     padding-left: 20px;
     padding-right: 20px;
+  }
+}
+
+/* ── Desktop — constrain content width so it doesn't stretch full screen ── */
+@media (min-width: 768px) {
+  .view-area {
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 24px;
+    padding-right: 24px;
+    /* keep scrollbar outside the centered column */
+    scrollbar-gutter: auto;
   }
 }
