@@ -33,6 +33,11 @@ interface AppState {
   setNavOpen: (open: boolean) => void;
   toggleNav:  () => void;
 
+  // ── Log form ──────────────────────────────────────────────────────────────
+  logFormOpen:  boolean;
+  openLogForm:  () => void;
+  closeLogForm: () => void;
+
   // ── Toast ─────────────────────────────────────────────────────────────────
   toast: { message: string; undoFn?: () => void } | null;
   showToast:   (message: string, undoFn?: () => void) => void;
@@ -55,6 +60,11 @@ export const useAppStore = create<AppState>((set) => ({
   navOpen:    false,
   setNavOpen: (navOpen) => set({ navOpen }),
   toggleNav:  () => set((s) => ({ navOpen: !s.navOpen })),
+
+  // Log form
+  logFormOpen:  false,
+  openLogForm:  () => set({ logFormOpen: true }),
+  closeLogForm: () => set({ logFormOpen: false }),
 
   // Toast
   toast:        null,

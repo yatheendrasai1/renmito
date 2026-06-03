@@ -6,9 +6,19 @@ import {
   useDeleteLogType,
 } from '@/hooks/useLogTypes';
 import { useAppStore } from '@/store/appStore';
+import { useSetActiveLog } from '@/hooks/usePreferences';
 import type { LogEntry, LogType } from '@/types';
 import { jiraApi, type JiraTicket, type TicketQuery } from '@/lib/jiraApi';
 import './LogFormModal.css';
+
+const PLAN_OPTS: { v: number | null; l: string }[] = [
+  { v: null, l: 'None' },
+  { v: 15,   l: '15 m' },
+  { v: 30,   l: '30 m' },
+  { v: 60,   l: '1 h'  },
+  { v: 90,   l: '1.5 h'},
+  { v: 120,  l: '2 h'  },
+];
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -146,6 +156,7 @@ export default function LogFormModal({
   const createLog    = useCreateLog(date);
   const updateLog    = useUpdateLog(isEdit ? (editEntry?.date ?? date) : date);
   const deleteLog    = useDeleteLog(isEdit ? (editEntry?.date ?? date) : date);
+  const setActiveLog = useSetActiveLog();
   const renameType   = useRenameLogType();
   const deleteType   = useDeleteLogType();
 
@@ -153,9 +164,10 @@ export default function LogFormModal({
   const { data: rawTypes = [], isLoading: typesLoading, isError: typesError, refetch: refetchTypes } = useLogTypes();
 
   // ── Form state ─────────────────────────────────────────────────────────────
-  const [entryType,    setEntryType]    = useState<'range' | 'point'>(
-    isEdit ? (editEntry?.entryType ?? 'range') : 'point',
+  const [entryType,    setEntryType]    = useState<'range' | 'point' | 'timer'>(
+    isEdit ? (editEntry?.entryType ?? 'range') : 'range',
   );
+  const [plannedMins,  setPlannedMins]  = useState<number | null>(null);
   const [formStart,    setFormStart]    = useState(
     isEdit ? (isoToHHMM(editEntry?.startAt ?? '') || startTime) : startTime,
   );
@@ -239,7 +251,7 @@ export default function LogFormModal({
   const showWorkFields   = selectedType?.domain === 'work';
   const isBreakOrTransit = ['break', 'transit'].includes(selectedType?.name?.toLowerCase() ?? '');
   const showTicketChips  = showWorkFields && !isBreakOrTransit;
-  const canSave = !!selectedType && (entryType === 'point' || (!endInvalid && !!durationStr));
+  const canSave = !!selectedType && (entryType === 'point' || entryType === 'timer' || (!endInvalid && !!durationStr));
   const domainTypes = rawTypes.filter(lt => lt.domain === selectedDomain);
   const optionalCount = [
     priority,
@@ -431,6 +443,20 @@ export default function LogFormModal({
   function save() {
     if (!canSave || saving) return;
     setSaving(true);
+
+    if (entryType === 'timer') {
+      setActiveLog.mutate({
+        logTypeId:   selectedType!._id,
+        title:       title.trim() || selectedType!.name,
+        startedAt:   new Date().toISOString(),
+        plannedMins: plannedMins,
+      }, {
+        onSuccess: () => { setSaving(false); showToast('Timer started'); onSaved?.(); onClose(); },
+        onError:   () => { setSaving(false); showToast('Failed to start timer'); },
+      });
+      return;
+    }
+
     const entry = {
       startTime:         formStart,
       endTime:           entryType === 'point' ? formStart : formEnd,
@@ -527,6 +553,15 @@ export default function LogFormModal({
               >
                 Point
               </button>
+              {!isEdit && (
+                <button
+                  type="button"
+                  className={`lfm-toggle-btn${entryType === 'timer' ? ' lfm-toggle-btn--active' : ''}`}
+                  onClick={() => setEntryType('timer')}
+                >
+                  Timer
+                </button>
+              )}
             </div>
 
             {/* ── Time + Date card ── */}
@@ -542,6 +577,29 @@ export default function LogFormModal({
                   </div>
                   <BigTimeSide date={formEndDate} time={formEnd}
                     onDateChange={setFormEndDate} onTimeChange={handleEndChange} />
+                </div>
+              ) : entryType === 'timer' ? (
+                <div className="lfm-tc-timer">
+                  <div className="lfm-tc-timer-now">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    Starts now
+                  </div>
+                  <div className="lfm-tc-plan-row">
+                    <span className="lfm-tc-plan-label">Plan for</span>
+                    <div className="lfm-tc-plan-chips">
+                      {PLAN_OPTS.map(opt => (
+                        <button
+                          key={String(opt.v)}
+                          type="button"
+                          className={`lfm-plan-chip${plannedMins === opt.v ? ' lfm-plan-chip--active' : ''}`}
+                          onClick={() => setPlannedMins(opt.v)}
+                        >{opt.l}</button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="lfm-tc-point">
@@ -1044,7 +1102,11 @@ export default function LogFormModal({
             ) : (
               <div className="lfm-actions">
                 <button type="button" className="lfm-btn-save" disabled={!canSave || saving} onClick={save}>
-                  {saving ? 'Saving…' : isEdit ? 'Update Log' : 'Save'}
+                  {saving
+                    ? (entryType === 'timer' ? 'Starting…' : 'Saving…')
+                    : isEdit ? 'Update Log'
+                    : entryType === 'timer' ? 'Start Timer'
+                    : 'Save'}
                 </button>
                 {isEdit && (
                   <button type="button" className="lfm-btn-delete lfm-btn-delete--inline" onClick={() => setDeleteConfirm(true)} disabled={saving}>

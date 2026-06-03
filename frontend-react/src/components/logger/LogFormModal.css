@@ -128,6 +128,12 @@
   border: 1px solid var(--border);
   border-radius: var(--radius, 12px);
   overflow: hidden;
+  min-height: 88px;
+  display: flex;
+  align-items: stretch;
+}
+.lfm-time-card > * {
+  flex: 1;
 }
 
 /* Range layout: [start] [center] [end] */
@@ -142,8 +148,65 @@
 /* Point layout: single centered side */
 .lfm-tc-point {
   display: flex;
+  align-items: center;
   justify-content: center;
   padding: 16px 14px;
+}
+
+/* Timer layout */
+.lfm-tc-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 16px;
+}
+.lfm-tc-timer-now {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--highlight-selected);
+  opacity: 0.85;
+}
+.lfm-tc-plan-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lfm-tc-plan-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.lfm-tc-plan-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.lfm-plan-chip {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.13s, color 0.13s, border-color 0.13s;
+  font-family: inherit;
+}
+.lfm-plan-chip:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.lfm-plan-chip--active {
+  background: var(--highlight-selected);
+  border-color: var(--highlight-selected);
+  color: #fff;
 }
 
 /* Each time+date side */

@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import UnifiedSheet from '@/components/forms/UnifiedSheet';
 import RenniChat    from '@/components/chat/RenniChat';
+import { useAppStore } from '@/store/appStore';
 import './SpeedDialFAB.css';
 
 export default function SpeedDialFAB() {
-  const [open,        setOpen]        = useState(false);
-  const [sheetOpen,   setSheetOpen]   = useState(false);
-  const [renniOpen,   setRenniOpen]   = useState(false);
-  const { pathname }                  = useLocation();
-  const isJourneys                    = pathname === '/journeys';
+  const [open,      setOpen]      = useState(false);
+  const [renniOpen, setRenniOpen] = useState(false);
+  const { pathname }              = useLocation();
+  const isJourneys                = pathname === '/journeys';
+  const openLogForm               = useAppStore(s => s.openLogForm);
 
   function close() { setOpen(false); }
 
-  function openSheet()  { close(); setSheetOpen(true); }
+  function openSheet()  { close(); openLogForm(); }
   function openRenni()  { close(); setRenniOpen(true); }
 
   return (
@@ -63,9 +63,6 @@ export default function SpeedDialFAB() {
           </svg>
         </button>
       </div>
-
-      {/* Unified sheet */}
-      {sheetOpen && <UnifiedSheet onClose={() => setSheetOpen(false)} />}
 
       {/* Renni chat */}
       {renniOpen && <RenniChat onClose={() => setRenniOpen(false)} />}
