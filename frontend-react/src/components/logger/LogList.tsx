@@ -542,7 +542,8 @@ export default function LogList({ logs, logTypes, isLoading, date }: Props) {
   const [editLog,        setEditLog]        = useState<LogEntry | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  const typeMap = new Map(logTypes.map(lt => [lt._id, lt]));
+  const safeTypes = Array.isArray(logTypes) ? logTypes : [];
+  const typeMap = new Map(safeTypes.map(lt => [lt._id, lt]));
 
   function toggleGroup(period: string) {
     setCollapsedGroups(prev => {
