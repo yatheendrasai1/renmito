@@ -1,34 +1,17 @@
-/* ── Overlay ─────────────────────────────────────────────────────────────── */
-.lfm-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.60);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 800;
-  backdrop-filter: blur(2px);
-  padding: 12px;
-}
-
-/* ── Panel ───────────────────────────────────────────────────────────────── */
+/* ── Panel (passed as className to DialogContent) ────────────────────────── */
 .lfm-panel {
   background: var(--bg-surface);
   border: 1px solid var(--border-light, var(--border));
   border-radius: var(--radius, 12px);
   padding: 0;
-  width: 500px;
-  max-width: 100%;
+  gap: 0;           /* kill shadcn DialogContent gap-6 */
+  width: 600px;
+  max-width: calc(100vw - 24px);
   height: min(88dvh, 860px);
   overflow: hidden;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
-  animation: lfm-in 0.2s ease;
   display: flex;
   flex-direction: column;
-}
-@keyframes lfm-in {
-  from { opacity: 0; transform: translateY(-12px) scale(0.97); }
-  to   { opacity: 1; transform: none; }
 }
 
 .lfm-panel::-webkit-scrollbar        { width: 4px; }
@@ -93,17 +76,18 @@
 /* ── Entry type toggle ───────────────────────────────────────────────────── */
 .lfm-type-toggle {
   display: flex;
-  gap: 5px;
+  width: 100%;
+  gap: 3px;
   background: var(--bg-card);
   border-radius: var(--radius-sm, 8px);
   padding: 3px;
 }
-.lfm-toggle-btn {
+
+/* Override shadcn ToggleGroupItem defaults */
+.lfm-type-toggle [data-slot="toggle-group-item"] {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+  height: auto;
+  min-width: 0;
   padding: 7px 10px;
   font-size: 12px;
   font-weight: 600;
@@ -115,10 +99,26 @@
   transition: background 0.14s, color 0.14s;
   font-family: inherit;
 }
+.lfm-type-toggle [data-slot="toggle-group-item"]:hover {
+  background: var(--accent-hover);
+  color: var(--text-primary);
+}
+.lfm-type-toggle [data-slot="toggle-group-item"][data-state="on"] {
+  background: var(--highlight-selected);
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.20);
+}
+
+/* Keep old class names for backward compat if any */
+.lfm-toggle-btn {
+  flex: 1; padding: 7px 10px; font-size: 12px; font-weight: 600;
+  color: var(--text-muted); background: transparent; border: none;
+  border-radius: 6px; cursor: pointer; transition: background 0.14s, color 0.14s;
+}
 .lfm-toggle-btn:hover { color: var(--text-primary); }
 .lfm-toggle-btn--active {
-  background: var(--bg-surface);
-  color: var(--highlight-selected);
+  background: var(--highlight-selected);
+  color: #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 

@@ -1,13 +1,15 @@
 import {
   useState, useEffect, useRef, useCallback,
 } from 'react';
+import { toast } from 'sonner';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   useNotes, useAddNote, useUpdateNote,
   useUpdateTapperLogType, useDeleteNote,
   type NoteItem,
 } from '@/hooks/useNotes';
 import { useLogTypes }  from '@/hooks/useLogTypes';
-import { useAppStore }  from '@/store/appStore';
 import LogFormModal     from './LogFormModal';
 import type { LogType } from '@/types';
 import './NotesSheet.css';
@@ -75,62 +77,53 @@ function buildGroups(types: LogType[]): LogTypeGroup[] {
 // ── TypePicker sub-component ──────────────────────────────────────────────────
 
 interface TypePickerProps {
-  note:        LocalNote;
-  groups:      LogTypeGroup[];
-  open:        boolean;
-  onToggle:    (e: React.MouseEvent) => void;
-  onSelect:    (lt: LogType) => void;
+  note:     LocalNote;
+  groups:   LogTypeGroup[];
+  onSelect: (lt: LogType) => void;
 }
 
-function TypePicker({ note, groups, open, onToggle, onSelect }: TypePickerProps) {
+function TypePicker({ note, groups, onSelect }: TypePickerProps) {
   return (
-    <div className={`ns-lt-picker${open ? ' ns-lt-picker--open' : ''}`}>
-      <button
-        className="ns-lt-trigger"
-        onClick={onToggle}
-        title={note.logTypeName ?? 'Associate a log type'}
-      >
-        <span
-          className="ns-lt-dot"
-          style={{ background: note.logTypeColor ?? 'var(--border)' }}
-        />
-        <span className="ns-lt-label">{note.logTypeName ?? 'Pick category…'}</span>
-        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" className="ns-lt-chevron">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
-                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-
-      {open && (
-        <div className="ns-lt-panel" onClick={e => e.stopPropagation()}>
-          {groups.map(grp => (
-            <div key={grp.domain}>
-              <div className="ns-lt-group-header">
-                <span className="ns-lt-group-dot" style={{ background: grp.color }}/>
-                {grp.label}
-              </div>
-              {grp.types.map(lt => (
-                <button
-                  key={lt._id}
-                  className={`ns-lt-option${note.logTypeId === lt._id ? ' ns-lt-option--active' : ''}`}
-                  onClick={() => onSelect(lt)}
-                >
-                  <span className="ns-lt-option-dot" style={{ background: lt.color }}/>
-                  <span className="ns-lt-option-name">{lt.name}</span>
-                  {note.logTypeId === lt._id && (
-                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 6l3 3 5-5" stroke="currentColor"
-                            strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          ))}
-          {groups.length === 0 && <div className="ns-lt-empty">Loading…</div>}
-        </div>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="ns-lt-trigger" title={note.logTypeName ?? 'Associate a log type'}>
+          <span className="ns-lt-dot" style={{ background: note.logTypeColor ?? 'var(--border)' }} />
+          <span className="ns-lt-label">{note.logTypeName ?? 'Pick category…'}</span>
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" className="ns-lt-chevron">
+            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor"
+                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="ns-lt-panel" align="start">
+        {groups.length === 0 && <div className="ns-lt-empty">Loading…</div>}
+        {groups.map((grp, i) => (
+          <div key={grp.domain}>
+            {i > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuLabel className="ns-lt-group-header">
+              <span className="ns-lt-group-dot" style={{ background: grp.color }} />
+              {grp.label}
+            </DropdownMenuLabel>
+            {grp.types.map(lt => (
+              <DropdownMenuItem
+                key={lt._id}
+                className={`ns-lt-option${note.logTypeId === lt._id ? ' ns-lt-option--active' : ''}`}
+                onClick={() => onSelect(lt)}
+              >
+                <span className="ns-lt-option-dot" style={{ background: lt.color }} />
+                <span className="ns-lt-option-name">{lt.name}</span>
+                {note.logTypeId === lt._id && (
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" className="ml-auto">
+                    <path d="M2 6l3 3 5-5" stroke="currentColor"
+                          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </DropdownMenuItem>
+            ))}
+          </div>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -142,7 +135,7 @@ interface Props {
 }
 
 export default function NotesSheet({ date, onClose }: Props) {
-  const showToast = useAppStore(s => s.showToast);
+
 
   // ── Server data ────────────────────────────────────────────────────────────
   const { data, isLoading } = useNotes(date);
@@ -161,26 +154,13 @@ export default function NotesSheet({ date, onClose }: Props) {
   }, [data]);
 
   // ── UI state ───────────────────────────────────────────────────────────────
-  const [openTypePickerId, setOpenTypePickerId] = useState<string | null>(null);
   const [pendingDeleteId,  setPendingDeleteId]  = useState<string | null>(null);
 
   // Point logger modal opened from a tapper note
   const [pointLoggerNote, setPointLoggerNote] = useState<LocalNote | null>(null);
 
-  const sheetRef     = useRef<HTMLDivElement>(null);
   const lastNoteRef  = useRef<HTMLTextAreaElement | null>(null);
   const lastTapRef   = useRef<HTMLInputElement | null>(null);
-
-  // ── Close type picker on outside click ────────────────────────────────────
-  useEffect(() => {
-    if (!openTypePickerId) return;
-    function handler() { setOpenTypePickerId(null); }
-    document.addEventListener('click', handler);
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') handler(); });
-    return () => {
-      document.removeEventListener('click', handler);
-    };
-  }, [openTypePickerId]);
 
   // ── Escape closes sheet ───────────────────────────────────────────────────
   useEffect(() => {
@@ -229,7 +209,7 @@ export default function NotesSheet({ date, onClose }: Props) {
       updateMutation.mutate({ noteId: note._id, content: note.localContent });
     }
     onClose();
-    showToast('Opening Renni…');
+    toast('Opening Renni…');
     // Future: dispatch openRenni event with note content
   }
 
@@ -241,7 +221,7 @@ export default function NotesSheet({ date, onClose }: Props) {
     patchNote(id, { pendingDelete: true });
     deleteMutation.mutate(id, {
       onSuccess: () => setNotes(prev => prev.filter(n => n._id !== id)),
-      onError:   () => { patchNote(id, { pendingDelete: false }); showToast('Failed to delete note'); },
+      onError:   () => { patchNote(id, { pendingDelete: false }); toast('Failed to delete note'); },
     });
   }
 
@@ -254,7 +234,7 @@ export default function NotesSheet({ date, onClose }: Props) {
           setNotes(prev => [...prev, toLocal(n)]);
           setTimeout(() => lastNoteRef.current?.focus(), 50);
         },
-        onError: () => showToast('Failed to add note'),
+        onError: () => toast('Failed to add note'),
       },
     );
   }
@@ -268,7 +248,7 @@ export default function NotesSheet({ date, onClose }: Props) {
           setNotes(prev => [...prev, toLocal(n)]);
           setTimeout(() => lastTapRef.current?.focus(), 50);
         },
-        onError: () => showToast('Failed to add time tap'),
+        onError: () => toast('Failed to add time tap'),
       },
     );
   }
@@ -281,7 +261,6 @@ export default function NotesSheet({ date, onClose }: Props) {
       domain:       lt.domain,
       logTypeColor: lt.color,
     });
-    setOpenTypePickerId(null);
     updateTypeMutation.mutate({
       noteId:       note._id,
       logTypeId:    lt._id,
@@ -305,13 +284,12 @@ export default function NotesSheet({ date, onClose }: Props) {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="ns-backdrop" onClick={onClose} />
-
-      <div
-        ref={sheetRef}
-        className="ns-sheet"
-        onClick={e => e.stopPropagation()}
-      >
+      <Sheet open={true} onOpenChange={v => { if (!v) onClose(); }}>
+        <SheetContent
+          side="bottom"
+          className="ns-sheet md:!w-[720px] md:!left-[calc(50%-360px)] md:!right-auto"
+          showCloseButton={false}
+        >
         {/* Header */}
         <div className="ns-header">
           <div className="ns-title-row">
@@ -472,11 +450,6 @@ export default function NotesSheet({ date, onClose }: Props) {
                     <TypePicker
                       note={note}
                       groups={logTypeGroups}
-                      open={openTypePickerId === note._id}
-                      onToggle={e => {
-                        e.stopPropagation();
-                        setOpenTypePickerId(p => p === note._id ? null : note._id);
-                      }}
                       onSelect={lt => handleSelectLogType(note, lt)}
                     />
 
@@ -526,24 +499,27 @@ export default function NotesSheet({ date, onClose }: Props) {
             Time Tap
           </button>
         </div>
-      </div>
 
-      {/* Delete confirm overlay */}
-      {pendingDeleteId && (
-        <div className="ns-delete-confirm-overlay" onClick={() => setPendingDeleteId(null)}>
-          <div className="ns-delete-confirm-panel" onClick={e => e.stopPropagation()}>
-            <p>Delete this note?</p>
-            <div className="ns-delete-confirm-actions">
-              <button className="ns-delete-confirm-cancel" onClick={() => setPendingDeleteId(null)}>
-                Cancel
-              </button>
-              <button className="ns-delete-confirm-ok" onClick={handleDeleteConfirm}>
-                Delete
-              </button>
+        {/* Delete confirm — inside SheetContent so it shares the Radix portal
+            stacking context and can receive pointer events above the sheet */}
+        {pendingDeleteId && (
+          <div className="ns-delete-confirm-overlay" onClick={() => setPendingDeleteId(null)}>
+            <div className="ns-delete-confirm-panel" onClick={e => e.stopPropagation()}>
+              <p>Delete this note?</p>
+              <div className="ns-delete-confirm-actions">
+                <button className="ns-delete-confirm-cancel" onClick={() => setPendingDeleteId(null)}>
+                  Cancel
+                </button>
+                <button className="ns-delete-confirm-ok" onClick={handleDeleteConfirm}>
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        </SheetContent>
+      </Sheet>
 
       {/* Point logger modal from tapper */}
       {pointLoggerNote && (
@@ -553,7 +529,7 @@ export default function NotesSheet({ date, onClose }: Props) {
           startTime={pointLoggerNote.timestamp ? isoToHHMM(pointLoggerNote.timestamp) : undefined}
           endTime={pointLoggerNote.timestamp ? isoToHHMM(pointLoggerNote.timestamp) : undefined}
           onClose={() => setPointLoggerNote(null)}
-          onSaved={() => { setPointLoggerNote(null); showToast('Log created'); }}
+          onSaved={() => { setPointLoggerNote(null); toast('Log created'); }}
         />
       )}
     </>

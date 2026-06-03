@@ -1,37 +1,16 @@
-/* ── Backdrop ─────────────────────────────────────────────────────────────── */
-.ns-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  z-index: 200;
-  animation: ns-fade-in 0.2s ease;
-}
-
-@keyframes ns-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* ── Sheet panel ──────────────────────────────────────────────────────────── */
+/* ── Sheet panel (className on SheetContent) ──────────────────────────────── */
 .ns-sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 201;
   background: var(--bg-surface);
   border-radius: 14px 14px 0 0;
   height: 78vh;
+  max-height: 90dvh;
   display: flex;
   flex-direction: column;
-  animation: ns-slide-up 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.35);
+  gap: 0;           /* kill shadcn SheetContent gap-4 */
+  padding: 0;       /* kill shadcn SheetContent padding */
+  z-index: 200;     /* above bottom tab bar (z-150) and FAB */
 }
 
-@keyframes ns-slide-up {
-  from { transform: translateY(100%); opacity: 0.5; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
 
 /* ── Header ───────────────────────────────────────────────────────────────── */
 .ns-header {

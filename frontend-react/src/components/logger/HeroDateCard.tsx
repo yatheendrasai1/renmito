@@ -2,6 +2,7 @@ import { useMemo, useRef, useEffect, useState } from 'react';
 import { useAppStore }    from '@/store/appStore';
 import { useDayMetadata, useSetDayType } from '@/hooks/useDayMetadata';
 import ImportantLogsModal from './ImportantLogsModal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { DayType }  from '@/types';
 import './HeroDateCard.css';
 
@@ -24,6 +25,14 @@ function todayISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+function ordinalSuffix(n: number): string {
+  const t = n % 10, h = n % 100;
+  if (t === 1 && h !== 11) return 'st';
+  if (t === 2 && h !== 12) return 'nd';
+  if (t === 3 && h !== 13) return 'rd';
+  return 'th';
+}
+
 function dateAddDays(iso: string, n: number): string {
   const [y, m, d] = iso.split('-').map(Number);
   const dt = new Date(y, m - 1, d);
@@ -31,50 +40,16 @@ function dateAddDays(iso: string, n: number): string {
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
 }
 
-// ── Contrast helpers ──────────────────────────────────────────────────────────
 
-function hexToLuminance(hex: string): number | null {
-  const clean = hex.replace('#', '').trim();
-  if (clean.length !== 6) return null;
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
-  if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
-  const lin = (c: number) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-}
-
-function resolveIsLightBg(): boolean {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue('--secondary').trim();
-  if (!raw) return false;
-  const lum = hexToLuminance(raw);
-  if (lum === null) return false;
-  return lum > 0.3;
-}
-
-/** Returns the two sets of CSS var values for dark vs light hero background. */
-function heroVars(isLight: boolean): React.CSSProperties {
-  return isLight ? {
-    '--hero-fg':       'rgba(0,0,0,0.88)',
-    '--hero-fg-sub':   'rgba(0,0,0,0.65)',
-    '--hero-fg-dim':   'rgba(0,0,0,0.42)',
-    '--hero-border':   'rgba(0,0,0,0.22)',
-    '--hero-surface':  'rgba(0,0,0,0.05)',
-    '--hero-hover':    'rgba(0,0,0,0.09)',
-    '--hero-selected': 'rgba(0,0,0,0.13)',
-  } as React.CSSProperties : {
-    '--hero-fg':       'rgba(255,255,255,0.95)',
-    '--hero-fg-sub':   'rgba(255,255,255,0.75)',
-    '--hero-fg-dim':   'rgba(255,255,255,0.55)',
-    '--hero-border':   'rgba(255,255,255,0.25)',
-    '--hero-surface':  'rgba(255,255,255,0.10)',
-    '--hero-hover':    'rgba(255,255,255,0.14)',
-    '--hero-selected': 'rgba(255,255,255,0.20)',
-  } as React.CSSProperties;
-}
+const HERO_VARS: React.CSSProperties = {
+  '--hero-fg':       'rgba(255,255,255,0.95)',
+  '--hero-fg-sub':   'rgba(255,255,255,0.75)',
+  '--hero-fg-dim':   'rgba(255,255,255,0.55)',
+  '--hero-border':   'rgba(255,255,255,0.25)',
+  '--hero-surface':  'rgba(255,255,255,0.10)',
+  '--hero-hover':    'rgba(255,255,255,0.14)',
+  '--hero-selected': 'rgba(255,255,255,0.20)',
+} as React.CSSProperties;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -86,40 +61,10 @@ export default function HeroDateCard() {
   const { data: meta }     = useDayMetadata(selectedDate);
   const setDayTypeMutation = useSetDayType(selectedDate);
 
-  const [dtOpen,    setDtOpen]    = useState(false);
-  const [impOpen,   setImpOpen]   = useState(false);
-  const [isLight,   setIsLight]   = useState(false);
-  const dtRef = useRef<HTMLDivElement>(null);
+  const [impOpen, setImpOpen] = useState(false);
 
   const today   = todayISO();
   const isToday = selectedDate === today;
-
-  // ── Contrast detection via MutationObserver ────────────────────────────────
-  useEffect(() => {
-    setIsLight(resolveIsLightBg());
-    const observer = new MutationObserver(() => setIsLight(resolveIsLightBg()));
-    observer.observe(document.documentElement, {
-      attributes:     true,
-      attributeFilter: ['style'],
-    });
-    return () => observer.disconnect();
-  }, []);
-
-  // ── Close day-type dropdown on outside click ────────────────────────────────
-  useEffect(() => {
-    if (!dtOpen) return;
-    function handleOutside(e: MouseEvent | TouchEvent) {
-      if (dtRef.current && !dtRef.current.contains(e.target as Node)) {
-        setDtOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleOutside);
-    document.addEventListener('touchstart', handleOutside as EventListener, { passive: true });
-    return () => {
-      document.removeEventListener('mousedown', handleOutside);
-      document.removeEventListener('touchstart', handleOutside as EventListener);
-    };
-  }, [dtOpen]);
 
   // ── Parse selected date ────────────────────────────────────────────────────
   const dateObj = useMemo(() => {
@@ -197,7 +142,7 @@ export default function HeroDateCard() {
 
   return (
     <>
-      <div className="hero-card" style={heroVars(isLight)}>
+      <div className="hero-card" style={HERO_VARS}>
         <div
           className="hero-content"
           onTouchStart={onTouchStart}
@@ -215,7 +160,9 @@ export default function HeroDateCard() {
             }}
           >
             <div className="hero-date-line">
-              <span className="hero-day-num">{dayNum}</span>
+              <span className="hero-day-num">
+                {dayNum}<sup className="hero-day-ord">{ordinalSuffix(dayNum)}</sup>
+              </span>
             </div>
             <span className="hero-day-sub">{weekday}, {monthName} {year}</span>
           </div>
@@ -225,29 +172,30 @@ export default function HeroDateCard() {
             <div className="hero-right-actions">
 
               {/* Day type pill */}
-              <div ref={dtRef} className="hero-daytype-wrap" onClick={() => setDtOpen(v => !v)}>
-                <span className="hero-daytype-dot" style={{ background: dtInfo.color }} />
-                <span className="hero-daytype-lbl">{dtInfo.label}</span>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-
-                {dtOpen && (
-                  <div className="hdr-dt-panel" onClick={e => e.stopPropagation()}>
-                    {DAY_TYPES.map(dt => (
-                      <button
-                        key={dt.value}
-                        className={`hdr-dt-option${currentDayType === dt.value ? ' hdr-dt-option--active' : ''}`}
-                        onClick={() => { setDayTypeMutation.mutate(dt.value); setDtOpen(false); }}
-                      >
-                        <span className="hdr-dt-dot" style={{ background: dt.color }} />
-                        {dt.label}
-                      </button>
-                    ))}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <div className="hero-daytype-wrap" style={{ cursor: 'pointer' }}>
+                    <span className="hero-daytype-dot" style={{ background: dtInfo.color }} />
+                    <span className="hero-daytype-lbl">{dtInfo.label}</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
                   </div>
-                )}
-              </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {DAY_TYPES.map(dt => (
+                    <DropdownMenuItem
+                      key={dt.value}
+                      className={currentDayType === dt.value ? 'font-semibold' : ''}
+                      onClick={() => setDayTypeMutation.mutate(dt.value)}
+                    >
+                      <span className="hero-daytype-dot" style={{ background: dt.color }} />
+                      {dt.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Star — opens Important Logs modal */}
               <button
@@ -297,12 +245,11 @@ export default function HeroDateCard() {
       </div>
 
       {/* Important logs modal */}
-      {impOpen && (
-        <ImportantLogsModal
-          selectedDate={selectedDate}
-          onClose={() => setImpOpen(false)}
-        />
-      )}
+      <ImportantLogsModal
+        open={impOpen}
+        selectedDate={selectedDate}
+        onClose={() => setImpOpen(false)}
+      />
     </>
   );
 }

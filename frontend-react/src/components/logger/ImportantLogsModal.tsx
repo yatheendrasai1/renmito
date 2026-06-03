@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useQueryClient }          from '@tanstack/react-query';
 import { useLogs, useUpdateLog, useCreateLog } from '@/hooks/useLogs';
 import { useDayMetadata, useCaptureDayMeta }   from '@/hooks/useDayMetadata';
@@ -128,7 +129,7 @@ function buildSlots(
     captured:  ImportantLogEntry | null,
   ): LiveSlot {
     const hasCaptured = !!(captured?.time && capturedAt);
-    const stale       = hasCaptured && captured!.time !== liveTime;
+    const stale       = hasCaptured && liveTime != null && toHHMM(captured!.time) !== toHHMM(liveTime);
     let   dayBadge: LiveSlot['dayBadge'] = null;
     if (logDate && logDate !== selectedDate) {
       dayBadge = logDate === prevDate ? 'prev' : logDate === nextDate ? 'next' : null;
@@ -239,11 +240,12 @@ function SlotForm({ slot, logTypes, selectedDate, onClose, onSaved }: SlotFormPr
 // ── Modal ─────────────────────────────────────────────────────────────────────
 
 interface Props {
+  open:         boolean;
   selectedDate: string;
   onClose:      () => void;
 }
 
-export default function ImportantLogsModal({ selectedDate, onClose }: Props) {
+export default function ImportantLogsModal({ open, selectedDate, onClose }: Props) {
   const prevDate = dateAddDays(selectedDate, -1);
   const nextDate = dateAddDays(selectedDate,  1);
 
@@ -275,8 +277,8 @@ export default function ImportantLogsModal({ selectedDate, onClose }: Props) {
   }
 
   return (
-    <div className="il-overlay" onClick={e => { if ((e.target as HTMLElement).classList.contains('il-overlay')) onClose(); }}>
-      <div className="il-panel" role="dialog" aria-modal="true" aria-label="Important Logs">
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="il-panel" showCloseButton={false} aria-label="Important Logs">
 
         {/* Header */}
         <div className="il-header">
@@ -409,7 +411,7 @@ export default function ImportantLogsModal({ selectedDate, onClose }: Props) {
             {capture.isPending ? 'Capturing…' : 'Capture'}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -14,15 +14,22 @@
  *   --hero-selected  rgba(255,255,255,0.20)
  */
 
+/* ── Hero card gradient tokens (fixed — theme-independent) ──────────────── */
+:root,
+.dark {
+  --hero-grad-a: #ff5722;
+  --hero-grad-b: #111844;
+}
+
 /* ── Hero card ───────────────────────────────────────────────────────────── */
 .hero-card {
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
   margin: 0;
-  background: linear-gradient(135deg, #3b1f6e 0%, #7b2d6e 100%);
+  background: linear-gradient(320deg, var(--hero-grad-a) 18%, var(--hero-grad-b) 60%);
   position: relative;
-  /* Always dark — force dark token values */
+  /* Always dark — force light text regardless of page theme */
   --hero-fg:       rgba(255, 255, 255, 0.95);
   --hero-fg-sub:   rgba(255, 255, 255, 0.75);
   --hero-fg-dim:   rgba(255, 255, 255, 0.55);
@@ -45,11 +52,11 @@
 }
 .hero-card::before {
   left: 0;
-  background: linear-gradient(to right, #3b1f6e 0%, transparent 100%);
+  background: linear-gradient(to right, var(--hero-grad-b) 0%, transparent 100%);
 }
 .hero-card::after {
   right: 0;
-  background: linear-gradient(to left, #7b2d6e 0%, transparent 100%);
+  background: linear-gradient(to left, var(--hero-grad-a) 0%, transparent 100%);
 }
 
 /* ── Content row ─────────────────────────────────────────────────────────── */
@@ -83,6 +90,17 @@
   line-height: 1;
   letter-spacing: -2px;
   font-variant-numeric: tabular-nums;
+}
+
+.hero-day-ord {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  opacity: 0.85;
+  margin-left: 3px;
+  align-self: flex-end;
+  margin-bottom: 6px;
 }
 
 .hero-day-sub {
