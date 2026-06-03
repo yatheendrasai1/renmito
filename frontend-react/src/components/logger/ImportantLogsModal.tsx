@@ -129,7 +129,8 @@ function buildSlots(
     captured:  ImportantLogEntry | null,
   ): LiveSlot {
     const hasCaptured = !!(captured?.time && capturedAt);
-    const stale       = hasCaptured && liveTime != null && toHHMM(captured!.time) !== toHHMM(liveTime);
+    const capturedTime = captured?.time ?? null;
+    const stale        = hasCaptured && liveTime != null && capturedTime != null && toHHMM(capturedTime) !== toHHMM(liveTime);
     let   dayBadge: LiveSlot['dayBadge'] = null;
     if (logDate && logDate !== selectedDate) {
       dayBadge = logDate === prevDate ? 'prev' : logDate === nextDate ? 'next' : null;
