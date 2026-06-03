@@ -8,5 +8,5 @@
  */
 export const ENV = {
   production: import.meta.env.PROD,
-  apiBase: import.meta.env.VITE_API_BASE,
+  apiBase: import.meta.env.VITE_API_BASE ?? '/api',
 } as const;

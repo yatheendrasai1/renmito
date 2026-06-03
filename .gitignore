@@ -14,5 +14,7 @@ frontend/.angular/
 .env
 .env.*
 !backend/.env.example
+!frontend-react/.env.production
+!frontend-react/.env.mobile
 .DS_Store
 Thumbs.db
