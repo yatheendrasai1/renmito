@@ -12,6 +12,7 @@ import {
 } from '@/hooks/useLogTypes';
 import ThemeEditor from '@/components/settings/ThemeEditor';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifications, FREQUENCY_OPTIONS } from '@/hooks/useNotifications';
 import type { DaySettings, UserProfile } from '@/types';
 import './ConfigurationPage.css';
 
@@ -31,7 +32,7 @@ const DEFAULT_PROFILE: UserProfile = {
   designationSince: null, yearsOfExperience: null, workDomain: '',
 };
 
-type Section = 'profile' | 'preferences' | 'theming' | null;
+type Section = 'profile' | 'preferences' | 'theming' | 'notifications' | null;
 
 // ── Chevron SVG ───────────────────────────────────────────────────────────────
 
@@ -125,6 +126,12 @@ export default function ConfigurationPage() {
       >
         <ThemeEditor onClose={() => setOpenSection(null)} />
       </Accordion>
+
+      {/* Notifications accordion — mobile only */}
+      <NotificationsAccordion
+        open={openSection === 'notifications'}
+        onToggle={() => toggleSection('notifications')}
+      />
     </div>
   );
 }
@@ -475,6 +482,130 @@ function AccFooter({ onCancel, onSave, saving }: { onCancel: () => void; onSave:
       <button className="cfg-save-btn" onClick={onSave} disabled={saving} type="button">
         {saving ? 'Saving…' : 'Save'}
       </button>
+    </div>
+  );
+}
+
+// ── Notifications accordion (mobile-only) ─────────────────────────────────────
+
+function NotificationsAccordion({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  const { state, enable, disable, changeInterval, previewNotification } = useNotifications();
+
+  if (!state.supported) return null;
+
+  return (
+    <Accordion
+      id="notifications"
+      open={open}
+      onToggle={onToggle}
+      iconClass="cfg-icon--notif"
+      icon={
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      }
+      title="Notifications"
+      sub="Nudges to keep your time log up to date"
+    >
+      <NotificationsSection state={state} enable={enable} disable={disable} changeInterval={changeInterval} previewNotification={previewNotification} />
+    </Accordion>
+  );
+}
+
+function NotificationsSection({
+  state,
+  enable,
+  disable,
+  changeInterval,
+  previewNotification,
+}: {
+  state: ReturnType<typeof useNotifications>['state'];
+  enable: (interval: number) => Promise<void>;
+  disable: () => Promise<void>;
+  changeInterval: (interval: number) => Promise<void>;
+  previewNotification: () => Promise<void>;
+}) {
+  const [pendingInterval, setPendingInterval] = useState(state.intervalMinutes);
+
+  async function handleToggle() {
+    if (state.enabled) {
+      await disable();
+    } else {
+      await enable(pendingInterval);
+    }
+  }
+
+  async function handleIntervalChange(val: number) {
+    setPendingInterval(val);
+    if (state.enabled) {
+      await changeInterval(val);
+    }
+  }
+
+  return (
+    <div className="cfg-section">
+      {/* Enable / disable row */}
+      <div className="notif-toggle-row">
+        <div className="notif-toggle-label">
+          <span className="notif-toggle-title">Logging nudges</span>
+          <span className="notif-toggle-sub">Remind me to log my time</span>
+        </div>
+        <button
+          className={`notif-toggle-btn${state.enabled ? ' notif-toggle-btn--on' : ''}`}
+          onClick={handleToggle}
+          disabled={state.requesting}
+          type="button"
+          aria-pressed={state.enabled}
+        >
+          <span className="notif-toggle-thumb" />
+        </button>
+      </div>
+
+      {/* Frequency selector — shown whether on or off so user can pre-configure */}
+      <div className={`notif-freq-wrap${state.enabled ? '' : ' notif-freq-wrap--dim'}`}>
+        <div className="cfg-section-label">Reminder frequency</div>
+        <div className="notif-freq-grid">
+          {FREQUENCY_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              className={`notif-freq-chip${pendingInterval === opt.value ? ' notif-freq-chip--active' : ''}`}
+              onClick={() => handleIntervalChange(opt.value)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Preview button */}
+      <div className="notif-preview-row">
+        <button className="notif-preview-btn" type="button" onClick={previewNotification}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          Preview Notification
+        </button>
+      </div>
+
+      {/* Status / error feedback */}
+      {state.error && (
+        <div className="cfg-feedback cfg-feedback--err">{state.error}</div>
+      )}
+      {state.enabled && !state.error && (
+        <div className="cfg-feedback cfg-feedback--ok">
+          Active — nudging every {FREQUENCY_OPTIONS.find(o => o.value === state.intervalMinutes)?.label ?? `${state.intervalMinutes} min`}
+        </div>
+      )}
+      {state.permissionGranted === false && !state.error && (
+        <div className="cfg-feedback cfg-feedback--err">
+          Notifications are blocked. Open device Settings → Apps → Renmito → Notifications and enable them, then try again.
+        </div>
+      )}
     </div>
   );
 }

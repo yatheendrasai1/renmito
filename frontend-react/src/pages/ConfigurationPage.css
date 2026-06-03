@@ -202,6 +202,72 @@
 }
 .lt-add-btn:hover { background: var(--bg-surface, rgba(255,255,255,0.05)); color: var(--text-primary, #E0E4F0); }
 
+/* ── Notifications ───────────────────────────────────────────────────────────── */
+.cfg-icon--notif { background: rgba(52,211,153,0.12); color: #34d399; }
+
+.notif-toggle-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 4px 0 16px;
+}
+.notif-toggle-label { display: flex; flex-direction: column; gap: 2px; }
+.notif-toggle-title { font-size: 0.88rem; font-weight: 600; color: var(--text-primary, #E0E4F0); }
+.notif-toggle-sub   { font-size: 0.76rem; color: var(--text-muted, #6A7290); }
+
+/* iOS-style toggle */
+.notif-toggle-btn {
+  position: relative; flex-shrink: 0;
+  width: 48px; height: 28px; border-radius: 14px;
+  background: var(--border, rgba(255,255,255,0.18));
+  border: none; cursor: pointer; padding: 0;
+  transition: background 0.2s;
+}
+.notif-toggle-btn--on { background: #34d399; }
+.notif-toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.notif-toggle-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+  display: block;
+}
+.notif-toggle-btn--on .notif-toggle-thumb { transform: translateX(20px); }
+
+/* Frequency chips */
+.notif-freq-wrap { padding-top: 4px; }
+.notif-freq-wrap--dim { opacity: 0.5; pointer-events: none; }
+.notif-freq-grid {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+}
+.notif-freq-chip {
+  padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 500;
+  border: 1px solid var(--border-light, rgba(255,255,255,0.12));
+  background: var(--bg-surface, rgba(255,255,255,0.04));
+  color: var(--text-muted, #6A7290);
+  cursor: pointer; transition: all 0.15s;
+}
+.notif-freq-chip--active {
+  background: rgba(52,211,153,0.15);
+  border-color: #34d399;
+  color: #34d399;
+  font-weight: 600;
+}
+
+/* Preview button */
+.notif-preview-row { padding-top: 18px; }
+.notif-preview-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 18px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
+  border: 1px solid var(--border-light, rgba(255,255,255,0.14));
+  background: var(--bg-surface, rgba(255,255,255,0.05));
+  color: var(--text-secondary, #A0A8C0); cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.notif-preview-btn:hover {
+  background: rgba(52,211,153,0.1);
+  border-color: #34d399;
+  color: #34d399;
+}
+
 /* ── Mobile ──────────────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
   .cfg-page  { padding: 14px 12px 40px; }

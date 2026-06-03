@@ -186,8 +186,31 @@ All paths are relative to `frontend-react/src/`.
 | Log type hooks | `hooks/useLogTypes.ts` |
 | Palette utilities | `lib/palette.ts` |
 | Preference types | `types/preference.ts` |
+| Notifications hook (mobile) | `hooks/useNotifications.ts` |
 
 **Shared dependencies**: `hooks/useAuth.ts` (change-password), `store/appStore.ts`.
+
+---
+
+### Feature: Proactive Notifications (Mobile — Android only)
+**Scope**: Background nudge notifications to remind the user to log their time. Only active on the native Capacitor build (`Capacitor.isNativePlatform()`); all hook functions are no-ops on web.
+
+| Role | File |
+|------|------|
+| Hook — scheduling, permissions, enable/disable | `hooks/useNotifications.ts` |
+| UI — toggle + frequency picker + preview button | `pages/ConfigurationPage.tsx` (NotificationsAccordion + NotificationsSection) |
+| Resume top-up wiring | `layouts/AppLayout.tsx` (visibilitychange listener) |
+| Android permissions | `android/app/src/main/AndroidManifest.xml` |
+
+**Key behaviour**:
+- Pre-schedules 100 individual `LocalNotifications` in one batch so notifications fire even when the app is killed or the phone reboots. The `@capacitor/local-notifications` plugin registers a `BOOT_COMPLETED` BroadcastReceiver that reschedules pending alarms automatically after a reboot.
+- On every app foreground (`visibilitychange`), `topUpNotificationsOnResume()` checks pending count and refills to 100 if below threshold (20).
+- 10 nudge phrases rotate round-robin; phrase index persists in `localStorage` under `renmito-notif-phrase-idx`.
+- Frequency options: 15 sec (testing), 5 min, 10 min, 15 min, 30 min, 1 h, 2 h, 3 h, 6 h. Stored in `localStorage` under `renmito-notif-interval` (value in minutes; 15 sec = 0.25).
+- "Preview Notification" fires a single notification 1.5 s after tap regardless of whether the toggle is on, for testing purposes.
+- Required Android permissions: `POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`, `USE_EXACT_ALARM`, `RECEIVE_BOOT_COMPLETED`, `WAKE_LOCK`.
+
+**localStorage keys**: `renmito-notif-enabled`, `renmito-notif-interval`, `renmito-notif-phrase-idx`, `renmito-notif-id-offset`.
 
 ---
 
@@ -265,7 +288,7 @@ All paths are relative to `frontend-react/src/`.
 | Global toast | `components/shell/Toast.tsx` + `.css` |
 | Route config | `router/index.tsx` |
 
-**Shared dependencies**: `store/appStore.ts` (navOpen, toast), `hooks/useAuth.ts`, `components/forms/UnifiedSheet.tsx` (opened by SpeedDialFAB).
+**Shared dependencies**: `store/appStore.ts` (navOpen, toast), `hooks/useAuth.ts`, `components/forms/UnifiedSheet.tsx` (opened by SpeedDialFAB), `hooks/useNotifications.ts` (`topUpNotificationsOnResume` called on every foreground).
 
 ---
 
