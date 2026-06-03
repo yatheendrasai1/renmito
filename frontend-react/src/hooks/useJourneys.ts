@@ -12,7 +12,7 @@ export const entriesKey     = (id: string) => ['journey-entries', id]    as cons
 export function useJourneys() {
   return useQuery({
     queryKey: journeysKey(),
-    queryFn:  () => api.get<Journey[]>('/journeys').then(r => r.data),
+    queryFn:  () => api.get<Journey[]>('/journeys').then(r => Array.isArray(r.data) ? r.data : []),
     staleTime: 60_000,
   });
 }
@@ -54,7 +54,7 @@ export function useDeleteJourney() {
 export function useJourneyEntries(journeyId: string | null) {
   return useQuery({
     queryKey: entriesKey(journeyId ?? ''),
-    queryFn:  () => api.get<JourneyEntry[]>(`/journeys/${journeyId}/entries`).then(r => r.data),
+    queryFn:  () => api.get<JourneyEntry[]>(`/journeys/${journeyId}/entries`).then(r => Array.isArray(r.data) ? r.data : []),
     enabled:  !!journeyId,
     staleTime: 30_000,
   });

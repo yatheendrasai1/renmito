@@ -27,7 +27,9 @@ export const notesKey = (date: string) => ['notes', date] as const;
 
 async function fetchNotes(date: string): Promise<DayNotes> {
   const res = await api.get<DayNotes>(`/notes/${date}`);
-  return res.data;
+  const d = res.data;
+  if (d && typeof d === 'object' && Array.isArray(d.notes)) return d;
+  return { date, notes: [] };
 }
 
 export function useNotes(date: string) {

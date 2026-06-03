@@ -6,7 +6,7 @@ export const LOG_TYPES_KEY = ['log-types'] as const;
 
 async function fetchLogTypes(): Promise<LogType[]> {
   const res = await api.get<LogType[]>('/logtypes');
-  return res.data;
+  return Array.isArray(res.data) ? res.data : [];
 }
 
 /** Returns all active log types (default + user-created) for the auth'd user. */

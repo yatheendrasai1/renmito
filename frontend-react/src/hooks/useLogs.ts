@@ -8,7 +8,7 @@ export const logsKey = (date: string) => ['logs', date] as const;
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 async function fetchLogs(date: string): Promise<LogEntry[]> {
   const res = await api.get<LogEntry[]>(`/logs/${date}`);
-  return res.data;
+  return Array.isArray(res.data) ? res.data : [];
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────

@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function TypeSelector({ logTypes, domain, selectedId, onDomain, onSelect }: Props) {
-  const filtered = logTypes.filter(lt => lt.domain === domain && lt.isActive);
+  const filtered = (Array.isArray(logTypes) ? logTypes : []).filter(lt => lt.domain === domain && lt.isActive);
 
   return (
     <div className="type-sel">
