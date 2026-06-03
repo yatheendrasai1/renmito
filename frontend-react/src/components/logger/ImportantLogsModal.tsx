@@ -39,14 +39,28 @@ function dateAddDays(iso: string, n: number): string {
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
 }
 
+function parseHM(s: string): [number, number] {
+  if (s.includes('T') || s.length > 5) {
+    const d = new Date(s);
+    return [d.getUTCHours(), d.getUTCMinutes()];
+  }
+  const [h, m] = s.split(':').map(Number);
+  return [h, m];
+}
+
+function toHHMM(s: string): string {
+  const [h, m] = parseHM(s);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
 function toMins(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
+  const [h, m] = parseHM(hhmm);
   return h * 60 + m;
 }
 
 function toAmPm(hhmm: string | null): string | null {
   if (!hhmm) return null;
-  const [h, m] = hhmm.split(':').map(Number);
+  const [h, m] = parseHM(hhmm);
   const period = h < 12 ? 'AM' : 'PM';
   const h12    = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${String(m).padStart(2,'0')} ${period}`;
@@ -150,8 +164,8 @@ function SlotForm({ slot, logTypes, selectedDate, onClose, onSaved }: SlotFormPr
 
   // For WokeUp: the "time" is endAt of the sleep log; for others it's startAt
   const initTime = isEdit
-    ? (slot.key === 'wokeUp' ? (slot.logEntry!.endAt ?? slot.time ?? nowHH) : (slot.logEntry!.startAt ?? slot.time ?? nowHH))
-    : (slot.time ?? nowHH);
+    ? toHHMM(slot.key === 'wokeUp' ? (slot.logEntry!.endAt ?? slot.time ?? nowHH) : (slot.logEntry!.startAt ?? slot.time ?? nowHH))
+    : (slot.time ? toHHMM(slot.time) : nowHH);
 
   const [time,   setTime]   = useState(initTime);
   const [typeId, setTypeId] = useState<string>(() => {

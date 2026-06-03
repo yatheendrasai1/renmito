@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "concurrently -n NODE,ANGULAR,IC -c blue,green,yellow \"cd backend && npm run dev\" \"cd frontend && npm start\" \"cd intelligence && uvicorn app.main:app --reload --port 8000\"",
     "dev:react": "concurrently -n NODE,REACT -c blue,cyan \"cd backend && npm run dev\" \"cd frontend-react && npm start\"",
-    "build": "cd frontend && npm install && npx ng build --configuration production",
+    "build": "cd frontend-react && npm install && npm run build",
     "build:react": "cd frontend-react && npm install && npm run build"
   },
   "dependencies": {

@@ -124,3 +124,200 @@ npm run android:open    # above + opens Android Studio (then Build → Build APK
 6. **CORS changes** (new origins, new methods): Update `backend/src/config.js` CORS default and `backend/.env.example` to keep mobile origins (`https://localhost`, `capacitor://localhost`) in the allowed list.
 
 7. **No unused variables/imports**: The mobile build runs `tsc -b` with strict settings — any declared-but-unused variable, state, import, or function is a hard error (`TS6133`). After removing a feature or refactoring, always delete all related state, mutations, imports, and helper functions. Run `npx tsc -b --noEmit` from `frontend-react/` to verify before committing.
+
+## Frontend Code Registry
+
+**Workflow rule**: Before modifying any feature or introducing new functionality, consult this registry to identify the affected files and their dependencies. Then confirm the scope with the user before making any changes.
+
+All paths are relative to `frontend-react/src/`.
+
+---
+
+### Feature: Logger (Daily Time Logging)
+**Route**: `/logger`
+
+| Role | File |
+|------|------|
+| Page | `pages/LoggerPage.tsx` + `.css` |
+| Date navigation card | `components/logger/HeroDateCard.tsx` + `.css` |
+| Coverage / time metrics | `components/logger/MetricsCards.tsx` + `.css` |
+| Running timer bar | `components/logger/ActiveLogBar.tsx` + `.css` |
+| Log list display | `components/logger/LogList.tsx` + `.css` |
+| Create / edit / delete log form | `components/logger/LogFormModal.tsx` + `.css` |
+| Mark important logs (meals/sleep) | `components/logger/ImportantLogsModal.tsx` + `.css` |
+| Daily notes sidebar | `components/logger/NotesSheet.tsx` + `.css` |
+| Log CRUD hooks | `hooks/useLogs.ts` |
+| Log type hooks | `hooks/useLogTypes.ts` |
+| Notes hooks | `hooks/useNotes.ts` |
+| Day metadata hooks | `hooks/useDayMetadata.ts` |
+| Log / log-type types | `types/log.ts`, `types/log-type.ts` |
+
+**Shared dependencies**: `store/appStore.ts` (selectedDate, activeLog), `hooks/usePreferences.ts` (day settings for metrics), `lib/jiraApi.ts` (ticket search inside LogFormModal), `components/forms/UnifiedSheet.tsx` (SpeedDial log creation).
+
+---
+
+### Feature: Journeys (Habit / Metric Tracking)
+**Route**: `/journeys`
+
+| Role | File |
+|------|------|
+| Page | `pages/JourneysPage.tsx` + `.css` |
+| Journey + entry hooks | `hooks/useJourneys.ts` |
+| Journey / entry types | `types/journey.ts` |
+
+**Shared dependencies**: `hooks/useLogTypes.ts` (derived journey config), `lib/api.ts`, Chart.js (line chart visualisation).
+
+---
+
+### Feature: Configuration (Settings)
+**Route**: `/configuration`
+
+| Role | File |
+|------|------|
+| Page | `pages/ConfigurationPage.tsx` + `.css` |
+| Theme / palette editor | `components/settings/ThemeEditor.tsx` + `.css` |
+| Preferences hooks | `hooks/usePreferences.ts` |
+| Log type hooks | `hooks/useLogTypes.ts` |
+| Palette utilities | `lib/palette.ts` |
+| Preference types | `types/preference.ts` |
+
+**Shared dependencies**: `hooks/useAuth.ts` (change-password), `store/appStore.ts`.
+
+---
+
+### Feature: JIRA Integration
+**Route**: `/external-configs/jira`
+
+| Role | File |
+|------|------|
+| Page | `pages/JiraConfigPage.tsx` + `.css` |
+| JIRA API client | `lib/jiraApi.ts` |
+
+**Shared dependencies**: `lib/api.ts` (axios instance for API calls inside jiraApi.ts). Also consumed by `LogFormModal.tsx` for ticket search.
+
+---
+
+### Feature: Journeys Intelligence / AI (Food Insights)
+**Route**: `/intelligence`
+
+| Role | File |
+|------|------|
+| Page | `pages/IntelligencePage.tsx` + `.css` |
+| Feature-flag toggle hook | `hooks/usePreferences.ts` → `useUpdateFeatures()` |
+| Preference types | `types/preference.ts` |
+
+**Shared dependencies**: `lib/api.ts` (Gemini config check at `/config`).
+
+---
+
+### Feature: Diary (Journaling)
+**Route**: `/diary`
+
+| Role | File |
+|------|------|
+| Page | `pages/DiaryPage.tsx` + `.css` |
+
+**Shared dependencies**: `lib/api.ts` (direct API calls — no dedicated hook file yet). Season / Episode / Sentiment types are defined inline in DiaryPage.tsx.
+
+---
+
+### Feature: Reports
+**Route**: `/report`
+
+| Role | File |
+|------|------|
+| Page | `pages/ReportPage.tsx` + `.css` |
+
+**Shared dependencies**: `lib/api.ts` (direct POST to `/reports`).
+
+---
+
+### Feature: Authentication
+**Route**: `/login`
+
+| Role | File |
+|------|------|
+| Login page | `pages/LoginPage.tsx` + `.css` |
+| Auth context + provider | `contexts/AuthContext.tsx` |
+| Auth hook | `hooks/useAuth.ts` |
+| Auth types | `types/auth.ts` |
+
+**Shared dependencies**: `lib/api.ts` (interceptor registers logout callback), `store/appStore.ts`.
+
+---
+
+### Feature: App Shell & Navigation
+**Scope**: Global chrome present on all authenticated pages
+
+| Role | File |
+|------|------|
+| Auth-guarded layout | `layouts/AppLayout.tsx` + `.css` |
+| Top strip (menu + logo) | `components/shell/TopStrip.tsx` + `.css` |
+| Left sidebar nav | `components/shell/LeftNav.tsx` + `.css` |
+| Bottom tab bar (mobile) | `components/shell/BottomTabBar.tsx` + `.css` |
+| Speed-dial FAB | `components/shell/SpeedDialFAB.tsx` + `.css` |
+| Global toast | `components/shell/Toast.tsx` + `.css` |
+| Route config | `router/index.tsx` |
+
+**Shared dependencies**: `store/appStore.ts` (navOpen, toast), `hooks/useAuth.ts`, `components/forms/UnifiedSheet.tsx` (opened by SpeedDialFAB).
+
+---
+
+### Feature: Quick Log Creation (Unified Sheet)
+**Scope**: Reusable sheet opened by SpeedDialFAB and other entry points
+
+| Role | File |
+|------|------|
+| 3-tab quick-add sheet | `components/forms/UnifiedSheet.tsx` + `.css` |
+| Log type selector dropdown | `components/forms/TypeSelector.tsx` + `.css` |
+| Time picker input | `components/forms/TimeInput.tsx` + `.css` |
+
+**Shared dependencies**: `hooks/useLogs.ts`, `hooks/useLogTypes.ts`, `hooks/usePreferences.ts` (active log), `store/appStore.ts`.
+
+---
+
+### Feature: AI Chat Log Parser (Renni)
+**Scope**: Chat overlay for natural-language log creation
+
+| Role | File |
+|------|------|
+| Chat component | `components/chat/RenniChat.tsx` + `.css` |
+
+**Shared dependencies**: `hooks/useLogs.ts`, `store/appStore.ts`, `lib/api.ts`.
+
+---
+
+### Feature: Theme / Palette System
+**Scope**: Cross-cutting — affects every page
+
+| Role | File |
+|------|------|
+| Palette math + DOM application | `lib/palette.ts` |
+| Palette hooks | `hooks/usePreferences.ts` → `useSavePalette`, `useAddPreset`, etc. |
+| Palette editor UI | `components/settings/ThemeEditor.tsx` + `.css` |
+| Preference types | `types/preference.ts` |
+
+---
+
+### Shared / Global Infrastructure
+
+| Role | File |
+|------|------|
+| Zustand UI store | `store/appStore.ts` |
+| Axios API client | `lib/api.ts` |
+| Environment config | `config/env.ts` |
+| App entry | `App.tsx`, `main.tsx` |
+| Global styles | `index.css`, `App.css` |
+| All type re-exports | `types/index.ts` |
+| Loading spinner | `components/LoadingSpinner.tsx` + `.css` |
+
+---
+
+### Phase 4 Placeholders (not yet implemented)
+
+| Feature | File |
+|---------|------|
+| Timeline view | `pages/TimelinePage.tsx` |
+| Eagle View | `pages/EagleViewPage.tsx` |
+| Expense Guide — config | `pages/ExpenseGuideConfigPage.tsx` |
+| Expense Guide — expenses | `pages/ExpenseGuideExpensesPage.tsx` |
