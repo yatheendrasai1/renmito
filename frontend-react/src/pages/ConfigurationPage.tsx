@@ -10,9 +10,11 @@ import {
   useRenameLogType,
   useDeleteLogType,
 } from '@/hooks/useLogTypes';
-import ThemeEditor from '@/components/settings/ThemeEditor';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications, FREQUENCY_OPTIONS } from '@/hooks/useNotifications';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { DaySettings, UserProfile } from '@/types';
 import './ConfigurationPage.css';
 
@@ -32,30 +34,11 @@ const DEFAULT_PROFILE: UserProfile = {
   designationSince: null, yearsOfExperience: null, workDomain: '',
 };
 
-type Section = 'profile' | 'preferences' | 'theming' | 'notifications' | null;
-
-// ── Chevron SVG ───────────────────────────────────────────────────────────────
-
-function Chevron({ open }: { open: boolean }) {
-  return (
-    <svg className={`cfg-chevron${open ? ' cfg-chevron--open' : ''}`}
-         width="16" height="16" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="6 9 12 15 18 9"/>
-    </svg>
-  );
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ConfigurationPage() {
   const { user } = useAuth();
   const { data: prefs } = usePreferences();
-  const [openSection, setOpenSection] = useState<Section>(null);
-
-  function toggleSection(s: NonNullable<Section>) {
-    setOpenSection(prev => (prev === s ? null : s));
-  }
 
   return (
     <div className="cfg-page">
@@ -81,98 +64,51 @@ export default function ConfigurationPage() {
         </div>
       )}
 
-      {/* Profile accordion */}
-      <Accordion
-        id="profile"
-        open={openSection === 'profile'}
-        onToggle={() => toggleSection('profile')}
-        iconClass="cfg-icon--profile"
-        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
-        title="User Profile"
-        sub="Personal details for health calculations"
-      >
-        <ProfileSection
-          initial={{ ...DEFAULT_PROFILE, ...(prefs?.userProfile ?? {}) }}
-          onClose={() => setOpenSection(null)}
-        />
+      <Accordion type="single" collapsible className="cfg-accordion-root">
+
+        {/* Profile */}
+        <AccordionItem value="profile" className="cfg-acc">
+          <AccordionTrigger className="cfg-acc-head">
+            <div className="cfg-acc-icon cfg-icon--profile">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div className="cfg-acc-meta">
+              <span className="cfg-acc-title">User Profile</span>
+              <span className="cfg-acc-sub">Personal details for health calculations</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="cfg-acc-body">
+            <ProfileSection initial={{ ...DEFAULT_PROFILE, ...(prefs?.userProfile ?? {}) }} />
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Preferences */}
+        <AccordionItem value="preferences" className="cfg-acc">
+          <AccordionTrigger className="cfg-acc-head">
+            <div className="cfg-acc-icon cfg-icon--pref">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            </div>
+            <div className="cfg-acc-meta">
+              <span className="cfg-acc-title">Preferences</span>
+              <span className="cfg-acc-sub">Ideal day targets & custom log types</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="cfg-acc-body">
+            <PreferencesSection initialDay={{ ...DEFAULT_DAY, ...(prefs?.daySettings ?? {}) }} />
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Notifications */}
+        <NotificationsAccordion />
+
       </Accordion>
-
-      {/* Preferences accordion */}
-      <Accordion
-        id="preferences"
-        open={openSection === 'preferences'}
-        onToggle={() => toggleSection('preferences')}
-        iconClass="cfg-icon--pref"
-        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>}
-        title="Preferences"
-        sub="Ideal day targets & custom log types"
-      >
-        <PreferencesSection
-          initialDay={{ ...DEFAULT_DAY, ...(prefs?.daySettings ?? {}) }}
-          onClose={() => setOpenSection(null)}
-        />
-      </Accordion>
-
-      {/* Theming accordion */}
-      <Accordion
-        id="theming"
-        open={openSection === 'theming'}
-        onToggle={() => toggleSection('theming')}
-        iconClass="cfg-icon--theme"
-        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="19" cy="13" r="2.5"/><circle cx="6" cy="13" r="2.5"/><circle cx="10" cy="19" r="2.5"/></svg>}
-        title="Theming"
-        sub="Color palette and visual style"
-        noBodyPad
-      >
-        <ThemeEditor onClose={() => setOpenSection(null)} />
-      </Accordion>
-
-      {/* Notifications accordion — mobile only */}
-      <NotificationsAccordion
-        open={openSection === 'notifications'}
-        onToggle={() => toggleSection('notifications')}
-      />
-    </div>
-  );
-}
-
-// ── Accordion shell ───────────────────────────────────────────────────────────
-
-interface AccordionProps {
-  id: string;
-  open: boolean;
-  onToggle: () => void;
-  iconClass: string;
-  icon: React.ReactNode;
-  title: string;
-  sub: string;
-  children: React.ReactNode;
-  noBodyPad?: boolean;
-}
-
-function Accordion({ open, onToggle, iconClass, icon, title, sub, children, noBodyPad }: AccordionProps) {
-  return (
-    <div className={`cfg-acc${open ? ' cfg-acc--open' : ''}`}>
-      <button className="cfg-acc-head" onClick={onToggle} type="button">
-        <div className={`cfg-acc-icon ${iconClass}`}>{icon}</div>
-        <div className="cfg-acc-meta">
-          <span className="cfg-acc-title">{title}</span>
-          <span className="cfg-acc-sub">{sub}</span>
-        </div>
-        <Chevron open={open} />
-      </button>
-      {open && (
-        <div className={`cfg-acc-body${noBodyPad ? ' cfg-acc-body--bare' : ''}`}>
-          {children}
-        </div>
-      )}
     </div>
   );
 }
 
 // ── Profile section ───────────────────────────────────────────────────────────
 
-function ProfileSection({ initial, onClose }: { initial: UserProfile; onClose: () => void }) {
+function ProfileSection({ initial }: { initial: UserProfile }) {
   const [draft, setDraft] = useState<UserProfile>({ ...initial });
   const update = useUpdateUserProfile();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -217,24 +153,28 @@ function ProfileSection({ initial, onClose }: { initial: UserProfile; onClose: (
                    onChange={e => set('height', e.target.value ? +e.target.value : null)} />
           </Field>
           <Field label="Gender">
-            <select className="cfg-input" value={draft.gender}
-                    onChange={e => set('gender', e.target.value as UserProfile['gender'])}>
-              <option value="">Not specified</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
+            <Select value={draft.gender || '_none'} onValueChange={v => set('gender', (v === '_none' ? '' : v) as UserProfile['gender'])}>
+              <SelectTrigger className="cfg-input"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_none">Not specified</SelectItem>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
           <Field label="Activity Level" fullWidth>
-            <select className="cfg-input" value={draft.activityLevel}
-                    onChange={e => set('activityLevel', e.target.value as UserProfile['activityLevel'])}>
-              <option value="">Not specified</option>
-              <option value="sedentary">Sedentary (little/no exercise)</option>
-              <option value="light">Light (1–3 days/week)</option>
-              <option value="moderate">Moderate (3–5 days/week)</option>
-              <option value="active">Active (6–7 days/week)</option>
-              <option value="very-active">Very Active (hard exercise daily)</option>
-            </select>
+            <Select value={draft.activityLevel || '_none'} onValueChange={v => set('activityLevel', (v === '_none' ? '' : v) as UserProfile['activityLevel'])}>
+              <SelectTrigger className="cfg-input"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_none">Not specified</SelectItem>
+                <SelectItem value="sedentary">Sedentary (little/no exercise)</SelectItem>
+                <SelectItem value="light">Light (1–3 days/week)</SelectItem>
+                <SelectItem value="moderate">Moderate (3–5 days/week)</SelectItem>
+                <SelectItem value="active">Active (6–7 days/week)</SelectItem>
+                <SelectItem value="very-active">Very Active (hard exercise daily)</SelectItem>
+              </SelectContent>
+            </Select>
           </Field>
           <div className="cfg-divider-label" style={{ gridColumn: '1 / -1' }}>Professional</div>
           <Field label="Current Designation" fullWidth>
@@ -260,7 +200,7 @@ function ProfileSection({ initial, onClose }: { initial: UserProfile; onClose: (
         {msg && <div className={`cfg-feedback${msg.ok ? ' cfg-feedback--ok' : ' cfg-feedback--err'}`}>{msg.text}</div>}
       </div>
       <AccFooter
-        onCancel={() => { setDraft({ ...initial }); onClose(); }}
+        onCancel={() => setDraft({ ...initial })}
         onSave={save}
         saving={update.isPending}
       />
@@ -270,7 +210,7 @@ function ProfileSection({ initial, onClose }: { initial: UserProfile; onClose: (
 
 // ── Preferences section ───────────────────────────────────────────────────────
 
-function PreferencesSection({ initialDay, onClose }: { initialDay: DaySettings; onClose: () => void }) {
+function PreferencesSection({ initialDay }: { initialDay: DaySettings }) {
   const [day, setDay] = useState<DaySettings>({ ...initialDay });
   const updateDay = useUpdateDaySettings();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -328,7 +268,7 @@ function PreferencesSection({ initialDay, onClose }: { initialDay: DaySettings; 
       </div>
 
       <AccFooter
-        onCancel={() => { setDay({ ...initialDay }); onClose(); }}
+        onCancel={() => setDay({ ...initialDay })}
         onSave={save}
         saving={updateDay.isPending}
       />
@@ -488,29 +428,30 @@ function AccFooter({ onCancel, onSave, saving }: { onCancel: () => void; onSave:
 
 // ── Notifications accordion (mobile-only) ─────────────────────────────────────
 
-function NotificationsAccordion({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+function NotificationsAccordion() {
   const { state, enable, disable, changeInterval, previewNotification } = useNotifications();
 
   if (!state.supported) return null;
 
   return (
-    <Accordion
-      id="notifications"
-      open={open}
-      onToggle={onToggle}
-      iconClass="cfg-icon--notif"
-      icon={
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-        </svg>
-      }
-      title="Notifications"
-      sub="Nudges to keep your time log up to date"
-    >
-      <NotificationsSection state={state} enable={enable} disable={disable} changeInterval={changeInterval} previewNotification={previewNotification} />
-    </Accordion>
+    <AccordionItem value="notifications" className="cfg-acc">
+      <AccordionTrigger className="cfg-acc-head">
+        <div className="cfg-acc-icon cfg-icon--notif">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </div>
+        <div className="cfg-acc-meta">
+          <span className="cfg-acc-title">Notifications</span>
+          <span className="cfg-acc-sub">Nudges to keep your time log up to date</span>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="cfg-acc-body">
+        <NotificationsSection state={state} enable={enable} disable={disable} changeInterval={changeInterval} previewNotification={previewNotification} />
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 
@@ -552,15 +493,12 @@ function NotificationsSection({
           <span className="notif-toggle-title">Logging nudges</span>
           <span className="notif-toggle-sub">Remind me to log my time</span>
         </div>
-        <button
-          className={`notif-toggle-btn${state.enabled ? ' notif-toggle-btn--on' : ''}`}
-          onClick={handleToggle}
+        <Switch
+          checked={state.enabled}
+          onCheckedChange={handleToggle}
           disabled={state.requesting}
-          type="button"
-          aria-pressed={state.enabled}
-        >
-          <span className="notif-toggle-thumb" />
-        </button>
+          aria-label="Enable logging nudges"
+        />
       </div>
 
       {/* Frequency selector — shown whether on or off so user can pre-configure */}

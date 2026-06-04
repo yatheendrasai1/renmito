@@ -1,4 +1,5 @@
 import type { LogType } from '@/types';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import './TypeSelector.css';
 
 interface Props {
@@ -15,20 +16,12 @@ export default function TypeSelector({ logTypes, domain, selectedId, onDomain, o
   return (
     <div className="type-sel">
       {/* Domain tabs */}
-      <div className="type-sel-tabs">
-        <button
-          className={`type-sel-tab${domain === 'work' ? ' type-sel-tab--active' : ''}`}
-          onClick={() => onDomain('work')}
-        >
-          Work
-        </button>
-        <button
-          className={`type-sel-tab${domain === 'personal' ? ' type-sel-tab--active' : ''}`}
-          onClick={() => onDomain('personal')}
-        >
-          Personal
-        </button>
-      </div>
+      <Tabs value={domain} onValueChange={v => onDomain(v as 'work' | 'personal')}>
+        <TabsList className="type-sel-tabs">
+          <TabsTrigger value="work">Work</TabsTrigger>
+          <TabsTrigger value="personal">Personal</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Type grid */}
       <div className="type-sel-grid">

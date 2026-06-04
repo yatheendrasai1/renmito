@@ -1,8 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import api from '@/lib/api';
-import { applyPaletteToDOM, clearPaletteFromDOM } from '@/lib/palette';
-import type { UserPreferences, ColorPalette, ActiveLog } from '@/types';
+import type { UserPreferences, ActiveLog } from '@/types';
 
 // ── Query key ────────────────────────────────────────────────────────────────
 export const PREFS_KEY = ['preferences'] as const;
@@ -21,13 +20,10 @@ export function usePreferences() {
     staleTime: 60_000,
   });
 
-  // Apply palette whenever prefs load / change
+  // Apply theme class whenever prefs load / change
   useEffect(() => {
-    if (query.data?.palette) {
-      applyPaletteToDOM(query.data.palette);
-    } else if (query.data !== undefined) {
-      clearPaletteFromDOM();
-    }
+    const theme = query.data?.theme ?? 'dark';
+    document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [query.data]);
 
   return query;
@@ -35,40 +31,11 @@ export function usePreferences() {
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
-export function useSavePalette() {
+export function useSetTheme() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (palette: ColorPalette) =>
-      api.put('/preferences/palette', palette).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: PREFS_KEY }),
-  });
-}
-
-export function useDeletePalette() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.delete('/preferences/palette').then(r => r.data),
-    onSuccess:  () => {
-      clearPaletteFromDOM();
-      qc.invalidateQueries({ queryKey: PREFS_KEY });
-    },
-  });
-}
-
-export function useAddPreset() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (preset: ColorPalette) =>
-      api.post<ColorPalette[]>('/preferences/presets', preset).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: PREFS_KEY }),
-  });
-}
-
-export function useDeletePreset() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (name: string) =>
-      api.delete<ColorPalette[]>(`/preferences/presets/${encodeURIComponent(name)}`).then(r => r.data),
+    mutationFn: (theme: 'light' | 'dark') =>
+      api.put('/preferences/theme', { theme }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: PREFS_KEY }),
   });
 }

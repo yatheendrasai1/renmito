@@ -312,8 +312,8 @@
 .feat-status {
   margin-left: auto; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;
   padding: 2px 9px; border-radius: 8px;
-  background: rgba(255,255,255,0.04); color: var(--text-muted, #6A7290);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: var(--bg-card); color: var(--text-muted, #6A7290);
+  border: 1px solid var(--border-light);
 }
 .feat-status--on { background: rgba(74,222,128,0.1); color: #4ade80; border-color: rgba(74,222,128,0.2); }
 

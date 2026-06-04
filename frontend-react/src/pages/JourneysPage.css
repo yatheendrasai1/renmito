@@ -801,7 +801,7 @@
   align-items: center;
   gap: 10px;
   padding: 7px 11px 7px 18px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid var(--border-light);
   transition: background 0.12s;
 }
 .jrn-sub-entry:last-child { border-bottom: none; }
@@ -818,31 +818,20 @@
 }
 
 /* ══════════════════════════════════════════
-   BOTTOM SHEET
+   BOTTOM SHEET (className on SheetContent)
 ══════════════════════════════════════════ */
-.jrn-sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.58);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  z-index: 200;
-  padding: 0 0 env(safe-area-inset-bottom, 0);
-}
 @media (min-width: 480px) {
-  .jrn-sheet-backdrop { align-items: center; }
   .jrn-sheet { border-radius: 20px !important; max-width: 380px; width: 90%; }
 }
 .jrn-sheet {
   background: var(--bg-surface);
   border-radius: 20px 20px 0 0;
-  padding: 14px 18px 28px;
+  padding: 14px 18px calc(28px + env(safe-area-inset-bottom));
   width: 100%;
-  box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
   display: flex;
   flex-direction: column;
   gap: 11px;
+  z-index: 200;
 }
 .jrn-sheet--tall { max-height: 85dvh; overflow-y: auto; }
 .jrn-sheet-handle {
@@ -857,40 +846,20 @@
 .jrn-sheet-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 
 /* ══════════════════════════════════════════
-   CREATE MODAL
+   CREATE MODAL (className on DialogContent)
 ══════════════════════════════════════════ */
-.jrn-modal-bd {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  z-index: 400;
-}
-@media (min-width: 480px) {
-  .jrn-modal-bd { align-items: center; padding: 16px; }
-}
 .jrn-modal {
   background: var(--bg-surface);
-  border-radius: 20px 20px 0 0;
+  border-radius: 20px;
   width: 100%;
   max-width: 520px;
   max-height: 90dvh;
   overflow-y: auto;
   scrollbar-width: none;
-  animation: jrn-modal-in 0.22s ease;
+  padding: 0;
+  gap: 0;
 }
 .jrn-modal::-webkit-scrollbar { display: none; }
-@media (min-width: 480px) {
-  .jrn-modal { border-radius: 20px; }
-}
-@keyframes jrn-modal-in {
-  from { opacity: 0; transform: translateY(14px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0)    scale(1); }
-}
 .jrn-modal-hdr {
   display: flex;
   align-items: center;

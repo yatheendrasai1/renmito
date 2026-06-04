@@ -37,11 +37,6 @@ interface AppState {
   logFormOpen:  boolean;
   openLogForm:  () => void;
   closeLogForm: () => void;
-
-  // ── Toast ─────────────────────────────────────────────────────────────────
-  toast: { message: string; undoFn?: () => void } | null;
-  showToast:   (message: string, undoFn?: () => void) => void;
-  dismissToast: () => void;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -65,9 +60,4 @@ export const useAppStore = create<AppState>((set) => ({
   logFormOpen:  false,
   openLogForm:  () => set({ logFormOpen: true }),
   closeLogForm: () => set({ logFormOpen: false }),
-
-  // Toast
-  toast:        null,
-  showToast:    (message, undoFn) => set({ toast: { message, undoFn } }),
-  dismissToast: () => set({ toast: null }),
 }));

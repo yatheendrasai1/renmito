@@ -4,13 +4,20 @@
   gap: 10px;
 }
 
+/* ── Domain tabs (shadcn TabsList passed .type-sel-tabs) ─────────────────── */
 .type-sel-tabs {
   display: flex;
   gap: 6px;
+  background: transparent;
+  width: 100%;
+  height: auto;
+  border-radius: 0;
+  padding: 0;
 }
 
-.type-sel-tab {
+.type-sel-tabs [data-slot="tabs-trigger"] {
   flex: 1;
+  height: auto;
   padding: 7px 6px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -20,12 +27,22 @@
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
+  box-shadow: none;
 }
-.type-sel-tab--active {
+.type-sel-tabs [data-slot="tabs-trigger"]:hover {
+  background: var(--accent-hover);
+  color: var(--text-primary);
+}
+.type-sel-tabs [data-slot="tabs-trigger"][data-state="active"] {
   background: var(--nav-bg);
   color: var(--nav-text);
   border-color: var(--nav-bg);
+  box-shadow: none;
 }
+
+/* Old class compat */
+.type-sel-tab { flex: 1; padding: 7px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-secondary); font-size: 13px; font-weight: 500; }
+.type-sel-tab--active { background: var(--nav-bg); color: var(--nav-text); border-color: var(--nav-bg); }
 
 .type-sel-grid {
   display: flex;

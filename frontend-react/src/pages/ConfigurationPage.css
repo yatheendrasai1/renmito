@@ -28,7 +28,9 @@
 .cfg-account-name  { font-size: 0.9rem; font-weight: 600; color: var(--text-primary, #E0E4F0); }
 .cfg-account-email { font-size: 0.78rem; color: var(--text-muted, #6A7290); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ── Accordion ───────────────────────────────────────────────────────────────── */
+/* ── Accordion (classNames passed to shadcn AccordionItem/Trigger/Content) ── */
+.cfg-accordion-root { display: flex; flex-direction: column; gap: 8px; }
+
 .cfg-acc {
   border-radius: 12px;
   border: 1px solid var(--border-light, rgba(255,255,255,0.08));
@@ -36,15 +38,19 @@
   overflow: hidden;
   transition: border-color 0.2s;
 }
-.cfg-acc--open { border-color: var(--border, rgba(255,255,255,0.14)); }
+.cfg-acc[data-state="open"] { border-color: var(--border, rgba(255,255,255,0.14)); }
 
+/* Resets for AccordionTrigger which renders a <button> with its own padding */
 .cfg-acc-head {
   width: 100%; display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px; background: none; border: none; cursor: pointer;
+  padding: 14px 16px; background: none; cursor: pointer;
   color: var(--text-primary, #E0E4F0); text-align: left;
   transition: background 0.15s;
+  /* shadcn AccordionTrigger adds its own chevron — we use our own icon layout */
 }
 .cfg-acc-head:hover { background: var(--bg-surface, rgba(255,255,255,0.03)); }
+/* shadcn AccordionTrigger wraps content in flex, override to use our own layout */
+.cfg-acc-head > svg:last-child { display: none; }
 
 .cfg-acc-icon {
   width: 34px; height: 34px; border-radius: 8px;
@@ -52,28 +58,16 @@
 }
 .cfg-icon--profile { background: rgba(251,191,36,0.12);  color: #fbbf24; }
 .cfg-icon--pref    { background: rgba(99,179,237,0.12);  color: #63b3ed; }
-.cfg-icon--theme   { background: rgba(183,148,244,0.12); color: #b794f4; }
+.cfg-icon--notif   { background: rgba(52,211,153,0.12);  color: #34d399; }
 
 .cfg-acc-meta { flex: 1; min-width: 0; }
 .cfg-acc-title { display: block; font-size: 0.88rem; font-weight: 600; }
 .cfg-acc-sub   { display: block; font-size: 0.74rem; color: var(--text-muted, #6A7290); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.cfg-chevron {
-  flex-shrink: 0; transition: transform 0.22s ease;
-  color: var(--text-muted, #6A7290);
-}
-.cfg-chevron--open { transform: rotate(180deg); }
-
 .cfg-acc-body {
   border-top: 1px solid var(--border-light, rgba(255,255,255,0.07));
   display: flex; flex-direction: column; gap: 0;
-  animation: cfgBodyIn 0.18s ease;
-}
-.cfg-acc-body--bare { padding: 0; }
-
-@keyframes cfgBodyIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  padding: 0;
 }
 
 /* ── Section blocks ──────────────────────────────────────────────────────────── */
@@ -203,8 +197,6 @@
 .lt-add-btn:hover { background: var(--bg-surface, rgba(255,255,255,0.05)); color: var(--text-primary, #E0E4F0); }
 
 /* ── Notifications ───────────────────────────────────────────────────────────── */
-.cfg-icon--notif { background: rgba(52,211,153,0.12); color: #34d399; }
-
 .notif-toggle-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 4px 0 16px;
@@ -212,25 +204,6 @@
 .notif-toggle-label { display: flex; flex-direction: column; gap: 2px; }
 .notif-toggle-title { font-size: 0.88rem; font-weight: 600; color: var(--text-primary, #E0E4F0); }
 .notif-toggle-sub   { font-size: 0.76rem; color: var(--text-muted, #6A7290); }
-
-/* iOS-style toggle */
-.notif-toggle-btn {
-  position: relative; flex-shrink: 0;
-  width: 48px; height: 28px; border-radius: 14px;
-  background: var(--border, rgba(255,255,255,0.18));
-  border: none; cursor: pointer; padding: 0;
-  transition: background 0.2s;
-}
-.notif-toggle-btn--on { background: #34d399; }
-.notif-toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.notif-toggle-thumb {
-  position: absolute; top: 3px; left: 3px;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: #fff;
-  transition: transform 0.2s;
-  display: block;
-}
-.notif-toggle-btn--on .notif-toggle-thumb { transform: translateX(20px); }
 
 /* Frequency chips */
 .notif-freq-wrap { padding-top: 4px; }

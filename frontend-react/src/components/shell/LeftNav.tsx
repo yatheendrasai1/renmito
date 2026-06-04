@@ -2,7 +2,6 @@ import { useState, type FormEvent } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAppStore }  from '@/store/appStore';
 import { useAuth }      from '@/hooks/useAuth';
-import ThemeEditor      from '@/components/settings/ThemeEditor';
 import './LeftNav.css';
 
 // ── Reset-password modal ──────────────────────────────────────────────────────
@@ -116,7 +115,6 @@ export default function LeftNav() {
 
   const [showGear,      setShowGear]      = useState(false);
   const [showProfile,   setShowProfile]   = useState(false);
-  const [showTheme,     setShowTheme]     = useState(false);
   const [egExpanded,    setEgExpanded]    = useState(false);
   const [extExpanded,   setExtExpanded]   = useState(false);
 
@@ -144,22 +142,6 @@ export default function LeftNav() {
 
           <div className="nav-group-header">
             <span className="nav-group-label">Renmito</span>
-
-            {/* Palette / theme button */}
-            <button
-              className="nav-gear-btn"
-              onClick={e => { e.stopPropagation(); setShowTheme(v => !v); setShowGear(false); }}
-              title="Color theme"
-              aria-label="Color theme"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="13.5" cy="6.5" r="2.5"/>
-                <circle cx="19"   cy="13"  r="2.5"/>
-                <circle cx="6"    cy="13"  r="2.5"/>
-                <circle cx="10"   cy="19"  r="2.5"/>
-              </svg>
-            </button>
 
             {/* Gear button */}
             <button
@@ -370,17 +352,6 @@ export default function LeftNav() {
         <ResetPasswordModal onClose={() => setShowProfile(false)} />
       )}
 
-      {/* Theme editor panel */}
-      {showTheme && (
-        <>
-          {/* Backdrop catches outside clicks */}
-          <div
-            style={{ position: 'fixed', inset: 0, zIndex: 599 }}
-            onClick={() => setShowTheme(false)}
-          />
-          <ThemeEditor onClose={() => setShowTheme(false)} />
-        </>
-      )}
     </>
   );
 }

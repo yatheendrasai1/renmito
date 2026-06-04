@@ -14,6 +14,14 @@ const config: CapacitorConfig = {
     // Capacitor WebView → production API; cleartext not needed
     cleartext: false,
   },
+  plugins: {
+    LocalNotifications: {
+      // White silhouette icon required by Android for notification shade
+      smallIcon: 'ic_stat_notification',
+      // Brand dark navy background tint for the notification icon
+      iconColor: '#15173D',
+    },
+  },
 };
 
 export default config;

@@ -1,4 +1,7 @@
 import { useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAppStore }    from '@/store/appStore';
 import { useLogTypes }    from '@/hooks/useLogTypes';
 import { useCreateLog }   from '@/hooks/useLogs';
@@ -191,7 +194,6 @@ function DetailsCard({ state, onChange, domain, showPlan, planned, onPlanned }: 
 
 export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
   const selectedDate  = useAppStore(s => s.selectedDate);
-  const showToast     = useAppStore(s => s.showToast);
 
   const { data: logTypes = [] } = useLogTypes();
   const createLog               = useCreateLog(selectedDate);
@@ -238,8 +240,8 @@ export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
       collaborators:     t1Details.collaborators,
       satisfactoryScore: t1Details.satisfactoryScore,
     }, {
-      onSuccess: () => { showToast('Log saved'); onClose(); },
-      onError:   () => showToast('Failed to save log'),
+      onSuccess: () => { toast('Log saved'); onClose(); },
+      onError:   () => toast('Failed to save log'),
     });
   }
 
@@ -259,8 +261,8 @@ export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
       collaborators:     t2Details.collaborators,
       satisfactoryScore: t2Details.satisfactoryScore,
     }, {
-      onSuccess: () => { showToast('Point logged'); onClose(); },
-      onError:   () => showToast('Failed to save point'),
+      onSuccess: () => { toast('Point logged'); onClose(); },
+      onError:   () => toast('Failed to save point'),
     });
   }
 
@@ -274,8 +276,8 @@ export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
       startedAt:   new Date().toISOString(),
       plannedMins: t3Planned,
     }, {
-      onSuccess: () => { showToast('Timer started'); onClose(); },
-      onError:   () => showToast('Failed to start timer'),
+      onSuccess: () => { toast('Timer started'); onClose(); },
+      onError:   () => toast('Failed to start timer'),
     });
   }
 
@@ -287,29 +289,29 @@ export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
   const dateLabel = isToday ? 'Today' : selectedDate;
 
   return (
-    <>
-      <div className="uni-backdrop" onClick={onClose} />
-      <div className="uni-sheet">
+    <Sheet open={true} onOpenChange={v => { if (!v) onClose(); }}>
+      <SheetContent side="bottom" className="uni-sheet" showCloseButton={false}>
 
-        {/* Header */}
-        <div className="uni-header">
-          <div className="uni-tabs">
-            {([['Add Log', 1], ['Add Point', 2], ['Start Timer', 3]] as const).map(([label, t]) => (
-              <button key={t} className={`uni-tab${tab === t ? ' uni-tab--active' : ''}`}
-                      onClick={() => setTab(t)}>{label}</button>
-            ))}
-          </div>
-          <div className="uni-date-ctx">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            {dateLabel}
-          </div>
-        </div>
+        <Tabs value={String(tab)} onValueChange={v => setTab(Number(v) as Tab)}>
 
-        {/* ── Tab 1: Add Log ── */}
-        {tab === 1 && (
+          {/* Header */}
+          <div className="uni-header">
+            <TabsList className="uni-tabs">
+              <TabsTrigger value="1">Add Log</TabsTrigger>
+              <TabsTrigger value="2">Add Point</TabsTrigger>
+              <TabsTrigger value="3">Start Timer</TabsTrigger>
+            </TabsList>
+            <div className="uni-date-ctx">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              {dateLabel}
+            </div>
+          </div>
+
+          {/* ── Tab 1: Add Log ── */}
+          <TabsContent value="1" asChild>
           <form className="uni-form" onSubmit={saveAddLog}>
             <div className="uni-fields">
               <textarea className="ln-title-input" rows={3} placeholder="Title (optional)"
@@ -327,10 +329,10 @@ export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
               </button>
             </div>
           </form>
-        )}
+          </TabsContent>
 
-        {/* ── Tab 2: Add Point ── */}
-        {tab === 2 && (
+          {/* ── Tab 2: Add Point ── */}
+          <TabsContent value="2" asChild>
           <form className="uni-form" onSubmit={saveAddPoint}>
             <div className="uni-fields">
               <textarea className="ln-title-input" rows={3} placeholder="Title (optional)"
@@ -347,10 +349,10 @@ export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
               </button>
             </div>
           </form>
-        )}
+          </TabsContent>
 
-        {/* ── Tab 3: Start Timer ── */}
-        {tab === 3 && (
+          {/* ── Tab 3: Start Timer ── */}
+          <TabsContent value="3" asChild>
           <form className="uni-form" onSubmit={saveStartTimer}>
             <div className="uni-fields">
               <textarea className="ln-title-input" rows={3} placeholder="Title (optional — defaults to type name)"
@@ -377,9 +379,10 @@ export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
               </button>
             </div>
           </form>
-        )}
+          </TabsContent>
 
-      </div>
-    </>
+        </Tabs>
+      </SheetContent>
+    </Sheet>
   );
 }

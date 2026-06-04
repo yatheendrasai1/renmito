@@ -1,15 +1,3 @@
-// ── Palette / Theme ───────────────────────────────────────────────────────────
-// Shape mirrors the backend paletteSchema and Angular's ColorPalette exactly.
-// applyPaletteToDOM() derives all CSS custom properties from these 5 fields.
-
-export interface ColorPalette {
-  name:      string;
-  bg:        string;  // body / surfaces
-  primary:   string;  // nav sidebar
-  secondary: string;  // header + timeline bar
-  accent:    string;  // CTA, highlights, drag
-}
-
 // ── UserProfile ───────────────────────────────────────────────────────────────
 
 export interface UserProfile {
@@ -92,8 +80,7 @@ export interface ActiveLog {
 // ── UserPreferences (full document) ──────────────────────────────────────────
 
 export interface UserPreferences {
-  palette:        ColorPalette | null;
-  customPresets:  ColorPalette[];
+  theme:          'light' | 'dark';
   activeLog:      ActiveLog | null;
   quickShortcuts: QuickShortcut[];
   daySettings:    DaySettings | null;

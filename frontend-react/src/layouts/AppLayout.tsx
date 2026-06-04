@@ -2,12 +2,13 @@ import { useEffect } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { Toaster } from '@/components/ui/sonner';
 import { useAuth }       from '@/hooks/useAuth';
+import { usePreferences } from '@/hooks/usePreferences';
 import TopStrip          from '@/components/shell/TopStrip';
 import LeftNav           from '@/components/shell/LeftNav';
 import BottomTabBar      from '@/components/shell/BottomTabBar';
 import SpeedDialFAB      from '@/components/shell/SpeedDialFAB';
-import Toast             from '@/components/shell/Toast';
 import LogFormModal      from '@/components/logger/LogFormModal';
 import { topUpNotificationsOnResume } from '@/hooks/useNotifications';
 import { useAppStore }   from '@/store/appStore';
@@ -21,6 +22,16 @@ export default function AppLayout() {
   const openLogForm         = useAppStore(s => s.openLogForm);
   const closeLogForm        = useAppStore(s => s.closeLogForm);
   const selectedDate        = useAppStore(s => s.selectedDate);
+
+  // Load preferences — applies theme class via usePreferences effect
+  usePreferences();
+
+  // Default to dark until prefs resolve
+  useEffect(() => {
+    if (!document.documentElement.classList.contains('dark')) {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
 
   // Top up notification queue whenever the app comes to foreground
   useEffect(() => {
@@ -64,10 +75,10 @@ export default function AppLayout() {
       </div>
 
       <BottomTabBar />
-      {!isDiary && <SpeedDialFAB />}
+      {!isDiary && !logFormOpen && <SpeedDialFAB />}
 
       {/* Global toast */}
-      <Toast />
+      <Toaster position="bottom-center" />
 
       {/* Global log form — opened by FAB or notification tap */}
       {logFormOpen && (

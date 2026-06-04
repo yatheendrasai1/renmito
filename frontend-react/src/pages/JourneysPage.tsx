@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   Chart,
   LineController, LineElement, PointElement,
@@ -363,8 +366,8 @@ function ConfirmSheet({
   onCancel: () => void; onConfirm: () => void; confirmLabel: string;
 }) {
   return (
-    <div className="jrn-sheet-backdrop" onClick={onCancel}>
-      <div className="jrn-sheet" onClick={e => e.stopPropagation()}>
+    <Sheet open={true} onOpenChange={v => { if (!v) onCancel(); }}>
+      <SheetContent side="bottom" className="jrn-sheet" showCloseButton={false}>
         <div className="jrn-sheet-handle" />
         <p className="jrn-sheet-title">{title}</p>
         <p className="jrn-sheet-body" dangerouslySetInnerHTML={{ __html: body }} />
@@ -374,8 +377,8 @@ function ConfirmSheet({
             {confirmLabel}
           </button>
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -409,8 +412,8 @@ function EditEntrySheet({
   }
 
   return (
-    <div className="jrn-sheet-backdrop" onClick={onClose}>
-      <div className="jrn-sheet jrn-sheet--tall" onClick={e => e.stopPropagation()}>
+    <Sheet open={true} onOpenChange={v => { if (!v) onClose(); }}>
+      <SheetContent side="bottom" className="jrn-sheet jrn-sheet--tall" showCloseButton={false}>
         <div className="jrn-sheet-handle" />
         <p className="jrn-sheet-title">Edit Entry</p>
         <div className="jrn-entry-fields" style={{ padding: '0 20px 4px' }}>
@@ -445,8 +448,8 @@ function EditEntrySheet({
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -591,8 +594,8 @@ function CreateJourneyModal({
   }
 
   return (
-    <div className="jrn-modal-bd" onClick={onClose}>
-      <div className="jrn-modal" onClick={e => e.stopPropagation()}>
+    <Dialog open={true} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="jrn-modal" showCloseButton={false}>
         <div className="jrn-modal-hdr">
           <h2 className="jrn-form-title" style={{ margin: 0 }}>New Journey</h2>
           <button className="jrn-modal-x" type="button" onClick={onClose} aria-label="Close">
@@ -765,8 +768,8 @@ function CreateJourneyModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -781,7 +784,6 @@ export default function JourneysPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [presetName, setPresetName]   = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
   const [addingEntry, setAddingEntry] = useState(false);
   const [entryDate, setEntryDate]     = useState('');
@@ -792,8 +794,6 @@ export default function JourneysPage() {
   const [editingEntry, setEditingEntry] = useState<JourneyEntry | null>(null);
   const [editEntryError, setEditEntryError] = useState('');
   const [chartRange, setChartRange]   = useState<'7D' | '30D' | 'All'>('30D');
-
-  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   const { data: journeys, isLoading: journeysLoading } = useJourneys();
   const { data: logTypes }                              = useLogTypes();
@@ -816,18 +816,6 @@ export default function JourneysPage() {
     const updated = journeys.find(j => j.id === selectedJourney.id);
     if (updated && updated !== selectedJourney) setSelectedJourney(updated);
   }, [journeys, selectedJourney]);
-
-  // Close more menu on outside click
-  useEffect(() => {
-    if (!showMoreMenu) return;
-    const handler = (e: MouseEvent) => {
-      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
-        setShowMoreMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showMoreMenu]);
 
   // ── Derived data ────────────────────────────────────────────
 
@@ -878,7 +866,6 @@ export default function JourneysPage() {
 
   function openEditJourney() {
     if (!selectedJourney) return;
-    setShowMoreMenu(false);
     setEditForm(blankEditForm(selectedJourney));
     setEditError('');
     setEditingJourney(true);
@@ -1096,15 +1083,15 @@ export default function JourneysPage() {
             <h2 className="jrn-hero-name">{j.name}</h2>
             <div className="jrn-hero-top-right">
               <span className={`jrn-status-pill jrn-status--${j.status}`}>{j.status}</span>
-              <div className="jrn-more-wrap" ref={moreMenuRef}>
-                <button className="jrn-more-btn" onClick={() => setShowMoreMenu(v => !v)} aria-label="More options">⋯</button>
-                {showMoreMenu && (
-                  <div className="jrn-more-dropdown" onClick={() => setShowMoreMenu(false)}>
-                    <button className="jrn-more-item" onClick={openEditJourney}>Edit journey</button>
-                    <button className="jrn-more-item jrn-more-item--danger" onClick={() => setShowDeleteConfirm(true)}>Delete journey</button>
-                  </div>
-                )}
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="jrn-more-btn" aria-label="More options">⋯</button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={openEditJourney}>Edit journey</DropdownMenuItem>
+                  <DropdownMenuItem className="text-destructive" onClick={() => setShowDeleteConfirm(true)}>Delete journey</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
           <div className="jrn-hero-chips">

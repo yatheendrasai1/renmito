@@ -26,6 +26,16 @@
   color: var(--text-primary);
 }
 
+.top-strip-theme-btn {
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+}
+.top-strip-theme-btn:hover {
+  color: var(--text-primary);
+  background: var(--accent-hover);
+}
+
 .top-strip-title {
   font-size: 24px;
   font-weight: 700;

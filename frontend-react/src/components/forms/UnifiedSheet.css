@@ -1,16 +1,5 @@
-.uni-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  background: rgba(0, 0, 0, 0.45);
-}
-
+/* ── Sheet wrapper (className on SheetContent) ──────────────────────────── */
 .uni-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 301;
   width: 100%;
   max-width: 480px;
   background: var(--bg-surface);
@@ -18,12 +7,11 @@
   border-radius: 16px 16px 0 0;
   display: flex;
   flex-direction: column;
+  gap: 0;
   max-height: 95dvh;
-  animation: uniSlideUp 0.22s ease;
-}
-@keyframes uniSlideUp {
-  from { transform: translateX(-50%) translateY(100%); }
-  to   { transform: translateX(-50%) translateY(0); }
+  padding: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 200;     /* above bottom tab bar */
 }
 
 /* ── Header (tabs + date context) ──────────────────────────────────────── */
@@ -32,15 +20,26 @@
   flex-shrink: 0;
 }
 
+/* ── Tabs (shadcn TabsList passed .uni-tabs) ────────────────────────────── */
 .uni-tabs {
   display: flex;
   gap: 6px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
+  /* Override shadcn TabsList pill / bg-muted defaults */
+  background: transparent;
+  width: 100%;
+  height: auto;
+  border-radius: 0;
+  padding-top: 0;
+  padding-left: 0;
+  padding-right: 0;
 }
 
-.uni-tab {
+/* Each tab trigger */
+.uni-tabs [data-slot="tabs-trigger"] {
   flex: 1;
+  height: auto;
   padding: 7px 6px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -50,12 +49,24 @@
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
+  /* Reset shadcn defaults */
+  box-shadow: none;
 }
-.uni-tab--active {
+.uni-tabs [data-slot="tabs-trigger"]:hover {
+  background: var(--accent-hover);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+.uni-tabs [data-slot="tabs-trigger"][data-state="active"] {
   background: var(--nav-bg);
   color: var(--nav-text);
   border-color: var(--nav-bg);
+  box-shadow: none;
 }
+
+/* Old class names for backward compat */
+.uni-tab { flex: 1; padding: 7px 6px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text-secondary); font-size: 13px; font-weight: 500; }
+.uni-tab--active { background: var(--nav-bg); color: var(--nav-text); border-color: var(--nav-bg); }
 
 .uni-date-ctx {
   display: flex;
