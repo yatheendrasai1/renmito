@@ -1,12 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
+import type { DaySettings } from '@/types';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const STORAGE_ENABLED  = 'renmito-notif-enabled';
 const STORAGE_INTERVAL = 'renmito-notif-interval'; // minutes
 const STORAGE_PHRASE_IDX = 'renmito-notif-phrase-idx';
+// Meal notification settings
+const STORAGE_MEAL_TARGETS = 'renmito-meal-targets';  // JSON: MealTarget[]
+const STORAGE_MEAL_LAST_DAY = 'renmito-meal-notif-last-day'; // YYYY-MM-DD last scheduled
+const MEAL_DAYS = 30;   // days ahead to schedule meal notifications
+// Fixed ID block for meal notifications: 10000 + dayIndex*5 + mealIndex
+const MEAL_ID_BASE = 10000;
 
 // Batch size: pre-schedule this many notifications at a time.
 // At 5-min interval that covers ~8 hours; at 6h interval covers 25 days.
@@ -47,6 +54,26 @@ function isNative(): boolean {
   return Capacitor.isNativePlatform();
 }
 
+function todayString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+interface MealTarget {
+  label: string;
+  time: string; // HH:MM
+}
+
+function daySettingsToMealTargets(ds: DaySettings): MealTarget[] {
+  return [
+    { label: 'Wake Up',    time: ds.wakeTarget },
+    { label: 'Breakfast',  time: ds.breakfastTarget },
+    { label: 'Lunch',      time: ds.lunchTarget },
+    { label: 'Dinner',     time: ds.dinnerTarget },
+    { label: 'Sleep',      time: ds.bedtimeTarget },
+  ].filter(m => !!m.time);
+}
+
 // Generate a block of unique notification IDs starting from an offset stored
 // in localStorage so IDs don't collide across reschedule calls.
 const STORAGE_ID_OFFSET = 'renmito-notif-id-offset';
@@ -56,6 +83,53 @@ function nextIdBlock(count: number): number[] {
   const newBase = base + count > 999999 ? 1000 : base + count;
   localStorage.setItem(STORAGE_ID_OFFSET, String(newBase));
   return Array.from({ length: count }, (_, i) => base + i);
+}
+
+// ── Meal-time scheduling ───────────────────────────────────────────────────────
+
+async function scheduleMealNotificationsFor(meals: MealTarget[]): Promise<void> {
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const toSchedule: { id: number; title: string; body: string; at: Date }[] = [];
+
+  for (let day = 0; day < MEAL_DAYS; day++) {
+    for (let mi = 0; mi < Math.min(meals.length, 5); mi++) {
+      const meal = meals[mi];
+      const [hh, mm] = meal.time.split(':').map(Number);
+      const at = new Date(todayMidnight.getTime() + day * 86400000 + hh * 3600000 + mm * 60000);
+      if (at <= now) continue;
+      toSchedule.push({
+        id: MEAL_ID_BASE + day * 5 + mi,
+        title: `Time to log ${meal.label}!`,
+        body: `Let's log your ${meal.label} time.`,
+        at,
+      });
+    }
+  }
+
+  if (toSchedule.length === 0) return;
+
+  await LocalNotifications.schedule({
+    notifications: toSchedule.map(n => ({
+      id: n.id,
+      title: n.title,
+      body: n.body,
+      schedule: { at: n.at, allowWhileIdle: true },
+      channelId: 'renmito-nudge',
+      smallIcon: 'ic_stat_icon_config_sample',
+    })),
+  });
+
+  localStorage.setItem(STORAGE_MEAL_LAST_DAY, todayString());
+}
+
+async function cancelMealNotifications(): Promise<void> {
+  const ids = Array.from({ length: MEAL_DAYS * 5 }, (_, i) => ({ id: MEAL_ID_BASE + i }));
+  try {
+    await LocalNotifications.cancel({ notifications: ids });
+  } catch {
+    // ignore if none exist
+  }
 }
 
 // ── Core scheduling ────────────────────────────────────────────────────────────
@@ -184,6 +258,13 @@ export function useNotifications() {
       await cancelAllNudges();
       await scheduleNudgeBatch(intervalMinutes, new Date());
 
+      // Also schedule meal-time notifications if day settings are stored
+      const storedMeals = localStorage.getItem(STORAGE_MEAL_TARGETS);
+      if (storedMeals) {
+        await cancelMealNotifications();
+        await scheduleMealNotificationsFor(JSON.parse(storedMeals) as MealTarget[]);
+      }
+
       localStorage.setItem(STORAGE_ENABLED, 'true');
       localStorage.setItem(STORAGE_INTERVAL, String(intervalMinutes));
 
@@ -207,6 +288,7 @@ export function useNotifications() {
   const disable = useCallback(async () => {
     if (!isNative()) return;
     await cancelAllNudges();
+    await cancelMealNotifications();
     localStorage.setItem(STORAGE_ENABLED, 'false');
     setState(s => ({ ...s, enabled: false, error: null }));
   }, []);
@@ -248,7 +330,33 @@ export function useNotifications() {
     });
   }, []);
 
-  return { state, enable, disable, changeInterval, topUpIfNeeded, previewNotification };
+  const refreshMealNotifications = useCallback(async (daySettings: DaySettings) => {
+    if (!isNative()) return;
+    const meals = daySettingsToMealTargets(daySettings);
+    localStorage.setItem(STORAGE_MEAL_TARGETS, JSON.stringify(meals));
+    if (state.enabled && state.permissionGranted) {
+      await cancelMealNotifications();
+      await scheduleMealNotificationsFor(meals);
+    }
+  }, [state.enabled, state.permissionGranted]);
+
+  return { state, enable, disable, changeInterval, topUpIfNeeded, previewNotification, refreshMealNotifications };
+}
+
+// Call this after saving day settings to keep meal notifications in sync.
+export async function refreshMealNotificationsOnSettingsSave(daySettings: DaySettings): Promise<void> {
+  const meals = daySettingsToMealTargets(daySettings);
+  localStorage.setItem(STORAGE_MEAL_TARGETS, JSON.stringify(meals));
+
+  if (!isNative()) return;
+  const enabled = localStorage.getItem(STORAGE_ENABLED) === 'true';
+  if (!enabled) return;
+
+  const status = await LocalNotifications.checkPermissions();
+  if (status.display !== 'granted') return;
+
+  await cancelMealNotifications();
+  await scheduleMealNotificationsFor(meals);
 }
 
 // Call this from App.tsx or AppLayout on app resume/foreground to keep the
@@ -271,5 +379,15 @@ export async function topUpNotificationsOnResume(): Promise<void> {
       .filter(t => t > now.getTime());
     if (times.length > 0) startFrom = new Date(Math.max(...times));
     await scheduleNudgeBatch(intervalMinutes, startFrom);
+  }
+
+  // Refresh meal notifications if the day has rolled past the last scheduled date
+  const storedMeals = localStorage.getItem(STORAGE_MEAL_TARGETS);
+  if (storedMeals) {
+    const lastDay = localStorage.getItem(STORAGE_MEAL_LAST_DAY) ?? '';
+    if (lastDay !== todayString()) {
+      await cancelMealNotifications();
+      await scheduleMealNotificationsFor(JSON.parse(storedMeals) as MealTarget[]);
+    }
   }
 }

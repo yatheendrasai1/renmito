@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   usePreferences,
   useUpdateDaySettings,
@@ -11,7 +11,7 @@ import {
   useDeleteLogType,
 } from '@/hooks/useLogTypes';
 import { useAuth } from '@/hooks/useAuth';
-import { useNotifications, FREQUENCY_OPTIONS } from '@/hooks/useNotifications';
+import { useNotifications, FREQUENCY_OPTIONS, refreshMealNotificationsOnSettingsSave } from '@/hooks/useNotifications';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -216,6 +216,12 @@ function PreferencesSection({ initialDay }: { initialDay: DaySettings }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Seed meal targets in localStorage so notifications hook can find them on enable
+  useEffect(() => {
+    refreshMealNotificationsOnSettingsSave(initialDay).catch(() => undefined);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function setTime(key: keyof DaySettings, val: string) {
     setDay(d => ({ ...d, [key]: val }));
   }
@@ -226,6 +232,8 @@ function PreferencesSection({ initialDay }: { initialDay: DaySettings }) {
       setMsg({ ok: true, text: 'Saved.' });
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => setMsg(null), 2500);
+      // Keep meal-time notifications in sync with the updated day settings
+      refreshMealNotificationsOnSettingsSave(day).catch(() => undefined);
     } catch {
       setMsg({ ok: false, text: 'Could not save. Please try again.' });
     }
@@ -362,12 +370,16 @@ function LogTypesManager() {
           <input className="lt-name-input" autoFocus value={newName} placeholder="Name" maxLength={40}
                  onChange={e => setNewName(e.target.value)}
                  onKeyDown={e => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setShowNew(false); }} />
-          <select className="lt-domain-select" value={newDomain}
-                  onChange={e => setNewDomain(e.target.value as typeof newDomain)}>
-            <option value="work">Work</option>
-            <option value="personal">Personal</option>
-            <option value="family">Family</option>
-          </select>
+          <Select value={newDomain} onValueChange={v => setNewDomain(v as typeof newDomain)}>
+            <SelectTrigger className="lt-domain-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="work">Work</SelectItem>
+              <SelectItem value="personal">Personal</SelectItem>
+              <SelectItem value="family">Family</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="lt-new-actions">
             <button className="lt-btn" onClick={() => setShowNew(false)}>Cancel</button>
             <button className="lt-btn lt-btn--save" onClick={handleCreate} disabled={!newName.trim()}>Add</button>
