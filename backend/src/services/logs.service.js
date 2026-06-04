@@ -39,7 +39,8 @@ function toResponse(doc) {
     title:        doc.title ?? '',
     durationMins: doc.durationMins ?? null,
     logType:      lt ? {
-      id:       lt._id.toString(),
+      _id:      lt._id.toString(),
+      id:       lt._id.toString(),   // kept for backward compat
       name:     lt.name     ?? '',
       color:    lt.color    ?? '#9B9B9B',
       domain:   lt.domain   ?? '',

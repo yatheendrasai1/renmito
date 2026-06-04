@@ -1,12 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import RenniChat    from '@/components/chat/RenniChat';
 import { useAppStore } from '@/store/appStore';
 import './SpeedDialFAB.css';
 
 export default function SpeedDialFAB() {
-  const [open,      setOpen]      = useState(false);
-  const [renniOpen, setRenniOpen] = useState(false);
+  const [open,       setOpen]       = useState(false);
+  const [renniOpen,  setRenniOpen]  = useState(false);
+  const [scrolling,  setScrolling]  = useState(false);
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    function onScroll() {
+      setScrolling(true);
+      if (scrollTimer.current) clearTimeout(scrollTimer.current);
+      scrollTimer.current = setTimeout(() => setScrolling(false), 400);
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (scrollTimer.current) clearTimeout(scrollTimer.current);
+    };
+  }, []);
   const { pathname }              = useLocation();
   const isJourneys                = pathname === '/journeys';
   const openLogForm               = useAppStore(s => s.openLogForm);
@@ -20,7 +35,7 @@ export default function SpeedDialFAB() {
     <>
       {open && <div className="sd-backdrop" onClick={close} />}
 
-      <div className="sd-wrap">
+      <div className={`sd-wrap${scrolling && !open ? ' sd-wrap--scrolling' : ''}`}>
         <div className={`sd-options${open ? ' sd-options--open' : ''}`}>
 
           {/* Ask Renni */}

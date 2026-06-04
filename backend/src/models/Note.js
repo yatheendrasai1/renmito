@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const noteItemSchema = new mongoose.Schema(
   {
-    content:      { type: String, default: '', maxlength: 500 },
+    content:      { type: String, default: '', maxlength: 1000 },
     type:         { type: String, enum: ['regular', 'tapper'], default: 'regular' },
     timestamp:    { type: Date, default: Date.now },
     logTypeId:    { type: String, default: null },

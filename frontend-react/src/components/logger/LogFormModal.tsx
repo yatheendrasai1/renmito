@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useCreateLog, useUpdateLog, useDeleteLog } from '@/hooks/useLogs';
 import {
   useLogTypes,
   useRenameLogType,
   useDeleteLogType,
 } from '@/hooks/useLogTypes';
-import { useAppStore } from '@/store/appStore';
 import { useSetActiveLog } from '@/hooks/usePreferences';
 import type { LogEntry, LogType } from '@/types';
 import { jiraApi, type JiraTicket, type TicketQuery } from '@/lib/jiraApi';
@@ -137,20 +139,26 @@ interface Props {
   mode:       'create' | 'edit';
   date:       string;
   editEntry?: LogEntry;
-  startTime?: string;
-  endTime?:   string;
+  startTime?: string;   // defaults to now−30 min
+  endTime?:   string;   // defaults to now+30 min
   onClose:    () => void;
   onSaved?:   () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+function nowOffsetHHMM(offsetMins: number): string {
+  const d = new Date(Date.now() + offsetMins * 60_000);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 export default function LogFormModal({
-  mode, date, editEntry, startTime = '09:00', endTime = '10:00',
+  mode, date, editEntry, startTime, endTime,
   onClose, onSaved,
 }: Props) {
-  const showToast  = useAppStore(s => s.showToast);
   const isEdit     = mode === 'edit';
+  const defaultStart = startTime ?? nowOffsetHHMM(-30);
+  const defaultEnd   = endTime   ?? nowOffsetHHMM(+30);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const createLog    = useCreateLog(date);
@@ -169,10 +177,10 @@ export default function LogFormModal({
   );
   const [plannedMins,  setPlannedMins]  = useState<number | null>(null);
   const [formStart,    setFormStart]    = useState(
-    isEdit ? (isoToHHMM(editEntry?.startAt ?? '') || startTime) : startTime,
+    isEdit ? (isoToHHMM(editEntry?.startAt ?? '') || defaultStart) : defaultStart,
   );
   const [formEnd,      setFormEnd]      = useState(
-    isEdit ? (isoToHHMM(editEntry?.endAt ?? '') || endTime) : endTime,
+    isEdit ? (isoToHHMM(editEntry?.endAt ?? '') || defaultEnd) : defaultEnd,
   );
   const [formDate,     setFormDate]     = useState(
     isEdit ? (isoToDateStr(editEntry?.startAt ?? '') || editEntry?.date || date) : date,
@@ -235,7 +243,6 @@ export default function LogFormModal({
   const [jiraResults,       setJiraResults]       = useState<JiraTicket[]>([]);
   const [jiraSearchError,   setJiraSearchError]   = useState('');
   const [jiraOpen,          setJiraOpen]          = useState(false);
-  const [jiraConfirmTicket, setJiraConfirmTicket] = useState<JiraTicket | null>(null);
   const [linkedTicket,      setLinkedTicket]      = useState<JiraTicket | null>(
     isEdit && editEntry?.jiraTicketId
       ? { id: editEntry.jiraTicketId!, key: editEntry.jiraTicketKey!, summary: editEntry.jiraTicketSummary ?? '', status: '', url: '', assignee: null, dueDate: null, storyPoints: null, customer: null }
@@ -270,8 +277,10 @@ export default function LogFormModal({
       setSelectedType(fallback ?? null);
       if (fallback) setSelectedDomain(fallback.domain as 'work' | 'personal');
     }
-    if (isEdit && !selectedType && editEntry?.logType && rawTypes.length > 0) {
-      const match = rawTypes.find(lt => lt._id === editEntry.logType?._id)
+    if (isEdit && editEntry?.logType && rawTypes.length > 0) {
+      const logTypeId = (editEntry.logType as { _id?: string; id?: string })?._id
+                     ?? (editEntry.logType as { _id?: string; id?: string })?.id;
+      const match = rawTypes.find(lt => lt._id === logTypeId)
                  ?? rawTypes.find(lt => lt.name.toLowerCase() === editEntry.logType?.name?.toLowerCase());
       if (match) {
         setSelectedType(match);
@@ -348,13 +357,6 @@ export default function LogFormModal({
     }
   }
 
-  function confirmJiraTicket() {
-    if (!jiraConfirmTicket) return;
-    setLinkedTicket(jiraConfirmTicket);
-    setTicketId(jiraConfirmTicket.key);
-    setJiraConfirmTicket(null);
-    setJiraOpen(false);
-  }
 
   async function loadSavedQueries() {
     setQueriesLoading(true);
@@ -451,8 +453,8 @@ export default function LogFormModal({
         startedAt:   new Date().toISOString(),
         plannedMins: plannedMins,
       }, {
-        onSuccess: () => { setSaving(false); showToast('Timer started'); onSaved?.(); onClose(); },
-        onError:   () => { setSaving(false); showToast('Failed to start timer'); },
+        onSuccess: () => { setSaving(false); toast('Timer started'); onSaved?.(); onClose(); },
+        onError:   () => { setSaving(false); toast('Failed to start timer'); },
       });
       return;
     }
@@ -478,13 +480,13 @@ export default function LogFormModal({
 
     if (isEdit && editEntry) {
       updateLog.mutate({ id: editEntry.id, entry }, {
-        onSuccess: () => { setSaving(false); showToast('Log updated'); onSaved?.(); onClose(); },
-        onError:   () => { setSaving(false); showToast('Failed to update log'); },
+        onSuccess: () => { setSaving(false); toast('Log updated'); onSaved?.(); onClose(); },
+        onError:   () => { setSaving(false); toast('Failed to update log'); },
       });
     } else {
       createLog.mutate(entry, {
-        onSuccess: () => { setSaving(false); showToast('Log saved'); onSaved?.(); onClose(); },
-        onError:   () => { setSaving(false); showToast('Failed to save log'); },
+        onSuccess: () => { setSaving(false); toast('Log saved'); onSaved?.(); onClose(); },
+        onError:   () => { setSaving(false); toast('Failed to save log'); },
       });
     }
   }
@@ -494,12 +496,11 @@ export default function LogFormModal({
     if (!editEntry || deleting) return;
     setDeleting(true);
     deleteLog.mutate(editEntry.id, {
-      onSuccess: () => { setDeleting(false); showToast('Log deleted'); onSaved?.(); onClose(); },
-      onError:   () => { setDeleting(false); showToast('Failed to delete log'); setDeleteConfirm(false); },
+      onSuccess: () => { setDeleting(false); toast('Log deleted'); onSaved?.(); onClose(); },
+      onError:   () => { setDeleting(false); toast('Failed to delete log'); setDeleteConfirm(false); },
     });
   }
 
-  const stopProp = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
 
   // ── Collaborator helpers ───────────────────────────────────────────────────
   function addCollaborator() {
@@ -518,11 +519,8 @@ export default function LogFormModal({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Overlay */}
-      <div className="lfm-overlay" onClick={onClose}>
-
-        {/* Panel */}
-        <div className="lfm-panel" onClick={stopProp} role="dialog" aria-modal="true" aria-label="Log entry form">
+      <Dialog open={true} onOpenChange={v => { if (!v) onClose(); }}>
+        <DialogContent className="lfm-panel" showCloseButton={false} aria-label="Log entry form">
 
           {/* ── Header ── */}
           <div className="lfm-header">
@@ -538,31 +536,16 @@ export default function LogFormModal({
           <div className="lfm-body">
 
             {/* ── Entry type toggle ── */}
-            <div className="lfm-type-toggle">
-              <button
-                type="button"
-                className={`lfm-toggle-btn${entryType === 'range' ? ' lfm-toggle-btn--active' : ''}`}
-                onClick={() => setEntryType('range')}
-              >
-                Period
-              </button>
-              <button
-                type="button"
-                className={`lfm-toggle-btn${entryType === 'point' ? ' lfm-toggle-btn--active' : ''}`}
-                onClick={() => setEntryType('point')}
-              >
-                Point
-              </button>
-              {!isEdit && (
-                <button
-                  type="button"
-                  className={`lfm-toggle-btn${entryType === 'timer' ? ' lfm-toggle-btn--active' : ''}`}
-                  onClick={() => setEntryType('timer')}
-                >
-                  Timer
-                </button>
-              )}
-            </div>
+            <ToggleGroup
+              type="single"
+              value={entryType}
+              onValueChange={v => { if (v) setEntryType(v as typeof entryType); }}
+              className="lfm-type-toggle"
+            >
+              <ToggleGroupItem value="range">Period</ToggleGroupItem>
+              <ToggleGroupItem value="point">Point</ToggleGroupItem>
+              {!isEdit && <ToggleGroupItem value="timer">Timer</ToggleGroupItem>}
+            </ToggleGroup>
 
             {/* ── Time + Date card ── */}
             <div className="lfm-time-card">
@@ -845,7 +828,7 @@ export default function LogFormModal({
                               return (
                                 <button key={ticket.id} type="button"
                                         className={`lfm-jira-result-card${isLinked ? ' lfm-jira-result-card--selected' : ''}`}
-                                        onClick={() => setJiraConfirmTicket(ticket)}>
+                                        onClick={() => { setLinkedTicket(ticket); setTicketId(ticket.key); setJiraOpen(false); }}>
                                   <div className="lfm-jira-result-top">
                                     <a className="lfm-jira-result-key" href={ticket.url}
                                        target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
@@ -900,23 +883,6 @@ export default function LogFormModal({
                           </div>
                         )}
 
-                        {/* Inline confirm */}
-                        {jiraConfirmTicket && (
-                          <div className="lfm-jira-confirm-inline">
-                            <p className="lfm-jira-confirm-msg">
-                              Use <strong>{jiraConfirmTicket.key}</strong>?
-                            </p>
-                            <p className="lfm-jira-confirm-summary">{jiraConfirmTicket.summary}</p>
-                            <div className="lfm-jira-confirm-btns">
-                              <button type="button" className="lfm-rename-cancel" onClick={() => setJiraConfirmTicket(null)}>
-                                Cancel
-                              </button>
-                              <button type="button" className="lfm-btn-save" onClick={confirmJiraTicket}>
-                                Use Ticket
-                              </button>
-                            </div>
-                          </div>
-                        )}
                       </>
                     )}
                   </div>
@@ -1121,8 +1087,8 @@ export default function LogFormModal({
             )}
           </div>{/* /lfm-footer */}
 
-        </div>{/* /lfm-panel */}
-      </div>{/* /lfm-overlay */}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Context menu ── */}
       {ctxMenu.visible && (

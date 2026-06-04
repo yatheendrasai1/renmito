@@ -15,6 +15,15 @@
   gap: 10px;
 }
 
+.sd-wrap--scrolling {
+  opacity: 0.25;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.sd-wrap {
+  transition: opacity 0.3s;
+}
+
 /* ── Main button ─────────────────────────────────────── */
 .sd-main {
   width: 52px;

@@ -276,3 +276,146 @@
 }
 .rc-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .rc-send-btn:hover:not(:disabled) { opacity: 0.85; }
+
+/* ── Notes toggle button ─────────────────────────────────────────────── */
+.rc-notes-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  margin-left: auto;
+  margin-right: 8px;
+}
+.rc-notes-toggle--open {
+  background: rgba(167, 139, 250, 0.12);
+  border-color: rgba(167, 139, 250, 0.4);
+  color: #a78bfa;
+}
+
+/* ── Notes panel ─────────────────────────────────────────────────────── */
+.rc-notes-panel {
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
+  max-height: 220px;
+  overflow-y: auto;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.rc-notes-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  z-index: 1;
+}
+.rc-notes-count {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.rc-notes-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 14px 12px;
+  margin: 0;
+}
+
+.rc-notes-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.rc-note-item {
+  border-bottom: 1px solid var(--border);
+}
+.rc-note-item:last-child { border-bottom: none; }
+
+.rc-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+  transition: background 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.rc-note-header:hover { background: var(--bg-surface); }
+.rc-note-header--open { background: var(--bg-surface); }
+
+.rc-note-preview {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rc-note-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.18s;
+}
+.rc-note-chevron--open { transform: rotate(180deg); }
+
+.rc-note-body {
+  padding: 4px 14px 10px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: text;
+}
+
+/* ── Paste-in-chat floating button ───────────────────────────────────── */
+.rc-paste-btn {
+  position: absolute;
+  transform: translateX(-50%);
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+  pointer-events: auto;
+  animation: rcFadeUp 0.12s ease;
+}
+@keyframes rcFadeUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}

@@ -11,6 +11,7 @@ import {
 } from '@/hooks/useNotes';
 import { useLogTypes }  from '@/hooks/useLogTypes';
 import LogFormModal     from './LogFormModal';
+import RenniChat        from '@/components/chat/RenniChat';
 import type { LogType } from '@/types';
 import './NotesSheet.css';
 
@@ -155,6 +156,8 @@ export default function NotesSheet({ date, onClose }: Props) {
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [pendingDeleteId,  setPendingDeleteId]  = useState<string | null>(null);
+  const [renniOpen,        setRenniOpen]        = useState(false);
+  const [renniInitialMsg,  setRenniInitialMsg]  = useState('');
 
   // Point logger modal opened from a tapper note
   const [pointLoggerNote, setPointLoggerNote] = useState<LocalNote | null>(null);
@@ -204,13 +207,11 @@ export default function NotesSheet({ date, onClose }: Props) {
   // ── Log to Renni ──────────────────────────────────────────────────────────
   function handleLogToRenni(note: LocalNote) {
     if (!note.localContent) return;
-    // Save unsaved edits first, then navigate to Renni
     if (note.localContent !== note.savedContent) {
       updateMutation.mutate({ noteId: note._id, content: note.localContent });
     }
-    onClose();
-    toast('Opening Renni…');
-    // Future: dispatch openRenni event with note content
+    setRenniInitialMsg(note.localContent);
+    setRenniOpen(true);
   }
 
   // ── Delete ─────────────────────────────────────────────────────────────────
@@ -392,13 +393,13 @@ export default function NotesSheet({ date, onClose }: Props) {
                         onChange={e => patchNote(note._id, { localContent: e.target.value })}
                         onBlur={() => handleBlur(note)}
                         placeholder="Note…"
-                        maxLength={500}
+                        maxLength={1000}
                       />
 
                       <div className="ns-note-footer">
                         {note.saving && <span className="ns-saving-badge">saving…</span>}
                         <span className={`ns-char-count${note.localContent.length >= 450 ? ' ns-char-count--near' : ''}`}>
-                          {note.localContent.length}/500
+                          {note.localContent.length}/1000
                         </span>
                       </div>
                     </div>
@@ -520,6 +521,14 @@ export default function NotesSheet({ date, onClose }: Props) {
 
         </SheetContent>
       </Sheet>
+
+      {/* Renni chat pre-filled with note content */}
+      {renniOpen && (
+        <RenniChat
+          initialMessage={renniInitialMsg}
+          onClose={() => setRenniOpen(false)}
+        />
+      )}
 
       {/* Point logger modal from tapper */}
       {pointLoggerNote && (

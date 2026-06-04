@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect, type FormEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, type FormEvent } from 'react';
+import { toast } from 'sonner';
 import { useAppStore }  from '@/store/appStore';
 import { useCreateLog } from '@/hooks/useLogs';
+import { useNotes }     from '@/hooks/useNotes';
 import api              from '@/lib/api';
 import './RenniChat.css';
 
@@ -38,20 +40,27 @@ interface Msg {
 }
 
 interface Props {
+  initialMessage?: string;
   onClose: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function RenniChat({ onClose }: Props) {
+export default function RenniChat({ onClose, initialMessage }: Props) {
   const selectedDate = useAppStore(s => s.selectedDate);
-  const showToast    = useAppStore(s => s.showToast);
   const createLog    = useCreateLog(selectedDate);
 
   const [msgs,       setMsgs]       = useState<Msg[]>([]);
-  const [input,      setInput]      = useState('');
+  const [input,      setInput]      = useState(initialMessage ?? '');
   const [sending,    setSending]    = useState(false);
   const [confirming, setConfirming] = useState<number | null>(null);
+
+  const [notesOpen,    setNotesOpen]    = useState(false);
+  const [expandedNote, setExpandedNote] = useState<string | null>(null);
+  const [pasteBtn,     setPasteBtn]     = useState<{ text: string; x: number; y: number } | null>(null);
+
+  const { data: dayNotes } = useNotes(selectedDate);
+  const notes = dayNotes?.notes ?? [];
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLTextAreaElement>(null);
@@ -59,6 +68,28 @@ export default function RenniChat({ onClose }: Props) {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [msgs]);
+
+  // Dismiss paste button on outside click
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      const el = e.target as HTMLElement;
+      if (!el.closest('.rc-paste-btn')) setPasteBtn(null);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, []);
+
+  const handleNoteTextUp = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    const sel = window.getSelection();
+    const text = sel?.toString().trim() ?? '';
+    if (!text) { setPasteBtn(null); return; }
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    const popupEl = (e.currentTarget as HTMLElement).closest<HTMLElement>('.rc-popup');
+    const popupRect = popupEl?.getBoundingClientRect();
+    const x = (popupRect ? rect.left - popupRect.left + rect.width / 2 : rect.left) ;
+    const y = (popupRect ? rect.top  - popupRect.top  - 36               : rect.top - 36);
+    setPasteBtn({ text, x, y });
+  }, []);
 
   async function send(e: FormEvent) {
     e.preventDefault();
@@ -122,7 +153,7 @@ export default function RenniChat({ onClose }: Props) {
 
     setMsgs(m => m.map((msg, i) => i === msgIdx ? { ...msg, confirmed: true } : msg));
     setConfirming(null);
-    showToast(`Logged ${saved} ${saved === 1 ? 'entry' : 'entries'}`);
+    toast(`Logged ${saved} ${saved === 1 ? 'entry' : 'entries'}`);
   }
 
   /** Remove one parsed log from a pending confirmation card. */
@@ -158,6 +189,20 @@ export default function RenniChat({ onClose }: Props) {
             </svg>
             Renni
           </div>
+          <button
+            className={`rc-notes-toggle${notesOpen ? ' rc-notes-toggle--open' : ''}`}
+            onClick={() => setNotesOpen(v => !v)}
+            title="Browse today's notes"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="8" y1="13" x2="16" y2="13"/>
+              <line x1="8" y1="17" x2="12" y2="17"/>
+            </svg>
+            Notes
+          </button>
           <button className="rc-close" onClick={onClose} aria-label="Close">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -277,6 +322,69 @@ export default function RenniChat({ onClose }: Props) {
             </div>
           ))}
         </div>
+
+        {/* Notes panel */}
+        {notesOpen && (
+          <div className="rc-notes-panel">
+            <div className="rc-notes-panel-header">
+              Today&apos;s Notes
+              <span className="rc-notes-count">{notes.length}</span>
+            </div>
+            {notes.length === 0 ? (
+              <p className="rc-notes-empty">No notes for today.</p>
+            ) : (
+              <div className="rc-notes-list">
+                {notes.map(note => {
+                  const isOpen = expandedNote === note._id;
+                  const preview = note.content.length > 60
+                    ? note.content.slice(0, 60) + '…'
+                    : note.content;
+                  return (
+                    <div key={note._id} className="rc-note-item">
+                      <button
+                        className={`rc-note-header${isOpen ? ' rc-note-header--open' : ''}`}
+                        onClick={() => setExpandedNote(isOpen ? null : note._id)}
+                      >
+                        <span className="rc-note-preview">{isOpen ? note.content.slice(0, 40) + (note.content.length > 40 ? '…' : '') : preview}</span>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                             className={`rc-note-chevron${isOpen ? ' rc-note-chevron--open' : ''}`}>
+                          <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                      </button>
+                      {isOpen && (
+                        <div
+                          className="rc-note-body"
+                          onMouseUp={handleNoteTextUp}
+                          onContextMenu={e => e.preventDefault()}
+                          style={{ userSelect: 'text', WebkitUserSelect: 'text' } as React.CSSProperties}
+                        >
+                          {note.content}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {/* Floating paste button */}
+            {pasteBtn && (
+              <button
+                className="rc-paste-btn"
+                style={{ left: pasteBtn.x, top: pasteBtn.y }}
+                onPointerDown={e => {
+                  e.preventDefault();
+                  setInput(prev => prev ? prev + ' ' + pasteBtn.text : pasteBtn.text);
+                  setPasteBtn(null);
+                  window.getSelection()?.removeAllRanges();
+                  inputRef.current?.focus();
+                }}
+              >
+                Paste in Chat
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Input */}
         <form className="rc-input-row" onSubmit={send}>

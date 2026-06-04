@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useDeleteLog, useUpdateLog } from '@/hooks/useLogs';
 import { useLogTypes }                from '@/hooks/useLogTypes';
-import { useAppStore }                from '@/store/appStore';
 import LogFormModal                   from './LogFormModal';
 import type { LogEntry, LogType }     from '@/types';
 import './LogList.css';
@@ -113,11 +113,11 @@ interface InlineEditProps {
 
 function InlineEditForm({ log, logType, allTypes, date, onClose }: InlineEditProps) {
   const updateMutation = useUpdateLog(date);
-  const showToast      = useAppStore(s => s.showToast);
 
   const [title,  setTitle]  = useState(log.title);
   // Prefer the resolved logType (handles DefaultLogType), fall back to log.logType
-  const [typeId, setTypeId] = useState(logType?._id ?? log.logType?._id ?? '');
+  const resolveId = (lt: { _id?: string; id?: string } | null | undefined) => lt?._id ?? (lt as { id?: string } | null | undefined)?.id ?? '';
+  const [typeId, setTypeId] = useState(resolveId(logType) || resolveId(log.logType));
   const [start,  setStart]  = useState(isoToHHMM(log.startAt));
   const [end,    setEnd]    = useState(isoToHHMM(log.endAt ?? log.startAt));
 
@@ -133,8 +133,8 @@ function InlineEditForm({ log, logType, allTypes, date, onClose }: InlineEditPro
         endTime:   isPoint ? start : end,
       },
     }, {
-      onSuccess: () => { showToast('Log updated'); onClose(); },
-      onError:   () => showToast('Failed to update log'),
+      onSuccess: () => { toast('Log updated'); onClose(); },
+      onError:   () => toast('Failed to update log'),
     });
   }
 
@@ -204,7 +204,6 @@ interface RowProps {
 function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
   const deleteMutation = useDeleteLog(date);
   const updateMutation = useUpdateLog(log.date);
-  const showToast      = useAppStore(s => s.showToast);
 
   const [rowState,      setRowState]      = useState<RowState>('collapsed');
   const [confirming,    setConfirming]    = useState(false);
@@ -262,8 +261,8 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
     e.stopPropagation();
     if (!confirming) { setConfirming(true); return; }
     deleteMutation.mutate(log.id, {
-      onSuccess: () => showToast(`Deleted "${name}" log`),
-      onError:   () => showToast('Failed to delete log'),
+      onSuccess: () => toast(`Deleted "${name}" log`),
+      onError:   () => toast('Failed to delete log'),
     });
     setConfirming(false);
   }
@@ -285,8 +284,8 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
       ? { startTime: pickerTime, date: pickerDate }
       : { endTime: pickerTime, endDate: pickerDate };
     updateMutation.mutate({ id: log.id, entry }, {
-      onSuccess: () => { setPickerSaving(false); setPickerField(null); showToast('Log updated'); },
-      onError:   () => { setPickerSaving(false); showToast('Failed to update log'); },
+      onSuccess: () => { setPickerSaving(false); setPickerField(null); toast('Log updated'); },
+      onError:   () => { setPickerSaving(false); toast('Failed to update log'); },
     });
   }
 
