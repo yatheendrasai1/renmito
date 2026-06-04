@@ -1,0 +1,36 @@
+/* ── Backdrop — full-screen overlay, flex-centers the popup ── */
+.cal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Popup card ── */
+.cal-popup {
+  background: var(--bg-surface, #1e1e2e);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+/* ── Calendar cell size ── */
+.cal-picker {
+  --cell-size: 35px;
+  --cell-radius: 6px;
+  padding: 12px !important;
+}
+
+/* ── Work-hours badge inside each day cell ── */
+.cal-work-mins {
+  display: block;
+  font-size: 8px;
+  font-weight: 700;
+  color: #5BAD6F;
+  line-height: 1;
+  letter-spacing: 0.1px;
+  text-align: center;
+}

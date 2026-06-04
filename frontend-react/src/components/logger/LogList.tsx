@@ -3,6 +3,10 @@ import { toast } from 'sonner';
 import { useDeleteLog, useUpdateLog } from '@/hooks/useLogs';
 import { useLogTypes }                from '@/hooks/useLogTypes';
 import LogFormModal                   from './LogFormModal';
+import { Input }    from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge }    from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { LogEntry, LogType }     from '@/types';
 import './LogList.css';
 
@@ -141,7 +145,7 @@ function InlineEditForm({ log, logType, allTypes, date, onClose }: InlineEditPro
   return (
     <div className="tl-edit-form" onClick={e => e.stopPropagation()}>
 
-      <textarea
+      <Textarea
         className="tl-edit-title"
         value={title}
         onChange={e => setTitle(e.target.value)}
@@ -150,22 +154,24 @@ function InlineEditForm({ log, logType, allTypes, date, onClose }: InlineEditPro
         autoFocus
       />
 
-      <select
-        className="tl-edit-type-select"
-        value={typeId}
-        onChange={e => setTypeId(e.target.value)}
-      >
-        <option value="" disabled>Select type…</option>
-        {allTypes.map(lt => (
-          <option key={lt._id} value={lt._id}>{lt.name} ({lt.domain})</option>
-        ))}
-      </select>
+      <Select value={typeId} onValueChange={setTypeId}>
+        <SelectTrigger className="tl-edit-type-select">
+          <SelectValue placeholder="Select type…" />
+        </SelectTrigger>
+        <SelectContent>
+          {allTypes.map(lt => (
+            <SelectItem key={lt._id} value={lt._id}>
+              {lt.name} ({lt.domain})
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       <div className="tl-edit-time-row">
         <span className="tl-edit-time-lbl">{isPoint ? 'Time' : 'Start'}</span>
         <button className="tl-edit-step" onClick={() => setStart(addMins(start, -15))}>−15</button>
         <button className="tl-edit-step" onClick={() => setStart(addMins(start, -5))}>−5</button>
-        <input  className="tl-edit-time-input" value={start} onChange={e => setStart(e.target.value)} maxLength={5}/>
+        <Input  className="tl-edit-time-input" value={start} onChange={e => setStart(e.target.value)} maxLength={5}/>
         <button className="tl-edit-step" onClick={() => setStart(addMins(start, +5))}>+5</button>
         <button className="tl-edit-step" onClick={() => setStart(addMins(start, +15))}>+15</button>
       </div>
@@ -175,7 +181,7 @@ function InlineEditForm({ log, logType, allTypes, date, onClose }: InlineEditPro
           <span className="tl-edit-time-lbl">End</span>
           <button className="tl-edit-step" onClick={() => setEnd(addMins(end, -15))}>−15</button>
           <button className="tl-edit-step" onClick={() => setEnd(addMins(end, -5))}>−5</button>
-          <input  className="tl-edit-time-input" value={end} onChange={e => setEnd(e.target.value)} maxLength={5}/>
+          <Input  className="tl-edit-time-input" value={end} onChange={e => setEnd(e.target.value)} maxLength={5}/>
           <button className="tl-edit-step" onClick={() => setEnd(addMins(end, +5))}>+5</button>
           <button className="tl-edit-step" onClick={() => setEnd(addMins(end, +15))}>+15</button>
         </div>
@@ -506,7 +512,7 @@ function GroupHeader({ period, count, collapsed, onToggle }: {
         </svg>
       </button>
       <span className="log-group-label">{period.toUpperCase()}</span>
-      <span className="log-group-count">{count}</span>
+      <Badge variant="secondary" className="log-group-count">{count}</Badge>
       <div className="log-group-line" />
     </div>
   );

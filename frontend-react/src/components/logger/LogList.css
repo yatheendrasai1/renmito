@@ -449,21 +449,30 @@
 .tl-edit-title:focus { border-color: var(--border-light, var(--border)); }
 .tl-edit-title::placeholder { color: var(--text-muted); opacity: 0.6; }
 
-.tl-edit-type-select {
+[data-slot="select-trigger"].tl-edit-type-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
   box-sizing: border-box;
+  min-height: 34px;
+  padding: 0 8px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: 12px;
-  padding: 8px 8px;
-  outline: none;
-  cursor: pointer;
   font-family: inherit;
   transition: border-color 0.15s;
 }
-.tl-edit-type-select:focus { border-color: var(--border-light, var(--border)); }
+[data-slot="select-trigger"].tl-edit-type-select [data-slot="select-value"] {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  overflow: visible;
+}
+[data-slot="select-trigger"].tl-edit-type-select[data-state="open"],
+[data-slot="select-trigger"].tl-edit-type-select:focus-within { border-color: var(--border-light, var(--border)); }
 
 .tl-edit-time-row {
   display: flex;

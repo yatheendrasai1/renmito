@@ -1232,7 +1232,7 @@
 .lfm-domain-row {
   display: flex;
   gap: 10px;
-  align-items: flex-end;
+  align-items: center;
 }
 
 .lfm-domain-field  { width: 130px; flex-shrink: 0; display: flex; flex-direction: column; gap: 5px; }
@@ -1246,9 +1246,14 @@
   letter-spacing: 0.8px;
 }
 
-.lfm-select {
+/* Use data-slot attribute selector for higher specificity (0,2,0) to beat Tailwind utilities */
+[data-slot="select-trigger"].lfm-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
-  padding: 8px 10px;
+  min-height: 36px;
+  padding: 0 12px;
   background: var(--bg-card);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm, 8px);
@@ -1256,23 +1261,53 @@
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
-  outline: none;
-  cursor: pointer;
   transition: border-color 0.13s, color 0.13s;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%236A7290' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 30px;
 }
-.lfm-select:focus { border-color: var(--highlight-selected); }
-.lfm-select:hover { border-color: color-mix(in srgb, var(--highlight-selected) 50%, transparent); }
+[data-slot="select-trigger"].lfm-select:focus-within,
+[data-slot="select-trigger"].lfm-select[data-state="open"] { border-color: var(--highlight-selected); }
+[data-slot="select-trigger"].lfm-select:hover { border-color: color-mix(in srgb, var(--highlight-selected) 50%, transparent); }
 
-/* Pill variant — no label above, larger rounded appearance */
-.lfm-select--pill {
+/* Pill variant */
+[data-slot="select-trigger"].lfm-select--pill {
   border-radius: 20px;
-  padding: 9px 32px 9px 14px;
-  font-size: 13px;
+}
+
+/* Force the SelectValue span to be properly centered */
+[data-slot="select-trigger"].lfm-select [data-slot="select-value"] {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  overflow: visible;
+}
+
+/* Wrapper that groups swatch + SelectValue inside a trigger (keeps them left-aligned against the chevron) */
+.lfm-select-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Color dot for log type items — pseudo-element so Radix doesn't include it in SelectValue text */
+.lfm-type-option::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--type-color, currentColor);
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* Colored swatch dot used in log type trigger + items */
+.lfm-type-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .lfm-select-skeleton {
@@ -1506,10 +1541,14 @@
   gap: 8px;
   align-items: center;
 }
-.lfm-jira-query-select {
+[data-slot="select-trigger"].lfm-jira-query-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex: 1;
   min-width: 0;
-  padding: 8px 10px;
+  min-height: 34px;
+  padding: 0 10px;
   background: var(--bg-surface, rgba(255,255,255,0.06));
   border: 1px solid var(--border-light, rgba(255,255,255,0.10));
   border-radius: 8px;
@@ -1517,11 +1556,16 @@
   font-size: 0.84rem;
   font-weight: 500;
   font-family: inherit;
-  outline: none;
-  cursor: pointer;
   transition: border-color 0.14s;
 }
-.lfm-jira-query-select:focus { border-color: rgba(38,132,255,0.5); }
+[data-slot="select-trigger"].lfm-jira-query-select [data-slot="select-value"] {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  overflow: visible;
+}
+[data-slot="select-trigger"].lfm-jira-query-select[data-state="open"],
+[data-slot="select-trigger"].lfm-jira-query-select:focus-within { border-color: rgba(38,132,255,0.5); }
 
 /* Fetch button */
 .lfm-jira-fetch-btn {

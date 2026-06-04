@@ -83,6 +83,24 @@
   align-items: center;
 }
 
+.hero-date-line--btn {
+  background: none;
+  cursor: pointer;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 2px 4px 2px 0;
+  transition: opacity 0.15s;
+}
+.hero-date-line--btn:hover { opacity: 0.8; }
+.hero-date-line--btn:active { opacity: 0.6; }
+
+.hero-cal-icon {
+  color: var(--hero-fg-dim);
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-bottom: 8px;
+}
+
 .hero-day-num {
   font-size: 48px;
   font-weight: 900;

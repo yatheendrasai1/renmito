@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQueryClient }          from '@tanstack/react-query';
 import { useLogs, useUpdateLog, useCreateLog } from '@/hooks/useLogs';
 import { useDayMetadata, useCaptureDayMeta }   from '@/hooks/useDayMetadata';
@@ -206,19 +209,23 @@ function SlotForm({ slot, logTypes, selectedDate, onClose, onSaved }: SlotFormPr
 
       {/* Type selector (only for create, or if no type on existing) */}
       {(!isEdit || !slot.logEntry?.logType) && (
-        <select className="il-slot-type-select" value={typeId} onChange={e => setTypeId(e.target.value)}>
-          <option value="" disabled>Select type…</option>
-          {logTypes.filter(lt => lt.domain === 'personal').map(lt => (
-            <option key={lt._id} value={lt._id}>{lt.name}</option>
-          ))}
-        </select>
+        <Select value={typeId} onValueChange={setTypeId}>
+          <SelectTrigger className="il-slot-type-select">
+            <SelectValue placeholder="Select type…" />
+          </SelectTrigger>
+          <SelectContent>
+            {logTypes.filter(lt => lt.domain === 'personal').map(lt => (
+              <SelectItem key={lt._id} value={lt._id}>{lt.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
       {/* Time row */}
       <div className="il-slot-time-row-edit">
         <button className="il-step-btn" onClick={() => setTime(addMins(time, -15))}>−15</button>
         <button className="il-step-btn" onClick={() => setTime(addMins(time,  -5))}>−5</button>
-        <input
+        <Input
           className="il-time-input"
           value={time}
           onChange={e => setTime(e.target.value)}
@@ -319,9 +326,9 @@ export default function ImportantLogsModal({ open, selectedDate, onClose }: Prop
                       <div className="il-slot-time-row">
                         <span className="il-slot-time">{toAmPm(slot.time)}</span>
                         {slot.dayBadge && (
-                          <span className={`il-day-badge il-day-badge--${slot.dayBadge}`}>
+                          <Badge variant="outline" className={`il-day-badge il-day-badge--${slot.dayBadge}`}>
                             {slot.dayBadge}
-                          </span>
+                          </Badge>
                         )}
                         {slot.stale && (
                           <span className="il-stale-warn" title="Time changed since last Capture">

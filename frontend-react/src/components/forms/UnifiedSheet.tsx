@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react';
+import { Input }    from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -114,10 +116,10 @@ function DetailsCard({ state, onChange, domain, showPlan, planned, onPlanned }: 
         <div className="ln-detail-row">
           <span className="ln-detail-label">Ticket ID</span>
           <div className="ln-detail-ctrl">
-            <input type="text" className="ln-detail-input"
+            <Input className="ln-detail-input"
                    value={state.ticketId}
                    onChange={e => onChange({ ticketId: e.target.value })}
-                   placeholder="e.g. JIRA-1234" maxLength={100} autoComplete="off"/>
+                   placeholder="e.g. JIRA-1234" maxLength={100} autoComplete="off" />
           </div>
         </div>
       )}
@@ -155,11 +157,11 @@ function DetailsCard({ state, onChange, domain, showPlan, planned, onPlanned }: 
               </div>
             )}
             <div className="ln-collab-row">
-              <input type="text" className="ln-collab-input"
+              <Input className="ln-collab-input"
                      value={state.collaboratorInput}
                      onChange={e => onChange({ collaboratorInput: e.target.value })}
                      placeholder="Name or team…" maxLength={60} autoComplete="off"
-                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCollab(); }}}/>
+                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCollab(); }}} />
               <button type="button" className="ln-collab-add"
                       onClick={addCollab} disabled={!state.collaboratorInput.trim()}>Add</button>
             </div>
@@ -314,7 +316,7 @@ export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
           <TabsContent value="1" asChild>
           <form className="uni-form" onSubmit={saveAddLog}>
             <div className="uni-fields">
-              <textarea className="ln-title-input" rows={3} placeholder="Title (optional)"
+              <Textarea className="ln-title-input" rows={3} placeholder="Title (optional)"
                         value={t1Title} onChange={e => setT1Title(e.target.value)} />
               <TypeSelector logTypes={logTypes} domain={t1Domain} selectedId={t1TypeId}
                             onDomain={setT1Domain} onSelect={setT1TypeId} />
@@ -335,7 +337,7 @@ export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
           <TabsContent value="2" asChild>
           <form className="uni-form" onSubmit={saveAddPoint}>
             <div className="uni-fields">
-              <textarea className="ln-title-input" rows={3} placeholder="Title (optional)"
+              <Textarea className="ln-title-input" rows={3} placeholder="Title (optional)"
                         value={t2Title} onChange={e => setT2Title(e.target.value)} />
               <TypeSelector logTypes={logTypes} domain={t2Domain} selectedId={t2TypeId}
                             onDomain={setT2Domain} onSelect={setT2TypeId} />
@@ -355,7 +357,7 @@ export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
           <TabsContent value="3" asChild>
           <form className="uni-form" onSubmit={saveStartTimer}>
             <div className="uni-fields">
-              <textarea className="ln-title-input" rows={3} placeholder="Title (optional — defaults to type name)"
+              <Textarea className="ln-title-input" rows={3} placeholder="Title (optional — defaults to type name)"
                         value={t3Title} onChange={e => setT3Title(e.target.value)} />
               <TypeSelector logTypes={logTypes} domain={t3Domain} selectedId={t3TypeId}
                             onDomain={setT3Domain} onSelect={setT3TypeId} />

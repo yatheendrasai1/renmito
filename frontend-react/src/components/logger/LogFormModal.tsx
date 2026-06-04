@@ -2,6 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Input }    from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge }    from '@/components/ui/badge';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 import { useCreateLog, useUpdateLog, useDeleteLog } from '@/hooks/useLogs';
 import {
   useLogTypes,
@@ -593,7 +603,7 @@ export default function LogFormModal({
             </div>
 
             {/* ── Description ── */}
-            <textarea
+            <Textarea
               id="lfm-desc"
               className="lfm-description-textarea"
               value={title}
@@ -606,14 +616,15 @@ export default function LogFormModal({
             {/* ── Domain + Log Type ── */}
             <div className="lfm-domain-row">
               <div className="lfm-domain-field">
-                <select
-                  className="lfm-select lfm-select--pill"
-                  value={selectedDomain}
-                  onChange={e => handleDomainChange(e.target.value as 'work' | 'personal')}
-                >
-                  <option value="work">Work</option>
-                  <option value="personal">Personal</option>
-                </select>
+                <Select value={selectedDomain} onValueChange={v => handleDomainChange(v as 'work' | 'personal')}>
+                  <SelectTrigger className="lfm-select lfm-select--pill">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="work">Work</SelectItem>
+                    <SelectItem value="personal">Personal</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="lfm-logtype-field">
                 {typesLoading ? (
@@ -624,22 +635,37 @@ export default function LogFormModal({
                     <button className="lfm-retry-btn" onClick={() => refetchTypes()}>Retry</button>
                   </div>
                 ) : (
-                  <select
-                    className={`lfm-select lfm-select--pill${selectedType ? ' lfm-select--has-color' : ''}`}
+                  <Select
                     value={selectedType?._id ?? ''}
-                    onChange={e => {
-                      const lt = domainTypes.find(t => t._id === e.target.value);
-                      if (lt) { setSelectedType(lt); }
-                    }}
-                    style={selectedType ? { borderColor: selectedType.color + '88', color: selectedType.color } as React.CSSProperties : {}}
+                    onValueChange={v => { const lt = domainTypes.find(t => t._id === v); if (lt) setSelectedType(lt); }}
                   >
-                    {domainTypes.length === 0 && (
-                      <option value="" disabled>No types — create one below</option>
-                    )}
-                    {domainTypes.map(lt => (
-                      <option key={lt._id} value={lt._id}>{lt.name}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      className="lfm-select lfm-select--pill lfm-logtype-trigger"
+                      style={selectedType ? { borderColor: selectedType.color + '88', color: selectedType.color } as React.CSSProperties : {}}
+                    >
+                      <span className="lfm-select-inner">
+                        {selectedType && (
+                          <span className="lfm-type-swatch" style={{ background: selectedType.color }} />
+                        )}
+                        <SelectValue placeholder="No types — create one below" />
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {domainTypes.length === 0 && (
+                        <SelectItem value="__empty__" disabled>No types — create one below</SelectItem>
+                      )}
+                      {domainTypes.map(lt => (
+                        <SelectItem
+                          key={lt._id}
+                          value={lt._id}
+                          className="lfm-type-option"
+                          style={{ '--type-color': lt.color } as React.CSSProperties}
+                        >
+                          {lt.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             </div>
@@ -665,8 +691,7 @@ export default function LogFormModal({
             {/* ── Ticket ID expand ── */}
             {activeField === 'ticketId' && showTicketChips && (
               <div className="lfm-field-expand">
-                <input
-                  type="text"
+                <Input
                   className="lfm-ticket-input"
                   value={ticketId}
                   onChange={e => setTicketId(e.target.value)}
@@ -698,7 +723,7 @@ export default function LogFormModal({
                   </svg>
                   <span className="lfm-optional-label">JIRA</span>
                   {linkedTicket && (
-                    <span className="lfm-optional-badge">{linkedTicket.key}</span>
+                    <Badge variant="outline" className="lfm-optional-badge">{linkedTicket.key}</Badge>
                   )}
                 </button>
 
@@ -758,17 +783,21 @@ export default function LogFormModal({
                         {!queriesLoading && savedQueries.length > 0 && (
                           <div className="lfm-jira-form">
                             <div className="lfm-jira-query-row">
-                              <select className="lfm-jira-query-select" value={selectedQueryId}
-                                      onChange={e => setSelectedQueryId(e.target.value)}>
-                                {savedQueries.map(q => (
-                                  <option key={q._id} value={q._id}>{q.name}</option>
-                                ))}
-                              </select>
+                              <Select value={selectedQueryId} onValueChange={setSelectedQueryId}>
+                                <SelectTrigger className="lfm-jira-query-select">
+                                  <SelectValue placeholder="Select query…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {savedQueries.map(q => (
+                                    <SelectItem key={q._id} value={q._id}>{q.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
 
                             {jqlEditorOpen ? (
                               <div className="lfm-jira-jql-editor">
-                                <textarea className="lfm-jira-jql-textarea" value={editJql}
+                                <Textarea className="lfm-jira-jql-textarea" value={editJql}
                                           onChange={e => setEditJql(e.target.value)} rows={3} spellCheck={false} />
                                 <button type="button" className="lfm-jira-cancel-edit-btn"
                                         onClick={() => { setJqlEditorOpen(false); setEditJql(selectedQueryJql); }}>
@@ -781,7 +810,7 @@ export default function LogFormModal({
                                   {activePlaceholders.map(key => (
                                     <div key={key} className="lfm-jira-placeholder-row">
                                       <label className="lfm-jira-placeholder-label">{`{{${key}}}`}</label>
-                                      <input type="text" className="lfm-jira-placeholder-input"
+                                      <Input className="lfm-jira-placeholder-input"
                                              value={placeholderValues[key] ?? ''}
                                              onChange={e => setPlaceholderValues(prev => ({ ...prev, [key]: e.target.value }))}
                                              placeholder={`Enter ${key}`} />
@@ -905,7 +934,7 @@ export default function LogFormModal({
                 </svg>
                 <span className="lfm-optional-label">optionals</span>
                 {optionalCount > 0 && (
-                  <span className="lfm-optional-badge">{optionalCount}</span>
+                  <Badge variant="secondary" className="lfm-optional-badge">{optionalCount}</Badge>
                 )}
               </button>
 
@@ -1004,8 +1033,7 @@ export default function LogFormModal({
                             </div>
                           )}
                           <div className="lfm-collab-input-row">
-                            <input
-                              type="text"
+                            <Input
                               className="lfm-collab-input"
                               value={collaboratorInput}
                               onChange={e => setCollaboratorInput(e.target.value)}
@@ -1051,40 +1079,24 @@ export default function LogFormModal({
 
           {/* ── Footer (sticky) ── */}
           <div className="lfm-footer">
-            {isEdit && deleteConfirm ? (
-              <div className="lfm-delete-confirm">
-                <p className="lfm-delete-confirm-msg">
-                  Delete <strong>"{editEntry?.title || selectedType?.name || 'this entry'}"</strong>? This cannot be undone.
-                </p>
-                <div className="lfm-delete-confirm-btns">
-                  <button type="button" className="lfm-btn-confirm-cancel" onClick={() => setDeleteConfirm(false)}>
-                    Keep it
-                  </button>
-                  <button type="button" className="lfm-btn-confirm-delete" onClick={confirmDeleteLog} disabled={deleting}>
-                    {deleting ? 'Deleting…' : 'Yes, Delete'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="lfm-actions">
-                <button type="button" className="lfm-btn-save" disabled={!canSave || saving} onClick={save}>
-                  {saving
-                    ? (entryType === 'timer' ? 'Starting…' : 'Saving…')
-                    : isEdit ? 'Update Log'
-                    : entryType === 'timer' ? 'Start Timer'
-                    : 'Save'}
+            <div className="lfm-actions">
+              <button type="button" className="lfm-btn-save" disabled={!canSave || saving} onClick={save}>
+                {saving
+                  ? (entryType === 'timer' ? 'Starting…' : 'Saving…')
+                  : isEdit ? 'Update Log'
+                  : entryType === 'timer' ? 'Start Timer'
+                  : 'Save'}
+              </button>
+              {isEdit && (
+                <button type="button" className="lfm-btn-delete lfm-btn-delete--inline" onClick={() => setDeleteConfirm(true)} disabled={saving}>
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9H3z"
+                          stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Delete
                 </button>
-                {isEdit && (
-                  <button type="button" className="lfm-btn-delete lfm-btn-delete--inline" onClick={() => setDeleteConfirm(true)} disabled={saving}>
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                      <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9H3z"
-                            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    Delete
-                  </button>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>{/* /lfm-footer */}
 
         </DialogContent>
@@ -1119,9 +1131,8 @@ export default function LogFormModal({
         <div className="lfm-rename-overlay" onClick={() => setRenameId(null)}>
           <div className="lfm-rename-panel" onClick={e => e.stopPropagation()}>
             <p className="lfm-rename-title">Rename Log Type</p>
-            <input
+            <Input
               className="lfm-rename-input"
-              type="text"
               value={renameName}
               onChange={e => setRenameName(e.target.value)}
               maxLength={40}
@@ -1147,6 +1158,24 @@ export default function LogFormModal({
           </div>
         </div>
       )}
+
+      {/* ── Delete log confirm ── */}
+      <AlertDialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete log entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete &ldquo;{editEntry?.title || selectedType?.name || 'this entry'}&rdquo;? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteLog} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Yes, Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Delete log type confirm ── */}
       {deleteTypeTarget && (

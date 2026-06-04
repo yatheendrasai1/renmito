@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input';
 import './TimeInput.css';
 
 interface Props {
@@ -24,7 +25,7 @@ export default function TimeInput({ label, value, onChange }: Props) {
       <div className="time-input-row">
         <button className="time-step-btn" onClick={() => onChange(addMins(value, -15))} title="-15 min">−15</button>
         <button className="time-step-btn" onClick={() => onChange(addMins(value, -5))}  title="-5 min">−5</button>
-        <input
+        <Input
           className="time-input-field"
           type="text"
           value={value}
@@ -33,7 +34,7 @@ export default function TimeInput({ label, value, onChange }: Props) {
           onChange={e => onChange(e.target.value)}
           onBlur={e => {
             const v = e.target.value;
-            if (!isValidTime(v)) onChange(value); // revert bad input
+            if (!isValidTime(v)) onChange(value);
           }}
         />
         <button className="time-step-btn" onClick={() => onChange(addMins(value, +5))}  title="+5 min">+5</button>

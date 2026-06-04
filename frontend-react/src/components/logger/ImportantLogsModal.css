@@ -200,20 +200,29 @@
   letter-spacing: 0.6px;
 }
 
-.il-slot-type-select {
+[data-slot="select-trigger"].il-slot-type-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
   box-sizing: border-box;
+  min-height: 34px;
+  padding: 0 8px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm, 6px);
   color: var(--text-primary);
   font-size: 12px;
-  padding: 7px 8px;
-  outline: none;
-  cursor: pointer;
   font-family: inherit;
 }
-.il-slot-type-select:focus { border-color: var(--accent); }
+[data-slot="select-trigger"].il-slot-type-select [data-slot="select-value"] {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  overflow: visible;
+}
+[data-slot="select-trigger"].il-slot-type-select[data-state="open"],
+[data-slot="select-trigger"].il-slot-type-select:focus-within { border-color: var(--accent); }
 
 .il-slot-time-row-edit {
   display: flex;

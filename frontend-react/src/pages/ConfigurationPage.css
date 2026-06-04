@@ -180,11 +180,23 @@
 .lt-name-input:focus { outline: none; }
 .lt-empty { font-size: 0.8rem; color: var(--text-muted, #6A7290); margin: 0; }
 .lt-new-form { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.lt-domain-select {
-  padding: 5px 8px; border-radius: 6px; font-size: 0.8rem;
+[data-slot="select-trigger"].lt-domain-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
   background: var(--bg-surface, rgba(255,255,255,0.06));
   border: 1px solid var(--border-light, rgba(255,255,255,0.1));
   color: inherit;
+}
+[data-slot="select-trigger"].lt-domain-select [data-slot="select-value"] {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  overflow: visible;
 }
 .lt-new-actions { display: flex; gap: 4px; }
 .lt-add-btn {
