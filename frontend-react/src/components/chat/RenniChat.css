@@ -399,7 +399,7 @@
 
 /* ── Paste-in-chat floating button ───────────────────────────────────── */
 .rc-paste-btn {
-  position: absolute;
+  position: fixed;
   transform: translateX(-50%);
   background: #7c3aed;
   color: #fff;

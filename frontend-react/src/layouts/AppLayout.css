@@ -43,13 +43,13 @@
    + env() safe-area-inset-bottom
    + 16px  gap above FAB
    + 52px  FAB height
-   + 8px   clearance
+   + 32px  extra clearance so nothing hides behind the tab bar
 */
 .view-area {
   flex: 1;
   overflow-x: clip; /* allows negative-margin bleed without horizontal scroll */
   min-width: 0;
-  padding: 0 24px calc(58px + env(safe-area-inset-bottom, 0px) + 16px + 52px + 24px);
+  padding: 0 24px calc(58px + env(safe-area-inset-bottom, 0px) + 16px + 52px + 32px);
 }
 
 /* ── Responsive horizontal padding ──────────────────────────────────────── */

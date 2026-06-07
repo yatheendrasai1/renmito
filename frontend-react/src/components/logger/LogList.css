@@ -2,7 +2,6 @@
 .log-list {
   display: flex;
   flex-direction: column;
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ── Period group ────────────────────────────────────────────────────────── */

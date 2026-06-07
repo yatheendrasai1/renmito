@@ -11,14 +11,16 @@ export default function SpeedDialFAB() {
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // The page scrolls inside .app-body, not window
+    const scrollEl = document.querySelector('.app-body') ?? window;
     function onScroll() {
       setScrolling(true);
       if (scrollTimer.current) clearTimeout(scrollTimer.current);
       scrollTimer.current = setTimeout(() => setScrolling(false), 400);
     }
-    window.addEventListener('scroll', onScroll, { passive: true });
+    scrollEl.addEventListener('scroll', onScroll, { passive: true });
     return () => {
-      window.removeEventListener('scroll', onScroll);
+      scrollEl.removeEventListener('scroll', onScroll);
       if (scrollTimer.current) clearTimeout(scrollTimer.current);
     };
   }, []);

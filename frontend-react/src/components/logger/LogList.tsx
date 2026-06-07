@@ -115,8 +115,10 @@ interface InlineEditProps {
   onClose:     () => void;
 }
 
-function InlineEditForm({ log, logType, allTypes, date, onClose }: InlineEditProps) {
-  const updateMutation = useUpdateLog(date);
+function InlineEditForm({ log, logType, allTypes, date: _date, onClose }: InlineEditProps) {
+  // Always use the log's own date so the PUT /logs/:date/:id URL is correct
+  const logDate = log.date ?? _date;
+  const updateMutation = useUpdateLog(logDate);
 
   const [title,  setTitle]  = useState(log.title);
   // Prefer the resolved logType (handles DefaultLogType), fall back to log.logType
@@ -128,15 +130,13 @@ function InlineEditForm({ log, logType, allTypes, date, onClose }: InlineEditPro
   const isPoint = log.entryType === 'point';
 
   function save() {
-    updateMutation.mutate({
-      id: log.id,
-      entry: {
-        title,
-        logTypeId: typeId,
-        startTime: start,
-        endTime:   isPoint ? start : end,
-      },
-    }, {
+    const entry: Parameters<typeof updateMutation.mutate>[0]['entry'] = {
+      title,
+      startTime: start,
+      endTime:   isPoint ? start : end,
+    };
+    if (typeId) entry.logTypeId = typeId;   // omit when empty to avoid 400
+    updateMutation.mutate({ id: log.id, entry }, {
       onSuccess: () => { toast('Log updated'); onClose(); },
       onError:   () => toast('Failed to update log'),
     });

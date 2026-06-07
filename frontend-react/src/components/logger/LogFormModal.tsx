@@ -12,7 +12,7 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter,
   AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
-import { useCreateLog, useUpdateLog, useDeleteLog } from '@/hooks/useLogs';
+import { useCreateLog, useUpdateLog, useDeleteLog, useLogs } from '@/hooks/useLogs';
 import {
   useLogTypes,
   useRenameLogType,
@@ -157,18 +157,46 @@ interface Props {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+function minsToHHMM(totalMins: number): string {
+  const clamped = ((totalMins % 1440) + 1440) % 1440;
+  const h = Math.floor(clamped / 60), m = clamped % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+function hhmmToMins(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
 function nowOffsetHHMM(offsetMins: number): string {
-  const d = new Date(Date.now() + offsetMins * 60_000);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const now = new Date();
+  return minsToHHMM(now.getHours() * 60 + now.getMinutes() + offsetMins);
 }
 
 export default function LogFormModal({
   mode, date, editEntry, startTime, endTime,
   onClose, onSaved,
 }: Props) {
-  const isEdit     = mode === 'edit';
-  const defaultStart = startTime ?? nowOffsetHHMM(-30);
-  const defaultEnd   = endTime   ?? nowOffsetHHMM(+30);
+  const isEdit = mode === 'edit';
+
+  // Compute smart defaults from last completed log's end time
+  const { data: existingLogs } = useLogs(date);
+  const defaultStart = React.useMemo(() => {
+    if (startTime) return startTime;
+    if (isEdit) return '';
+    const completed = (existingLogs ?? [])
+      .filter(l => l.endAt && l.status !== 'running')
+      .sort((a, b) => new Date(b.endAt!).getTime() - new Date(a.endAt!).getTime());
+    if (completed.length > 0) {
+      const lastEndHHMM = isoToHHMM(completed[0].endAt!);
+      return minsToHHMM(hhmmToMins(lastEndHHMM) + 10);
+    }
+    return nowOffsetHHMM(-30);
+  }, [startTime, isEdit, existingLogs, date]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const defaultEnd = React.useMemo(() => {
+    if (endTime) return endTime;
+    if (isEdit) return '';
+    return minsToHHMM(hhmmToMins(defaultStart) + 60);
+  }, [endTime, isEdit, defaultStart]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const createLog    = useCreateLog(date);

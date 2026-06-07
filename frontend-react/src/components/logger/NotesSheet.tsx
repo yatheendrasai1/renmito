@@ -398,7 +398,7 @@ export default function NotesSheet({ date, onClose }: Props) {
 
                       <div className="ns-note-footer">
                         {note.saving && <span className="ns-saving-badge">saving…</span>}
-                        <span className={`ns-char-count${note.localContent.length >= 450 ? ' ns-char-count--near' : ''}`}>
+                        <span className={`ns-char-count${note.localContent.length >= 900 ? ' ns-char-count--near' : ''}`}>
                           {note.localContent.length}/1000
                         </span>
                       </div>

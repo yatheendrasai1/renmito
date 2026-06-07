@@ -79,16 +79,17 @@ export default function RenniChat({ onClose, initialMessage }: Props) {
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, []);
 
-  const handleNoteTextUp = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    const sel = window.getSelection();
-    const text = sel?.toString().trim() ?? '';
-    if (!text) { setPasteBtn(null); return; }
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
-    const popupEl = (e.currentTarget as HTMLElement).closest<HTMLElement>('.rc-popup');
-    const popupRect = popupEl?.getBoundingClientRect();
-    const x = (popupRect ? rect.left - popupRect.left + rect.width / 2 : rect.left) ;
-    const y = (popupRect ? rect.top  - popupRect.top  - 36               : rect.top - 36);
-    setPasteBtn({ text, x, y });
+  const handleNoteTextUp = useCallback(() => {
+    // Small delay so the selection is finalised before we read it
+    setTimeout(() => {
+      const sel = window.getSelection();
+      const text = sel?.toString().trim() ?? '';
+      if (!text) { setPasteBtn(null); return; }
+      const range = sel!.getRangeAt(0);
+      const rect  = range.getBoundingClientRect();
+      // Use fixed viewport coordinates so the button never overlaps the input
+      setPasteBtn({ text, x: rect.left + rect.width / 2, y: rect.top - 40 });
+    }, 0);
   }, []);
 
   async function send(e: FormEvent) {
@@ -356,6 +357,7 @@ export default function RenniChat({ onClose, initialMessage }: Props) {
                         <div
                           className="rc-note-body"
                           onMouseUp={handleNoteTextUp}
+                          onTouchEnd={handleNoteTextUp}
                           onContextMenu={e => e.preventDefault()}
                           style={{ userSelect: 'text', WebkitUserSelect: 'text' } as React.CSSProperties}
                         >
@@ -367,23 +369,24 @@ export default function RenniChat({ onClose, initialMessage }: Props) {
                 })}
               </div>
             )}
-            {/* Floating paste button */}
-            {pasteBtn && (
-              <button
-                className="rc-paste-btn"
-                style={{ left: pasteBtn.x, top: pasteBtn.y }}
-                onPointerDown={e => {
-                  e.preventDefault();
-                  setInput(prev => prev ? prev + ' ' + pasteBtn.text : pasteBtn.text);
-                  setPasteBtn(null);
-                  window.getSelection()?.removeAllRanges();
-                  inputRef.current?.focus();
-                }}
-              >
-                Paste in Chat
-              </button>
-            )}
           </div>
+        )}
+
+        {/* Paste-in-chat button — fixed so it's never clipped by the panel */}
+        {pasteBtn && (
+          <button
+            className="rc-paste-btn"
+            style={{ left: pasteBtn.x, top: pasteBtn.y }}
+            onPointerDown={e => {
+              e.preventDefault();
+              setInput(prev => prev ? prev + ' ' + pasteBtn.text : pasteBtn.text);
+              setPasteBtn(null);
+              window.getSelection()?.removeAllRanges();
+              inputRef.current?.focus();
+            }}
+          >
+            Paste in Chat
+          </button>
         )}
 
         {/* Input */}
