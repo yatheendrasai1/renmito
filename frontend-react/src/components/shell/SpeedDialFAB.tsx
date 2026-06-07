@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import RenniChat    from '@/components/chat/RenniChat';
 import { useAppStore } from '@/store/appStore';
 import './SpeedDialFAB.css';
 
 export default function SpeedDialFAB() {
-  const [open,       setOpen]       = useState(false);
-  const [renniOpen,  setRenniOpen]  = useState(false);
+  const [open, setOpen] = useState(false);
   const [scrolling,  setScrolling]  = useState(false);
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -24,14 +22,14 @@ export default function SpeedDialFAB() {
       if (scrollTimer.current) clearTimeout(scrollTimer.current);
     };
   }, []);
-  const { pathname }              = useLocation();
-  const isJourneys                = pathname === '/journeys';
-  const openLogForm               = useAppStore(s => s.openLogForm);
+  const { pathname }  = useLocation();
+  const isJourneys    = pathname === '/journeys';
+  const openLogForm   = useAppStore(s => s.openLogForm);
+  const openRenniStore = useAppStore(s => s.openRenni);
 
   function close() { setOpen(false); }
-
-  function openSheet()  { close(); openLogForm(); }
-  function openRenni()  { close(); setRenniOpen(true); }
+  function openSheet() { close(); openLogForm(); }
+  function openRenni() { close(); openRenniStore(); }
 
   return (
     <>
@@ -81,8 +79,6 @@ export default function SpeedDialFAB() {
         </button>
       </div>
 
-      {/* Renni chat */}
-      {renniOpen && <RenniChat onClose={() => setRenniOpen(false)} />}
     </>
   );
 }

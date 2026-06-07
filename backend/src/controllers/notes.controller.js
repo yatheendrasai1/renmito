@@ -44,7 +44,7 @@ async function updateNote(req, res) {
     const { date, noteId } = req.params;
     if (!DATE_RE.test(date)) return res.status(400).json({ error: 'Invalid date format' });
     const { content = '' } = req.body;
-    if (content.length > 500) return res.status(400).json({ error: 'Note exceeds 500 characters' });
+    if (content.length > 1000) return res.status(400).json({ error: 'Note exceeds 1000 characters' });
     res.json(await service.updateNote(req.user.userId, date, noteId, content));
   } catch (err) {
     console.error('notes.updateNote:', err.message);

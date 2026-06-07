@@ -298,7 +298,10 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
   // ── Inline editing state ───────────────────────────────────────────────────
   if (rowState === 'inline-editing') {
     return (
-      <div ref={cardRef} className="tl-item tl-item--editing">
+      // onMouseDown stopPropagation prevents the document outside-click handler
+      // from firing when the user interacts with native <select> dropdowns
+      <div ref={cardRef} className="tl-item tl-item--editing"
+           onMouseDown={e => e.stopPropagation()}>
         <div className="tl-card tl-card--editing">
           <div className="tl-edit-header">
             <span className="log-list-type-chip" style={{ background: color + '28', color }}>

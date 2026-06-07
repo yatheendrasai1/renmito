@@ -6,6 +6,7 @@
   flex-direction: column;
   gap: 14px;
   min-width: 0;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ══════════════════════════════════════════

@@ -11,7 +11,7 @@ import {
 } from '@/hooks/useNotes';
 import { useLogTypes }  from '@/hooks/useLogTypes';
 import LogFormModal     from './LogFormModal';
-import RenniChat        from '@/components/chat/RenniChat';
+import { useAppStore }  from '@/store/appStore';
 import type { LogType } from '@/types';
 import './NotesSheet.css';
 
@@ -156,8 +156,7 @@ export default function NotesSheet({ date, onClose }: Props) {
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [pendingDeleteId,  setPendingDeleteId]  = useState<string | null>(null);
-  const [renniOpen,        setRenniOpen]        = useState(false);
-  const [renniInitialMsg,  setRenniInitialMsg]  = useState('');
+  const openRenni = useAppStore(s => s.openRenni);
 
   // Point logger modal opened from a tapper note
   const [pointLoggerNote, setPointLoggerNote] = useState<LocalNote | null>(null);
@@ -210,8 +209,7 @@ export default function NotesSheet({ date, onClose }: Props) {
     if (note.localContent !== note.savedContent) {
       updateMutation.mutate({ noteId: note._id, content: note.localContent });
     }
-    setRenniInitialMsg(note.localContent);
-    setRenniOpen(true);
+    openRenni(note.localContent);
   }
 
   // ── Delete ─────────────────────────────────────────────────────────────────
@@ -521,14 +519,6 @@ export default function NotesSheet({ date, onClose }: Props) {
 
         </SheetContent>
       </Sheet>
-
-      {/* Renni chat pre-filled with note content */}
-      {renniOpen && (
-        <RenniChat
-          initialMessage={renniInitialMsg}
-          onClose={() => setRenniOpen(false)}
-        />
-      )}
 
       {/* Point logger modal from tapper */}
       {pointLoggerNote && (

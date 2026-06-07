@@ -37,6 +37,12 @@ interface AppState {
   logFormOpen:  boolean;
   openLogForm:  () => void;
   closeLogForm: () => void;
+
+  // ── Renni chat ────────────────────────────────────────────────────────────
+  renniOpen:        boolean;
+  renniInitialMsg:  string;
+  openRenni:        (msg?: string) => void;
+  closeRenni:       () => void;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -60,4 +66,10 @@ export const useAppStore = create<AppState>((set) => ({
   logFormOpen:  false,
   openLogForm:  () => set({ logFormOpen: true }),
   closeLogForm: () => set({ logFormOpen: false }),
+
+  // Renni chat
+  renniOpen:       false,
+  renniInitialMsg: '',
+  openRenni:       (msg = '') => set({ renniOpen: true, renniInitialMsg: msg }),
+  closeRenni:      () => set({ renniOpen: false, renniInitialMsg: '' }),
 }));
