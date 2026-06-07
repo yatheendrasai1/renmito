@@ -209,6 +209,7 @@ export default function NotesSheet({ date, onClose }: Props) {
     if (note.localContent !== note.savedContent) {
       updateMutation.mutate({ noteId: note._id, content: note.localContent });
     }
+    onClose();           // close Notes sheet first — Radix focus-trap blocks Renni otherwise
     openRenni(note.localContent);
   }
 
