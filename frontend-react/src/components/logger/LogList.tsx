@@ -124,8 +124,8 @@ function InlineEditForm({ log, logType, allTypes, date: _date, onClose }: Inline
   // Prefer the resolved logType (handles DefaultLogType), fall back to log.logType
   const resolveId = (lt: { _id?: string; id?: string } | null | undefined) => lt?._id ?? (lt as { id?: string } | null | undefined)?.id ?? '';
   const [typeId, setTypeId] = useState(resolveId(logType) || resolveId(log.logType));
-  const [start,  setStart]  = useState(isoToHHMM(log.startAt));
-  const [end,    setEnd]    = useState(isoToHHMM(log.endAt ?? log.startAt));
+  const [start,  setStart]  = useState(isoToHHMM24(log.startAt));
+  const [end,    setEnd]    = useState(isoToHHMM24(log.endAt ?? log.startAt));
 
   const isPoint = log.entryType === 'point';
 
