@@ -25,14 +25,19 @@ export interface LogEntry {
 }
 
 export interface CreateLogEntry {
-  startTime: string;          // HH:MM
-  endTime: string;            // HH:MM
+  // Preferred write path: full UTC ISO strings (avoids timezone ambiguity)
+  startAtISO?: string;        // UTC ISO — preferred over startTime
+  endAtISO?: string;          // UTC ISO — preferred over endTime
+  pointAtISO?: string;        // UTC ISO — preferred over pointTime
+  // Legacy HH:MM fields (still accepted by the backend as fallback)
+  startTime?: string;         // HH:MM
+  endTime?: string;           // HH:MM
+  pointTime?: string;         // HH:MM for point logs
   title: string;
   logTypeId: string;
-  date?: string;              // YYYY-MM-DD override
-  endDate?: string;           // YYYY-MM-DD for cross-midnight
+  date?: string;              // YYYY-MM-DD override (for legacy toDate fallback)
+  endDate?: string;           // YYYY-MM-DD for cross-midnight (legacy)
   entryType?: 'range' | 'point';
-  pointTime?: string;         // HH:MM for point logs
   ticketId?: string;
   priority?: 'High' | 'Medium' | 'Low' | null;
   collaborators?: string[];

@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Button }   from '@/components/ui/button';
 import { useCreateLog, useUpdateLog, useDeleteLog } from '@/hooks/useLogs';
+import { localToISOString } from '@/lib/time';
 import type { LogEntry, LogType } from '@/types';
 import './FoodLogSheet.css';
 
@@ -25,7 +26,7 @@ function isoToHHMM(iso: string): string {
   if (/^\d{2}:\d{2}$/.test(iso)) return iso;
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
-  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 function to12(hhmm: string): string {
@@ -100,12 +101,11 @@ export default function FoodLogSheet({
     if (!startTime || saving) return;
     setSaving(true);
     const entry = {
-      startTime,
-      endTime,
-      title:     foodItems.trim() || logType.name,
-      logTypeId: logType._id,
-      date,
-      entryType: 'range' as const,
+      startAtISO: localToISOString(date, startTime),
+      endAtISO:   localToISOString(date, endTime),
+      title:      foodItems.trim() || logType.name,
+      logTypeId:  logType._id,
+      entryType:  'range' as const,
     };
     if (isEdit && editEntry) {
       updateLog.mutate({ id: editEntry.id, entry }, {

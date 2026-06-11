@@ -116,7 +116,7 @@ function isoToHHMM12(iso: string): string {
   if (!iso) return '';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  const h = d.getUTCHours(), m = d.getUTCMinutes();
+  const h = d.getHours(), m = d.getMinutes();
   const p = h < 12 ? 'am' : 'pm';
   const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, '0')} ${p}`;
@@ -131,19 +131,13 @@ function NutritionSummary() {
         <span className="ls-nutrition-title">Nutrition Today</span>
         <Badge variant="outline" className="ls-coming-soon">Coming Soon</Badge>
       </div>
-      <div className="ls-macro-grid">
+      <div className="ls-macro-row">
         {MACROS.map(m => (
-          <div key={m.label} className="ls-macro-item">
-            <div className="ls-macro-top">
-              <span className="ls-macro-dot" style={{ background: m.color }} />
-              <span className="ls-macro-value">
-                {m.value}
-                <span className="ls-macro-unit"> {m.unit}</span>
-              </span>
-            </div>
-            <div className="ls-macro-bar-track">
-              <div className="ls-macro-bar-fill" style={{ width: '0%', background: m.color }} />
-            </div>
+          <div key={m.label} className="ls-macro-cell">
+            <span className="ls-macro-big" style={{ color: m.color }}>
+              {m.value}
+              <span className="ls-macro-unit"> {m.unit}</span>
+            </span>
             <span className="ls-macro-label">{m.label}</span>
           </div>
         ))}

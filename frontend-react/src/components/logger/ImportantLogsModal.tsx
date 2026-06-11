@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQueryClient }          from '@tanstack/react-query';
 import { useLogs, useUpdateLog, useCreateLog } from '@/hooks/useLogs';
+import { localToISOString } from '@/lib/time';
 import { useDayMetadata, useCaptureDayMeta }   from '@/hooks/useDayMetadata';
 import { useLogTypes }             from '@/hooks/useLogTypes';
 import { logsKey }                 from '@/hooks/useLogs';
@@ -46,7 +47,7 @@ function dateAddDays(iso: string, n: number): string {
 function parseHM(s: string): [number, number] {
   if (s.includes('T') || s.length > 5) {
     const d = new Date(s);
-    return [d.getUTCHours(), d.getUTCMinutes()];
+    return [d.getHours(), d.getMinutes()];
   }
   const [h, m] = s.split(':').map(Number);
   return [h, m];
@@ -191,13 +192,14 @@ function SlotForm({ slot, logTypes, selectedDate, onClose, onSaved }: SlotFormPr
     if (isEdit) {
       const log = slot.logEntry!;
       const entry = slot.key === 'wokeUp'
-        ? { endTime: time, startTime: log.startAt, logTypeId: typeId, title: log.title }
-        : { startTime: time, endTime: log.endAt ?? time, logTypeId: typeId, title: log.title };
+        ? { endAtISO: localToISOString(logDate, time), startAtISO: log.startAt, logTypeId: typeId, title: log.title }
+        : { startAtISO: localToISOString(logDate, time), endAtISO: log.endAt ?? localToISOString(logDate, time), logTypeId: typeId, title: log.title };
 
       updateMutation.mutate({ id: log.id, entry }, { onSuccess: onSaved, onError: onClose });
     } else {
+      const isoTime = localToISOString(logDate, time);
       createMutation.mutate(
-        { startTime: time, endTime: time, title: '', logTypeId: typeId, entryType: 'point' },
+        { pointAtISO: isoTime, title: '', logTypeId: typeId, entryType: 'point' },
         { onSuccess: onSaved, onError: onClose },
       );
     }

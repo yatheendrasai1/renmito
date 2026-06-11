@@ -7,7 +7,8 @@ export const logsKey = (date: string) => ['logs', date] as const;
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 async function fetchLogs(date: string): Promise<LogEntry[]> {
-  const res = await api.get<LogEntry[]>(`/logs/${date}`);
+  const tz = new Date().getTimezoneOffset();
+  const res = await api.get<LogEntry[]>(`/logs/${date}`, { params: { tz } });
   return Array.isArray(res.data) ? res.data : [];
 }
 

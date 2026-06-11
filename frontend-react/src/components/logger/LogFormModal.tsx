@@ -13,6 +13,7 @@ import {
   AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import { useCreateLog, useUpdateLog, useDeleteLog, useLogs } from '@/hooks/useLogs';
+import { localToISOString } from '@/lib/time';
 import {
   useLogTypes,
   useRenameLogType,
@@ -49,20 +50,25 @@ function addDaysToISO(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Extract HH:MM from an ISO datetime string (UTC). Falls back to the raw value if not ISO. */
+/** Extract local HH:MM from an ISO datetime string. Falls back to the raw value if not ISO. */
 function isoToHHMM(iso: string): string {
   if (!iso) return '';
-  // If already HH:MM (legacy), return as-is
   if (/^\d{2}:\d{2}$/.test(iso)) return iso;
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
-  return `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`;
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
-/** Extract YYYY-MM-DD from an ISO datetime string. Falls back to raw value if already a date. */
+/** Extract local YYYY-MM-DD from an ISO datetime string. */
 function isoToDateStr(iso: string): string {
   if (!iso) return '';
-  return iso.slice(0, 10);
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso.slice(0, 10);
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-');
 }
 
 const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -501,15 +507,16 @@ export default function LogFormModal({
       return;
     }
 
+    const startISO = localToISOString(formDate, formStart);
+    const endISO   = localToISOString(isNextDay ? (formEndDate || addDaysToISO(formDate, 1)) : formDate, formEnd);
+
     const entry = {
-      startTime:         formStart,
-      endTime:           entryType === 'point' ? formStart : formEnd,
+      startAtISO:  entryType !== 'point' ? startISO : undefined,
+      endAtISO:    entryType !== 'point' ? endISO   : undefined,
+      pointAtISO:  entryType === 'point' ? startISO : undefined,
       title:             title.trim() || selectedType!.name,
       logTypeId:         selectedType!._id,
-      date:              formDate,
-      endDate:           entryType === 'range' && isNextDay ? formEndDate : undefined,
       entryType,
-      pointTime:         entryType === 'point' ? formStart : undefined,
       ticketId:          showWorkFields && ticketId.trim() ? ticketId.trim() : undefined,
       jiraTicketId:      linkedTicket?.id      ?? undefined,
       jiraTicketKey:     linkedTicket?.key     ?? undefined,

@@ -39,35 +39,23 @@
   letter-spacing: 0.3px;
 }
 
-.ls-macro-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px 20px;
+.ls-macro-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.ls-macro-item {
+.ls-macro-cell {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-}
-
-.ls-macro-top {
-  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  flex: 1;
 }
 
-.ls-macro-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.ls-macro-value {
-  font-size: 16px;
+.ls-macro-big {
+  font-size: 22px;
   font-weight: 700;
-  color: var(--text-primary);
   line-height: 1;
 }
 
@@ -75,19 +63,6 @@
   font-size: 11px;
   font-weight: 400;
   color: var(--text-muted);
-}
-
-.ls-macro-bar-track {
-  height: 4px;
-  background: var(--bg-card);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.ls-macro-bar-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.6s ease;
 }
 
 .ls-macro-label {

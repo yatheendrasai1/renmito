@@ -28,7 +28,8 @@ async function getLogsByDate(req, res) {
       return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
     }
 
-    const logs = await logsService.getLogsByDate(req.user.userId, date);
+    const tzOffsetMins = parseInt(req.query.tz ?? '0', 10);
+    const logs = await logsService.getLogsByDate(req.user.userId, date, tzOffsetMins);
     res.json(logs);
   } catch (err) {
     console.error('GET /logs/:date error:', err.message);

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useDeleteLog, useUpdateLog } from '@/hooks/useLogs';
 import { useLogTypes }                from '@/hooks/useLogTypes';
+import { localToISOString }           from '@/lib/time';
 import LogFormModal                   from './LogFormModal';
 import { Input }    from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,7 +18,7 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 /** "4:30 PM" — 12h display for the log row */
 function isoToHHMM(iso: string): string {
   const d = new Date(iso);
-  const h = d.getUTCHours(), m = d.getUTCMinutes();
+  const h = d.getHours(), m = d.getMinutes();
   const period = h < 12 ? 'AM' : 'PM';
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${String(m).padStart(2,'0')} ${period}`;
@@ -26,11 +27,17 @@ function isoToHHMM(iso: string): string {
 /** "HH:MM" in 24h — for <input type="time"> */
 function isoToHHMM24(iso: string): string {
   const d = new Date(iso);
-  return `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`;
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
 function isoToDateStr(iso: string): string {
-  return iso.slice(0, 10);
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso.slice(0, 10);
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-');
 }
 
 function isoCrossesDay(startISO: string, endISO: string | null): boolean {
@@ -47,7 +54,7 @@ function isoSpanDays(startISO: string, endISO: string): number {
 /** "29 May '26" */
 function isoToDayLabel(iso: string): string {
   const d = new Date(iso);
-  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} '${String(d.getUTCFullYear()).slice(2)}`;
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`;
 }
 
 /** Full label: "29 May '26 4:30 PM" */
@@ -77,7 +84,7 @@ function formatDurationChip(log: LogEntry): string {
   if (spanDays > 1) {
     return `${Math.floor(log.durationMins / 60)}h*`;
   }
-  const midnight = new Date(isoToDateStr(log.endAt) + 'T00:00:00Z');
+  const midnight = new Date(isoToDateStr(log.endAt) + 'T00:00:00'); // local midnight
   const day1Mins = Math.round((midnight.getTime() - new Date(log.startAt).getTime()) / 60000);
   const day2Mins = Math.round((new Date(log.endAt).getTime() - midnight.getTime()) / 60000);
   return `${fmtMins(day1Mins)}+${fmtMins(day2Mins)}*`;
@@ -130,10 +137,11 @@ function InlineEditForm({ log, logType, allTypes, date: _date, onClose }: Inline
   const isPoint = log.entryType === 'point';
 
   function save() {
+    const logDate = log.date ?? _date;
     const entry: Parameters<typeof updateMutation.mutate>[0]['entry'] = {
       title,
-      startTime: start,
-      endTime:   isPoint ? start : end,
+      startAtISO: localToISOString(logDate, start),
+      endAtISO:   localToISOString(logDate, isPoint ? start : end),
     };
     if (typeId) entry.logTypeId = typeId;   // omit when empty to avoid 400
     updateMutation.mutate({ id: log.id, entry }, {
@@ -287,8 +295,8 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
     if (!pickerDate || !pickerTime || pickerSaving) return;
     setPickerSaving(true);
     const entry = pickerField === 'start'
-      ? { startTime: pickerTime, date: pickerDate }
-      : { endTime: pickerTime, endDate: pickerDate };
+      ? { startAtISO: localToISOString(pickerDate, pickerTime) }
+      : { endAtISO:   localToISOString(pickerDate, pickerTime) };
     updateMutation.mutate({ id: log.id, entry }, {
       onSuccess: () => { setPickerSaving(false); setPickerField(null); toast('Log updated'); },
       onError:   () => { setPickerSaving(false); toast('Failed to update log'); },
@@ -481,7 +489,7 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
 const PERIOD_ORDER_DESC = ['Night', 'Evening', 'Afternoon', 'Morning', 'Late Night'];
 
 function periodOf(startAt: string): string {
-  const h = new Date(startAt).getUTCHours();
+  const h = new Date(startAt).getHours();
   if (h < 6)             return 'Late Night';
   if (h >= 6  && h < 12) return 'Morning';
   if (h >= 12 && h < 17) return 'Afternoon';

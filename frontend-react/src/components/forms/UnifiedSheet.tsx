@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAppStore }    from '@/store/appStore';
 import { useLogTypes }    from '@/hooks/useLogTypes';
 import { useCreateLog }   from '@/hooks/useLogs';
+import { localToISOString } from '@/lib/time';
 import { useSetActiveLog } from '@/hooks/usePreferences';
 import TypeSelector        from './TypeSelector';
 import TimeInput           from './TimeInput';
@@ -231,8 +232,8 @@ export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
     e.preventDefault();
     if (!t1TypeId) return;
     createLog.mutate({
-      startTime:         t1Start,
-      endTime:           t1End,
+      startAtISO:        localToISOString(selectedDate, t1Start),
+      endAtISO:          localToISOString(selectedDate, t1End),
       title:             t1Title,
       logTypeId:         t1TypeId,
       entryType:         'range',
@@ -251,12 +252,10 @@ export default function UnifiedSheet({ onClose, initialTab = 1 }: Props) {
     e.preventDefault();
     if (!t2TypeId) return;
     createLog.mutate({
-      startTime:         t2Time,
-      endTime:           t2Time,
+      pointAtISO:        localToISOString(selectedDate, t2Time),
       title:             t2Title,
       logTypeId:         t2TypeId,
       entryType:         'point',
-      pointTime:         t2Time,
       priority:          t2Details.priority,
       ticketId:          t2Details.ticketId || undefined,
       crucialPerson:     t2Details.crucialPerson,

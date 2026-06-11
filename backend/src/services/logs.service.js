@@ -79,9 +79,13 @@ async function validateLogTypeId(logTypeId) {
 /**
  * Returns all logs for a given date and user.
  */
-async function getLogsByDate(userId, date) {
-  const dayStart = new Date(`${date}T00:00:00.000Z`);
-  const dayEnd   = new Date(`${date}T23:59:59.999Z`);
+async function getLogsByDate(userId, date, tzOffsetMins = 0) {
+  // tzOffsetMins is the JS getTimezoneOffset() value for the user's browser:
+  //   (UTC - local) in minutes, e.g. -330 for IST (UTC+5:30), 300 for EST (UTC-5).
+  // Adding it to a UTC midnight shifts it to the user's local midnight in UTC.
+  const offsetMs = (isNaN(tzOffsetMins) ? 0 : tzOffsetMins) * 60000;
+  const dayStart = new Date(Date.parse(`${date}T00:00:00.000Z`) + offsetMs);
+  const dayEnd   = new Date(Date.parse(`${date}T23:59:59.999Z`) + offsetMs);
 
   const docs = await TimeLog
     .find({
@@ -149,6 +153,7 @@ async function createLog(userId, date, body) {
  */
 async function updateLog(userId, date, id, body) {
   const { startTime, endTime, title, logTypeId, entryType, pointTime, ticketId, endDate,
+          startAtISO, endAtISO, pointAtISO,
           priority, collaborators, satisfactoryScore, crucialPerson } = body;
   const isPoint = entryType === 'point';
   const updates = {};
@@ -156,14 +161,22 @@ async function updateLog(userId, date, id, body) {
   if (entryType !== undefined) updates.entryType = entryType;
 
   if (isPoint) {
-    if (pointTime !== undefined) {
+    if (pointAtISO !== undefined) {
+      updates.startAt      = new Date(pointAtISO);
+      updates.endAt        = null;
+      updates.durationMins = null;
+    } else if (pointTime !== undefined) {
       updates.startAt      = toDate(date, pointTime);
       updates.endAt        = null;
       updates.durationMins = null;
     }
   } else {
-    if (startTime !== undefined) updates.startAt = toDate(date, startTime);
-    if (endTime   !== undefined) updates.endAt   = toDate(endDate || date, endTime);
+    if (startAtISO !== undefined)     updates.startAt = new Date(startAtISO);
+    else if (startTime !== undefined) updates.startAt = toDate(date, startTime);
+
+    if (endAtISO !== undefined)       updates.endAt   = new Date(endAtISO);
+    else if (endTime !== undefined)   updates.endAt   = toDate(endDate || date, endTime);
+
     if (updates.startAt && updates.endAt) {
       updates.durationMins = Math.round((updates.endAt - updates.startAt) / 60000);
     }
