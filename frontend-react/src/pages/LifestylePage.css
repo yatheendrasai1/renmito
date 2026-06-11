@@ -1,0 +1,287 @@
+/* ── Page wrapper ─────────────────────────────────────────── */
+.lifestyle-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* ── Nutrition summary card ───────────────────────────────── */
+.ls-nutrition-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius);
+  padding: 14px 16px 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ls-nutrition-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ls-nutrition-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ls-coming-soon {
+  font-size: 10px !important;
+  height: 18px !important;
+  padding: 0 7px !important;
+  color: var(--text-muted) !important;
+  border-color: var(--border-light, var(--border)) !important;
+  border-radius: 20px !important;
+  letter-spacing: 0.3px;
+}
+
+.ls-macro-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 20px;
+}
+
+.ls-macro-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ls-macro-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ls-macro-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ls-macro-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.ls-macro-unit {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.ls-macro-bar-track {
+  height: 4px;
+  background: var(--bg-card);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ls-macro-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+.ls-macro-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ── Section card ─────────────────────────────────────────── */
+.ls-section-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.ls-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 10px;
+}
+
+.ls-section-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ls-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  flex: 1;
+}
+
+.ls-section-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.ls-section-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Log row ──────────────────────────────────────────────── */
+.ls-log-row {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--bg-card);
+  transition: background 0.12s;
+}
+
+.ls-log-row:hover {
+  background: var(--bg-card);
+}
+
+/* Clickable body (takes up all space left of the + button) */
+.ls-log-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 4px 11px 14px;
+  min-width: 0;
+  outline: none;
+}
+
+.ls-log-body:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--highlight-selected);
+  border-radius: 6px;
+}
+
+.ls-log-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ls-log-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ls-log-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.ls-logged-check {
+  flex-shrink: 0;
+}
+
+.ls-log-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Single-entry inline time display */
+.ls-log-time-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Edit hint pencil — shows on row hover for single-entry rows */
+.ls-edit-hint {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+  margin-right: 2px;
+}
+
+.ls-log-row:hover .ls-edit-hint {
+  opacity: 0.7;
+}
+
+/* Multiple-entry chips */
+.ls-log-entries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ls-entry-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-card);
+  border: none;
+  border-radius: 6px;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: background 0.12s;
+  font-family: inherit;
+}
+
+.ls-entry-chip:hover {
+  background: var(--accent-hover);
+}
+
+.ls-entry-time {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ls-chip-edit-icon {
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.ls-entry-chip:hover .ls-chip-edit-icon {
+  opacity: 0.8;
+}
+
+.ls-entry-dur {
+  font-size: 10px !important;
+  height: 16px !important;
+  padding: 0 5px !important;
+}
+
+/* Add (+) button — right edge, always visible */
+.ls-add-btn {
+  flex-shrink: 0;
+  width: 32px !important;
+  height: 32px !important;
+  margin-right: 8px;
+  color: var(--text-muted) !important;
+  opacity: 0.5;
+  transition: opacity 0.15s, color 0.15s !important;
+}
+
+.ls-log-row:hover .ls-add-btn {
+  opacity: 1;
+  color: var(--highlight-selected) !important;
+}

@@ -146,13 +146,14 @@ function formatDueIn(dueDate: string | null): string {
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
-  mode:       'create' | 'edit';
-  date:       string;
-  editEntry?: LogEntry;
-  startTime?: string;   // defaults to now−30 min
-  endTime?:   string;   // defaults to now+30 min
-  onClose:    () => void;
-  onSaved?:   () => void;
+  mode:            'create' | 'edit';
+  date:            string;
+  editEntry?:      LogEntry;
+  startTime?:      string;       // defaults to now−30 min
+  endTime?:        string;       // defaults to now+30 min
+  defaultLogType?: LogType;      // pre-select a log type for create mode
+  onClose:         () => void;
+  onSaved?:        () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -173,6 +174,7 @@ function nowOffsetHHMM(offsetMins: number): string {
 
 export default function LogFormModal({
   mode, date, editEntry, startTime, endTime,
+  defaultLogType,
   onClose, onSaved,
 }: Props) {
   const isEdit = mode === 'edit';
@@ -227,10 +229,12 @@ export default function LogFormModal({
     isEdit ? (isoToDateStr(editEntry?.endAt ?? '') || editEntry?.endDate || editEntry?.date || date) : date,
   );
   const [selectedType, setSelectedType] = useState<LogType | null>(
-    isEdit ? (editEntry?.logType ?? null) : null,
+    isEdit ? (editEntry?.logType ?? null) : (defaultLogType ?? null),
   );
   const [selectedDomain, setSelectedDomain] = useState<'work' | 'personal'>(
-    isEdit ? ((editEntry?.logType?.domain ?? 'work') as 'work' | 'personal') : 'work',
+    isEdit
+      ? ((editEntry?.logType?.domain ?? 'work') as 'work' | 'personal')
+      : ((defaultLogType?.domain ?? 'work') as 'work' | 'personal'),
   );
   const [title,        setTitle]        = useState(isEdit ? (editEntry?.title ?? '') : '');
   const [priority,     setPriority]     = useState<'High' | 'Medium' | 'Low' | null>(

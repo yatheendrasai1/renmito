@@ -28,6 +28,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/logger" replace /> },
 
       { path: 'logger',      lazy: lazyPage(() => import('@/pages/LoggerPage')) },
+      { path: 'lifestyle',   lazy: lazyPage(() => import('@/pages/LifestylePage')) },
       { path: 'timeline',    lazy: lazyPage(() => import('@/pages/TimelinePage')) },
       { path: 'journeys',    lazy: lazyPage(() => import('@/pages/JourneysPage')) },
       { path: 'report',      lazy: lazyPage(() => import('@/pages/ReportPage')) },

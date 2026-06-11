@@ -5,7 +5,7 @@
   right: 0;
   height: calc(58px + env(safe-area-inset-bottom, 0px));
   background: var(--nav-bg);
-  border-top: 1px solid var(--border);
+
   display: flex;
   align-items: flex-start;
   padding-top: 8px;
@@ -34,7 +34,11 @@
 }
 
 .bottom-tab--active {
-  color: var(--accent);
+  color: var(--nav-text);
+}
+
+.bottom-tab--active .bottom-tab-label {
+  font-weight: 700;
 }
 
 .bottom-tab-label {
