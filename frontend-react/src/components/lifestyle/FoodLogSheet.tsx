@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -37,31 +37,158 @@ function to12(hhmm: string): string {
   return `${h12}:${String(m).padStart(2, '0')} ${p}`;
 }
 
-// ── Time picker button ────────────────────────────────────────────────────────
+// ── Time text parser ─────────────────────────────────────────────────────────
 
-function TimePick({
-  label, value, onChange,
+function parseTimeInput(raw: string): string | null {
+  const s = raw.trim().replace(/\s+/g, ' ').toUpperCase();
+
+  // "H:MM AM" / "H:MM PM"
+  const m12 = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+  if (m12) {
+    let h = parseInt(m12[1], 10);
+    const m = parseInt(m12[2], 10);
+    if (h < 1 || h > 12 || m > 59) return null;
+    if (m12[3] === 'PM' && h !== 12) h += 12;
+    if (m12[3] === 'AM' && h === 12) h = 0;
+    const snapped = Math.min(55, Math.round(m / 5) * 5);
+    return `${String(h).padStart(2, '0')}:${String(snapped).padStart(2, '0')}`;
+  }
+
+  // "HH:MM" or "H:MM" 24-hour
+  const m24 = s.match(/^(\d{1,2}):(\d{2})$/);
+  if (m24) {
+    const h = parseInt(m24[1], 10);
+    const m = parseInt(m24[2], 10);
+    if (h > 23 || m > 59) return null;
+    const snapped = Math.min(55, Math.round(m / 5) * 5);
+    return `${String(h).padStart(2, '0')}:${String(snapped).padStart(2, '0')}`;
+  }
+
+  return null;
+}
+
+// ── Dual Slider Time Picker ───────────────────────────────────────────────────
+
+function DualSliderTimePick({
+  value,
+  onChange,
 }: {
-  label: string; value: string; onChange: (v: string) => void;
+  value: string;
+  onChange: (v: string) => void;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
+  const parts  = value.split(':').map(Number);
+  const hour   = isNaN(parts[0]) ? 0 : parts[0];
+  const rawMin = isNaN(parts[1]) ? 0 : parts[1];
+  const minute = Math.min(55, Math.max(0, Math.round(rawMin / 5) * 5));
+
+  const hourFrac = hour / 23;
+  const minFrac  = minute / 55;
+
+  const [activeBar, setActiveBar] = useState<'hr' | 'min' | null>(null);
+  const [isEditing, setIsEditing]  = useState(false);
+  const [editValue, setEditValue]  = useState('');
+
+  // thumb is 10px wide; half = 5px — used for fill and tooltip alignment
+  const thumbW = 10;
+  const halfW  = thumbW / 2;
+  const labelLeft = (frac: number) =>
+    `calc(${halfW}px + ${frac} * (100% - ${thumbW}px))`;
+
+  function startEdit() {
+    setEditValue(to12(value));
+    setIsEditing(true);
+  }
+
+  function commitEdit() {
+    const parsed = parseTimeInput(editValue);
+    if (parsed) onChange(parsed);
+    setIsEditing(false);
+  }
+
   return (
-    <button
-      type="button"
-      className="fls-time-pick"
-      onClick={() => ref.current?.showPicker?.()}
-    >
-      <span className="fls-tp-label">{label}</span>
-      <span className="fls-tp-value">{to12(value)}</span>
-      <input
-        ref={ref}
-        type="time"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="fls-tp-hidden"
-        tabIndex={-1}
-      />
-    </button>
+    <div className="fls-dual-slider">
+      <div className="fls-time-display-row">
+        {isEditing ? (
+          <input
+            className="fls-time-edit-input"
+            value={editValue}
+            onChange={e => setEditValue(e.target.value)}
+            onFocus={e => e.target.select()}
+            onBlur={commitEdit}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); commitEdit(); }
+              if (e.key === 'Escape') setIsEditing(false);
+            }}
+            autoFocus
+          />
+        ) : (
+          <>
+            <span
+              className="fls-time-display"
+              onClick={startEdit}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => e.key === 'Enter' && startEdit()}
+            >
+              {to12(value)}
+            </span>
+            <span className="fls-time-note">till next 15mins</span>
+          </>
+        )}
+      </div>
+      <div className="fls-slider-group">
+        <div className="fls-slider-row">
+          <span className="fls-slider-lbl">hr</span>
+          <div className="fls-track-wrap">
+            <div className="fls-track-bg">
+              <div className="fls-track-fill" style={{ '--frac': hourFrac } as React.CSSProperties} />
+            </div>
+            {activeBar === 'hr' && (
+              <span className="fls-thumb-label" style={{ left: labelLeft(hourFrac) }}>
+                {hour}
+              </span>
+            )}
+            <input
+              type="range"
+              className="fls-range"
+              min={0} max={23} step={1}
+              value={hour}
+              onPointerDown={() => setActiveBar('hr')}
+              onPointerUp={() => setActiveBar(null)}
+              onChange={e => {
+                const h = Number(e.target.value);
+                onChange(`${String(h).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+              }}
+            />
+          </div>
+        </div>
+        <div className="fls-slider-row">
+          <span className="fls-slider-lbl">min</span>
+          <div className="fls-track-wrap">
+            <div className="fls-track-bg">
+              <div className="fls-track-fill" style={{ '--frac': minFrac } as React.CSSProperties} />
+            </div>
+            {activeBar === 'min' && (
+              <span className="fls-thumb-label" style={{ left: labelLeft(minFrac) }}>
+                {minute}
+              </span>
+            )}
+            <input
+              type="range"
+              className="fls-range"
+              min={0} max={55} step={5}
+              value={minute}
+              onPointerDown={() => setActiveBar('min')}
+              onPointerUp={() => setActiveBar(null)}
+              onChange={e => {
+                const m = Number(e.target.value);
+                onChange(`${String(hour).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -82,11 +209,6 @@ export default function FoodLogSheet({
   const defaultStart = isEdit ? isoToHHMM(editEntry.startAt) : nowHHMM();
 
   const [startTime, setStartTime] = useState(defaultStart);
-  const [endTime,   setEndTime]   = useState(
-    isEdit && editEntry.endAt
-      ? isoToHHMM(editEntry.endAt)
-      : addMins(defaultStart, 30),
-  );
   const [foodItems, setFoodItems] = useState(
     isEdit && editEntry.title !== logType.name ? editEntry.title : '',
   );
@@ -102,7 +224,7 @@ export default function FoodLogSheet({
     setSaving(true);
     const entry = {
       startAtISO: localToISOString(date, startTime),
-      endAtISO:   localToISOString(date, endTime),
+      endAtISO:   localToISOString(date, addMins(startTime, 15)),
       title:      foodItems.trim() || logType.name,
       logTypeId:  logType._id,
       entryType:  'range' as const,
@@ -155,15 +277,7 @@ export default function FoodLogSheet({
               <span className="fls-q-num">1</span>
               <span className="fls-q-text">When did you eat?</span>
             </div>
-            <div className="fls-time-row">
-              <TimePick label="Start"  value={startTime} onChange={setStartTime} />
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                   stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round">
-                <line x1="5" y1="12" x2="19" y2="12"/>
-                <polyline points="12 5 19 12 12 19"/>
-              </svg>
-              <TimePick label="Finish" value={endTime}   onChange={setEndTime} />
-            </div>
+            <DualSliderTimePick value={startTime} onChange={setStartTime} />
           </div>
 
           {/* Q2 — What */}
@@ -171,7 +285,6 @@ export default function FoodLogSheet({
             <div className="fls-q-row">
               <span className="fls-q-num">2</span>
               <span className="fls-q-text">What did you eat?</span>
-              <span className="fls-q-optional">optional</span>
             </div>
             <Textarea
               className="fls-textarea"
@@ -180,9 +293,6 @@ export default function FoodLogSheet({
               onChange={e => setFoodItems(e.target.value)}
               rows={3}
             />
-            <p className="fls-future-hint">
-              ✦ Detailed nutrition &amp; food item tracking coming soon
-            </p>
           </div>
 
         </div>
