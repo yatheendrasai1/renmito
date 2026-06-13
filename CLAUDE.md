@@ -162,6 +162,42 @@ All paths are relative to `frontend-react/src/`.
 
 ---
 
+### Feature: Lifestyle (Sleep, Meals, Wellbeing, Sports, Learning)
+**Route**: `/lifestyle`
+
+| Role | File |
+|------|------|
+| Page | `pages/LifestylePage.tsx` + `.css` |
+| Food log form (meals only) | `components/lifestyle/FoodLogSheet.tsx` + `.css` |
+| Generic log form (non-food) | `components/logger/LogFormModal.tsx` (reused) |
+| Date navigation card | `components/logger/HeroDateCard.tsx` (reused) |
+
+**Categories** (`LIFESTYLE_CATS` in `LifestylePage.tsx`):
+
+| ID | Label | Log categories | Pinned log types |
+|----|-------|---------------|-----------------|
+| `sleep` | Sleep & Rest | `sleep` | Sleep |
+| `meals` | Meals | `food` | Breakfast, Lunch, Dinner, Food Intake |
+| `sports` | Sports & Activity | `sport` | — |
+| `wellbeing` | Wellbeing | `wellbeing` | — |
+| `learning` | Learning | `learning` | — |
+
+**Routing logic**: `logType.category === 'food'` → `FoodLogSheet`; all other categories → `LogFormModal`.
+
+**FoodLogSheet — time input design**:
+- Single point-in-time input (no Start/Finish range visible to user).
+- Dual stacked progress-bar sliders: **hr** (0–23, 24 stops) and **min** (0–55, 12 stops at 5-min intervals).
+- Fill div (`fls-track-fill`) uses `position: absolute; inset` — not `height: 100%` — to avoid baseline gaps.
+- Fill width formula: `calc(5px + var(--frac, 0) * (100% - 10px))` where `--frac` is a 0–1 decimal; `5px` = half the 10px thumb width to keep the fill's right edge perfectly under the thumb centre.
+- Rectangular notch thumb: 10 × 22 px, `border-radius: 3px`. Webkit centering: `margin-top: -3px` = `(track_height 16px − thumb_height 22px) / 2`.
+- While dragging, a small floating label (`fls-thumb-label`) appears above the thumb showing the raw hour or minute number.
+- Clicking the time display (`fls-time-display`) enters manual-edit mode: a bare `<input>` pre-filled in 12 h format, auto-selects on focus. Accepts `H:MM AM/PM` or `HH:MM` (24 h); minutes are snapped to nearest 5 on commit. Enter/blur = commit, Escape = cancel.
+- On save: stored as `entryType: 'range'` with `startAtISO = selectedTime` and `endAtISO = selectedTime + 15 mins`. The 15-min duration is shown as `"till next 15mins"` beside the time display.
+
+**Shared dependencies**: `hooks/useLogs.ts`, `hooks/useLogTypes.ts`, `lib/time.ts` (`localToISOString`, `isoToHHMM`).
+
+---
+
 ### Feature: Journeys (Habit / Metric Tracking)
 **Route**: `/journeys`
 
