@@ -1,0 +1,294 @@
+/* ── Card ─────────────────────────────────────────────────────── */
+.sft-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sft-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.sft-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sft-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Track area (clickable) ───────────────────────────────────── */
+.sft-track-area {
+  position: relative;
+  padding-top: 38px;
+  padding-bottom: 38px;
+  /* Horizontal inset so edge milestone labels don't overflow the card */
+  padding-left: 24px;
+  padding-right: 24px;
+  cursor: pointer;
+}
+
+/* ── Track line ───────────────────────────────────────────────── */
+.sft-track {
+  position: relative;
+  height: 4px;
+  background: var(--bg-card, #e8e8e8);
+  border-radius: 2px;
+  margin: 12px 0 0;
+}
+
+/* Filled portion */
+.sft-fill {
+  position: absolute;
+  inset: 0;
+  right: auto; /* override inset-right so width works */
+  height: 100%;
+  background: var(--highlight-selected, #4A8FA0);
+  border-radius: 2px;
+  transition: width 1s linear;
+}
+
+/* Current-time wrapper — centred on the track line */
+.sft-now-wrap {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Time label — positioned above the dot, not part of flow */
+.sft-now-time {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--highlight-selected, #4A8FA0);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* Current-time dot */
+.sft-now-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--highlight-selected, #4A8FA0);
+  border: 2px solid var(--bg-surface, #fff);
+  box-shadow: 0 0 0 2px var(--highlight-selected, #4A8FA0);
+  display: block;
+}
+
+/* ── Milestone ────────────────────────────────────────────────── */
+.sft-milestone {
+  position: absolute;
+  top: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: visible;
+  z-index: 3;
+}
+
+.sft-milestone-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--highlight-selected, #4A8FA0);
+  background: var(--bg-surface, #fff);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, transform 0.12s;
+  padding: 0;
+  outline: none;
+  box-shadow: inset 0 0 0 3px var(--highlight-selected, #4A8FA0);
+  flex-shrink: 0;
+}
+
+.sft-milestone-dot:hover,
+.sft-milestone-dot:focus-visible {
+  transform: scale(1.18);
+}
+
+/* Beyond-window dot — solid colour fill with white diagonal stripes */
+.sft-milestone-dot--beyond {
+  border-style: solid;
+  background: repeating-linear-gradient(
+    -45deg,
+    currentColor 0px,
+    currentColor 3px,
+    rgba(255,255,255,0.55) 3px,
+    rgba(255,255,255,0.55) 5px
+  );
+}
+
+/* Dashed tail line extending from the right-edge beyond dot */
+.sft-milestone--beyond::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 1px);
+  width: 18px;
+  height: 0;
+  border-top: 2px dashed currentColor;
+  opacity: 0.5;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Labels — shared */
+.sft-milestone-label {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Label below the dot */
+.sft-milestone-label--below {
+  top: calc(100% + 6px);
+}
+
+/* Label above the dot */
+.sft-milestone-label--above {
+  bottom: calc(100% + 6px);
+}
+
+.sft-ml-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  line-height: 1.1;
+}
+
+.sft-ml-time {
+  font-size: 9px;
+  color: var(--text-muted);
+  line-height: 1.1;
+}
+
+.sft-ml-nextday {
+  display: block;
+  font-size: 8px;
+  font-style: italic;
+  color: var(--text-muted);
+  line-height: 1.1;
+  opacity: 0.8;
+}
+
+/* ── Tooltip ──────────────────────────────────────────────────── */
+.sft-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.18));
+}
+
+/* Border layer of caret */
+.sft-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-top-color: var(--border, #e0e0e0);
+}
+
+/* Fill layer of caret — sits 1px above border layer */
+.sft-tooltip::after {
+  content: '';
+  position: absolute;
+  top: calc(100% - 1px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--bg-surface, #fff);
+}
+
+.sft-tooltip-body {
+  background: var(--bg-surface, #fff);
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  font-family: inherit;
+  min-width: 110px;
+  transition: background 0.12s;
+}
+
+.sft-tooltip-body:hover {
+  background: var(--bg-card, #f5f5f5);
+}
+
+.sft-tooltip-label {
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sft-tooltip-time {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Gap label — plain text sitting on the track line */
+.sft-gap-label {
+  position: absolute;
+  top: 50%;
+  transform: translateX(-50%) translateY(-100%);
+  font-size: 9px;
+  font-weight: 600;
+  opacity: 0.85;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 4;
+  letter-spacing: 0.2px;
+  line-height: 1;
+  padding-bottom: 2px;
+}
+
+.sft-tooltip-hint {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  border-top: 1px solid var(--border, #e8e8e8);
+  padding-top: 4px;
+  width: 100%;
+  text-align: center;
+}
+
+/* ── Empty state ──────────────────────────────────────────────── */
+.sft-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 4px 0 0;
+  padding-bottom: 4px;
+}

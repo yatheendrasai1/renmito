@@ -4,7 +4,8 @@ import { useLogs }      from '@/hooks/useLogs';
 import { useLogTypes }  from '@/hooks/useLogTypes';
 import HeroDateCard     from '@/components/logger/HeroDateCard';
 import LogFormModal     from '@/components/logger/LogFormModal';
-import FoodLogSheet     from '@/components/lifestyle/FoodLogSheet';
+import FoodLogSheet          from '@/components/lifestyle/FoodLogSheet';
+import SleepFoodTimeline     from '@/components/lifestyle/SleepFoodTimeline';
 import { Button }       from '@/components/ui/button';
 import { Badge }        from '@/components/ui/badge';
 import type { LogEntry, LogType } from '@/types';
@@ -354,13 +355,25 @@ function SectionCard({ cat, logs, logTypes, onAdd, onEdit }: SectionCardProps) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+function addDays(ymd: string, n: number): string {
+  const d = new Date(`${ymd}T00:00:00`);
+  d.setDate(d.getDate() + n);
+  // Use local date parts — toISOString() returns UTC which can be a different calendar day
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export default function LifestylePage() {
-  const selectedDate        = useAppStore(s => s.selectedDate);
-  const { data: logs = [] } = useLogs(selectedDate);
-  const { data: logTypes = [] } = useLogTypes();
+  const selectedDate             = useAppStore(s => s.selectedDate);
+  const { data: logs = [] }      = useLogs(selectedDate);
+  const nextDate                 = useMemo(() => addDays(selectedDate, 1), [selectedDate]);
+  const { data: nextDayLogs = [] } = useLogs(nextDate);
+  const { data: logTypes = [] }  = useLogTypes();
 
   const [modal, setModal] = useState<
-    | { mode: 'create';      defaultLogType?: LogType }
+    | { mode: 'create';      defaultLogType?: LogType; startTime?: string }
     | { mode: 'edit';        entry: LogEntry }
     | { mode: 'food-create'; logType: LogType }
     | { mode: 'food-edit';   logType: LogType; entry: LogEntry }
@@ -370,6 +383,11 @@ export default function LifestylePage() {
   const personalLogs = useMemo(
     () => logs.filter(l => l.logType?.domain === 'personal'),
     [logs]
+  );
+
+  const nextDayPersonalLogs = useMemo(
+    () => nextDayLogs.filter(l => l.logType?.domain === 'personal'),
+    [nextDayLogs]
   );
 
   function openAdd(lt: LogType | undefined) {
@@ -395,6 +413,15 @@ export default function LifestylePage() {
 
       <NutritionSummary />
 
+      <SleepFoodTimeline
+        logs={personalLogs}
+        nextDayLogs={nextDayPersonalLogs}
+        logTypes={logTypes}
+        selectedDate={selectedDate}
+        onEdit={openEdit}
+        onAdd={(startTime) => setModal({ mode: 'create', defaultLogType: logTypes.find(lt => lt.domain === 'personal'), startTime })}
+      />
+
       {LIFESTYLE_CATS.map(cat => (
         <SectionCard
           key={cat.id}
@@ -412,6 +439,7 @@ export default function LifestylePage() {
           mode="create"
           date={selectedDate}
           defaultLogType={modal.defaultLogType}
+          startTime={modal.startTime}
           onClose={closeModal}
           onSaved={closeModal}
         />
