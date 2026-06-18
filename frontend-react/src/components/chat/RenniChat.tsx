@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { useAppStore }  from '@/store/appStore';
 import { useCreateLog } from '@/hooks/useLogs';
 import { useNotes }     from '@/hooks/useNotes';
+import { localToISOString } from '@/lib/time';
 import api              from '@/lib/api';
 import './RenniChat.css';
 
@@ -132,13 +133,15 @@ export default function RenniChat({ onClose, initialMessage }: Props) {
     let saved = 0;
     for (const log of msg.logs) {
       try {
+        const timeStr = log.startTime ?? log.pointTime ?? '00:00';
+        const endTimeStr = log.endTime ?? log.pointTime ?? '00:00';
         await createLog.mutateAsync({
-          startTime:         log.startTime ?? log.pointTime ?? '00:00',
-          endTime:           log.endTime   ?? log.pointTime ?? '00:00',
+          startAtISO:        localToISOString(selectedDate, timeStr),
+          endAtISO:          localToISOString(selectedDate, endTimeStr),
           title:             log.title,
           logTypeId:         log.logTypeId,
           entryType:         log.entryType,
-          pointTime:         log.pointTime ?? undefined,
+          pointAtISO:        log.entryType === 'point' ? localToISOString(selectedDate, timeStr) : undefined,
           priority:          log.priority ?? null,
           ticketId:          log.ticketId ?? undefined,
           satisfactoryScore: log.satisfactoryScore ?? null,

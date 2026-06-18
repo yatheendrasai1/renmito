@@ -220,16 +220,15 @@ export function useNotifications() {
   const topUpIfNeeded = useCallback(async (intervalMinutes: number) => {
     if (!isNative()) return;
     const pending = await LocalNotifications.getPending();
-    if (pending.notifications.length < REFILL_THRESHOLD) {
-      // Find the furthest scheduled time so we append after it
+    // Only consider nudge notifications (exclude meal IDs ≥ MEAL_ID_BASE)
+    const nudgePending = pending.notifications.filter(n => n.id < MEAL_ID_BASE);
+    if (nudgePending.length < REFILL_THRESHOLD) {
       const now = new Date();
       let startFrom = now;
-      if (pending.notifications.length > 0) {
-        const times = pending.notifications
-          .map(n => (n.schedule?.at ? new Date(n.schedule.at).getTime() : 0))
-          .filter(t => t > now.getTime());
-        if (times.length > 0) startFrom = new Date(Math.max(...times));
-      }
+      const times = nudgePending
+        .map(n => (n.schedule?.at ? new Date(n.schedule.at).getTime() : 0))
+        .filter(t => t > now.getTime());
+      if (times.length > 0) startFrom = new Date(Math.max(...times));
       await scheduleNudgeBatch(intervalMinutes, startFrom);
     }
   }, []);
@@ -371,10 +370,12 @@ export async function topUpNotificationsOnResume(): Promise<void> {
   if (status.display !== 'granted') return;
 
   const pending = await LocalNotifications.getPending();
-  if (pending.notifications.length < 20) {
+  // Only consider nudge notifications (exclude meal IDs ≥ MEAL_ID_BASE)
+  const nudgePending = pending.notifications.filter(n => n.id < MEAL_ID_BASE);
+  if (nudgePending.length < 20) {
     const now = new Date();
     let startFrom = now;
-    const times = pending.notifications
+    const times = nudgePending
       .map(n => (n.schedule?.at ? new Date(n.schedule.at).getTime() : 0))
       .filter(t => t > now.getTime());
     if (times.length > 0) startFrom = new Date(Math.max(...times));
