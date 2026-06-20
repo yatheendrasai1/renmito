@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import api from '@/lib/api';
+import { readCache, writeCache } from '@/lib/queryCache';
 import type { UserPreferences, ActiveLog } from '@/types';
 
 // ── Query key ────────────────────────────────────────────────────────────────
 export const PREFS_KEY = ['preferences'] as const;
+const PREFS_CACHE_KEY = 'preferences';
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 async function fetchPreferences(): Promise<UserPreferences | null> {
@@ -15,10 +17,16 @@ async function fetchPreferences(): Promise<UserPreferences | null> {
 // ── Hook ──────────────────────────────────────────────────────────────────────
 export function usePreferences() {
   const query = useQuery({
-    queryKey: PREFS_KEY,
-    queryFn:  fetchPreferences,
-    staleTime: 60_000,
+    queryKey:    PREFS_KEY,
+    queryFn:     fetchPreferences,
+    staleTime:   60_000,
+    initialData: () => readCache<UserPreferences>(PREFS_CACHE_KEY) ?? undefined,
   });
+
+  // Write fresh data back to cache whenever it arrives from the API
+  useEffect(() => {
+    if (query.data) writeCache(PREFS_CACHE_KEY, query.data);
+  }, [query.data]);
 
   // Apply theme class whenever prefs load / change
   useEffect(() => {

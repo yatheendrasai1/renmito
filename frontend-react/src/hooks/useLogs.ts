@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import api from '@/lib/api';
+import { readCache, writeCache } from '@/lib/queryCache';
 import type { LogEntry, CreateLogEntry } from '@/types';
 
 // ── Query key factory ─────────────────────────────────────────────────────────
@@ -14,12 +16,21 @@ async function fetchLogs(date: string): Promise<LogEntry[]> {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 export function useLogs(date: string) {
-  return useQuery({
-    queryKey: logsKey(date),
-    queryFn:  () => fetchLogs(date),
-    enabled:  !!date,
-    staleTime: 30_000,
+  const cacheKey = `logs-${date}`;
+  const query = useQuery({
+    queryKey:    logsKey(date),
+    queryFn:     () => fetchLogs(date),
+    enabled:     !!date,
+    staleTime:   30_000,
+    initialData: () => readCache<LogEntry[]>(cacheKey),
   });
+
+  // Write fresh data back to cache whenever it arrives from the API
+  useEffect(() => {
+    if (query.data) writeCache(cacheKey, query.data);
+  }, [query.data, cacheKey]);
+
+  return query;
 }
 
 function invalidateBothDates(qc: ReturnType<typeof useQueryClient>, primaryDate: string, log: LogEntry) {
