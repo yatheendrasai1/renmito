@@ -10,11 +10,13 @@ export const logsKey = (date: string) => ['logs', date] as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+export const LOG_SAVE_FAIL_MSG =
+  'Failed to save the log, temporarily holding it in memory, try again before moving to another app';
+
 function extractErrorMessage(err: unknown): string {
-  const e = err as { response?: { data?: { error?: string } }; message?: string };
-  if (e.response?.data?.error) return e.response.data.error;
-  if (e.message === 'Network Error' || !navigator.onLine) return 'No internet connection. Changes saved locally.';
-  return e.message ?? 'Failed to save. Changes saved locally.';
+  const e = err as { message?: string };
+  if (e.message) console.warn('[useLogs] save error:', e.message);
+  return LOG_SAVE_FAIL_MSG;
 }
 
 function buildOptimisticLog(date: string, entry: CreateLogEntry): LogEntry {

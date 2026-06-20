@@ -194,6 +194,24 @@
   opacity: 1;
 }
 
+.ns-sync-warn-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #f59e0b;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.ns-sync-warn-btn--tapper {
+  display: flex;
+  margin-top: 3px;
+}
+
 /* ── Tapper note ──────────────────────────────────────────────────────────── */
 .ns-tapper-wrap {
   background: var(--bg-card);

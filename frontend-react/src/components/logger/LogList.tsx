@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
-import { useDeleteLog, useUpdateLog } from '@/hooks/useLogs';
-import { useLogTypes }                from '@/hooks/useLogTypes';
+import { useQueryClient } from '@tanstack/react-query';
+import { useDeleteLog, useUpdateLog, logsKey, LOG_SAVE_FAIL_MSG } from '@/hooks/useLogs';
+import { useLogTypes } from '@/hooks/useLogTypes';
 import { localToISOString }           from '@/lib/time';
 import LogFormModal                   from './LogFormModal';
 import { Input }    from '@/components/ui/input';
@@ -216,6 +217,7 @@ interface RowProps {
 }
 
 function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
+  const qc             = useQueryClient();
   const deleteMutation = useDeleteLog(date);
   const updateMutation = useUpdateLog(log.date);
 
@@ -273,6 +275,11 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
 
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
+    // Temp items were never saved to the server — remove directly from cache
+    if (log._syncStatus) {
+      qc.setQueryData<LogEntry[]>(logsKey(date), old => (old ?? []).filter(l => l.id !== log.id));
+      return;
+    }
     if (!confirming) { setConfirming(true); return; }
     deleteMutation.mutate(log.id, {
       onSuccess: () => toast(`Deleted "${name}" log`),
@@ -402,13 +409,17 @@ function LogRow({ log, logType, allTypes, date, onEdit }: RowProps) {
 
             <div className="tl-card-actions">
               {log._syncStatus === 'failed' && (
-                <span className="tl-sync-warn" title={log._syncError ?? 'Not saved to server'}>
+                <button
+                  className="tl-sync-warn"
+                  onClick={e => { e.stopPropagation(); toast.warning(LOG_SAVE_FAIL_MSG); }}
+                  aria-label="Save failed"
+                >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                        stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                     <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                   </svg>
-                </span>
+                </button>
               )}
               {log._syncStatus === 'pending' && (
                 <span className="tl-sync-pending" title="Saving…">

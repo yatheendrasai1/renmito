@@ -3,6 +3,9 @@ import api from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export const NOTE_SAVE_FAIL_MSG =
+  'Failed to save the note, temporarily holding it in memory, try again before moving to another app';
+
 export interface NoteItem {
   _id:           string;
   content:       string;
@@ -12,6 +15,9 @@ export interface NoteItem {
   logTypeName?:  string | null;
   domain?:       string | null;
   logTypeColor?: string | null;
+  // UI-only — never returned by server
+  _syncStatus?:  'pending' | 'failed';
+  _syncError?:   string;
 }
 
 export interface DayNotes {

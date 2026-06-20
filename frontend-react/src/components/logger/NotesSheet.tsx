@@ -7,6 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import {
   useNotes, useAddNote, useUpdateNote,
   useUpdateTapperLogType, useDeleteNote,
+  NOTE_SAVE_FAIL_MSG,
   type NoteItem,
 } from '@/hooks/useNotes';
 import { useLogTypes }  from '@/hooks/useLogTypes';
@@ -42,9 +43,10 @@ interface LocalNote extends NoteItem {
   saving:        boolean;
   copied:        boolean;
   pendingDelete: boolean;
+  isTemp:        boolean;  // true when add API failed — never persisted to server
 }
 
-function toLocal(n: NoteItem): LocalNote {
+function toLocal(n: NoteItem, isTemp = false): LocalNote {
   return {
     ...n,
     localContent:  n.content,
@@ -52,6 +54,7 @@ function toLocal(n: NoteItem): LocalNote {
     saving:        false,
     copied:        false,
     pendingDelete: false,
+    isTemp,
   };
 }
 
@@ -151,7 +154,7 @@ export default function NotesSheet({ date, onClose }: Props) {
   const [notes, setNotes] = useState<LocalNote[]>([]);
 
   useEffect(() => {
-    if (data) setNotes(data.notes.map(toLocal));
+    if (data) setNotes(data.notes.map(n => toLocal(n)));
   }, [data]);
 
   // ── UI state ───────────────────────────────────────────────────────────────
@@ -184,12 +187,16 @@ export default function NotesSheet({ date, onClose }: Props) {
   // ── Auto-save on blur ──────────────────────────────────────────────────────
   const handleBlur = useCallback((note: LocalNote) => {
     if (note.localContent === note.savedContent) return;
-    patchNote(note._id, { saving: true });
+    if (note.isTemp) return; // can't update a note that was never saved
+    patchNote(note._id, { saving: true, _syncStatus: undefined });
     updateMutation.mutate(
       { noteId: note._id, content: note.localContent },
       {
-        onSuccess: (updated) => patchNote(note._id, { savedContent: updated.content, saving: false }),
-        onError:   ()        => patchNote(note._id, { saving: false }),
+        onSuccess: (updated) => patchNote(note._id, { savedContent: updated.content, saving: false, _syncStatus: undefined }),
+        onError:   ()        => {
+          patchNote(note._id, { saving: false, _syncStatus: 'failed', _syncError: NOTE_SAVE_FAIL_MSG });
+          toast.warning(NOTE_SAVE_FAIL_MSG);
+        },
       },
     );
   }, [updateMutation]);
@@ -218,6 +225,12 @@ export default function NotesSheet({ date, onClose }: Props) {
     if (!pendingDeleteId) return;
     const id = pendingDeleteId;
     setPendingDeleteId(null);
+    // Temp notes were never saved to server — remove locally only
+    const note = notes.find(n => n._id === id);
+    if (note?.isTemp || note?._syncStatus) {
+      setNotes(prev => prev.filter(n => n._id !== id));
+      return;
+    }
     patchNote(id, { pendingDelete: true });
     deleteMutation.mutate(id, {
       onSuccess: () => setNotes(prev => prev.filter(n => n._id !== id)),
@@ -227,28 +240,46 @@ export default function NotesSheet({ date, onClose }: Props) {
 
   // ── Add note ───────────────────────────────────────────────────────────────
   function handleAddNote() {
+    const tempNote: LocalNote = toLocal({
+      _id: `temp-${Date.now()}`, type: 'regular', content: '',
+      _syncStatus: 'pending',
+    }, true);
+    setNotes(prev => [...prev, tempNote]);
+    setTimeout(() => lastNoteRef.current?.focus(), 50);
+
     addMutation.mutate(
       { type: 'regular', content: '' },
       {
-        onSuccess: (n) => {
-          setNotes(prev => [...prev, toLocal(n)]);
-          setTimeout(() => lastNoteRef.current?.focus(), 50);
+        onSuccess: (n) => setNotes(prev => prev.map(x => x._id === tempNote._id ? toLocal(n) : x)),
+        onError:   () => {
+          setNotes(prev => prev.map(x =>
+            x._id === tempNote._id ? { ...x, _syncStatus: 'failed', _syncError: NOTE_SAVE_FAIL_MSG } : x
+          ));
+          toast.warning(NOTE_SAVE_FAIL_MSG);
         },
-        onError: () => toast('Failed to add note'),
       },
     );
   }
 
   // ── Add tapper ─────────────────────────────────────────────────────────────
   function handleAddTapper() {
+    const tempTapper: LocalNote = toLocal({
+      _id: `temp-${Date.now()}`, type: 'tapper', content: '',
+      timestamp: new Date().toISOString(), _syncStatus: 'pending',
+    }, true);
+    setNotes(prev => [...prev, tempTapper]);
+    setTimeout(() => lastTapRef.current?.focus(), 50);
+
     addMutation.mutate(
       { type: 'tapper', content: '' },
       {
-        onSuccess: (n) => {
-          setNotes(prev => [...prev, toLocal(n)]);
-          setTimeout(() => lastTapRef.current?.focus(), 50);
+        onSuccess: (n) => setNotes(prev => prev.map(x => x._id === tempTapper._id ? toLocal(n) : x)),
+        onError:   () => {
+          setNotes(prev => prev.map(x =>
+            x._id === tempTapper._id ? { ...x, _syncStatus: 'failed', _syncError: NOTE_SAVE_FAIL_MSG } : x
+          ));
+          toast.warning(NOTE_SAVE_FAIL_MSG);
         },
-        onError: () => toast('Failed to add time tap'),
       },
     );
   }
@@ -396,7 +427,21 @@ export default function NotesSheet({ date, onClose }: Props) {
                       />
 
                       <div className="ns-note-footer">
-                        {note.saving && <span className="ns-saving-badge">saving…</span>}
+                        {note._syncStatus === 'pending' && <span className="ns-saving-badge">saving…</span>}
+                        {note.saving && !note._syncStatus && <span className="ns-saving-badge">saving…</span>}
+                        {note._syncStatus === 'failed' && (
+                          <button
+                            className="ns-sync-warn-btn"
+                            onClick={() => toast.warning(NOTE_SAVE_FAIL_MSG)}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                            Not saved
+                          </button>
+                        )}
                         <span className={`ns-char-count${note.localContent.length >= 900 ? ' ns-char-count--near' : ''}`}>
                           {note.localContent.length}/1000
                         </span>
@@ -464,7 +509,22 @@ export default function NotesSheet({ date, onClose }: Props) {
                       maxLength={30}
                     />
 
-                    {note.saving && <span className="ns-saving-badge ns-saving-badge--tapper">saving…</span>}
+                    {(note.saving || note._syncStatus === 'pending') && (
+                      <span className="ns-saving-badge ns-saving-badge--tapper">saving…</span>
+                    )}
+                    {note._syncStatus === 'failed' && (
+                      <button
+                        className="ns-sync-warn-btn ns-sync-warn-btn--tapper"
+                        onClick={() => toast.warning(NOTE_SAVE_FAIL_MSG)}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        Not saved
+                      </button>
+                    )}
                   </div>
                 );
               })}
