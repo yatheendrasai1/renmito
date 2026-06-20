@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
-import { readCache, writeCache } from '@/lib/queryCache';
+import { readCache, writeCache, pruneOldDateCaches } from '@/lib/queryCache';
 import type { LogEntry, CreateLogEntry } from '@/types';
 
 // ── Query key factory ─────────────────────────────────────────────────────────
@@ -65,10 +65,14 @@ export function useLogs(date: string) {
   });
 
   // Write fresh server data back to cache (skip items that are still pending/failed)
+  // Then prune any log cache entries older than 4 days
   useEffect(() => {
     if (query.data) {
       const serverOnly = query.data.filter(l => !l._syncStatus);
-      if (serverOnly.length > 0) writeCache(cacheKey, serverOnly);
+      if (serverOnly.length > 0) {
+        writeCache(cacheKey, serverOnly);
+        pruneOldDateCaches('logs-', 4);
+      }
     }
   }, [query.data, cacheKey]);
 
