@@ -24,6 +24,17 @@ const TABS = [
     ),
   },
   {
+    to: '/renni',
+    label: 'Renni',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 3L13.5 8.5L19 10L13.5 11.5L12 17L10.5 11.5L5 10L10.5 8.5L12 3Z"/>
+        <path d="M5 3L5.75 5.25L8 6L5.75 6.75L5 9L4.25 6.75L2 6L4.25 5.25L5 3Z"/>
+        <path d="M19 14L19.75 16.25L22 17L19.75 17.75L19 20L18.25 17.75L16 17L18.25 16.25L19 14Z"/>
+      </svg>
+    ),
+  },
+  {
     to: '/journeys',
     label: 'Journeys',
     icon: (

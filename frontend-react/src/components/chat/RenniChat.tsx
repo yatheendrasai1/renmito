@@ -42,12 +42,14 @@ interface Msg {
 
 interface Props {
   initialMessage?: string;
-  onClose: () => void;
+  onClose?: () => void;
+  mode?: 'popup' | 'page';
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function RenniChat({ onClose, initialMessage }: Props) {
+export default function RenniChat({ onClose, initialMessage, mode = 'popup' }: Props) {
+  const isPage = mode === 'page';
   const selectedDate = useAppStore(s => s.selectedDate);
   const createLog    = useCreateLog(selectedDate);
 
@@ -178,10 +180,8 @@ export default function RenniChat({ onClose, initialMessage }: Props) {
     }));
   }
 
-  return (
-    <>
-      <div className="rc-backdrop" onClick={onClose} />
-      <div className="rc-popup">
+  const shell = (
+    <div className={isPage ? 'rc-page' : 'rc-popup'}>
 
         {/* Header */}
         <div className="rc-header">
@@ -207,13 +207,15 @@ export default function RenniChat({ onClose, initialMessage }: Props) {
             </svg>
             Notes
           </button>
-          <button className="rc-close" onClick={onClose} aria-label="Close">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6"  x2="6"  y2="18"/>
-              <line x1="6"  y1="6"  x2="18" y2="18"/>
-            </svg>
-          </button>
+          {!isPage && onClose && (
+            <button className="rc-close" onClick={onClose} aria-label="Close">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6"  x2="6"  y2="18"/>
+                <line x1="6"  y1="6"  x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Messages */}
@@ -413,7 +415,15 @@ export default function RenniChat({ onClose, initialMessage }: Props) {
             </svg>
           </button>
         </form>
-      </div>
+    </div>
+  );
+
+  if (isPage) return shell;
+
+  return (
+    <>
+      <div className="rc-backdrop" onClick={onClose} />
+      {shell}
     </>
   );
 }

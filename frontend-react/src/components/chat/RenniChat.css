@@ -26,6 +26,55 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* ── Page mode — full screen, keyboard-aware ─────────────────────────── */
+.rc-page {
+  /* Escape the app shell layout and cover the full screen */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* dvh shrinks when the soft keyboard opens, keeping the input row visible */
+  height: 100dvh;
+  z-index: 10;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  /* Push content below the status bar */
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.rc-page .rc-header {
+  padding: 14px 16px 12px;
+}
+
+.rc-page .rc-messages {
+  padding: 14px 16px 10px;
+  gap: 12px;
+}
+
+.rc-page .rc-msg {
+  max-width: 82%;
+}
+
+.rc-page .rc-bubble {
+  font-size: 14px;
+}
+
+/* Input row sits above the bottom tab bar in page mode */
+.rc-page .rc-input-row {
+  padding: 10px 16px calc(10px + 58px + env(safe-area-inset-bottom, 0px));
+}
+
+.rc-page .rc-input {
+  font-size: 14px;
+  max-height: 120px;
+}
+
+/* Notes panel taller in full-screen */
+.rc-page .rc-notes-panel {
+  max-height: 300px;
+}
+
 /* ── Header ──────────────────────────────────────────────────────────── */
 .rc-header {
   display: flex;
