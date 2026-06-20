@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { readCache, writeCache } from '@/lib/queryCache';
 import type { Journey, JourneyEntry, CreateJourney, CreateJourneyEntry } from '@/types';
 
 function extractErrorMessage(err: unknown): string {
@@ -18,11 +20,18 @@ export const entriesKey     = (id: string) => ['journey-entries', id]    as cons
 // ── List journeys ─────────────────────────────────────────────────────────────
 
 export function useJourneys() {
-  return useQuery({
-    queryKey: journeysKey(),
-    queryFn:  () => api.get<Journey[]>('/journeys').then(r => Array.isArray(r.data) ? r.data : []),
-    staleTime: 60_000,
+  const query = useQuery({
+    queryKey:    journeysKey(),
+    queryFn:     () => api.get<Journey[]>('/journeys').then(r => Array.isArray(r.data) ? r.data : []),
+    staleTime:   60_000,
+    initialData: () => readCache<Journey[]>('journeys'),
   });
+
+  useEffect(() => {
+    if (query.data) writeCache('journeys', query.data);
+  }, [query.data]);
+
+  return query;
 }
 
 // ── Create journey ────────────────────────────────────────────────────────────
@@ -60,12 +69,20 @@ export function useDeleteJourney() {
 // ── List entries ──────────────────────────────────────────────────────────────
 
 export function useJourneyEntries(journeyId: string | null) {
-  return useQuery({
-    queryKey: entriesKey(journeyId ?? ''),
-    queryFn:  () => api.get<JourneyEntry[]>(`/journeys/${journeyId}/entries`).then(r => Array.isArray(r.data) ? r.data : []),
-    enabled:  !!journeyId,
-    staleTime: 30_000,
+  const cacheKey = `journey-entries-${journeyId}`;
+  const query = useQuery({
+    queryKey:    entriesKey(journeyId ?? ''),
+    queryFn:     () => api.get<JourneyEntry[]>(`/journeys/${journeyId}/entries`).then(r => Array.isArray(r.data) ? r.data : []),
+    enabled:     !!journeyId,
+    staleTime:   30_000,
+    initialData: () => journeyId ? readCache<JourneyEntry[]>(cacheKey) : undefined,
   });
+
+  useEffect(() => {
+    if (query.data && journeyId) writeCache(cacheKey, query.data);
+  }, [query.data, cacheKey, journeyId]);
+
+  return query;
 }
 
 // ── Add entry ─────────────────────────────────────────────────────────────────
