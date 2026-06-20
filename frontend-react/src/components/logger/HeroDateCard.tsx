@@ -54,7 +54,7 @@ const HERO_VARS: React.CSSProperties = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function HeroDateCard() {
+export default function HeroDateCard({ hideStrip }: { hideStrip?: boolean } = {}) {
   const selectedDate  = useAppStore(s => s.selectedDate);
   const setDate       = useAppStore(s => s.setSelectedDate);
   const goToToday     = useAppStore(s => s.goToToday);
@@ -228,6 +228,7 @@ export default function HeroDateCard() {
         </div>
 
         {/* Day strip */}
+        {!hideStrip && (
         <div className="day-strip-wrapper">
         <div className="day-strip">
           {stripDays.map(day => (
@@ -248,7 +249,8 @@ export default function HeroDateCard() {
             </button>
           ))}
         </div>
-        </div>{/* day-strip-wrapper */}
+        </div>
+        )}{/* day-strip-wrapper */}
       </div>
 
       {/* Important logs modal */}

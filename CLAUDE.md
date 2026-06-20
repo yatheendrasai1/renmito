@@ -119,7 +119,11 @@ npm run android:open    # above + opens Android Studio (then Build → Build APK
 
 4. **New API base URL references**: Never hardcode `/api` — always use `environment.apiBase`. The mobile build uses the absolute Vercel URL; relative paths break in a Capacitor WebView.
 
-5. **After any frontend change**: remind to run `npm run android:build` from `frontend-react/` and rebuild the APK in Android Studio to get the change on device.
+5. **After any frontend change**: always remind the user to run the following from `frontend-react/` to rebuild the Capacitor app and get the change on device:
+   ```bash
+   cd frontend-react && npm run android:build
+   ```
+   Then open Android Studio and do **Build → Build APK**. This applies to every frontend change — components, hooks, styles, environment config, or any other file under `frontend-react/src/`.
 
 6. **CORS changes** (new origins, new methods): Update `backend/src/config.js` CORS default and `backend/.env.example` to keep mobile origins (`https://localhost`, `capacitor://localhost`) in the allowed list.
 

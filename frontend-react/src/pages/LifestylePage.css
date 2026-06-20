@@ -245,6 +245,49 @@
   padding: 0 5px !important;
 }
 
+/* ── Swipe-to-log (Meals) ─────────────────────────────────── */
+.ls-swipe-wrap {
+  position: relative;
+}
+
+/* Floating time chip shown above the row while dragging */
+.ls-swipe-chip {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* Fill bar — grows behind static row content */
+.ls-swipe-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+
+/* Content layer — sits above the fill, never moves */
+.ls-swipe-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
 /* Add (+) button — right edge, always visible */
 .ls-add-btn {
   flex-shrink: 0;

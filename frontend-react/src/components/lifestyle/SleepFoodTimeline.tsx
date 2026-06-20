@@ -349,9 +349,6 @@ export default function SleepFoodTimeline({ logs, nextDayLogs, selectedDate, onE
         </div>
       </div>
 
-      {milestones.length === 0 && (
-        <p className="sft-empty">Log sleep &amp; meals to see your day's rhythm here.</p>
-      )}
     </div>
   );
 }

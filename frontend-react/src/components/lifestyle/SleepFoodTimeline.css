@@ -3,7 +3,7 @@
   background: var(--bg-surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 14px 16px 20px;
+  padding: 10px 16px 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -13,7 +13,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 4px;
 }
 
 .sft-title {
@@ -30,8 +30,8 @@
 /* ── Track area (clickable) ───────────────────────────────────── */
 .sft-track-area {
   position: relative;
-  padding-top: 38px;
-  padding-bottom: 38px;
+  padding-top: 26px;
+  padding-bottom: 26px;
   /* Horizontal inset so edge milestone labels don't overflow the card */
   padding-left: 24px;
   padding-right: 24px;
