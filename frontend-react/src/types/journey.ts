@@ -50,6 +50,9 @@ export interface JourneyEntry {
   sourceLogId:      string | null;
   createdAt:        string;
   updatedAt:        string;
+  // UI-only — set when an optimistic save failed, never returned by server
+  _syncStatus?: 'pending' | 'failed';
+  _syncError?:  string;
 }
 
 export interface CreateJourney {

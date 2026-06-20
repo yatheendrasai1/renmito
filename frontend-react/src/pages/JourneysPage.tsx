@@ -1453,12 +1453,30 @@ export default function JourneysPage() {
                 {group.entries.length > 1 && <span className="jrn-pl-count">{group.entries.length}</span>}
               </div>
               {group.entries.map(e => (
-                <div key={e.id} className="jrn-entry-card" onClick={() => setEditingEntry(e)}>
+                <div key={e.id} className={`jrn-entry-card${e._syncStatus === 'failed' ? ' jrn-entry-card--failed' : ''}`}
+                     onClick={() => e._syncStatus !== 'failed' && setEditingEntry(e)}>
                   <div className="jrn-entry-left">
                     <span className="jrn-entry-time">{fmtTimestamp(e.timestamp)}</span>
                   </div>
                   {e.valueType === 'numeric' && <span className="jrn-entry-value">{e.numericValue}</span>}
                   {e.valueType === 'categorical' && <span className="jrn-entry-pill">{e.categoricalValue}</span>}
+                  {e._syncStatus === 'pending' && (
+                    <span className="jrn-sync-pending" title="Saving…">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                           stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                      </svg>
+                    </span>
+                  )}
+                  {e._syncStatus === 'failed' && (
+                    <span className="jrn-sync-warn" title={e._syncError ?? 'Not saved to server'}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                           stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                      </svg>
+                    </span>
+                  )}
                   <button className="jrn-entry-del-btn" title="Delete"
                           onClick={ev => { ev.stopPropagation(); handleDeleteEntry(e); }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

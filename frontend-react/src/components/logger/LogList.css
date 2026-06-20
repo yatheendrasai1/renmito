@@ -375,6 +375,34 @@
   cursor: not-allowed;
 }
 
+/* ── Sync status indicators ──────────────────────────────────────────────── */
+.tl-sync-warn,
+.tl-sync-pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  flex-shrink: 0;
+}
+
+.tl-sync-warn {
+  color: #f59e0b;
+}
+
+.tl-sync-pending {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.tl-sync-pending svg {
+  animation: tl-spin 1s linear infinite;
+}
+
+@keyframes tl-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 /* ── Editing card ────────────────────────────────────────────────────────── */
 .tl-item--editing { cursor: default; }
 

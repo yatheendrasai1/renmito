@@ -22,6 +22,9 @@ export interface LogEntry {
   jiraTicketId?:      string | null;
   jiraTicketKey?:     string | null;   // e.g. ENG-1234
   jiraTicketSummary?: string | null;   // cached title
+  // UI-only — set when an optimistic save failed, never returned by server
+  _syncStatus?: 'pending' | 'failed';
+  _syncError?:  string;
 }
 
 export interface CreateLogEntry {
