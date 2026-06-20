@@ -8,6 +8,7 @@ import { usePreferences } from '@/hooks/usePreferences';
 import TopStrip          from '@/components/shell/TopStrip';
 import LeftNav           from '@/components/shell/LeftNav';
 import BottomTabBar      from '@/components/shell/BottomTabBar';
+import SyncBand         from '@/components/shell/SyncBand';
 import SpeedDialFAB      from '@/components/shell/SpeedDialFAB';
 import LogFormModal      from '@/components/logger/LogFormModal';
 import RenniChat         from '@/components/chat/RenniChat';
@@ -78,6 +79,7 @@ export default function AppLayout() {
         </div>
       </div>
 
+      <SyncBand />
       <BottomTabBar />
       {!isDiary && !logFormOpen && <SpeedDialFAB />}
 
