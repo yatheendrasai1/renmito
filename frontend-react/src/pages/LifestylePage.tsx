@@ -24,21 +24,8 @@ interface LifestyleCat {
 
 const LIFESTYLE_CATS: LifestyleCat[] = [
   {
-    id: 'sleep',
-    label: 'Sleep & Rest',
-    logCategories: ['sleep'],
-    pinnedNames: ['Sleep'],
-    color: '#7A6490',
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'meals',
-    label: 'Meals',
+    id: 'times',
+    label: 'Times',
     logCategories: ['food'],
     pinnedNames: ['Breakfast', 'Lunch', 'Dinner', 'Food Intake'],
     color: '#F2A65A',
@@ -58,11 +45,11 @@ const LIFESTYLE_CATS: LifestyleCat[] = [
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const MEAL_DEFAULT_TIMES: Record<string, string> = {
-  'Breakfast': '08:00',
-  'Lunch':     '13:00',
-  'Dinner':    '20:00',
+  'Breakfast':   '08:00',
+  'Lunch':       '13:00',
+  'Dinner':      '20:00',
+  'Food Intake': '12:00',
 };
-const SWIPEABLE_MEALS = new Set(['Breakfast', 'Lunch', 'Dinner']);
 
 function isoToHHMM(iso: string): string {
   const d = new Date(iso);
@@ -119,6 +106,7 @@ interface LogRowProps {
   onEdit:         (entry: LogEntry) => void;
   swipeBaseTime?: string;
   onSwipeCommit?: (hhmm: string) => void;
+  isAddMore?:     boolean;
 }
 
 function entryTimeLabel(e: LogEntry): string {
@@ -128,14 +116,14 @@ function entryTimeLabel(e: LogEntry): string {
   return end ? `${start} – ${end}` : start;
 }
 
-function LogRow({ typeName, typeColor, entries, logType, onAdd, onEdit, swipeBaseTime, onSwipeCommit }: LogRowProps) {
+function LogRow({ typeName, typeColor, entries, logType, onAdd, onEdit, swipeBaseTime, onSwipeCommit, isAddMore }: LogRowProps) {
   const none   = entries.length === 0;
   const single = entries.length === 1;
   const multi  = entries.length > 1;
 
   const isSwipeable = !!swipeBaseTime && !!onSwipeCommit;
 
-  // ── Swipe state ───────────────────────────────────────────────────────────
+  // ── Drag state (shared by mouse + touch) ─────────────────────────────────
   const [dragFrac, setDragFrac]     = useState<number | null>(null);
   const [liveChip, setLiveChip]     = useState('');
   const [showChip, setShowChip]     = useState(false);
@@ -143,30 +131,29 @@ function LogRow({ typeName, typeColor, entries, logType, onAdd, onEdit, swipeBas
   const dragging    = useRef(false);
   const dragFracRef = useRef<number | null>(null);
   const didSwipe    = useRef(false);
-  const startFrac   = useRef<number | null>(null); // frac at touchStart, for threshold check
+  const startFrac   = useRef<number | null>(null);
 
-  function handleTouchStart(e: React.TouchEvent) {
+  function dragStart(clientX: number) {
     if (!isSwipeable || !rowRef.current) return;
     const rect = rowRef.current.getBoundingClientRect();
-    const frac = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
-    startFrac.current   = frac;
-    dragging.current    = true;
-    didSwipe.current    = false;
+    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    startFrac.current = frac;
+    dragging.current  = true;
+    didSwipe.current  = false;
   }
 
-  function handleTouchMove(e: React.TouchEvent) {
+  function dragMove(clientX: number) {
     if (!dragging.current || !rowRef.current) return;
     const rect = rowRef.current.getBoundingClientRect();
-    const frac = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
+    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     dragFracRef.current = frac;
     setDragFrac(frac);
     setLiveChip(toHHMM12(fracToHHMM(frac)));
-    // show chip once finger moved at least ~5px from start
     const moved = Math.abs(frac - (startFrac.current ?? frac)) * rect.width;
     setShowChip(moved > 5);
   }
 
-  function handleTouchEnd() {
+  function dragEnd() {
     if (!dragging.current) return;
     dragging.current = false;
     const frac = dragFracRef.current;
@@ -183,6 +170,17 @@ function LogRow({ typeName, typeColor, entries, logType, onAdd, onEdit, swipeBas
     dragFracRef.current = null;
   }
 
+  // Touch handlers
+  function handleTouchStart(e: React.TouchEvent) { dragStart(e.touches[0].clientX); }
+  function handleTouchMove(e: React.TouchEvent)  { dragMove(e.touches[0].clientX); }
+  function handleTouchEnd()                       { dragEnd(); }
+
+  // Mouse handlers
+  function handleMouseDown(e: React.MouseEvent) { dragStart(e.clientX); }
+  function handleMouseMove(e: React.MouseEvent) { dragMove(e.clientX); }
+  function handleMouseUp()                       { dragEnd(); }
+  function handleMouseLeave()                    { if (dragging.current) dragEnd(); }
+
   // ── Click (tap) ───────────────────────────────────────────────────────────
   function handleBodyClick() {
     if (didSwipe.current) { didSwipe.current = false; return; }
@@ -191,6 +189,27 @@ function LogRow({ typeName, typeColor, entries, logType, onAdd, onEdit, swipeBas
   }
 
   // ── Inner content (shared for swipeable and plain) ────────────────────────
+
+  // "Add more" placeholder row
+  if (isAddMore) {
+    return (
+      <div
+        className="ls-log-row ls-log-row--add-more"
+        role="button"
+        tabIndex={0}
+        onClick={() => onAdd(logType)}
+        onKeyDown={e => e.key === 'Enter' && onAdd(logType)}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        <span>Add food intake</span>
+      </div>
+    );
+  }
+
   const rowContent = (
     <>
       {/* ── Clickable body ── */}
@@ -200,7 +219,7 @@ function LogRow({ typeName, typeColor, entries, logType, onAdd, onEdit, swipeBas
         tabIndex={0}
         onClick={!multi ? handleBodyClick : undefined}
         onKeyDown={!multi ? (e => e.key === 'Enter' && handleBodyClick()) : undefined}
-        style={{ cursor: multi ? 'default' : 'pointer' }}
+        style={{ cursor: multi ? 'default' : isSwipeable ? 'ew-resize' : 'pointer' }}
       >
         <span className="ls-log-dot" style={{ background: typeColor }} />
 
@@ -226,6 +245,18 @@ function LogRow({ typeName, typeColor, entries, logType, onAdd, onEdit, swipeBas
                   {fmtDuration(entries[0].durationMins!)}
                 </Badge>
               )}
+              {/* Show warning when entry has no food details (quick-swiped) */}
+              {entries[0].title === typeName && (
+                <span className="ls-needs-details" title="Tap to add food details">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  add details
+                </span>
+              )}
             </span>
           )}
 
@@ -243,6 +274,14 @@ function LogRow({ typeName, typeColor, entries, logType, onAdd, onEdit, swipeBas
                     <Badge variant="secondary" className="ls-entry-dur">
                       {fmtDuration(e.durationMins!)}
                     </Badge>
+                  )}
+                  {e.title === typeName && (
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none"
+                         stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
                   )}
                   <svg className="ls-chip-edit-icon" width="9" height="9" viewBox="0 0 24 24"
                        fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -295,6 +334,11 @@ function LogRow({ typeName, typeColor, entries, logType, onAdd, onEdit, swipeBas
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      style={{ userSelect: 'none' }}
     >
       {/* Floating time chip — visible only while dragging past 5px */}
       {showChip && (
@@ -391,12 +435,47 @@ function SectionCard({ cat, logs, logTypes, onAdd, onEdit, onSwipeCommit }: Sect
       </div>
 
       <div className="ls-section-rows">
-        {pinnedRows.map(row => {
-          const swipeable = !!onSwipeCommit && SWIPEABLE_MEALS.has(row.name) && cat.id === 'meals';
+        {pinnedRows.flatMap(row => {
+          const swipeable = !!onSwipeCommit;
+
+          // Food Intake: one row per logged entry, plus an empty row when none logged
+          if (row.name === 'Food Intake') {
+            if (row.entries.length === 0) {
+              const swipeBase = swipeable
+                ? (MEAL_DEFAULT_TIMES[row.name] ?? '12:00')
+                : undefined;
+              return [(
+                <LogRow
+                  key="Food Intake-empty"
+                  typeName={row.name}
+                  typeColor={row.color}
+                  entries={[]}
+                  logType={row.lt}
+                  onAdd={onAdd}
+                  onEdit={onEdit}
+                  swipeBaseTime={swipeBase}
+                  onSwipeCommit={swipeable ? (hhmm) => onSwipeCommit(row.lt, undefined, hhmm) : undefined}
+                />
+              )];
+            }
+            return row.entries.map((entry, i) => (
+              <LogRow
+                key={`Food Intake-${i}`}
+                typeName={row.name}
+                typeColor={row.color}
+                entries={[entry]}
+                logType={row.lt}
+                onAdd={onAdd}
+                onEdit={onEdit}
+              />
+            ));
+          }
+
+          // All other pinned rows: single row (existing behaviour)
           const swipeBase = swipeable
-            ? (row.entries[0]?.startAt ? isoToHHMM(row.entries[0].startAt) : MEAL_DEFAULT_TIMES[row.name])
+            ? (row.entries[0]?.startAt ? isoToHHMM(row.entries[0].startAt) : (MEAL_DEFAULT_TIMES[row.name] ?? '12:00'))
             : undefined;
-          return (
+          return [(
             <LogRow
               key={row.name}
               typeName={row.name}
@@ -408,7 +487,7 @@ function SectionCard({ cat, logs, logTypes, onAdd, onEdit, onSwipeCommit }: Sect
               swipeBaseTime={swipeBase}
               onSwipeCommit={swipeable ? (hhmm) => onSwipeCommit(row.lt, row.entries[0], hhmm) : undefined}
             />
-          );
+          )];
         })}
         {extraRows.map((row, i) => (
           <LogRow
@@ -421,6 +500,23 @@ function SectionCard({ cat, logs, logTypes, onAdd, onEdit, onSwipeCommit }: Sect
             onEdit={onEdit}
           />
         ))}
+        {/* "+Add more" row — only for Food Intake once it has entries */}
+        {(() => {
+          const fiRow = pinnedRows.find(r => r.name === 'Food Intake');
+          if (!fiRow || fiRow.entries.length === 0) return null;
+          return (
+            <LogRow
+              key="food-intake-add-more"
+              typeName="Food Intake"
+              typeColor={fiRow.color}
+              entries={[]}
+              logType={fiRow.lt}
+              onAdd={onAdd}
+              onEdit={onEdit}
+              isAddMore
+            />
+          );
+        })()}
       </div>
     </div>
   );
@@ -529,7 +625,7 @@ export default function LifestylePage() {
           logTypes={logTypes}
           onAdd={openAdd}
           onEdit={openEdit}
-          onSwipeCommit={cat.id === 'meals' ? handleSwipeCommit : undefined}
+          onSwipeCommit={cat.id === 'times' ? handleSwipeCommit : undefined}
         />
       ))}
 

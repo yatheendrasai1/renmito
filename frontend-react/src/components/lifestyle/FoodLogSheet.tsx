@@ -67,32 +67,36 @@ function parseTimeInput(raw: string): string | null {
   return null;
 }
 
-// ── Dual Slider Time Picker ───────────────────────────────────────────────────
+// ── Single Slider Time Picker (15-min steps, 00:00–23:45) ────────────────────
+// 96 slots total: slot 0 = 00:00, slot 95 = 23:45
 
-function DualSliderTimePick({
+function hhmmToSlot(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  const hour = isNaN(h) ? 0 : Math.min(23, Math.max(0, h));
+  const min  = isNaN(m) ? 0 : Math.min(59, Math.max(0, m));
+  return hour * 4 + Math.round(min / 15);
+}
+
+function slotToHHMM(slot: number): string {
+  const s = Math.min(95, Math.max(0, slot));
+  const h = Math.floor(s / 4);
+  const m = (s % 4) * 15;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function SingleSliderTimePick({
   value,
   onChange,
 }: {
   value: string;
   onChange: (v: string) => void;
 }) {
-  const parts  = value.split(':').map(Number);
-  const hour   = isNaN(parts[0]) ? 0 : parts[0];
-  const rawMin = isNaN(parts[1]) ? 0 : parts[1];
-  const minute = Math.min(55, Math.max(0, Math.round(rawMin / 5) * 5));
+  const slot = hhmmToSlot(value);
+  const frac = slot / 95;
 
-  const hourFrac = hour / 23;
-  const minFrac  = minute / 55;
-
-  const [activeBar, setActiveBar] = useState<'hr' | 'min' | null>(null);
-  const [isEditing, setIsEditing]  = useState(false);
-  const [editValue, setEditValue]  = useState('');
-
-  // thumb is 10px wide; half = 5px — used for fill and tooltip alignment
-  const thumbW = 10;
-  const halfW  = thumbW / 2;
-  const labelLeft = (frac: number) =>
-    `calc(${halfW}px + ${frac} * (100% - ${thumbW}px))`;
+  const [isDragging, setIsDragging] = useState(false);
+  const [isEditing,  setIsEditing]  = useState(false);
+  const [editValue,  setEditValue]  = useState('');
 
   function startEdit() {
     setEditValue(to12(value));
@@ -106,7 +110,7 @@ function DualSliderTimePick({
   }
 
   return (
-    <div className="fls-dual-slider">
+    <div className="fls-single-slider">
       <div className="fls-time-display-row">
         {isEditing ? (
           <input
@@ -136,56 +140,34 @@ function DualSliderTimePick({
           </>
         )}
       </div>
-      <div className="fls-slider-group">
-        <div className="fls-slider-row">
-          <span className="fls-slider-lbl">hr</span>
-          <div className="fls-track-wrap">
-            <div className="fls-track-bg">
-              <div className="fls-track-fill" style={{ '--frac': hourFrac } as React.CSSProperties} />
-            </div>
-            {activeBar === 'hr' && (
-              <span className="fls-thumb-label" style={{ left: labelLeft(hourFrac) }}>
-                {hour}
-              </span>
-            )}
-            <input
-              type="range"
-              className="fls-range"
-              min={0} max={23} step={1}
-              value={hour}
-              onPointerDown={() => setActiveBar('hr')}
-              onPointerUp={() => setActiveBar(null)}
-              onChange={e => {
-                const h = Number(e.target.value);
-                onChange(`${String(h).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
-              }}
-            />
-          </div>
+
+      <div className="fls-track-wrap">
+        <div className="fls-track-bg">
+          <div className="fls-track-fill" style={{ '--frac': frac } as React.CSSProperties} />
         </div>
-        <div className="fls-slider-row">
-          <span className="fls-slider-lbl">min</span>
-          <div className="fls-track-wrap">
-            <div className="fls-track-bg">
-              <div className="fls-track-fill" style={{ '--frac': minFrac } as React.CSSProperties} />
-            </div>
-            {activeBar === 'min' && (
-              <span className="fls-thumb-label" style={{ left: labelLeft(minFrac) }}>
-                {minute}
-              </span>
-            )}
-            <input
-              type="range"
-              className="fls-range"
-              min={0} max={55} step={5}
-              value={minute}
-              onPointerDown={() => setActiveBar('min')}
-              onPointerUp={() => setActiveBar(null)}
-              onChange={e => {
-                const m = Number(e.target.value);
-                onChange(`${String(hour).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-              }}
-            />
-          </div>
+        {isDragging && (
+          <span
+            className="fls-thumb-label"
+            style={{ left: `calc(6px + ${frac} * (100% - 12px))` }}
+          >
+            {to12(value)}
+          </span>
+        )}
+        <input
+          type="range"
+          className="fls-range"
+          min={0} max={95} step={1}
+          value={slot}
+          onPointerDown={() => setIsDragging(true)}
+          onPointerUp={() => setIsDragging(false)}
+          onChange={e => onChange(slotToHHMM(Number(e.target.value)))}
+        />
+        <div className="fls-track-labels">
+          <span>12 AM</span>
+          <span>6 AM</span>
+          <span>12 PM</span>
+          <span>6 PM</span>
+          <span>12 AM</span>
         </div>
       </div>
     </div>
@@ -277,7 +259,7 @@ export default function FoodLogSheet({
               <span className="fls-q-num">1</span>
               <span className="fls-q-text">When did you eat?</span>
             </div>
-            <DualSliderTimePick value={startTime} onChange={setStartTime} />
+            <SingleSliderTimePick value={startTime} onChange={setStartTime} />
           </div>
 
           {/* Q2 — What */}

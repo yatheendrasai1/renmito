@@ -106,11 +106,11 @@
   margin-left: 2px;
 }
 
-/* ── Dual slider time picker ──────────────────────────────── */
-.fls-dual-slider {
+/* ── Single slider time picker ────────────────────────────── */
+.fls-single-slider {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 14px;
 }
 
 .fls-time-display-row {
@@ -149,8 +149,7 @@
   padding: 0 2px 2px;
 }
 
-/* width:0 + overflow:visible means flex centering ignores the note's width,
-   so the time stays at true center while the note bleeds to its right */
+/* width:0 + overflow:visible keeps time centred; note bleeds right */
 .fls-time-note {
   width: 0;
   overflow: visible;
@@ -163,55 +162,29 @@
   padding-bottom: 1px;
 }
 
-.fls-slider-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-top: 18px;
-}
-
-.fls-slider-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.fls-slider-lbl {
-  font-size: 9.5px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  width: 22px;
-  text-align: right;
-  flex-shrink: 0;
-}
-
 /* fill is a separate div; input sits on top, fully transparent */
 .fls-track-wrap {
-  flex: 1;
   position: relative;
-  height: 24px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .fls-track-bg {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  height: 24px;
   background: var(--bg-card);
   border-radius: 4px;
   overflow: hidden;
   pointer-events: none;
 }
 
-/* absolute inset guarantees fill touches all 4 edges — no baseline gap */
 .fls-track-fill {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
-  width: calc(5px + var(--frac, 0) * (100% - 10px));
+  width: calc(6px + var(--frac, 0) * (100% - 12px));
   background: var(--highlight-selected);
   pointer-events: none;
 }
@@ -219,29 +192,27 @@
 /* floating value label above the thumb while dragging */
 .fls-thumb-label {
   position: absolute;
-  bottom: calc(100% + 5px);
+  bottom: calc(100% + 30px);
   transform: translateX(-50%);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-primary);
   background: var(--bg-card);
   border: 1px solid var(--border-light, var(--border));
-  border-radius: 4px;
-  padding: 2px 6px;
+  border-radius: 5px;
+  padding: 3px 8px;
   pointer-events: none;
   white-space: nowrap;
   z-index: 10;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .fls-range {
   position: absolute;
+  top: 0;
   left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
   width: 100%;
-  height: 16px;
+  height: 24px;
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
@@ -254,19 +225,19 @@
 
 .fls-range::-webkit-slider-runnable-track {
   background: transparent;
-  height: 16px;
+  height: 24px;
 }
 
 .fls-range::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 10px;
-  height: 22px;
-  margin-top: -3px; /* (track 16px - thumb 22px) / 2 — centers thumb on track */
+  width: 12px;
+  height: 28px;
+  margin-top: -2px;
   border-radius: 3px;
   background: #fff;
   cursor: grab;
   border: none;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
   transition: transform 0.1s;
 }
 
@@ -276,13 +247,13 @@
 }
 
 .fls-range::-moz-range-thumb {
-  width: 10px;
-  height: 22px;
+  width: 12px;
+  height: 28px;
   border-radius: 3px;
   background: #fff;
   cursor: grab;
   border: none;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
 }
 
 .fls-range:active::-moz-range-thumb {
@@ -291,9 +262,22 @@
 }
 
 .fls-range::-moz-range-track {
-  height: 16px;
+  height: 24px;
   border-radius: 4px;
   background: transparent;
+}
+
+/* time axis labels below the track */
+.fls-track-labels {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  pointer-events: none;
+  user-select: none;
 }
 
 

@@ -13,6 +13,18 @@
   z-index: 150;
 }
 
+/* Gradient fade so content visibly transitions into the tab bar */
+.bottom-tab-bar::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: 32px;
+  background: linear-gradient(to bottom, transparent, var(--bg-primary));
+  pointer-events: none;
+}
+
 @media (min-width: 768px) {
   .bottom-tab-bar {
     /* inner content aligns with the 720px content column */

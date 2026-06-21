@@ -73,17 +73,16 @@
 
 /* ── Section card ─────────────────────────────────────────── */
 .ls-section-card {
-  background: var(--bg-surface);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .ls-section-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px 10px;
+  padding: 4px 4px 8px;
 }
 
 .ls-section-icon {
@@ -112,18 +111,23 @@
 .ls-section-rows {
   display: flex;
   flex-direction: column;
+  gap: 8px;
 }
 
-/* ── Log row ──────────────────────────────────────────────── */
+/* ── Log row — individual card ────────────────────────────── */
 .ls-log-row {
   display: flex;
   align-items: center;
-  border-top: 1px solid var(--bg-card);
-  transition: background 0.12s;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--bg-card);
+  transition: background 0.12s, box-shadow 0.12s;
+  overflow: hidden;
 }
 
 .ls-log-row:hover {
   background: var(--bg-card);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--bg-card);
 }
 
 /* Clickable body (takes up all space left of the + button) */
@@ -302,4 +306,41 @@
 .ls-log-row:hover .ls-add-btn {
   opacity: 1;
   color: var(--highlight-selected) !important;
+}
+
+/* ── "Needs details" warning badge ───────────────────────── */
+.ls-needs-details {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #F59E0B;
+  background: rgba(245, 158, 11, 0.10);
+  border-radius: 6px;
+  padding: 1px 5px 1px 4px;
+  white-space: nowrap;
+}
+
+/* ── "+Add more" placeholder row ─────────────────────────── */
+.ls-log-row--add-more {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  border-style: dashed;
+  box-shadow: none;
+  border: 1.5px dashed var(--border-light, var(--border));
+  background: transparent;
+}
+
+.ls-log-row--add-more:hover {
+  color: var(--highlight-selected);
+  border-color: var(--highlight-selected);
+  background: transparent;
+  box-shadow: none;
 }
