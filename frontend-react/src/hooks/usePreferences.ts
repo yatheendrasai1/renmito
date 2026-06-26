@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import api from '@/lib/api';
 import { readCache, writeCache } from '@/lib/queryCache';
 import type { UserPreferences, ActiveLog } from '@/types';
@@ -32,6 +34,10 @@ export function usePreferences() {
   useEffect(() => {
     const theme = query.data?.theme ?? 'dark';
     document.documentElement.classList.toggle('dark', theme === 'dark');
+
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.setStyle({ style: theme === 'dark' ? Style.Dark : Style.Light });
+    }
   }, [query.data]);
 
   return query;
