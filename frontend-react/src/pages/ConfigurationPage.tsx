@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocationPoints } from '@/hooks/useLocationPoints';
 
 const LocationPointPicker = lazy(
@@ -573,8 +574,16 @@ function LocationPointsAccordion() {
   const [showPicker, setShowPicker] = useState(false);
 
   return (
-    <>
-      <AccordionItem value="location-points" className="cfg-acc">
+    <AccordionItem value="location-points" className="cfg-acc">
+      {showPicker && createPortal(
+        <Suspense fallback={null}>
+          <LocationPointPicker
+            onSave={create}
+            onClose={() => setShowPicker(false)}
+          />
+        </Suspense>,
+        document.body
+      )}
         <AccordionTrigger className="cfg-acc-head">
           <div className="cfg-acc-icon cfg-icon--loc">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -611,7 +620,7 @@ function LocationPointsAccordion() {
                     <div className="cfg-loc-info">
                       <span className="cfg-loc-name">{p.name}</span>
                       <span className="cfg-loc-coords">{p.lat.toFixed(5)}, {p.lng.toFixed(5)}</span>
-                      <span className="cfg-loc-radius">radius: {p.radius} m</span>
+                      <span className="cfg-loc-radius">⊙ {p.radius ?? 10} m</span>
                     </div>
                     <button
                       className="cfg-loc-del"
@@ -632,16 +641,6 @@ function LocationPointsAccordion() {
             )}
           </div>
         </AccordionContent>
-      </AccordionItem>
-
-      {showPicker && (
-        <Suspense fallback={null}>
-          <LocationPointPicker
-            onSave={create}
-            onClose={() => setShowPicker(false)}
-          />
-        </Suspense>
-      )}
-    </>
+    </AccordionItem>
   );
 }

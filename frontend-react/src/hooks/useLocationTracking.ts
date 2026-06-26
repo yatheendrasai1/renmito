@@ -135,11 +135,15 @@ export function useLocationTracking() {
         const isFirst      = lastSavedAtRef.current === 0;
 
         if (isFirst || msSinceLast >= INTERVAL_MS) {
+          // Gate immediately (synchronously) so concurrent callbacks
+          // that arrive before the awaits below don't also pass the check.
+          lastSavedAtRef.current    = now;
+          lastSavedCoordRef.current = coord;
+
           const distanceFromPrev = lastSavedCoordRef.current
             ? haversineMeters(lastSavedCoordRef.current, coord)
             : null;
 
-          // Check proximity against saved location points
           const savedPoints = await fetchLocationPoints();
           const nearby = savedPoints.find(
             p => haversineMeters(coord, p) <= (p.radius ?? 10)
@@ -150,9 +154,6 @@ export function useLocationTracking() {
             distanceFromPrev,
             nearbyLocationName: nearby?.name ?? null,
           };
-
-          lastSavedAtRef.current    = now;
-          lastSavedCoordRef.current = coord;
 
           await appendPoint(point);
           setStored(prev => [...prev, point]);
