@@ -7,7 +7,7 @@ import type {
 } from '@capacitor-community/background-geolocation';
 import api from '@/lib/api';
 
-async function fetchLocationPoints(): Promise<{ lat: number; lng: number; name: string; radius: number }[]> {
+async function fetchLocationPoints(): Promise<{ _id: string; lat: number; lng: number; name: string; radius: number }[]> {
   try {
     const res = await api.get('/location-points');
     return Array.isArray(res.data) ? res.data : [];
@@ -27,8 +27,9 @@ export interface Coordinate {
 }
 
 export interface StoredPoint extends Coordinate {
-  distanceFromPrev: number | null;  // metres; null for the first point
-  nearbyLocationName?: string | null; // name of a saved LocationPoint within 5 m
+  distanceFromPrev: number | null;
+  nearbyLocationName?: string | null;
+  nearbyLocationId?: string | null;
 }
 
 const STORAGE_KEY             = 'renmito-location-logs';
@@ -60,10 +61,12 @@ async function readStored(): Promise<StoredPoint[]> {
     if (!Array.isArray(parsed)) return [];
     // Normalise legacy records that predate distanceFromPrev
     return parsed.map(p => ({
-      lat:               p.lat,
-      lng:               p.lng,
-      timestamp:         p.timestamp,
-      distanceFromPrev:  p.distanceFromPrev ?? null,
+      lat:                p.lat,
+      lng:                p.lng,
+      timestamp:          p.timestamp,
+      distanceFromPrev:   p.distanceFromPrev  ?? null,
+      nearbyLocationName: p.nearbyLocationName ?? null,
+      nearbyLocationId:   p.nearbyLocationId   ?? null,
     }));
   } catch {
     return [];
@@ -160,6 +163,7 @@ export function useLocationTracking() {
             ...coord,
             distanceFromPrev,
             nearbyLocationName: nearby?.name ?? null,
+            nearbyLocationId:   nearby?._id  ?? null,
           };
 
           await appendPoint(point);

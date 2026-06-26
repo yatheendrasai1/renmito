@@ -2,9 +2,12 @@ const mongoose = require('mongoose');
 
 const coordinateSchema = new mongoose.Schema(
   {
-    lat:       { type: Number, required: true },
-    lng:       { type: Number, required: true },
-    timestamp: { type: Date,   required: true },
+    lat:                 { type: Number, required: true },
+    lng:                 { type: Number, required: true },
+    timestamp:           { type: Date,   required: true },
+    distanceFromPrev:    { type: Number, default: null },
+    nearbyLocationName:  { type: String, default: null },
+    nearbyLocationId:    { type: mongoose.Schema.Types.ObjectId, ref: 'LocationPoint', default: null },
   },
   { _id: false }
 );
