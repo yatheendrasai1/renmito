@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
-import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap } from 'react-leaflet';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import type { Map as LeafletMap } from 'leaflet';
+import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Coordinate } from '@/hooks/useLocationTracking';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
@@ -11,11 +12,48 @@ const INDIA_BOUNDS: [[number, number], [number, number]] = [
   [35.67, 97.4],
 ];
 
-function MapFollower({ position }: { position: Coordinate | null }) {
+function MapRefCapture({ mapRef }: { mapRef: React.MutableRefObject<LeafletMap | null> }) {
   const map = useMap();
+  useEffect(() => { mapRef.current = map; }, [map, mapRef]);
+  return null;
+}
+
+// Centers the map once on the first GPS fix, then stops following
+function InitialCenter({ position }: { position: Coordinate | null }) {
+  const map      = useMap();
+  const [done, setDone] = useState(false);
   useEffect(() => {
-    if (position) map.setView([position.lat, position.lng], map.getZoom());
-  }, [position, map]);
+    if (position && !done) {
+      map.setView([position.lat, position.lng], map.getZoom());
+      setDone(true);
+    }
+  }, [position, map, done]);
+  return null;
+}
+
+// Watches map bounds and tells the parent whether the current position is visible
+function BoundsWatcher({
+  position,
+  onVisibilityChange,
+}: {
+  position: Coordinate | null;
+  onVisibilityChange: (visible: boolean) => void;
+}) {
+  const check = useCallback(
+    (map: ReturnType<typeof useMap>) => {
+      if (!position) { onVisibilityChange(true); return; }
+      onVisibilityChange(map.getBounds().contains([position.lat, position.lng]));
+    },
+    [position, onVisibilityChange]
+  );
+
+  const map = useMapEvents({
+    move() { check(map); },
+    zoom() { check(map); },
+  });
+
+  useEffect(() => { check(map); }, [position, map, check]);
+
   return null;
 }
 
@@ -24,6 +62,15 @@ export default function LocationPage() {
     useLocationTracking();
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  const [positionInView, setPositionInView] = useState(true);
+  const mapInstanceRef = useRef<LeafletMap | null>(null);
+
+  const goToCurrentPosition = useCallback(() => {
+    if (mapInstanceRef.current && currentPosition) {
+      mapInstanceRef.current.flyTo([currentPosition.lat, currentPosition.lng], mapInstanceRef.current.getZoom());
+    }
+  }, [currentPosition]);
 
   const polyline: [number, number][] = stored.map(c => [c.lat, c.lng]);
   const mapCenter: [number, number]  = currentPosition
@@ -58,6 +105,16 @@ export default function LocationPage() {
       )}
 
       <div className="loc-map-wrap">
+        {!positionInView && currentPosition && (
+          <button className="loc-locate-btn" onClick={goToCurrentPosition} title="Go to current location">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+              <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" strokeOpacity="0"/>
+            </svg>
+          </button>
+        )}
         <MapContainer
           center={mapCenter}
           zoom={19}
@@ -72,7 +129,9 @@ export default function LocationPage() {
             maxZoom={19}
           />
 
-          <MapFollower position={currentPosition} />
+          <MapRefCapture mapRef={mapInstanceRef} />
+          <InitialCenter position={currentPosition} />
+          <BoundsWatcher position={currentPosition} onVisibilityChange={setPositionInView} />
 
           {polyline.length > 1 && (
             <Polyline

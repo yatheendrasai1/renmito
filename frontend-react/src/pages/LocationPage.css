@@ -52,6 +52,7 @@
 .loc-banner--error { background: #fee2e2; color: #991b1b; }
 
 .loc-map-wrap {
+  position: relative;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
@@ -63,6 +64,27 @@
 .loc-map .leaflet-pane  { z-index: 1; }
 .loc-map .leaflet-top,
 .loc-map .leaflet-bottom { z-index: 2; }
+
+/* "Go to current location" button — floats inside the map wrap */
+.loc-locate-btn {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  z-index: 10;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #2563eb;
+  transition: box-shadow 0.15s;
+}
+.loc-locate-btn:active { box-shadow: 0 1px 4px rgba(0,0,0,0.18); }
 
 /* ── Lists ─────────────────────────────────────────────────────────────────── */
 
