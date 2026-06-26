@@ -7,9 +7,7 @@ import type {
 } from '@capacitor-community/background-geolocation';
 import api from '@/lib/api';
 
-const NEARBY_THRESHOLD = 5; // metres
-
-async function fetchLocationPoints(): Promise<{ lat: number; lng: number; name: string }[]> {
+async function fetchLocationPoints(): Promise<{ lat: number; lng: number; name: string; radius: number }[]> {
   try {
     const res = await api.get('/location-points');
     return Array.isArray(res.data) ? res.data : [];
@@ -144,7 +142,7 @@ export function useLocationTracking() {
           // Check proximity against saved location points
           const savedPoints = await fetchLocationPoints();
           const nearby = savedPoints.find(
-            p => haversineMeters(coord, p) <= NEARBY_THRESHOLD
+            p => haversineMeters(coord, p) <= (p.radius ?? 10)
           );
 
           const point: StoredPoint = {

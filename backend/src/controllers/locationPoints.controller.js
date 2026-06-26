@@ -11,11 +11,12 @@ async function list(req, res) {
 
 async function create(req, res) {
   try {
-    const { name, lat, lng } = req.body;
+    const { name, lat, lng, radius } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: '`name` is required.' });
     if (typeof lat !== 'number' || typeof lng !== 'number')
       return res.status(400).json({ error: '`lat` and `lng` must be numbers.' });
-    const doc = await svc.create(req.user.userId, { name: name.trim(), lat, lng });
+    const r = typeof radius === 'number' && radius >= 1 && radius <= 500 ? radius : 10;
+    const doc = await svc.create(req.user.userId, { name: name.trim(), lat, lng, radius: r });
     res.status(201).json(doc);
   } catch (err) {
     console.error('POST /location-points error:', err.message);

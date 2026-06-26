@@ -6,6 +6,7 @@ export interface LocationPoint {
   name: string;
   lat: number;
   lng: number;
+  radius: number; // metres
 }
 
 export function useLocationPoints() {
@@ -26,8 +27,8 @@ export function useLocationPoints() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const create = useCallback(async (name: string, lat: number, lng: number) => {
-    const res = await api.post('/location-points', { name, lat, lng });
+  const create = useCallback(async (name: string, lat: number, lng: number, radius: number) => {
+    const res = await api.post('/location-points', { name, lat, lng, radius });
     setPoints(prev => [res.data, ...prev]);
     return res.data as LocationPoint;
   }, []);

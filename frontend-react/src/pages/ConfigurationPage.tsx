@@ -611,6 +611,7 @@ function LocationPointsAccordion() {
                     <div className="cfg-loc-info">
                       <span className="cfg-loc-name">{p.name}</span>
                       <span className="cfg-loc-coords">{p.lat.toFixed(5)}, {p.lng.toFixed(5)}</span>
+                      <span className="cfg-loc-radius">radius: {p.radius} m</span>
                     </div>
                     <button
                       className="cfg-loc-del"

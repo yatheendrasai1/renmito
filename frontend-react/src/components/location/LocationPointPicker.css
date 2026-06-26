@@ -88,3 +88,67 @@
 .lpp-btn--cancel { background: var(--color-surface, #f1f5f9); color: var(--color-text-primary, #0f172a); }
 .lpp-btn--save   { background: var(--color-primary, #6366f1); color: #fff; }
 .lpp-btn--save:disabled { opacity: 0.45; cursor: default; }
+
+/* ── Radius picker ─────────────────────────────────────────────────────────── */
+
+.lpp-radius-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.lpp-radius-val {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-primary, #6366f1);
+  font-family: monospace;
+}
+
+.lpp-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.lpp-preset {
+  flex: 1;
+  min-width: 56px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1.5px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #f8fafc);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.lpp-preset--active {
+  border-color: var(--color-primary, #6366f1);
+  background: #eef2ff;
+}
+
+.lpp-preset-label { font-size: 0.75rem; font-weight: 600; color: var(--color-text-primary, #0f172a); }
+.lpp-preset-hint  { font-size: 0.65rem; color: var(--color-text-secondary, #64748b); }
+
+.lpp-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lpp-slider {
+  flex: 1;
+  accent-color: var(--color-primary, #6366f1);
+}
+
+.lpp-slider-edge {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary, #64748b);
+  white-space: nowrap;
+}

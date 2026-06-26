@@ -6,6 +6,7 @@ const locationPointSchema = new mongoose.Schema(
     name:   { type: String, required: true, trim: true },
     lat:    { type: Number, required: true },
     lng:    { type: Number, required: true },
+    radius: { type: Number, required: true, default: 10, min: 1, max: 500 }, // metres
   },
   { timestamps: true, collection: 'locationpoints' }
 );
