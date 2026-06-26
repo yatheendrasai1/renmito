@@ -80,6 +80,13 @@ async function clearStored(): Promise<void> {
   await Preferences.remove({ key: STORAGE_KEY });
 }
 
+async function removeStoredByTimestamps(timestamps: Set<string>): Promise<StoredPoint[]> {
+  const existing = await readStored();
+  const kept = existing.filter(p => !timestamps.has(p.timestamp));
+  await Preferences.set({ key: STORAGE_KEY, value: JSON.stringify(kept) });
+  return kept;
+}
+
 function isWithinTrackingWindow(): boolean {
   const h = new Date().getHours();
   return h >= TRACK_START_HOUR && h < TRACK_STOP_HOUR;
@@ -173,6 +180,11 @@ export function useLocationTracking() {
     };
   }, [isNative]);
 
+  const removePoints = useCallback(async (timestamps: Set<string>) => {
+    const kept = await removeStoredByTimestamps(timestamps);
+    setStored(kept);
+  }, []);
+
   const sync = useCallback(async () => {
     const coords = await readStored();
     if (coords.length === 0) { setSyncMsg('No data to sync.'); return; }
@@ -194,5 +206,5 @@ export function useLocationTracking() {
     p => p.distanceFromPrev !== null && p.distanceFromPrev >= BIG_MOVEMENT_THRESHOLD
   );
 
-  return { stored, bigMovements, currentPosition, syncing, syncMsg, sync, refresh };
+  return { stored, bigMovements, currentPosition, syncing, syncMsg, sync, refresh, removePoints };
 }

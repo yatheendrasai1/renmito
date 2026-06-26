@@ -99,15 +99,129 @@
   border: 1px solid #fed7aa;
 }
 
+.loc-log-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.loc-log-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .loc-log-title {
   font-size: 0.9rem;
   font-weight: 600;
-  margin: 0 0 10px;
+  margin: 0;
   color: var(--color-text-primary, #0f172a);
   display: flex;
   align-items: center;
   gap: 6px;
 }
+
+.loc-sel-toggle {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #f8fafc);
+  color: var(--color-text-secondary, #64748b);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.loc-sel-toggle--active {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.loc-sel-all-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #f8fafc);
+  color: var(--color-text-secondary, #64748b);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.loc-del-sel-btn {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: none;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.loc-del-sel-btn:disabled { opacity: 0.5; cursor: default; }
+
+.loc-log-check {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  accent-color: #dc2626;
+  cursor: pointer;
+}
+
+.loc-log-item--checked {
+  background: #fee2e2;
+  border-left: 3px solid #ef4444;
+}
+
+.loc-item-del-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  opacity: 0.6;
+}
+.loc-item-del-btn:hover  { opacity: 1; }
+.loc-item-del-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ── Expanded panel inside a list item ─────────────────────────────────── */
+
+.loc-log-item {
+  flex-wrap: wrap;
+}
+
+.loc-log-item--expanded {
+  background: #eef2ff;
+  border-left: 3px solid var(--color-primary, #6366f1);
+}
+
+.loc-log-expand {
+  width: 100%;
+  padding-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+.loc-log-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.loc-log-btn:hover { opacity: 0.9; }
 
 .loc-big-dot {
   display: inline-block;

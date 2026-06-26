@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Coordinate, StoredPoint } from '@/hooks/useLocationTracking';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
+import LogFormModal from '@/components/logger/LogFormModal';
+import { isoToLocal24h, isoToLocalDate } from '@/lib/time';
 import './LocationPage.css';
 
 const HYDERABAD: [number, number] = [17.3850, 78.4867];
@@ -95,7 +97,7 @@ function PointMarker({
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LocationPage() {
-  const { stored, bigMovements, currentPosition, syncing, syncMsg, sync, refresh } =
+  const { stored, bigMovements, currentPosition, syncing, syncMsg, sync, refresh, removePoints } =
     useLocationTracking();
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -103,6 +105,52 @@ export default function LocationPage() {
   const [positionInView, setPositionInView] = useState(true);
   const [selectedTs, setSelectedTs]         = useState<string | null>(null);
   const mapInstanceRef = useRef<LeafletMap | null>(null);
+
+  // ── Expanded point + log modal ────────────────────────────────────────────
+  const [expandedTs, setExpandedTs] = useState<string | null>(null);
+  const [logTarget,  setLogTarget]  = useState<StoredPoint | null>(null);
+
+  function toggleExpand(c: StoredPoint) {
+    setExpandedTs(prev => prev === c.timestamp ? null : c.timestamp);
+  }
+
+  // ── Selection / delete state for "All Stored Points" ──────────────────────
+  const [selMode,   setSelMode]   = useState(false);
+  const [selSet,    setSelSet]    = useState<Set<string>>(new Set());
+  const [deleting,  setDeleting]  = useState(false);
+
+  const allSelected = selSet.size === stored.length && stored.length > 0;
+
+  function toggleSelMode() {
+    setSelMode(v => !v);
+    setSelSet(new Set());
+  }
+
+  function toggleOne(ts: string) {
+    setSelSet(prev => {
+      const next = new Set(prev);
+      next.has(ts) ? next.delete(ts) : next.add(ts);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelSet(allSelected ? new Set() : new Set(stored.map(p => p.timestamp)));
+  }
+
+  async function deleteSelected() {
+    setDeleting(true);
+    try { await removePoints(selSet); } finally { setDeleting(false); }
+    setSelSet(new Set());
+    if (selSet.size === stored.length) setSelMode(false);
+  }
+
+  async function deleteOne(ts: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setDeleting(true);
+    try { await removePoints(new Set([ts])); } finally { setDeleting(false); }
+    if (selectedTs === ts) setSelectedTs(null);
+  }
 
   const flyToPoint = useCallback((point: StoredPoint) => {
     setSelectedTs(point.timestamp);
@@ -251,11 +299,135 @@ export default function LocationPage() {
 
       {stored.length > 0 && (
         <div className="loc-log-list">
-          <h2 className="loc-log-title">All Stored Points</h2>
+          <div className="loc-log-title-row">
+            <h2 className="loc-log-title">All Stored Points</h2>
+            <div className="loc-log-title-actions">
+              {selMode && stored.length > 0 && (
+                <button type="button" className="loc-sel-all-btn" onClick={toggleAll}>
+                  {allSelected ? 'Deselect All' : 'Select All'}
+                </button>
+              )}
+              <button
+                type="button"
+                className={`loc-sel-toggle${selMode ? ' loc-sel-toggle--active' : ''}`}
+                onClick={toggleSelMode}
+                title={selMode ? 'Cancel selection' : 'Select to delete'}
+              >
+                {selMode ? 'Cancel' : 'Select'}
+              </button>
+            </div>
+          </div>
+
+          {selMode && selSet.size > 0 && (
+            <button
+              type="button"
+              className="loc-del-sel-btn"
+              onClick={deleteSelected}
+              disabled={deleting}
+            >
+              Delete Selected ({selSet.size})
+            </button>
+          )}
+
           <ul className="loc-log-ul">
-            {[...stored].reverse().map((c, i) => renderListItem(c, i, 'all'))}
+            {[...stored].reverse().map((c, i) => {
+              const isBig      = bigMovementTimestamps.has(c.timestamp);
+              const isChecked  = selSet.has(c.timestamp);
+              const isExpanded = expandedTs === c.timestamp;
+
+              return (
+                <li
+                  key={i}
+                  className={[
+                    'loc-log-item',
+                    isBig ? 'loc-log-item--big-subtle' : '',
+                    isChecked ? 'loc-log-item--checked' : '',
+                    isExpanded ? 'loc-log-item--expanded' : '',
+                  ].filter(Boolean).join(' ')}
+                  onClick={() => {
+                    if (selMode) { toggleOne(c.timestamp); return; }
+                    toggleExpand(c);
+                    flyToPoint(c);
+                  }}
+                >
+                  {selMode && (
+                    <input
+                      type="checkbox"
+                      className="loc-log-check"
+                      checked={isChecked}
+                      onChange={() => toggleOne(c.timestamp)}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  )}
+                  <div className="loc-log-left">
+                    <span className="loc-log-time">
+                      {new Date(c.timestamp).toLocaleString('en-IN', {
+                        day: '2-digit', month: 'short',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </span>
+                    {c.nearbyLocationName && (
+                      <span className="loc-log-place">📍 {c.nearbyLocationName}</span>
+                    )}
+                    <span className="loc-log-coords">
+                      {c.lat.toFixed(6)}, {c.lng.toFixed(6)}
+                    </span>
+                  </div>
+                  {!selMode && c.distanceFromPrev != null && (
+                    <span className={`loc-dist-badge${c.distanceFromPrev >= 10 ? ' loc-dist-badge--big' : ''}`}>
+                      {c.distanceFromPrev.toFixed(1)} m
+                    </span>
+                  )}
+                  {!selMode && (
+                    <button
+                      type="button"
+                      className="loc-item-del-btn"
+                      onClick={e => deleteOne(c.timestamp, e)}
+                      disabled={deleting}
+                      title="Delete"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                           stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14H6L5 6"/>
+                        <path d="M10 11v6M14 11v6"/>
+                        <path d="M9 6V4h6v2"/>
+                      </svg>
+                    </button>
+                  )}
+
+                  {/* ── Expanded panel ── */}
+                  {isExpanded && !selMode && (
+                    <div className="loc-log-expand" onClick={e => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="loc-log-btn"
+                        onClick={() => setLogTarget(c)}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="12" y1="5" x2="12" y2="19"/>
+                          <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Log
+                      </button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
+      )}
+      {logTarget && (
+        <LogFormModal
+          mode="create"
+          date={isoToLocalDate(logTarget.timestamp)}
+          startTime={isoToLocal24h(logTarget.timestamp)}
+          defaultDescription={logTarget.nearbyLocationName ?? ''}
+          onClose={() => setLogTarget(null)}
+          onSaved={() => setLogTarget(null)}
+        />
       )}
     </div>
   );
