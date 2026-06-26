@@ -5,24 +5,24 @@ import type {
   BackgroundGeolocationPlugin,
   Location,
 } from '@capacitor-community/background-geolocation';
+import api from '@/lib/api';
 
 const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>(
   'BackgroundGeolocation'
 );
-import api from '@/lib/api';
 
 export interface Coordinate {
   lat: number;
   lng: number;
-  timestamp: string; // ISO string
+  timestamp: string;
 }
 
-const STORAGE_KEY = 'renmito-location-logs';
+const STORAGE_KEY      = 'renmito-location-logs';
 const TRACK_START_HOUR = 8;   // 8 AM
 const TRACK_STOP_HOUR  = 22;  // 10 PM
-const INTERVAL_MINUTES = 5;
+const INTERVAL_MS      = 5 * 60 * 1000; // 5 minutes
 
-// ── Local storage helpers ─────────────────────────────────────────────────────
+// ── Storage helpers ───────────────────────────────────────────────────────────
 
 async function readStored(): Promise<Coordinate[]> {
   const { value } = await Preferences.get({ key: STORAGE_KEY });
@@ -55,15 +55,16 @@ function isWithinTrackingWindow(): boolean {
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useLocationTracking() {
-  const [stored, setStored]     = useState<Coordinate[]>([]);
-  const [syncing, setSyncing]   = useState(false);
-  const [syncMsg, setSyncMsg]   = useState<string | null>(null);
-  const watcherIdRef            = useRef<string | null>(null);
-  const intervalRef             = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [stored, setStored]   = useState<Coordinate[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+
+  // Holds the latest position reported by the continuous watcher
+  const latestLocationRef = useRef<Location | null>(null);
+  const watcherIdRef      = useRef<string | null>(null);
 
   const isNative = Capacitor.isNativePlatform();
 
-  // Load stored coords on mount
   const refresh = useCallback(async () => {
     setStored(await readStored());
   }, []);
@@ -71,118 +72,55 @@ export function useLocationTracking() {
   useEffect(() => { refresh(); }, [refresh]);
 
   // ── Background tracking (native only) ────────────────────────────────────────
-  const startTracking = useCallback(async () => {
-    if (!isNative || watcherIdRef.current) return;
-    if (!isWithinTrackingWindow()) return;
+  useEffect(() => {
+    if (!isNative) return;
 
-    const id = await BackgroundGeolocation.addWatcher(
+    // One persistent watcher keeps the Android Foreground Service alive and
+    // continuously updates latestLocationRef. A separate setInterval snapshots
+    // that value every 5 minutes — no race condition with addWatcher's promise.
+    let timerId: ReturnType<typeof setInterval>;
+
+    BackgroundGeolocation.addWatcher(
       {
-        backgroundMessage: 'Renmito is tracking your location',
-        backgroundTitle:   'Location Tracking',
+        backgroundMessage:  'Renmito is tracking your location',
+        backgroundTitle:    'Location Tracking Active',
         requestPermissions: true,
-        stale: false,
-        distanceFilter: 0, // time-based, not distance-based
+        stale:              false,
+        distanceFilter:     0,
       },
-      async (location: Location | undefined, error: Error | undefined) => {
+      (location: Location | undefined, error: Error | undefined) => {
         if (error || !location) return;
+        latestLocationRef.current = location;
+      }
+    ).then(id => {
+      watcherIdRef.current = id;
+
+      const saveSnapshot = async () => {
         if (!isWithinTrackingWindow()) return;
+        const loc = latestLocationRef.current;
+        if (!loc) return;
 
         const coord: Coordinate = {
-          lat:       location.latitude,
-          lng:       location.longitude,
+          lat:       loc.latitude,
+          lng:       loc.longitude,
           timestamp: new Date().toISOString(),
         };
         await appendCoordinate(coord);
         setStored(prev => [...prev, coord]);
-      }
-    );
+      };
 
-    watcherIdRef.current = id;
-  }, [isNative]);
-
-  const stopTracking = useCallback(async () => {
-    if (!isNative || !watcherIdRef.current) return;
-    await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
-    watcherIdRef.current = null;
-  }, [isNative]);
-
-  // Auto-start on mount; enforce time window via interval
-  useEffect(() => {
-    if (!isNative) return;
-
-    startTracking();
-
-    // Check every minute whether we should start/stop based on the window
-    intervalRef.current = setInterval(() => {
-      if (isWithinTrackingWindow()) {
-        startTracking();
-      } else {
-        stopTracking();
-      }
-    }, 60_000);
+      // Save immediately on start if within window, then every 5 minutes
+      if (isWithinTrackingWindow()) saveSnapshot();
+      timerId = setInterval(saveSnapshot, INTERVAL_MS);
+    });
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      stopTracking();
-    };
-  }, [isNative, startTracking, stopTracking]);
-
-  // Poll every INTERVAL_MINUTES — the watcher fires continuously; we throttle
-  // storage writes via a separate interval so we record ~every 5 min, not every second.
-  // NOTE: The watcher above appends on every location event. To enforce the 5-min
-  // interval we instead use a dedicated poller that captures a single snapshot.
-  // The watcher is replaced with a manual poll below for precision.
-  useEffect(() => {
-    if (!isNative) return;
-
-    // Remove the continuous watcher we set up above; replace with a timed poll.
-    stopTracking();
-    if (watcherIdRef.current) {
-      BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
-      watcherIdRef.current = null;
-    }
-
-    const poll = async () => {
-      if (!isWithinTrackingWindow()) return;
-      const id = await BackgroundGeolocation.addWatcher(
-        {
-          backgroundMessage: 'Renmito is logging your location',
-          backgroundTitle:   'Location Tracking Active',
-          requestPermissions: true,
-          stale: false,
-          distanceFilter: 0,
-        },
-        async (location: Location | undefined, error: Error | undefined) => {
-          if (error || !location) return;
-          // Capture one point then remove watcher immediately
-          BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current! });
-          watcherIdRef.current = null;
-
-          const coord: Coordinate = {
-            lat:       location.latitude,
-            lng:       location.longitude,
-            timestamp: new Date().toISOString(),
-          };
-          await appendCoordinate(coord);
-          setStored(prev => [...prev, coord]);
-        }
-      );
-      watcherIdRef.current = id;
-    };
-
-    if (isWithinTrackingWindow()) poll();
-
-    const timer = setInterval(() => {
-      if (isWithinTrackingWindow()) poll();
-    }, INTERVAL_MINUTES * 60 * 1000);
-
-    return () => {
-      clearInterval(timer);
+      clearInterval(timerId);
       if (watcherIdRef.current) {
         BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+        watcherIdRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNative]);
 
   // ── Sync ──────────────────────────────────────────────────────────────────────
