@@ -95,6 +95,8 @@ function isWithinTrackingWindow(): boolean {
   return h >= TRACK_START_HOUR && h < TRACK_STOP_HOUR;
 }
 
+const TRACKING_ENABLED_KEY = 'renmito-location-tracking-enabled';
+
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useLocationTracking() {
@@ -102,11 +104,19 @@ export function useLocationTracking() {
   const [currentPosition, setCurrentPosition] = useState<Coordinate | null>(null);
   const [syncing, setSyncing]                 = useState(false);
   const [syncMsg, setSyncMsg]                 = useState<string | null>(null);
+  const [trackingEnabled, setTrackingEnabledState] = useState<boolean>(
+    () => localStorage.getItem(TRACKING_ENABLED_KEY) === 'true'
+  );
 
   const watcherIdRef      = useRef<string | null>(null);
   const lastSavedAtRef    = useRef<number>(0);
   const lastSavedCoordRef = useRef<Coordinate | null>(null);
   const isNative          = Capacitor.isNativePlatform();
+
+  const setTrackingEnabled = useCallback((enabled: boolean) => {
+    localStorage.setItem(TRACKING_ENABLED_KEY, String(enabled));
+    setTrackingEnabledState(enabled);
+  }, []);
 
   const refresh = useCallback(async () => {
     setStored(await readStored());
@@ -115,7 +125,16 @@ export function useLocationTracking() {
   useEffect(() => { refresh(); }, [refresh]);
 
   useEffect(() => {
-    if (!isNative) return;
+    if (!isNative || !trackingEnabled) {
+      // If disabled while a watcher is active, tear it down.
+      if (watcherIdRef.current) {
+        BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+        watcherIdRef.current = null;
+        lastSavedAtRef.current = 0;
+        lastSavedCoordRef.current = null;
+      }
+      return;
+    }
 
     let timerId: ReturnType<typeof setInterval>;
 
@@ -185,7 +204,7 @@ export function useLocationTracking() {
         watcherIdRef.current = null;
       }
     };
-  }, [isNative]);
+  }, [isNative, trackingEnabled]);
 
   const removePoints = useCallback(async (timestamps: Set<string>) => {
     const kept = await removeStoredByTimestamps(timestamps);
@@ -213,5 +232,9 @@ export function useLocationTracking() {
     p => p.distanceFromPrev !== null && p.distanceFromPrev >= BIG_MOVEMENT_THRESHOLD
   );
 
-  return { stored, bigMovements, currentPosition, syncing, syncMsg, sync, refresh, removePoints };
+  return {
+    stored, bigMovements, currentPosition,
+    syncing, syncMsg, sync, refresh, removePoints,
+    trackingEnabled, setTrackingEnabled,
+  };
 }

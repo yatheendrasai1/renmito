@@ -27,6 +27,13 @@
   margin: 4px 0 0;
 }
 
+.loc-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .loc-sync-btn {
   flex-shrink: 0;
   padding: 8px 20px;
@@ -41,6 +48,40 @@
 }
 
 .loc-sync-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* Tracking on/off toggle pill */
+.loc-track-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--color-border, #e2e8f0);
+  background: transparent;
+  color: var(--color-text-secondary, #64748b);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.loc-track-toggle--on {
+  border-color: #22c55e;
+  color: #16a34a;
+  background: #f0fdf4;
+}
+
+.loc-track-toggle__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-secondary, #94a3b8);
+  transition: background 0.15s;
+}
+
+.loc-track-toggle--on .loc-track-toggle__dot {
+  background: #22c55e;
+}
 
 .loc-banner {
   padding: 10px 14px;

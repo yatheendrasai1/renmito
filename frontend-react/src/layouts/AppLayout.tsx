@@ -13,6 +13,7 @@ import SpeedDialFAB      from '@/components/shell/SpeedDialFAB';
 import LogFormModal      from '@/components/logger/LogFormModal';
 import RenniChat         from '@/components/chat/RenniChat';
 import { topUpNotificationsOnResume } from '@/hooks/useNotifications';
+import { LocationTrackingProvider } from '@/contexts/LocationTrackingContext';
 import { useAppStore }   from '@/store/appStore';
 import './AppLayout.css';
 
@@ -65,6 +66,7 @@ export default function AppLayout() {
   }
 
   return (
+    <LocationTrackingProvider>
     <div className={`app-shell${isDiary ? ' app-shell--diary' : ''}`}>
 
       <TopStrip />
@@ -103,5 +105,6 @@ export default function AppLayout() {
         />
       )}
     </div>
+    </LocationTrackingProvider>
   );
 }

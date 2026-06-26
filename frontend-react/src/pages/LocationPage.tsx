@@ -3,7 +3,7 @@ import type { Map as LeafletMap } from 'leaflet';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Coordinate, StoredPoint } from '@/hooks/useLocationTracking';
-import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { useLocationTrackingContext } from '@/contexts/LocationTrackingContext';
 import LogFormModal from '@/components/logger/LogFormModal';
 import { isoToLocal24h, isoToLocalDate } from '@/lib/time';
 import './LocationPage.css';
@@ -97,8 +97,10 @@ function PointMarker({
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LocationPage() {
-  const { stored, bigMovements, currentPosition, syncing, syncMsg, sync, refresh, removePoints } =
-    useLocationTracking();
+  const {
+    stored, bigMovements, currentPosition, syncing, syncMsg, sync, refresh, removePoints,
+    trackingEnabled, setTrackingEnabled,
+  } = useLocationTrackingContext();
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -213,13 +215,27 @@ export default function LocationPage() {
         <div className="loc-header__info">
           <h1 className="loc-title">Location Tracking</h1>
           <p className="loc-subtitle">
-            {currentPosition ? `Live · ${stored.length} points stored` : 'Waiting for GPS fix…'}
-            {' · 8 AM – 10 PM'}
+            {!trackingEnabled
+              ? 'Tracking off'
+              : currentPosition
+                ? `Live · ${stored.length} points stored`
+                : 'Waiting for GPS fix…'}
+            {trackingEnabled && ' · 8 AM – 10 PM'}
           </p>
         </div>
-        <button className="loc-sync-btn" onClick={sync} disabled={syncing || stored.length === 0}>
-          {syncing ? 'Syncing…' : 'Sync'}
-        </button>
+        <div className="loc-header__actions">
+          <button
+            className={`loc-track-toggle${trackingEnabled ? ' loc-track-toggle--on' : ''}`}
+            onClick={() => setTrackingEnabled(!trackingEnabled)}
+            title={trackingEnabled ? 'Stop tracking' : 'Start tracking'}
+          >
+            <span className="loc-track-toggle__dot" />
+            {trackingEnabled ? 'On' : 'Off'}
+          </button>
+          <button className="loc-sync-btn" onClick={sync} disabled={syncing || stored.length === 0}>
+            {syncing ? 'Syncing…' : 'Sync'}
+          </button>
+        </div>
       </div>
 
       {syncMsg && (
