@@ -14,6 +14,11 @@ export default defineConfig({
   optimizeDeps: {
     include: ['leaflet'],
   },
+  build: {
+    commonjsOptions: {
+      include: [/leaflet/, /node_modules/],
+    },
+  },
   server: {
     port: 4200,
   },
