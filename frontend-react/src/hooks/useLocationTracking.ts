@@ -41,7 +41,7 @@ const BIG_MOVEMENT_THRESHOLD  = 10; // metres
 
 // ── Haversine distance ────────────────────────────────────────────────────────
 
-export function haversineMeters(a: Coordinate, b: Coordinate): number {
+export function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R     = 6_371_000;
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat  = toRad(b.lat - a.lat);

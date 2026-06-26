@@ -16,7 +16,7 @@ const markerIcon = L.icon({
 });
 
 interface Props {
-  onSave: (name: string, lat: number, lng: number) => Promise<void>;
+  onSave: (name: string, lat: number, lng: number) => Promise<unknown>;
   onClose: () => void;
 }
 
