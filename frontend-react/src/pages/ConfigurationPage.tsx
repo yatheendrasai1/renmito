@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation } from 'react-router-dom';
 import { useLocationPoints } from '@/hooks/useLocationPoints';
 
 const LocationPointPicker = lazy(
@@ -45,6 +46,8 @@ const DEFAULT_PROFILE: UserProfile = {
 export default function ConfigurationPage() {
   const { user } = useAuth();
   const { data: prefs } = usePreferences();
+  const routerLocation = useLocation();
+  const openAccordion = (routerLocation.state as { openAccordion?: string } | null)?.openAccordion;
 
   return (
     <div className="cfg-page">
@@ -70,7 +73,7 @@ export default function ConfigurationPage() {
         </div>
       )}
 
-      <Accordion type="single" collapsible className="cfg-accordion-root">
+      <Accordion type="single" collapsible className="cfg-accordion-root" defaultValue={openAccordion}>
 
         {/* Profile */}
         <AccordionItem value="profile" className="cfg-acc">
@@ -569,9 +572,61 @@ function NotificationsSection({
 
 // ── Location Points accordion ─────────────────────────────────────────────────
 
+interface EditState { name: string; radius: number; }
+
 function LocationPointsAccordion() {
-  const { points, loading, create, remove } = useLocationPoints();
+  const { points, loading, create, update, remove, removeMany } = useLocationPoints();
   const [showPicker, setShowPicker] = useState(false);
+  const [selected, setSelected]     = useState<Set<string>>(new Set());
+  const [deleting, setDeleting]     = useState(false);
+  const [editingId, setEditingId]   = useState<string | null>(null);
+  const [editState, setEditState]   = useState<EditState>({ name: '', radius: 10 });
+  const [saving, setSaving]         = useState(false);
+
+  const allSelected = points.length > 0 && selected.size === points.length;
+
+  function toggleOne(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(points.map(p => p._id)));
+  }
+
+  async function deleteOne(id: string) {
+    setDeleting(true);
+    try { await remove(id); } finally { setDeleting(false); }
+    setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
+  }
+
+  async function deleteSelected() {
+    const ids = [...selected];
+    setDeleting(true);
+    try { await removeMany(ids); } finally { setDeleting(false); }
+    setSelected(new Set());
+  }
+
+  function startEdit(p: { _id: string; name: string; radius: number }) {
+    setEditingId(p._id);
+    setEditState({ name: p.name, radius: p.radius ?? 10 });
+  }
+
+  function cancelEdit() { setEditingId(null); }
+
+  async function saveEdit() {
+    if (!editingId) return;
+    setSaving(true);
+    try {
+      await update(editingId, { name: editState.name.trim(), radius: editState.radius });
+      setEditingId(null);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <AccordionItem value="location-points" className="cfg-acc">
@@ -600,12 +655,35 @@ function LocationPointsAccordion() {
 
         <AccordionContent className="cfg-acc-body">
           <div className="cfg-section cfg-section--loc">
-            <button
-              className="cfg-add-loc-btn"
-              onClick={() => setShowPicker(true)}
-            >
-              + Add Location Point
-            </button>
+            <div className="cfg-loc-toolbar">
+              <button
+                type="button"
+                className="cfg-add-loc-btn"
+                onClick={() => setShowPicker(true)}
+              >
+                + Add Location Point
+              </button>
+              {points.length > 0 && (
+                <button
+                  type="button"
+                  className="cfg-loc-sel-all"
+                  onClick={toggleAll}
+                >
+                  {allSelected ? 'Deselect All' : 'Select All'}
+                </button>
+              )}
+            </div>
+
+            {selected.size > 0 && (
+              <button
+                type="button"
+                className="cfg-loc-del-sel"
+                onClick={deleteSelected}
+                disabled={deleting}
+              >
+                Delete Selected ({selected.size})
+              </button>
+            )}
 
             {loading && <p className="cfg-loc-empty">Loading…</p>}
 
@@ -616,25 +694,75 @@ function LocationPointsAccordion() {
             {!loading && points.length > 0 && (
               <ul className="cfg-loc-list">
                 {points.map(p => (
-                  <li key={p._id} className="cfg-loc-item">
-                    <div className="cfg-loc-info">
-                      <span className="cfg-loc-name">{p.name}</span>
-                      <span className="cfg-loc-coords">{p.lat.toFixed(5)}, {p.lng.toFixed(5)}</span>
-                      <span className="cfg-loc-radius">⊙ {p.radius ?? 10} m</span>
-                    </div>
-                    <button
-                      className="cfg-loc-del"
-                      onClick={() => remove(p._id)}
-                      title="Delete"
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                           stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6l-1 14H6L5 6"/>
-                        <path d="M10 11v6M14 11v6"/>
-                        <path d="M9 6V4h6v2"/>
-                      </svg>
-                    </button>
+                  <li key={p._id} className={`cfg-loc-item${selected.has(p._id) ? ' cfg-loc-item--sel' : ''}${editingId === p._id ? ' cfg-loc-item--editing' : ''}`}>
+                    {editingId === p._id ? (
+                      <div className="cfg-loc-edit-form">
+                        <input
+                          className="cfg-loc-edit-name"
+                          value={editState.name}
+                          onChange={e => setEditState(s => ({ ...s, name: e.target.value }))}
+                          placeholder="Location name"
+                          autoFocus
+                        />
+                        <div className="cfg-loc-edit-radius-row">
+                          <label className="cfg-loc-edit-radius-lbl">
+                            Radius: <strong>{editState.radius} m</strong>
+                          </label>
+                          <input
+                            type="range"
+                            className="cfg-loc-edit-slider"
+                            min={1} max={500}
+                            value={editState.radius}
+                            onChange={e => setEditState(s => ({ ...s, radius: Number(e.target.value) }))}
+                          />
+                        </div>
+                        <div className="cfg-loc-edit-actions">
+                          <button type="button" className="cfg-loc-edit-btn cfg-loc-edit-btn--cancel" onClick={cancelEdit} disabled={saving}>Cancel</button>
+                          <button type="button" className="cfg-loc-edit-btn cfg-loc-edit-btn--save" onClick={saveEdit} disabled={saving || !editState.name.trim()}>Save</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          type="checkbox"
+                          className="cfg-loc-check"
+                          checked={selected.has(p._id)}
+                          onChange={() => toggleOne(p._id)}
+                        />
+                        <div className="cfg-loc-info">
+                          <span className="cfg-loc-name">{p.name}</span>
+                          <span className="cfg-loc-coords">{p.lat.toFixed(5)}, {p.lng.toFixed(5)}</span>
+                          <span className="cfg-loc-radius">⊙ {p.radius ?? 10} m</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="cfg-loc-edit-btn-icon"
+                          onClick={() => startEdit(p)}
+                          title="Edit"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                               stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="cfg-loc-del"
+                          onClick={() => deleteOne(p._id)}
+                          disabled={deleting}
+                          title="Delete"
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                               stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6l-1 14H6L5 6"/>
+                            <path d="M10 11v6M14 11v6"/>
+                            <path d="M9 6V4h6v2"/>
+                          </svg>
+                        </button>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -24,6 +24,22 @@ async function create(req, res) {
   }
 }
 
+async function update(req, res) {
+  try {
+    const { name, radius } = req.body;
+    if (name !== undefined && !name?.trim())
+      return res.status(400).json({ error: '`name` cannot be empty.' });
+    if (radius !== undefined && (typeof radius !== 'number' || radius < 1 || radius > 500))
+      return res.status(400).json({ error: '`radius` must be 1–500.' });
+    const doc = await svc.update(req.user.userId, req.params.id, { name, radius });
+    if (!doc) return res.status(404).json({ error: 'Not found.' });
+    res.json(doc);
+  } catch (err) {
+    console.error('PATCH /location-points error:', err.message);
+    res.status(500).json({ error: 'Failed to update location point.' });
+  }
+}
+
 async function remove(req, res) {
   try {
     const deleted = await svc.remove(req.user.userId, req.params.id);
@@ -35,4 +51,4 @@ async function remove(req, res) {
   }
 }
 
-module.exports = { list, create, remove };
+module.exports = { list, create, update, remove };

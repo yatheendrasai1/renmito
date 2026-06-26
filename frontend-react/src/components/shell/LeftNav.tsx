@@ -117,6 +117,7 @@ export default function LeftNav() {
   const [showProfile,   setShowProfile]   = useState(false);
   const [egExpanded,    setEgExpanded]    = useState(false);
   const [extExpanded,   setExtExpanded]   = useState(false);
+  const [locExpanded,   setLocExpanded]   = useState(false);
 
   function close() { setNavOpen(false); setShowGear(false); }
 
@@ -252,6 +253,66 @@ export default function LeftNav() {
             </svg>
             <span>Eagle View</span>
           </NavLink>
+        </div>
+
+        {/* ── Location section ── */}
+        <div className="nav-group" onClick={e => e.stopPropagation()}>
+          <div className="nav-group-header">
+            <span className="nav-group-label">Location</span>
+            <button
+              className="nav-section-toggle"
+              onClick={() => setLocExpanded(v => !v)}
+              aria-expanded={locExpanded}
+              title="Toggle Location"
+            >
+              <svg
+                width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                style={{ transform: locExpanded ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform 0.18s ease' }}
+              >
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          </div>
+
+          {locExpanded && (
+            <>
+              <NavLink
+                className={({ isActive }) =>
+                  `left-nav-item left-nav-item--sub${isActive ? ' left-nav-item--active' : ''}`
+                }
+                to="/location"
+                onClick={close}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <circle cx="12" cy="12" r="3"/>
+                  <line x1="12" y1="2"  x2="12" y2="5"/>
+                  <line x1="12" y1="19" x2="12" y2="22"/>
+                  <line x1="2"  y1="12" x2="5"  y2="12"/>
+                  <line x1="19" y1="12" x2="22" y2="12"/>
+                </svg>
+                <span>Map & Tracking</span>
+              </NavLink>
+
+              <NavLink
+                className={({ isActive }) =>
+                  `left-nav-item left-nav-item--sub${isActive ? ' left-nav-item--active' : ''}`
+                }
+                to="/configuration"
+                state={{ openAccordion: 'location-points' }}
+                onClick={close}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                  <circle cx="12" cy="9" r="2.5"/>
+                </svg>
+                <span>Saved Points</span>
+              </NavLink>
+            </>
+          )}
         </div>
 
         {/* ── ExpenseGuide section ── */}

@@ -270,8 +270,15 @@
 
 .cfg-section--loc { padding-bottom: 16px; }
 
+.cfg-loc-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
 .cfg-add-loc-btn {
-  width: 100%;
+  flex: 1;
   padding: 10px;
   border-radius: 8px;
   border: 1.5px dashed var(--color-primary, #6366f1);
@@ -280,8 +287,33 @@
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  margin-bottom: 12px;
 }
+
+.cfg-loc-sel-all {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #f8fafc);
+  color: var(--color-text-secondary, #64748b);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cfg-loc-del-sel {
+  width: 100%;
+  padding: 9px;
+  border-radius: 8px;
+  border: none;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.cfg-loc-del-sel:disabled { opacity: 0.5; cursor: default; }
 
 .cfg-loc-empty {
   font-size: 0.85rem;
@@ -308,6 +340,21 @@
   padding: 10px 12px;
   background: var(--color-surface, #f8fafc);
   border-radius: 8px;
+  border: 1.5px solid transparent;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.cfg-loc-item--sel {
+  background: #eef2ff;
+  border-color: var(--color-primary, #6366f1);
+}
+
+.cfg-loc-check {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary, #6366f1);
+  cursor: pointer;
 }
 
 .cfg-loc-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -333,6 +380,19 @@
   color: var(--color-primary, #6366f1);
 }
 
+.cfg-loc-edit-btn-icon {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary, #64748b);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+.cfg-loc-edit-btn-icon:hover { color: var(--color-primary, #6366f1); }
+
 .cfg-loc-del {
   flex-shrink: 0;
   background: none;
@@ -342,4 +402,65 @@
   padding: 4px;
   display: flex;
   align-items: center;
+  pointer-events: auto;
 }
+.cfg-loc-del:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Inline edit form ─────────────────────────────────────────────────────── */
+
+.cfg-loc-item--editing {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.cfg-loc-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.cfg-loc-edit-name {
+  padding: 8px 10px;
+  border: 1px solid var(--color-primary, #6366f1);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: var(--color-card, #fff);
+  color: var(--color-text-primary, #0f172a);
+}
+.cfg-loc-edit-name:focus { outline: none; }
+
+.cfg-loc-edit-radius-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cfg-loc-edit-radius-lbl {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.cfg-loc-edit-slider {
+  width: 100%;
+  accent-color: var(--color-primary, #6366f1);
+}
+
+.cfg-loc-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cfg-loc-edit-btn {
+  flex: 1;
+  padding: 7px;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cfg-loc-edit-btn--cancel { background: var(--color-surface, #f1f5f9); color: var(--color-text-primary, #0f172a); }
+.cfg-loc-edit-btn--save   { background: var(--color-primary, #6366f1); color: #fff; }
+.cfg-loc-edit-btn:disabled { opacity: 0.45; cursor: default; }

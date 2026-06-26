@@ -33,10 +33,21 @@ export function useLocationPoints() {
     return res.data as LocationPoint;
   }, []);
 
+  const update = useCallback(async (id: string, patch: { name?: string; radius?: number }) => {
+    const res = await api.patch(`/location-points/${id}`, patch);
+    setPoints(prev => prev.map(p => p._id === id ? (res.data as LocationPoint) : p));
+    return res.data as LocationPoint;
+  }, []);
+
   const remove = useCallback(async (id: string) => {
     await api.delete(`/location-points/${id}`);
     setPoints(prev => prev.filter(p => p._id !== id));
   }, []);
 
-  return { points, loading, fetchAll, create, remove };
+  const removeMany = useCallback(async (ids: string[]) => {
+    await Promise.all(ids.map(id => api.delete(`/location-points/${id}`)));
+    setPoints(prev => prev.filter(p => !ids.includes(p._id)));
+  }, []);
+
+  return { points, loading, fetchAll, create, update, remove, removeMany };
 }
