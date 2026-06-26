@@ -7,6 +7,17 @@ import type {
 } from '@capacitor-community/background-geolocation';
 import api from '@/lib/api';
 
+const NEARBY_THRESHOLD = 5; // metres
+
+async function fetchLocationPoints(): Promise<{ lat: number; lng: number; name: string }[]> {
+  try {
+    const res = await api.get('/location-points');
+    return Array.isArray(res.data) ? res.data : [];
+  } catch {
+    return [];
+  }
+}
+
 const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>(
   'BackgroundGeolocation'
 );
@@ -18,7 +29,8 @@ export interface Coordinate {
 }
 
 export interface StoredPoint extends Coordinate {
-  distanceFromPrev: number | null; // metres; null for the first point
+  distanceFromPrev: number | null;  // metres; null for the first point
+  nearbyLocationName?: string | null; // name of a saved LocationPoint within 5 m
 }
 
 const STORAGE_KEY             = 'renmito-location-logs';
@@ -129,7 +141,17 @@ export function useLocationTracking() {
             ? haversineMeters(lastSavedCoordRef.current, coord)
             : null;
 
-          const point: StoredPoint = { ...coord, distanceFromPrev };
+          // Check proximity against saved location points
+          const savedPoints = await fetchLocationPoints();
+          const nearby = savedPoints.find(
+            p => haversineMeters(coord, p) <= NEARBY_THRESHOLD
+          );
+
+          const point: StoredPoint = {
+            ...coord,
+            distanceFromPrev,
+            nearbyLocationName: nearby?.name ?? null,
+          };
 
           lastSavedAtRef.current    = now;
           lastSavedCoordRef.current = coord;

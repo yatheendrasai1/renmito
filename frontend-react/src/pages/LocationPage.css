@@ -181,6 +181,7 @@
 }
 
 .loc-log-time   { color: var(--color-text-primary, #0f172a); font-weight: 500; }
+.loc-log-place  { font-size: 0.75rem; font-weight: 600; color: #059669; }
 .loc-log-coords { color: var(--color-text-secondary, #64748b); font-family: monospace; font-size: 0.72rem; }
 
 .loc-big-distance {

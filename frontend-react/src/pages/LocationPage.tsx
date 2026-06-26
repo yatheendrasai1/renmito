@@ -141,6 +141,9 @@ export default function LocationPage() {
               hour: '2-digit', minute: '2-digit',
             })}
           </span>
+          {c.nearbyLocationName && (
+            <span className="loc-log-place">📍 {c.nearbyLocationName}</span>
+          )}
           <span className="loc-log-coords">
             {c.lat.toFixed(6)}, {c.lng.toFixed(6)}
           </span>

@@ -1,4 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import { useLocationPoints } from '@/hooks/useLocationPoints';
+
+const LocationPointPicker = lazy(
+  () => import('@/components/location/LocationPointPicker')
+);
 import {
   usePreferences,
   useUpdateDaySettings,
@@ -100,6 +105,7 @@ export default function ConfigurationPage() {
 
         {/* Notifications */}
         <NotificationsAccordion />
+        <LocationPointsAccordion />
 
       </Accordion>
     </div>
@@ -557,5 +563,84 @@ function NotificationsSection({
         </div>
       )}
     </div>
+  );
+}
+
+// ── Location Points accordion ─────────────────────────────────────────────────
+
+function LocationPointsAccordion() {
+  const { points, loading, create, remove } = useLocationPoints();
+  const [showPicker, setShowPicker] = useState(false);
+
+  return (
+    <>
+      <AccordionItem value="location-points" className="cfg-acc">
+        <AccordionTrigger className="cfg-acc-head">
+          <div className="cfg-acc-icon cfg-icon--loc">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+              <circle cx="12" cy="9" r="2.5"/>
+            </svg>
+          </div>
+          <div className="cfg-acc-meta">
+            <span className="cfg-acc-title">Location Points</span>
+            <span className="cfg-acc-sub">Named places for proximity detection</span>
+          </div>
+        </AccordionTrigger>
+
+        <AccordionContent className="cfg-acc-body">
+          <div className="cfg-section">
+            <button
+              className="cfg-add-loc-btn"
+              onClick={() => setShowPicker(true)}
+            >
+              + Add Location Point
+            </button>
+
+            {loading && <p className="cfg-loc-empty">Loading…</p>}
+
+            {!loading && points.length === 0 && (
+              <p className="cfg-loc-empty">No location points yet.</p>
+            )}
+
+            {!loading && points.length > 0 && (
+              <ul className="cfg-loc-list">
+                {points.map(p => (
+                  <li key={p._id} className="cfg-loc-item">
+                    <div className="cfg-loc-info">
+                      <span className="cfg-loc-name">{p.name}</span>
+                      <span className="cfg-loc-coords">{p.lat.toFixed(5)}, {p.lng.toFixed(5)}</span>
+                    </div>
+                    <button
+                      className="cfg-loc-del"
+                      onClick={() => remove(p._id)}
+                      title="Delete"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                           stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14H6L5 6"/>
+                        <path d="M10 11v6M14 11v6"/>
+                        <path d="M9 6V4h6v2"/>
+                      </svg>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+
+      {showPicker && (
+        <Suspense fallback={null}>
+          <LocationPointPicker
+            onSave={create}
+            onClose={() => setShowPicker(false)}
+          />
+        </Suspense>
+      )}
+    </>
   );
 }
