@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { Coordinate } from '@/hooks/useLocationTracking';
+import type { Coordinate, StoredPoint } from '@/hooks/useLocationTracking';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import './LocationPage.css';
 
@@ -18,9 +18,8 @@ function MapRefCapture({ mapRef }: { mapRef: React.MutableRefObject<LeafletMap |
   return null;
 }
 
-// Centers the map once on the first GPS fix, then stops following
 function InitialCenter({ position }: { position: Coordinate | null }) {
-  const map      = useMap();
+  const map = useMap();
   const [done, setDone] = useState(false);
   useEffect(() => {
     if (position && !done) {
@@ -31,7 +30,6 @@ function InitialCenter({ position }: { position: Coordinate | null }) {
   return null;
 }
 
-// Watches map bounds and tells the parent whether the current position is visible
 function BoundsWatcher({
   position,
   onVisibilityChange,
@@ -46,16 +44,55 @@ function BoundsWatcher({
     },
     [position, onVisibilityChange]
   );
-
   const map = useMapEvents({
     move() { check(map); },
     zoom() { check(map); },
   });
-
   useEffect(() => { check(map); }, [position, map, check]);
-
   return null;
 }
+
+// ── Point rendering ───────────────────────────────────────────────────────────
+
+function PointMarker({
+  point,
+  isBig,
+  isSelected,
+  onClick,
+}: {
+  point: StoredPoint;
+  isBig: boolean;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const color = isSelected ? '#facc15' : isBig ? '#f97316' : '#6366f1';
+  return (
+    <CircleMarker
+      center={[point.lat, point.lng]}
+      radius={isSelected ? 11 : isBig ? 7 : 4}
+      pathOptions={{
+        color,
+        fillColor:   color,
+        fillOpacity: isSelected ? 1 : 0.9,
+        weight:      isSelected ? 3 : isBig ? 2 : 1,
+      }}
+      eventHandlers={{ click: onClick }}
+    >
+      <Tooltip>
+        {isSelected && <><strong>Selected</strong><br /></>}
+        {isBig && !isSelected && <><strong>Big movement</strong><br /></>}
+        {new Date(point.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+        <br />
+        {point.lat.toFixed(6)}, {point.lng.toFixed(6)}
+        {point.distanceFromPrev != null && (
+          <><br />{point.distanceFromPrev.toFixed(1)} m from previous</>
+        )}
+      </Tooltip>
+    </CircleMarker>
+  );
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LocationPage() {
   const { stored, bigMovements, currentPosition, syncing, syncMsg, sync, refresh } =
@@ -64,7 +101,13 @@ export default function LocationPage() {
   useEffect(() => { refresh(); }, [refresh]);
 
   const [positionInView, setPositionInView] = useState(true);
+  const [selectedTs, setSelectedTs]         = useState<string | null>(null);
   const mapInstanceRef = useRef<LeafletMap | null>(null);
+
+  const flyToPoint = useCallback((point: StoredPoint) => {
+    setSelectedTs(point.timestamp);
+    mapInstanceRef.current?.flyTo([point.lat, point.lng], 19);
+  }, []);
 
   const goToCurrentPosition = useCallback(() => {
     if (mapInstanceRef.current && currentPosition) {
@@ -72,12 +115,46 @@ export default function LocationPage() {
     }
   }, [currentPosition]);
 
-  const polyline: [number, number][] = stored.map(c => [c.lat, c.lng]);
-  const mapCenter: [number, number]  = currentPosition
-    ? [currentPosition.lat, currentPosition.lng]
-    : HYDERABAD;
+  const polyline: [number, number][]  = stored.map(c => [c.lat, c.lng]);
+  const mapCenter: [number, number]   = currentPosition ? [currentPosition.lat, currentPosition.lng] : HYDERABAD;
+  const bigMovementTimestamps         = new Set(bigMovements.map(p => p.timestamp));
 
-  const bigMovementTimestamps = new Set(bigMovements.map(p => p.timestamp));
+  const renderListItem = (c: StoredPoint, i: number, variant: 'big' | 'all') => {
+    const isBig      = bigMovementTimestamps.has(c.timestamp);
+    const isSelected = selectedTs === c.timestamp;
+
+    return (
+      <li
+        key={i}
+        className={[
+          'loc-log-item',
+          variant === 'big' ? 'loc-log-item--big' : '',
+          variant === 'all' && isBig ? 'loc-log-item--big-subtle' : '',
+          isSelected ? 'loc-log-item--selected' : '',
+        ].filter(Boolean).join(' ')}
+        onClick={() => flyToPoint(c)}
+      >
+        <div className="loc-log-left">
+          <span className="loc-log-time">
+            {new Date(c.timestamp).toLocaleString('en-IN', {
+              day: '2-digit', month: 'short',
+              hour: '2-digit', minute: '2-digit',
+            })}
+          </span>
+          <span className="loc-log-coords">
+            {c.lat.toFixed(6)}, {c.lng.toFixed(6)}
+          </span>
+        </div>
+        {variant === 'big' ? (
+          <span className="loc-big-distance">+{c.distanceFromPrev!.toFixed(1)} m</span>
+        ) : c.distanceFromPrev != null ? (
+          <span className={`loc-dist-badge${c.distanceFromPrev >= 10 ? ' loc-dist-badge--big' : ''}`}>
+            {c.distanceFromPrev.toFixed(1)} m
+          </span>
+        ) : null}
+      </li>
+    );
+  };
 
   return (
     <div className="loc-page">
@@ -89,11 +166,7 @@ export default function LocationPage() {
             {' · 8 AM – 10 PM'}
           </p>
         </div>
-        <button
-          className="loc-sync-btn"
-          onClick={sync}
-          disabled={syncing || stored.length === 0}
-        >
+        <button className="loc-sync-btn" onClick={sync} disabled={syncing || stored.length === 0}>
           {syncing ? 'Syncing…' : 'Sync'}
         </button>
       </div>
@@ -111,10 +184,10 @@ export default function LocationPage() {
                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/>
               <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
-              <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" strokeOpacity="0"/>
             </svg>
           </button>
         )}
+
         <MapContainer
           center={mapCenter}
           zoom={19}
@@ -128,7 +201,6 @@ export default function LocationPage() {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             maxZoom={19}
           />
-
           <MapRefCapture mapRef={mapInstanceRef} />
           <InitialCenter position={currentPosition} />
           <BoundsWatcher position={currentPosition} onVisibilityChange={setPositionInView} />
@@ -140,32 +212,15 @@ export default function LocationPage() {
             />
           )}
 
-          {stored.map((c, i) => {
-            const isBig = bigMovementTimestamps.has(c.timestamp);
-            return (
-              <CircleMarker
-                key={i}
-                center={[c.lat, c.lng]}
-                radius={isBig ? 7 : 4}
-                pathOptions={{
-                  color:       isBig ? '#f97316' : '#6366f1',
-                  fillColor:   isBig ? '#f97316' : '#6366f1',
-                  fillOpacity: 0.9,
-                  weight:      isBig ? 2 : 1,
-                }}
-              >
-                <Tooltip>
-                  {isBig && <><strong>Big movement</strong><br /></>}
-                  {new Date(c.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                  <br />
-                  {c.lat.toFixed(6)}, {c.lng.toFixed(6)}
-                  {c.distanceFromPrev != null && (
-                    <><br />{c.distanceFromPrev.toFixed(1)} m from previous</>
-                  )}
-                </Tooltip>
-              </CircleMarker>
-            );
-          })}
+          {stored.map((c, i) => (
+            <PointMarker
+              key={i}
+              point={c}
+              isBig={bigMovementTimestamps.has(c.timestamp)}
+              isSelected={selectedTs === c.timestamp}
+              onClick={() => setSelectedTs(c.timestamp)}
+            />
+          ))}
 
           {currentPosition && (
             <CircleMarker
@@ -186,24 +241,7 @@ export default function LocationPage() {
             <span className="loc-big-count">{bigMovements.length}</span>
           </h2>
           <ul className="loc-log-ul">
-            {[...bigMovements].reverse().map((c, i) => (
-              <li key={i} className="loc-log-item loc-log-item--big">
-                <div className="loc-log-left">
-                  <span className="loc-log-time">
-                    {new Date(c.timestamp).toLocaleString('en-IN', {
-                      day: '2-digit', month: 'short',
-                      hour: '2-digit', minute: '2-digit',
-                    })}
-                  </span>
-                  <span className="loc-log-coords">
-                    {c.lat.toFixed(6)}, {c.lng.toFixed(6)}
-                  </span>
-                </div>
-                <span className="loc-big-distance">
-                  +{c.distanceFromPrev!.toFixed(1)} m
-                </span>
-              </li>
-            ))}
+            {[...bigMovements].reverse().map((c, i) => renderListItem(c, i, 'big'))}
           </ul>
         </div>
       )}
@@ -212,29 +250,7 @@ export default function LocationPage() {
         <div className="loc-log-list">
           <h2 className="loc-log-title">All Stored Points</h2>
           <ul className="loc-log-ul">
-            {[...stored].reverse().map((c, i) => (
-              <li
-                key={i}
-                className={`loc-log-item${bigMovementTimestamps.has(c.timestamp) ? ' loc-log-item--big-subtle' : ''}`}
-              >
-                <div className="loc-log-left">
-                  <span className="loc-log-time">
-                    {new Date(c.timestamp).toLocaleString('en-IN', {
-                      day: '2-digit', month: 'short',
-                      hour: '2-digit', minute: '2-digit',
-                    })}
-                  </span>
-                  <span className="loc-log-coords">
-                    {c.lat.toFixed(6)}, {c.lng.toFixed(6)}
-                  </span>
-                </div>
-                {c.distanceFromPrev != null && (
-                  <span className={`loc-dist-badge${c.distanceFromPrev >= 10 ? ' loc-dist-badge--big' : ''}`}>
-                    {c.distanceFromPrev.toFixed(1)} m
-                  </span>
-                )}
-              </li>
-            ))}
+            {[...stored].reverse().map((c, i) => renderListItem(c, i, 'all'))}
           </ul>
         </div>
       )}

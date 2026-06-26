@@ -159,6 +159,20 @@
   border-left: 3px solid #f97316;
 }
 
+.loc-log-item--selected {
+  background: #fefce8;
+  border-left: 3px solid #facc15;
+  box-shadow: 0 0 0 1px #fde047;
+}
+
+.loc-log-item {
+  cursor: pointer;
+}
+
+.loc-log-item:active {
+  opacity: 0.7;
+}
+
 .loc-log-left {
   display: flex;
   flex-direction: column;
