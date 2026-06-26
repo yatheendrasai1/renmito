@@ -38,7 +38,10 @@
   overflow: hidden;
   transition: border-color 0.2s;
 }
-.cfg-acc[data-state="open"] { border-color: var(--border, rgba(255,255,255,0.14)); }
+.cfg-acc[data-state="open"] {
+  border-color: var(--border, rgba(255,255,255,0.14));
+  overflow: visible;
+}
 
 /* Resets for AccordionTrigger which renders a <button> with its own padding */
 .cfg-acc-head {
@@ -68,6 +71,7 @@
   border-top: 1px solid var(--border-light, rgba(255,255,255,0.07));
   display: flex; flex-direction: column; gap: 0;
   padding: 0;
+  height: auto !important; /* override Tailwind h-(--radix-accordion-content-height) so dynamic content isn't clipped */
 }
 
 /* ── Section blocks ──────────────────────────────────────────────────────────── */
@@ -263,6 +267,8 @@
 /* ── Location Points ───────────────────────────────────────────────────────── */
 
 .cfg-icon--loc { background: #ecfdf5; color: #059669; }
+
+.cfg-section--loc { padding-bottom: 16px; }
 
 .cfg-add-loc-btn {
   width: 100%;

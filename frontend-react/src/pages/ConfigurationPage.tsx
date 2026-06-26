@@ -590,7 +590,7 @@ function LocationPointsAccordion() {
         </AccordionTrigger>
 
         <AccordionContent className="cfg-acc-body">
-          <div className="cfg-section">
+          <div className="cfg-section cfg-section--loc">
             <button
               className="cfg-add-loc-btn"
               onClick={() => setShowPicker(true)}
