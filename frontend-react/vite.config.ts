@@ -11,6 +11,9 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    include: ['leaflet'],
+  },
   server: {
     port: 4200,
   },
