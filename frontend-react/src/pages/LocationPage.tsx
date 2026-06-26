@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import type { Coordinate } from '@/hooks/useLocationTracking';
 import { useLocationTracking } from '@/hooks/useLocationTracking';
 import './LocationPage.css';
 
@@ -10,13 +11,24 @@ const INDIA_BOUNDS: [[number, number], [number, number]] = [
   [35.67, 97.4],
 ];
 
+// Keeps the map centered on the live position as it updates
+function MapFollower({ position }: { position: Coordinate | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position) map.setView([position.lat, position.lng], map.getZoom());
+  }, [position, map]);
+  return null;
+}
+
 export default function LocationPage() {
-  const { stored, syncing, syncMsg, sync, refresh } = useLocationTracking();
+  const { stored, currentPosition, syncing, syncMsg, sync, refresh } = useLocationTracking();
 
   useEffect(() => { refresh(); }, [refresh]);
 
   const polyline: [number, number][] = stored.map(c => [c.lat, c.lng]);
-  const latest = stored.length > 0 ? stored[stored.length - 1] : undefined;
+  const mapCenter: [number, number] = currentPosition
+    ? [currentPosition.lat, currentPosition.lng]
+    : HYDERABAD;
 
   return (
     <div className="loc-page">
@@ -24,7 +36,10 @@ export default function LocationPage() {
         <div className="loc-header__info">
           <h1 className="loc-title">Location Tracking</h1>
           <p className="loc-subtitle">
-            Auto-logs every 5 min · 8 AM – 10 PM · {stored.length} points stored
+            {currentPosition
+              ? `Live · ${stored.length} points stored`
+              : 'Waiting for GPS fix…'}
+            {' · 8 AM – 10 PM'}
           </p>
         </div>
         <button
@@ -44,8 +59,8 @@ export default function LocationPage() {
 
       <div className="loc-map-wrap">
         <MapContainer
-          center={latest ? [latest.lat, latest.lng] : HYDERABAD}
-          zoom={latest ? 13 : 5}
+          center={mapCenter}
+          zoom={15}
           maxBounds={INDIA_BOUNDS}
           maxBoundsViscosity={0.8}
           className="loc-map"
@@ -55,24 +70,23 @@ export default function LocationPage() {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
+          <MapFollower position={currentPosition} />
+
+          {/* Route polyline through stored points */}
           {polyline.length > 1 && (
             <Polyline
               positions={polyline}
-              pathOptions={{ color: 'var(--color-primary, #6366f1)', weight: 3, opacity: 0.85 }}
+              pathOptions={{ color: '#6366f1', weight: 3, opacity: 0.8 }}
             />
           )}
 
+          {/* Stored log dots */}
           {stored.map((c, i) => (
             <CircleMarker
               key={i}
               center={[c.lat, c.lng]}
-              radius={i === stored.length - 1 ? 8 : 4}
-              pathOptions={{
-                color:     i === stored.length - 1 ? '#ef4444' : 'var(--color-primary, #6366f1)',
-                fillColor: i === stored.length - 1 ? '#ef4444' : 'var(--color-primary, #6366f1)',
-                fillOpacity: 0.9,
-                weight: 1,
-              }}
+              radius={4}
+              pathOptions={{ color: '#6366f1', fillColor: '#6366f1', fillOpacity: 0.85, weight: 1 }}
             >
               <Tooltip>
                 {new Date(c.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
@@ -81,6 +95,17 @@ export default function LocationPage() {
               </Tooltip>
             </CircleMarker>
           ))}
+
+          {/* Live position — blue pulsing dot */}
+          {currentPosition && (
+            <CircleMarker
+              center={[currentPosition.lat, currentPosition.lng]}
+              radius={10}
+              pathOptions={{ color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.9, weight: 2 }}
+            >
+              <Tooltip permanent={false}>You are here</Tooltip>
+            </CircleMarker>
+          )}
         </MapContainer>
       </div>
 
