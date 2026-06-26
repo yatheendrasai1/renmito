@@ -40,10 +40,7 @@
   transition: opacity 0.15s;
 }
 
-.loc-sync-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
+.loc-sync-btn:disabled { opacity: 0.45; cursor: default; }
 
 .loc-banner {
   padding: 10px 14px;
@@ -51,7 +48,6 @@
   font-size: 0.875rem;
   font-weight: 500;
 }
-
 .loc-banner--ok    { background: #dcfce7; color: #166534; }
 .loc-banner--error { background: #fee2e2; color: #991b1b; }
 
@@ -62,15 +58,13 @@
   height: 380px;
 }
 
-.loc-map {
-  width: 100%;
-  height: 100%;
-}
+.loc-map { width: 100%; height: 100%; }
 
-/* Leaflet z-index fix inside Capacitor WebView */
-.loc-map .leaflet-pane { z-index: 1; }
+.loc-map .leaflet-pane  { z-index: 1; }
 .loc-map .leaflet-top,
 .loc-map .leaflet-bottom { z-index: 2; }
+
+/* ── Lists ─────────────────────────────────────────────────────────────────── */
 
 .loc-log-list {
   background: var(--color-surface, #f8fafc);
@@ -78,11 +72,38 @@
   padding: 12px;
 }
 
+.loc-log-list--big {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+}
+
 .loc-log-title {
   font-size: 0.9rem;
   font-weight: 600;
   margin: 0 0 10px;
   color: var(--color-text-primary, #0f172a);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.loc-big-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #f97316;
+  flex-shrink: 0;
+}
+
+.loc-big-count {
+  margin-left: auto;
+  background: #f97316;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 20px;
 }
 
 .loc-log-ul {
@@ -104,7 +125,47 @@
   padding: 6px 8px;
   background: var(--color-card, #fff);
   border-radius: 6px;
+  gap: 8px;
+}
+
+.loc-log-item--big {
+  background: #fff;
+  border-left: 3px solid #f97316;
+}
+
+.loc-log-item--big-subtle {
+  border-left: 3px solid #f97316;
+}
+
+.loc-log-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .loc-log-time   { color: var(--color-text-primary, #0f172a); font-weight: 500; }
-.loc-log-coords { color: var(--color-text-secondary, #64748b); font-family: monospace; }
+.loc-log-coords { color: var(--color-text-secondary, #64748b); font-family: monospace; font-size: 0.72rem; }
+
+.loc-big-distance {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: #ea580c;
+  font-size: 0.82rem;
+}
+
+.loc-dist-badge {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.loc-dist-badge--big {
+  background: #ffedd5;
+  color: #c2410c;
+  font-weight: 700;
+}

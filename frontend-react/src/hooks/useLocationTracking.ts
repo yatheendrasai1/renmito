@@ -17,14 +17,32 @@ export interface Coordinate {
   timestamp: string;
 }
 
-const STORAGE_KEY      = 'renmito-location-logs';
-const TRACK_START_HOUR = 8;
-const TRACK_STOP_HOUR  = 22;
-const INTERVAL_MS      = 5 * 60 * 1000;
+export interface StoredPoint extends Coordinate {
+  distanceFromPrev: number | null; // metres; null for the first point
+}
+
+const STORAGE_KEY             = 'renmito-location-logs';
+const TRACK_START_HOUR        = 8;
+const TRACK_STOP_HOUR         = 22;
+const INTERVAL_MS             = 5 * 60 * 1000;
+const BIG_MOVEMENT_THRESHOLD  = 10; // metres
+
+// ── Haversine distance ────────────────────────────────────────────────────────
+
+export function haversineMeters(a: Coordinate, b: Coordinate): number {
+  const R     = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat  = toRad(b.lat - a.lat);
+  const dLng  = toRad(b.lng - a.lng);
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
 
-async function readStored(): Promise<Coordinate[]> {
+async function readStored(): Promise<StoredPoint[]> {
   const { value } = await Preferences.get({ key: STORAGE_KEY });
   if (!value) return [];
   try {
@@ -35,9 +53,9 @@ async function readStored(): Promise<Coordinate[]> {
   }
 }
 
-async function appendCoordinate(coord: Coordinate): Promise<void> {
+async function appendPoint(point: StoredPoint): Promise<void> {
   const existing = await readStored();
-  existing.push(coord);
+  existing.push(point);
   await Preferences.set({ key: STORAGE_KEY, value: JSON.stringify(existing) });
 }
 
@@ -53,14 +71,15 @@ function isWithinTrackingWindow(): boolean {
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useLocationTracking() {
-  const [stored, setStored]               = useState<Coordinate[]>([]);
+  const [stored, setStored]                   = useState<StoredPoint[]>([]);
   const [currentPosition, setCurrentPosition] = useState<Coordinate | null>(null);
-  const [syncing, setSyncing]             = useState(false);
-  const [syncMsg, setSyncMsg]             = useState<string | null>(null);
+  const [syncing, setSyncing]                 = useState(false);
+  const [syncMsg, setSyncMsg]                 = useState<string | null>(null);
 
-  const watcherIdRef   = useRef<string | null>(null);
-  const lastSavedAtRef = useRef<number>(0); // timestamp of last saved point
-  const isNative       = Capacitor.isNativePlatform();
+  const watcherIdRef      = useRef<string | null>(null);
+  const lastSavedAtRef    = useRef<number>(0);
+  const lastSavedCoordRef = useRef<Coordinate | null>(null);
+  const isNative          = Capacitor.isNativePlatform();
 
   const refresh = useCallback(async () => {
     setStored(await readStored());
@@ -90,31 +109,31 @@ export function useLocationTracking() {
           timestamp: new Date().toISOString(),
         };
 
-        // Always update the live position on the map
         setCurrentPosition(coord);
 
         if (!isWithinTrackingWindow()) return;
 
-        const now = Date.now();
-        const msSinceLast = now - lastSavedAtRef.current;
+        const now          = Date.now();
+        const msSinceLast  = now - lastSavedAtRef.current;
+        const isFirst      = lastSavedAtRef.current === 0;
 
-        // Save immediately on the first fix, then respect the 5-min interval
-        if (lastSavedAtRef.current === 0 || msSinceLast >= INTERVAL_MS) {
-          lastSavedAtRef.current = now;
-          await appendCoordinate(coord);
-          setStored(prev => [...prev, coord]);
+        if (isFirst || msSinceLast >= INTERVAL_MS) {
+          const distanceFromPrev = lastSavedCoordRef.current
+            ? haversineMeters(lastSavedCoordRef.current, coord)
+            : null;
+
+          const point: StoredPoint = { ...coord, distanceFromPrev };
+
+          lastSavedAtRef.current    = now;
+          lastSavedCoordRef.current = coord;
+
+          await appendPoint(point);
+          setStored(prev => [...prev, point]);
         }
       }
     ).then(id => {
       watcherIdRef.current = id;
-
-      // Safety net: if the watcher never fires (e.g. GPS cold start takes long),
-      // we still re-check every minute so we don't miss the window open/close.
-      timerId = setInterval(() => {
-        if (!isWithinTrackingWindow() && watcherIdRef.current) {
-          // Outside window — nothing to do; watcher stays alive for live position
-        }
-      }, 60_000);
+      timerId = setInterval(() => { /* window open/close heartbeat */ }, 60_000);
     });
 
     return () => {
@@ -126,13 +145,9 @@ export function useLocationTracking() {
     };
   }, [isNative]);
 
-  // ── Sync ─────────────────────────────────────────────────────────────────────
   const sync = useCallback(async () => {
     const coords = await readStored();
-    if (coords.length === 0) {
-      setSyncMsg('No data to sync.');
-      return;
-    }
+    if (coords.length === 0) { setSyncMsg('No data to sync.'); return; }
     setSyncing(true);
     setSyncMsg(null);
     try {
@@ -147,5 +162,9 @@ export function useLocationTracking() {
     }
   }, []);
 
-  return { stored, currentPosition, syncing, syncMsg, sync, refresh };
+  const bigMovements = stored.filter(
+    p => p.distanceFromPrev !== null && p.distanceFromPrev >= BIG_MOVEMENT_THRESHOLD
+  );
+
+  return { stored, bigMovements, currentPosition, syncing, syncMsg, sync, refresh };
 }
