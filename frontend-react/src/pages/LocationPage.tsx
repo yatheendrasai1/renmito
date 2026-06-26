@@ -100,7 +100,7 @@ export default function LocationPage() {
                   {new Date(c.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                   <br />
                   {c.lat.toFixed(6)}, {c.lng.toFixed(6)}
-                  {c.distanceFromPrev !== null && (
+                  {c.distanceFromPrev != null && (
                     <><br />{c.distanceFromPrev.toFixed(1)} m from previous</>
                   )}
                 </Tooltip>
@@ -169,7 +169,7 @@ export default function LocationPage() {
                     {c.lat.toFixed(6)}, {c.lng.toFixed(6)}
                   </span>
                 </div>
-                {c.distanceFromPrev !== null && (
+                {c.distanceFromPrev != null && (
                   <span className={`loc-dist-badge${c.distanceFromPrev >= 10 ? ' loc-dist-badge--big' : ''}`}>
                     {c.distanceFromPrev.toFixed(1)} m
                   </span>

@@ -47,7 +47,14 @@ async function readStored(): Promise<StoredPoint[]> {
   if (!value) return [];
   try {
     const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    // Normalise legacy records that predate distanceFromPrev
+    return parsed.map(p => ({
+      lat:               p.lat,
+      lng:               p.lng,
+      timestamp:         p.timestamp,
+      distanceFromPrev:  p.distanceFromPrev ?? null,
+    }));
   } catch {
     return [];
   }
