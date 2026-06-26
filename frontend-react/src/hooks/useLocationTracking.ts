@@ -158,7 +158,12 @@ export function useLocationTracking() {
           timestamp: new Date(fixMs).toISOString(), // always UTC ISO-8601
         };
 
-        setCurrentPosition(coord);
+        // Only update React state if position changed by >1 m to avoid
+        // re-rendering the entire app on every GPS poll.
+        setCurrentPosition(prev => {
+          if (prev && haversineMeters(prev, coord) < 1) return prev;
+          return coord;
+        });
 
         if (!isWithinTrackingWindow()) return;
 
