@@ -21,6 +21,7 @@ const episodesRouter         = require('./routes/episodes.route');
 const expensesRouter         = require('./routes/expenses.route');
 const jiraRouter             = require('./routes/jira.route');
 const ticketQueryRouter      = require('./routes/ticketQuery.route');
+const locationLogsRouter     = require('./routes/locationLogs.route');
 const authMiddleware       = require('./middleware/authMiddleware');
 const seedDefaultLogTypes  = require('./utils/seedDefaults');
 const seedEnhancements     = require('./utils/seedEnhancements');
@@ -89,6 +90,7 @@ app.use('/api/episodes',       authMiddleware, episodesRouter);
 app.use('/api/expenses',       authMiddleware, expensesRouter);
 app.use('/api/jira',           authMiddleware, jiraRouter);
 app.use('/api/jira/queries',   authMiddleware, ticketQueryRouter);
+app.use('/api/location-logs',  authMiddleware, locationLogsRouter);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

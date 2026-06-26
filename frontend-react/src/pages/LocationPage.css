@@ -1,0 +1,110 @@
+.loc-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  min-height: 100%;
+}
+
+.loc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.loc-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.loc-subtitle {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #64748b);
+  margin: 4px 0 0;
+}
+
+.loc-sync-btn {
+  flex-shrink: 0;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.loc-sync-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.loc-banner {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.loc-banner--ok    { background: #dcfce7; color: #166534; }
+.loc-banner--error { background: #fee2e2; color: #991b1b; }
+
+.loc-map-wrap {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+  height: 380px;
+}
+
+.loc-map {
+  width: 100%;
+  height: 100%;
+}
+
+/* Leaflet z-index fix inside Capacitor WebView */
+.loc-map .leaflet-pane { z-index: 1; }
+.loc-map .leaflet-top,
+.loc-map .leaflet-bottom { z-index: 2; }
+
+.loc-log-list {
+  background: var(--color-surface, #f8fafc);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.loc-log-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 10px;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.loc-log-ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.loc-log-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  padding: 6px 8px;
+  background: var(--color-card, #fff);
+  border-radius: 6px;
+}
+
+.loc-log-time   { color: var(--color-text-primary, #0f172a); font-weight: 500; }
+.loc-log-coords { color: var(--color-text-secondary, #64748b); font-family: monospace; }

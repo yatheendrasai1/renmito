@@ -36,6 +36,7 @@ export const router = createBrowserRouter([
       { path: 'configuration', lazy: lazyPage(() => import('@/pages/ConfigurationPage')) },
       { path: 'intelligence',  lazy: lazyPage(() => import('@/pages/IntelligencePage')) },
       { path: 'eagle-view',    lazy: lazyPage(() => import('@/pages/EagleViewPage')) },
+      { path: 'location',      lazy: lazyPage(() => import('@/pages/LocationPage')) },
       { path: 'diary',         lazy: lazyPage(() => import('@/pages/DiaryPage')) },
       {
         path: 'expense-guide',
