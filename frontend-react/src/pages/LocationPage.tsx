@@ -83,7 +83,7 @@ function PointMarker({
       <Tooltip>
         {isSelected && <><strong>Selected</strong><br /></>}
         {isBig && !isSelected && <><strong>Big movement</strong><br /></>}
-        {new Date(point.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+        {new Date(point.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
         <br />
         {point.lat.toFixed(6)}, {point.lng.toFixed(6)}
         {point.distanceFromPrev != null && (
@@ -184,7 +184,7 @@ export default function LocationPage() {
       >
         <div className="loc-log-left">
           <span className="loc-log-time">
-            {new Date(c.timestamp).toLocaleString('en-IN', {
+            {new Date(c.timestamp).toLocaleString(undefined, {
               day: '2-digit', month: 'short',
               hour: '2-digit', minute: '2-digit',
             })}
@@ -361,7 +361,7 @@ export default function LocationPage() {
                   )}
                   <div className="loc-log-left">
                     <span className="loc-log-time">
-                      {new Date(c.timestamp).toLocaleString('en-IN', {
+                      {new Date(c.timestamp).toLocaleString(undefined, {
                         day: '2-digit', month: 'short',
                         hour: '2-digit', minute: '2-digit',
                       })}

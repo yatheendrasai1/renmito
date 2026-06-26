@@ -130,10 +130,13 @@ export function useLocationTracking() {
       async (location: Location | undefined, error: Error | undefined) => {
         if (error || !location) return;
 
+        // Use the GPS fix time (UTC epoch ms) so the stored timestamp reflects
+        // when the position was actually recorded, not when the callback fired.
+        const fixMs = location.time ?? Date.now();
         const coord: Coordinate = {
           lat:       location.latitude,
           lng:       location.longitude,
-          timestamp: new Date().toISOString(),
+          timestamp: new Date(fixMs).toISOString(), // always UTC ISO-8601
         };
 
         setCurrentPosition(coord);
