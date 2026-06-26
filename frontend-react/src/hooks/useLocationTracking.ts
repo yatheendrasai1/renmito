@@ -33,8 +33,6 @@ export interface StoredPoint extends Coordinate {
 }
 
 const STORAGE_KEY             = 'renmito-location-logs';
-const TRACK_START_HOUR        = 8;
-const TRACK_STOP_HOUR         = 22;
 const INTERVAL_MS             = 5 * 60 * 1000;
 const BIG_MOVEMENT_THRESHOLD  = 10; // metres
 
@@ -90,12 +88,16 @@ async function removeStoredByTimestamps(timestamps: Set<string>): Promise<Stored
   return kept;
 }
 
-function isWithinTrackingWindow(): boolean {
-  const h = new Date().getHours();
-  return h >= TRACK_START_HOUR && h < TRACK_STOP_HOUR;
-}
+const TRACKING_ENABLED_KEY    = 'renmito-location-tracking-enabled';
+const TRACKING_START_HOUR_KEY = 'renmito-location-track-start';
+const TRACKING_END_HOUR_KEY   = 'renmito-location-track-end';
+const DEFAULT_START_HOUR      = 8;
+const DEFAULT_END_HOUR        = 22;
 
-const TRACKING_ENABLED_KEY = 'renmito-location-tracking-enabled';
+function readHour(key: string, fallback: number): number {
+  const v = parseInt(localStorage.getItem(key) ?? '', 10);
+  return isNaN(v) ? fallback : v;
+}
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
@@ -107,6 +109,19 @@ export function useLocationTracking() {
   const [trackingEnabled, setTrackingEnabledState] = useState<boolean>(
     () => localStorage.getItem(TRACKING_ENABLED_KEY) === 'true'
   );
+  const [trackStartHour, setTrackStartHourState] = useState<number>(
+    () => readHour(TRACKING_START_HOUR_KEY, DEFAULT_START_HOUR)
+  );
+  const [trackEndHour, setTrackEndHourState] = useState<number>(
+    () => readHour(TRACKING_END_HOUR_KEY, DEFAULT_END_HOUR)
+  );
+
+  // Refs so the watcher callback always sees current window values without
+  // needing to restart the watcher when hours change.
+  const trackStartRef = useRef(trackStartHour);
+  const trackEndRef   = useRef(trackEndHour);
+  useEffect(() => { trackStartRef.current = trackStartHour; }, [trackStartHour]);
+  useEffect(() => { trackEndRef.current   = trackEndHour;   }, [trackEndHour]);
 
   const watcherIdRef      = useRef<string | null>(null);
   const lastSavedAtRef    = useRef<number>(0);
@@ -116,6 +131,13 @@ export function useLocationTracking() {
   const setTrackingEnabled = useCallback((enabled: boolean) => {
     localStorage.setItem(TRACKING_ENABLED_KEY, String(enabled));
     setTrackingEnabledState(enabled);
+  }, []);
+
+  const setTrackingWindow = useCallback((startHour: number, endHour: number) => {
+    localStorage.setItem(TRACKING_START_HOUR_KEY, String(startHour));
+    localStorage.setItem(TRACKING_END_HOUR_KEY,   String(endHour));
+    setTrackStartHourState(startHour);
+    setTrackEndHourState(endHour);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -165,7 +187,8 @@ export function useLocationTracking() {
           return coord;
         });
 
-        if (!isWithinTrackingWindow()) return;
+        const h = new Date().getHours();
+        if (h < trackStartRef.current || h >= trackEndRef.current) return;
 
         const now          = Date.now();
         const msSinceLast  = now - lastSavedAtRef.current;
@@ -241,5 +264,6 @@ export function useLocationTracking() {
     stored, bigMovements, currentPosition,
     syncing, syncMsg, sync, refresh, removePoints,
     trackingEnabled, setTrackingEnabled,
+    trackStartHour, trackEndHour, setTrackingWindow,
   };
 }

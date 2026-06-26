@@ -100,7 +100,17 @@ export default function LocationPage() {
   const {
     stored, bigMovements, currentPosition, syncing, syncMsg, sync, refresh, removePoints,
     trackingEnabled, setTrackingEnabled,
+    trackStartHour, trackEndHour,
   } = useLocationTrackingContext();
+
+  const currentHour    = new Date().getHours();
+  const inTrackingWindow = currentHour >= trackStartHour && currentHour < trackEndHour;
+
+  function fmtHour(h: number) {
+    if (h === 0)  return '12 AM';
+    if (h === 12) return '12 PM';
+    return h < 12 ? `${h} AM` : `${h - 12} PM`;
+  }
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -220,18 +230,24 @@ export default function LocationPage() {
               : currentPosition
                 ? `Live · ${stored.length} points stored`
                 : 'Waiting for GPS fix…'}
-            {trackingEnabled && ' · 8 AM – 10 PM'}
+            {trackingEnabled && ` · ${fmtHour(trackStartHour)}–${fmtHour(trackEndHour)}`}
           </p>
         </div>
         <div className="loc-header__actions">
-          <button
-            className={`loc-track-toggle${trackingEnabled ? ' loc-track-toggle--on' : ''}`}
-            onClick={() => setTrackingEnabled(!trackingEnabled)}
-            title={trackingEnabled ? 'Stop tracking' : 'Start tracking'}
-          >
-            <span className="loc-track-toggle__dot" />
-            {trackingEnabled ? 'On' : 'Off'}
-          </button>
+          {inTrackingWindow ? (
+            <button
+              className={`loc-track-toggle${trackingEnabled ? ' loc-track-toggle--on' : ''}`}
+              onClick={() => setTrackingEnabled(!trackingEnabled)}
+              title={trackingEnabled ? 'Stop tracking' : 'Start tracking'}
+            >
+              <span className="loc-track-toggle__dot" />
+              {trackingEnabled ? 'On' : 'Off'}
+            </button>
+          ) : (
+            <span className="loc-out-of-window">
+              Outside {fmtHour(trackStartHour)}–{fmtHour(trackEndHour)}
+            </span>
+          )}
           <button className="loc-sync-btn" onClick={sync} disabled={syncing || stored.length === 0}>
             {syncing ? 'Syncing…' : 'Sync'}
           </button>

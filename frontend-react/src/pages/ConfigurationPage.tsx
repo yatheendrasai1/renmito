@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { useLocationPoints } from '@/hooks/useLocationPoints';
+import { useLocationTrackingContext } from '@/contexts/LocationTrackingContext';
 
 const LocationPointPicker = lazy(
   () => import('@/components/location/LocationPointPicker')
@@ -574,8 +575,15 @@ function NotificationsSection({
 
 interface EditState { name: string; radius: number; }
 
+function fmtHour(h: number) {
+  if (h === 0)  return '12 AM';
+  if (h === 12) return '12 PM';
+  return h < 12 ? `${h} AM` : `${h - 12} PM`;
+}
+
 function LocationPointsAccordion() {
   const { points, loading, create, update, remove, removeMany } = useLocationPoints();
+  const { trackStartHour, trackEndHour, setTrackingWindow } = useLocationTrackingContext();
   const [showPicker, setShowPicker] = useState(false);
   const [selected, setSelected]     = useState<Set<string>>(new Set());
   const [deleting, setDeleting]     = useState(false);
@@ -655,6 +663,33 @@ function LocationPointsAccordion() {
 
         <AccordionContent className="cfg-acc-body">
           <div className="cfg-section cfg-section--loc">
+
+            {/* Tracking window */}
+            <div className="cfg-track-window">
+              <span className="cfg-track-window__label">Tracking hours</span>
+              <div className="cfg-track-window__selects">
+                <select
+                  className="cfg-track-window__sel"
+                  value={trackStartHour}
+                  onChange={e => setTrackingWindow(Number(e.target.value), trackEndHour)}
+                >
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>{fmtHour(h)}</option>
+                  ))}
+                </select>
+                <span className="cfg-track-window__to">to</span>
+                <select
+                  className="cfg-track-window__sel"
+                  value={trackEndHour}
+                  onChange={e => setTrackingWindow(trackStartHour, Number(e.target.value))}
+                >
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>{fmtHour(h)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div className="cfg-loc-toolbar">
               <button
                 type="button"

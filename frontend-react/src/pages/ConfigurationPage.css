@@ -270,6 +270,45 @@
 
 .cfg-section--loc { padding-bottom: 16px; }
 
+/* Tracking window row */
+.cfg-track-window {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  margin-bottom: 14px;
+}
+
+.cfg-track-window__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #0f172a);
+  flex-shrink: 0;
+}
+
+.cfg-track-window__selects {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cfg-track-window__sel {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1.5px solid var(--color-border, #e2e8f0);
+  background: var(--color-surface, #fff);
+  color: var(--color-text-primary, #0f172a);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.cfg-track-window__to {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #64748b);
+}
+
 .cfg-loc-toolbar {
   display: flex;
   gap: 8px;
