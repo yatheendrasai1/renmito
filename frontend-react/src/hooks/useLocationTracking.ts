@@ -7,9 +7,13 @@ import type {
 } from '@capacitor-community/background-geolocation';
 import api from '@/lib/api';
 
-async function fetchLocationPoints(): Promise<{ _id: string; lat: number; lng: number; name: string; radius: number }[]> {
+type LocationPoint = { _id: string; lat: number; lng: number; name: string; radius: number };
+
+async function fetchLocationPoints(): Promise<LocationPoint[]> {
   try {
-    const res = await api.get('/location-points');
+    // Backgrounded WebView requests get throttled by Android after ~5 min;
+    // bound this so a stalled request can't block a pending save forever.
+    const res = await api.get('/location-points', { timeout: 8000 });
     return Array.isArray(res.data) ? res.data : [];
   } catch {
     return [];
@@ -35,6 +39,7 @@ export interface StoredPoint extends Coordinate {
 const STORAGE_KEY             = 'renmito-location-logs';
 const INTERVAL_MS             = 5 * 60 * 1000;
 const BIG_MOVEMENT_THRESHOLD  = 10; // metres
+const LOCATION_POINTS_TTL_MS  = 15 * 60 * 1000;
 
 // ── Haversine distance ────────────────────────────────────────────────────────
 
@@ -128,6 +133,23 @@ export function useLocationTracking() {
   const lastSavedCoordRef = useRef<Coordinate | null>(null);
   const isNative          = Capacitor.isNativePlatform();
 
+  // Cache of user-defined location points, refreshed on a TTL rather than
+  // re-fetched on every save — keeps the save path off the network in the
+  // common case, since a stalled background request would otherwise block
+  // that cycle's point from ever being appended.
+  const locationPointsRef      = useRef<LocationPoint[]>([]);
+  const locationPointsFetchedAt = useRef<number>(0);
+
+  const getLocationPoints = useCallback(async (): Promise<LocationPoint[]> => {
+    const now = Date.now();
+    if (now - locationPointsFetchedAt.current < LOCATION_POINTS_TTL_MS) {
+      return locationPointsRef.current;
+    }
+    locationPointsRef.current = await fetchLocationPoints();
+    locationPointsFetchedAt.current = now;
+    return locationPointsRef.current;
+  }, []);
+
   const setTrackingEnabled = useCallback((enabled: boolean) => {
     localStorage.setItem(TRACKING_ENABLED_KEY, String(enabled));
     setTrackingEnabledState(enabled);
@@ -204,7 +226,7 @@ export function useLocationTracking() {
             ? haversineMeters(lastSavedCoordRef.current, coord)
             : null;
 
-          const savedPoints = await fetchLocationPoints();
+          const savedPoints = await getLocationPoints();
           const nearby = savedPoints.find(
             p => haversineMeters(coord, p) <= (p.radius ?? 10)
           );

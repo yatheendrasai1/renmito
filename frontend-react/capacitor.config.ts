@@ -6,8 +6,10 @@ const config: CapacitorConfig = {
   // Vite outputs to dist/ (flat, unlike Angular's dist/.../browser/)
   webDir: 'dist',
   android: {
-    // https scheme keeps localStorage + cookies correct on Android 12+
-    useLegacyBridge: false,
+    // Required by @capacitor-community/background-geolocation: the modern
+    // bridge halts location delivery to JS after ~5 min backgrounded.
+    // See https://github.com/capacitor-community/background-geolocation/issues/89
+    useLegacyBridge: true,
   },
   server: {
     androidScheme: 'https',

@@ -32,12 +32,6 @@
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/ic_launcher_background" />
 
-        <!-- Background Geolocation foreground service -->
-        <service
-            android:name="com.equimapper.capacitorbackgroundgeolocation.BackgroundGeolocationService"
-            android:foregroundServiceType="location"
-            android:exported="false" />
-
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
