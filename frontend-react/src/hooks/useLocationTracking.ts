@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import type {
   BackgroundGeolocationPlugin,
   Location,
@@ -198,6 +199,18 @@ export function useLocationTracking() {
     }
 
     let timerId: ReturnType<typeof setInterval>;
+
+    // The location plugin only requests the location permission alias — it
+    // never asks for POST_NOTIFICATIONS (Android 13+). Without it, the OS
+    // silently withholds the foreground service's persistent notification
+    // even though tracking keeps running. Check every time the watcher
+    // (re)starts, not just on toggle, so it also covers app relaunches
+    // where tracking was already on.
+    LocalNotifications.checkPermissions().then(status => {
+      if (status.display !== 'granted') {
+        LocalNotifications.requestPermissions().catch(() => {});
+      }
+    }).catch(() => {});
 
     BackgroundGeolocation.addWatcher(
       {
