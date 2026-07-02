@@ -13,6 +13,8 @@ import SpeedDialFAB      from '@/components/shell/SpeedDialFAB';
 import LogFormModal      from '@/components/logger/LogFormModal';
 import RenniChat         from '@/components/chat/RenniChat';
 import { topUpNotificationsOnResume } from '@/hooks/useNotifications';
+import { useLogTypes }   from '@/hooks/useLogTypes';
+import { syncWidgetTiles } from '@/lib/tokenSync';
 import { LocationTrackingProvider } from '@/contexts/LocationTrackingContext';
 import { useAppStore }   from '@/store/appStore';
 import './AppLayout.css';
@@ -34,6 +36,13 @@ export default function AppLayout() {
 
   // Load preferences — applies theme class via usePreferences effect
   usePreferences();
+
+  // Keep the home-screen widget's tile list (title → logTypeId) mirrored to
+  // native storage whenever log types load or change.
+  const { data: logTypes } = useLogTypes();
+  useEffect(() => {
+    syncWidgetTiles(logTypes);
+  }, [logTypes]);
 
   // Default to dark until prefs resolve
   useEffect(() => {

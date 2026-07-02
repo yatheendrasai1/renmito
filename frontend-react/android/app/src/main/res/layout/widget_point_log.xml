@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="12dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_marginBottom="8dp"
+        android:text="Quick log"
+        android:textColor="#9A9AB0"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.05" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <!-- Woke Up -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:orientation="horizontal"
+            android:background="@drawable/widget_tile_bg">
+            <TextView
+                android:id="@+id/tile_wake"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Woke Up"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp" />
+            <TextView
+                android:id="@+id/note_wake"
+                android:layout_width="34dp"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="✎"
+                android:textColor="#9A9AB0"
+                android:textSize="16sp"
+                android:background="@drawable/widget_note_bg" />
+        </LinearLayout>
+
+        <!-- Breakfast -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:orientation="horizontal"
+            android:background="@drawable/widget_tile_bg">
+            <TextView
+                android:id="@+id/tile_breakfast"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Breakfast"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp" />
+            <TextView
+                android:id="@+id/note_breakfast"
+                android:layout_width="34dp"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="✎"
+                android:textColor="#9A9AB0"
+                android:textSize="16sp"
+                android:background="@drawable/widget_note_bg" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <!-- Lunch -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:orientation="horizontal"
+            android:background="@drawable/widget_tile_bg">
+            <TextView
+                android:id="@+id/tile_lunch"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Lunch"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp" />
+            <TextView
+                android:id="@+id/note_lunch"
+                android:layout_width="34dp"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="✎"
+                android:textColor="#9A9AB0"
+                android:textSize="16sp"
+                android:background="@drawable/widget_note_bg" />
+        </LinearLayout>
+
+        <!-- Dinner -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:orientation="horizontal"
+            android:background="@drawable/widget_tile_bg">
+            <TextView
+                android:id="@+id/tile_dinner"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Dinner"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp" />
+            <TextView
+                android:id="@+id/note_dinner"
+                android:layout_width="34dp"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="✎"
+                android:textColor="#9A9AB0"
+                android:textSize="16sp"
+                android:background="@drawable/widget_note_bg" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

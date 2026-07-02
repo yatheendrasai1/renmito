@@ -51,6 +51,29 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- Note dialog opened from a widget tile's "✎" strip. Dialog-themed so
+             it floats over the home screen instead of launching the full app. -->
+        <activity
+            android:name=".QuickLogActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog" />
+
+        <!-- Home-screen point-log widget: one-tap point logging without opening
+             the app. Tile taps broadcast LOG_POINT to RenmitoPointLogWidget,
+             which enqueues LogPointWorker to hit the backend. -->
+        <receiver
+            android:name=".RenmitoPointLogWidget"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.renmito.app.action.LOG_POINT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_point_log_info" />
+        </receiver>
     </application>
 
     <!-- Permissions -->

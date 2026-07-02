@@ -5,17 +5,9 @@ import {
   useEffect,
   type ReactNode,
 } from 'react';
-import { Capacitor, registerPlugin } from '@capacitor/core';
 import api, { registerLogoutCallback } from '@/lib/api';
+import { syncNativeToken, clearNativeToken } from '@/lib/tokenSync';
 import type { AuthUser } from '@/types';
-
-// ── TokenSync — custom Capacitor plugin (syncs JWT to native storage for
-//    Android widgets / background tasks). Same plugin used in Angular app.
-interface TokenSyncPlugin {
-  saveToken(options: { token: string }): Promise<void>;
-  clearToken(): Promise<void>;
-}
-const TokenSync = registerPlugin<TokenSyncPlugin>('TokenSync');
 
 // ── Storage keys (must match Angular app so sessions are shared) ──────────────
 const TOKEN_KEY = 'renmito-token';
@@ -56,9 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(USER_KEY, JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
-    if (Capacitor.isNativePlatform()) {
-      TokenSync.saveToken({ token: newToken }).catch(() => {});
-    }
+    syncNativeToken(newToken);
   }, []);
 
   const logout = useCallback(() => {
@@ -66,9 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(USER_KEY);
     setToken(null);
     setUser(null);
-    if (Capacitor.isNativePlatform()) {
-      TokenSync.clearToken().catch(() => {});
-    }
+    clearNativeToken();
   }, []);
 
   // ── Auth operations ────────────────────────────────────────────────────────
@@ -92,6 +80,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     registerLogoutCallback(logout);
   }, [logout]);
+
+  // Mirror an existing session's token to native storage on startup — persist()
+  // only fires on fresh login, so already-authenticated users need this to keep
+  // the home-screen widget's token current.
+  useEffect(() => {
+    if (token) syncNativeToken(token);
+  }, [token]);
 
   // ── Context value ──────────────────────────────────────────────────────────
 
