@@ -267,13 +267,16 @@ export function useLocationTracking() {
         const isFirst      = lastSavedAtRef.current === 0;
 
         if (isFirst || msSinceLast >= trackIntervalRef.current * 60 * 1000) {
+          // Capture the previous point before the gate below overwrites it.
+          const prevCoord = lastSavedCoordRef.current;
+
           // Gate immediately (synchronously) so concurrent callbacks
           // that arrive before the awaits below don't also pass the check.
           lastSavedAtRef.current    = now;
           lastSavedCoordRef.current = coord;
 
-          const distanceFromPrev = lastSavedCoordRef.current
-            ? haversineMeters(lastSavedCoordRef.current, coord)
+          const distanceFromPrev = prevCoord
+            ? haversineMeters(prevCoord, coord)
             : null;
 
           const savedPoints = await getLocationPoints();
