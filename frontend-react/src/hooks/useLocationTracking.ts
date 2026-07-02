@@ -47,9 +47,17 @@ export interface StoredPoint extends Coordinate {
 }
 
 const STORAGE_KEY             = 'renmito-location-logs';
-const INTERVAL_MS             = 5 * 60 * 1000;
 const BIG_MOVEMENT_THRESHOLD  = 10; // metres
 const LOCATION_POINTS_TTL_MS  = 15 * 60 * 1000;
+
+export const LOCATION_INTERVAL_OPTIONS = [
+  { label: '5 min',  value: 5 },
+  { label: '10 min', value: 10 },
+  { label: '15 min', value: 15 },
+  { label: '20 min', value: 20 },
+  { label: '30 min', value: 30 },
+  { label: '1 hour', value: 60 },
+];
 
 // ── Haversine distance ────────────────────────────────────────────────────────
 
@@ -106,8 +114,10 @@ async function removeStoredByTimestamps(timestamps: Set<string>): Promise<Stored
 const TRACKING_ENABLED_KEY    = 'renmito-location-tracking-enabled';
 const TRACKING_START_HOUR_KEY = 'renmito-location-track-start';
 const TRACKING_END_HOUR_KEY   = 'renmito-location-track-end';
+const TRACKING_INTERVAL_KEY   = 'renmito-location-track-interval';
 const DEFAULT_START_HOUR      = 8;
 const DEFAULT_END_HOUR        = 22;
+const DEFAULT_INTERVAL_MIN    = 15;
 
 function readHour(key: string, fallback: number): number {
   const v = parseInt(localStorage.getItem(key) ?? '', 10);
@@ -130,13 +140,18 @@ export function useLocationTracking() {
   const [trackEndHour, setTrackEndHourState] = useState<number>(
     () => readHour(TRACKING_END_HOUR_KEY, DEFAULT_END_HOUR)
   );
+  const [trackIntervalMin, setTrackIntervalMinState] = useState<number>(
+    () => readHour(TRACKING_INTERVAL_KEY, DEFAULT_INTERVAL_MIN)
+  );
 
-  // Refs so the watcher callback always sees current window values without
-  // needing to restart the watcher when hours change.
-  const trackStartRef = useRef(trackStartHour);
-  const trackEndRef   = useRef(trackEndHour);
-  useEffect(() => { trackStartRef.current = trackStartHour; }, [trackStartHour]);
-  useEffect(() => { trackEndRef.current   = trackEndHour;   }, [trackEndHour]);
+  // Refs so the watcher callback always sees current window/interval values
+  // without needing to restart the watcher when they change.
+  const trackStartRef    = useRef(trackStartHour);
+  const trackEndRef      = useRef(trackEndHour);
+  const trackIntervalRef = useRef(trackIntervalMin);
+  useEffect(() => { trackStartRef.current    = trackStartHour;   }, [trackStartHour]);
+  useEffect(() => { trackEndRef.current      = trackEndHour;     }, [trackEndHour]);
+  useEffect(() => { trackIntervalRef.current = trackIntervalMin; }, [trackIntervalMin]);
 
   const watcherIdRef      = useRef<string | null>(null);
   const lastSavedAtRef    = useRef<number>(0);
@@ -178,6 +193,11 @@ export function useLocationTracking() {
     localStorage.setItem(TRACKING_END_HOUR_KEY,   String(endHour));
     setTrackStartHourState(startHour);
     setTrackEndHourState(endHour);
+  }, []);
+
+  const setTrackInterval = useCallback((minutes: number) => {
+    localStorage.setItem(TRACKING_INTERVAL_KEY, String(minutes));
+    setTrackIntervalMinState(minutes);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -246,7 +266,7 @@ export function useLocationTracking() {
         const msSinceLast  = now - lastSavedAtRef.current;
         const isFirst      = lastSavedAtRef.current === 0;
 
-        if (isFirst || msSinceLast >= INTERVAL_MS) {
+        if (isFirst || msSinceLast >= trackIntervalRef.current * 60 * 1000) {
           // Gate immediately (synchronously) so concurrent callbacks
           // that arrive before the awaits below don't also pass the check.
           lastSavedAtRef.current    = now;
@@ -317,5 +337,6 @@ export function useLocationTracking() {
     syncing, syncMsg, sync, refresh, removePoints,
     trackingEnabled, setTrackingEnabled,
     trackStartHour, trackEndHour, setTrackingWindow,
+    trackIntervalMin, setTrackInterval,
   };
 }

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { useLocationPoints } from '@/hooks/useLocationPoints';
 import { useLocationTrackingContext } from '@/contexts/LocationTrackingContext';
+import { LOCATION_INTERVAL_OPTIONS } from '@/hooks/useLocationTracking';
 
 const LocationPointPicker = lazy(
   () => import('@/components/location/LocationPointPicker')
@@ -583,7 +584,10 @@ function fmtHour(h: number) {
 
 function LocationPointsAccordion() {
   const { points, loading, create, update, remove, removeMany } = useLocationPoints();
-  const { trackStartHour, trackEndHour, setTrackingWindow } = useLocationTrackingContext();
+  const {
+    trackStartHour, trackEndHour, setTrackingWindow,
+    trackIntervalMin, setTrackInterval,
+  } = useLocationTrackingContext();
   const [showPicker, setShowPicker] = useState(false);
   const [selected, setSelected]     = useState<Set<string>>(new Set());
   const [deleting, setDeleting]     = useState(false);
@@ -685,6 +689,22 @@ function LocationPointsAccordion() {
                 >
                   {Array.from({ length: 24 }, (_, h) => (
                     <option key={h} value={h}>{fmtHour(h)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Tracking interval */}
+            <div className="cfg-track-window">
+              <span className="cfg-track-window__label">Log every</span>
+              <div className="cfg-track-window__selects">
+                <select
+                  className="cfg-track-window__sel"
+                  value={trackIntervalMin}
+                  onChange={e => setTrackInterval(Number(e.target.value))}
+                >
+                  {LOCATION_INTERVAL_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
               </div>
