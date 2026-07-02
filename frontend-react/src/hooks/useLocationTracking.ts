@@ -24,6 +24,15 @@ const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>(
   'BackgroundGeolocation'
 );
 
+interface BatteryOptimizationPlugin {
+  isIgnoringBatteryOptimizations(): Promise<{ ignoring: boolean }>;
+  requestIgnoreBatteryOptimizations(): Promise<{ ignoring: boolean }>;
+}
+
+const BatteryOptimization = registerPlugin<BatteryOptimizationPlugin>(
+  'BatteryOptimization'
+);
+
 export interface Coordinate {
   lat: number;
   lng: number;
@@ -153,6 +162,14 @@ export function useLocationTracking() {
   const setTrackingEnabled = useCallback((enabled: boolean) => {
     localStorage.setItem(TRACKING_ENABLED_KEY, String(enabled));
     setTrackingEnabledState(enabled);
+
+    // "Allow all the time" location permission does not exempt the app from
+    // battery optimization — without that separate exemption, OEM battery
+    // managers can still kill the tracking service hours after the app was
+    // last opened. Prompt for it at the moment the user opts in.
+    if (enabled && Capacitor.isNativePlatform()) {
+      BatteryOptimization.requestIgnoreBatteryOptimizations().catch(() => {});
+    }
   }, []);
 
   const setTrackingWindow = useCallback((startHour: number, endHour: number) => {
@@ -254,7 +271,7 @@ export function useLocationTracking() {
         watcherIdRef.current = null;
       }
     };
-  }, [isNative, trackingEnabled]);
+  }, [isNative, trackingEnabled, getLocationPoints]);
 
   const removePoints = useCallback(async (timestamps: Set<string>) => {
     const kept = await removeStoredByTimestamps(timestamps);
