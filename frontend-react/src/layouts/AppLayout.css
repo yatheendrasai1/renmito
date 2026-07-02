@@ -11,10 +11,13 @@
 .app-shell--diary {
   background: #0f1021;
 }
-.app-shell--diary .app-body {
+
+/* ── Full-bleed pages (Diary, Location) — no padded/scrolled view-area;   ── */
+/* ── the page itself owns its full-height layout and internal scrolling.  ── */
+.app-shell--fullbleed .app-body {
   overflow: hidden;
 }
-.app-shell--diary .view-area {
+.app-shell--fullbleed .view-area {
   padding: 0;
   overflow: hidden;
   display: flex;

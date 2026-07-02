@@ -21,6 +21,9 @@ export default function AppLayout() {
   const { isAuthenticated } = useAuth();
   const { pathname }        = useLocation();
   const isDiary             = pathname === '/diary';
+  // Pages that manage their own full-height scroll/safe-area layout instead
+  // of the default padded, app-body-scrolled view-area.
+  const isFullBleed         = isDiary || pathname === '/location';
   const logFormOpen         = useAppStore(s => s.logFormOpen);
   const openLogForm         = useAppStore(s => s.openLogForm);
   const closeLogForm        = useAppStore(s => s.closeLogForm);
@@ -67,7 +70,7 @@ export default function AppLayout() {
 
   return (
     <LocationTrackingProvider>
-    <div className={`app-shell${isDiary ? ' app-shell--diary' : ''}`}>
+    <div className={`app-shell${isDiary ? ' app-shell--diary' : ''}${isFullBleed ? ' app-shell--fullbleed' : ''}`}>
 
       <TopStrip />
 

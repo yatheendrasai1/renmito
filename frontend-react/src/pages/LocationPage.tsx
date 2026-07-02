@@ -221,101 +221,112 @@ export default function LocationPage() {
 
   return (
     <div className="loc-page">
-      <div className="loc-header">
-        <div className="loc-header__info">
-          <h1 className="loc-title">Location Tracking</h1>
-          <p className="loc-subtitle">
-            {!trackingEnabled
-              ? 'Tracking off'
-              : currentPosition
-                ? `Live · ${stored.length} points stored`
-                : 'Waiting for GPS fix…'}
-            {trackingEnabled && ` · ${fmtHour(trackStartHour)}–${fmtHour(trackEndHour)}`}
-          </p>
-        </div>
-        <div className="loc-header__actions">
-          {inTrackingWindow ? (
-            <button
-              className={`loc-track-toggle${trackingEnabled ? ' loc-track-toggle--on' : ''}`}
-              onClick={() => setTrackingEnabled(!trackingEnabled)}
-              title={trackingEnabled ? 'Stop tracking' : 'Start tracking'}
-            >
-              <span className="loc-track-toggle__dot" />
-              {trackingEnabled ? 'On' : 'Off'}
+      <div className="loc-scroll">
+
+        <div className="loc-map-full">
+          <div className="loc-header-overlay">
+            <div className="loc-header">
+              <div className="loc-header__info">
+                <h1 className="loc-title">Location Tracking</h1>
+                <p className="loc-subtitle">
+                  {!trackingEnabled
+                    ? 'Tracking off'
+                    : currentPosition
+                      ? `Live · ${stored.length} points stored`
+                      : 'Waiting for GPS fix…'}
+                  {trackingEnabled && ` · ${fmtHour(trackStartHour)}–${fmtHour(trackEndHour)}`}
+                </p>
+              </div>
+              <div className="loc-header__actions">
+                {inTrackingWindow ? (
+                  <button
+                    className={`loc-track-toggle${trackingEnabled ? ' loc-track-toggle--on' : ''}`}
+                    onClick={() => setTrackingEnabled(!trackingEnabled)}
+                    title={trackingEnabled ? 'Stop tracking' : 'Start tracking'}
+                  >
+                    <span className="loc-track-toggle__dot" />
+                    {trackingEnabled ? 'On' : 'Off'}
+                  </button>
+                ) : (
+                  <span className="loc-out-of-window">
+                    Outside {fmtHour(trackStartHour)}–{fmtHour(trackEndHour)}
+                  </span>
+                )}
+                <button className="loc-sync-btn" onClick={sync} disabled={syncing || stored.length === 0}>
+                  {syncing ? 'Syncing…' : 'Sync'}
+                </button>
+              </div>
+            </div>
+
+            {syncMsg && (
+              <div className={`loc-banner ${syncMsg.includes('failed') ? 'loc-banner--error' : 'loc-banner--ok'}`}>
+                {syncMsg}
+              </div>
+            )}
+          </div>
+
+          {!positionInView && currentPosition && (
+            <button className="loc-locate-btn" onClick={goToCurrentPosition} title="Go to current location">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+              </svg>
             </button>
-          ) : (
-            <span className="loc-out-of-window">
-              Outside {fmtHour(trackStartHour)}–{fmtHour(trackEndHour)}
-            </span>
           )}
-          <button className="loc-sync-btn" onClick={sync} disabled={syncing || stored.length === 0}>
-            {syncing ? 'Syncing…' : 'Sync'}
-          </button>
-        </div>
-      </div>
 
-      {syncMsg && (
-        <div className={`loc-banner ${syncMsg.includes('failed') ? 'loc-banner--error' : 'loc-banner--ok'}`}>
-          {syncMsg}
-        </div>
-      )}
-
-      <div className="loc-map-wrap">
-        {!positionInView && currentPosition && (
-          <button className="loc-locate-btn" onClick={goToCurrentPosition} title="Go to current location">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
-            </svg>
-          </button>
-        )}
-
-        <MapContainer
-          center={mapCenter}
-          zoom={19}
-          maxZoom={19}
-          maxBounds={INDIA_BOUNDS}
-          maxBoundsViscosity={0.8}
-          className="loc-map"
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          <MapContainer
+            center={mapCenter}
+            zoom={19}
             maxZoom={19}
-          />
-          <MapRefCapture mapRef={mapInstanceRef} />
-          <InitialCenter position={currentPosition} />
-          <BoundsWatcher position={currentPosition} onVisibilityChange={setPositionInView} />
-
-          {polyline.length > 1 && (
-            <Polyline
-              positions={polyline}
-              pathOptions={{ color: '#6366f1', weight: 3, opacity: 0.8 }}
+            maxBounds={INDIA_BOUNDS}
+            maxBoundsViscosity={0.8}
+            className="loc-map"
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={19}
             />
-          )}
+            <MapRefCapture mapRef={mapInstanceRef} />
+            <InitialCenter position={currentPosition} />
+            <BoundsWatcher position={currentPosition} onVisibilityChange={setPositionInView} />
 
-          {stored.map((c, i) => (
-            <PointMarker
-              key={i}
-              point={c}
-              isBig={bigMovementTimestamps.has(c.timestamp)}
-              isSelected={selectedTs === c.timestamp}
-              onClick={() => setSelectedTs(c.timestamp)}
-            />
-          ))}
+            {polyline.length > 1 && (
+              <Polyline
+                positions={polyline}
+                pathOptions={{ color: '#6366f1', weight: 3, opacity: 0.8 }}
+              />
+            )}
 
-          {currentPosition && (
-            <CircleMarker
-              center={[currentPosition.lat, currentPosition.lng]}
-              radius={10}
-              pathOptions={{ color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.9, weight: 2 }}
-            >
-              <Tooltip>You are here</Tooltip>
-            </CircleMarker>
+            {stored.map((c, i) => (
+              <PointMarker
+                key={i}
+                point={c}
+                isBig={bigMovementTimestamps.has(c.timestamp)}
+                isSelected={selectedTs === c.timestamp}
+                onClick={() => setSelectedTs(c.timestamp)}
+              />
+            ))}
+
+            {currentPosition && (
+              <CircleMarker
+                center={[currentPosition.lat, currentPosition.lng]}
+                radius={10}
+                pathOptions={{ color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.9, weight: 2 }}
+              >
+                <Tooltip>You are here</Tooltip>
+              </CircleMarker>
+            )}
+          </MapContainer>
+        </div>
+
+        <div className="loc-sheet">
+          <div className="loc-sheet-handle" />
+
+          {bigMovements.length === 0 && stored.length === 0 && (
+            <p className="loc-sheet-empty">No points logged yet.</p>
           )}
-        </MapContainer>
-      </div>
 
       {bigMovements.length > 0 && (
         <div className="loc-log-list loc-log-list--big">
@@ -451,6 +462,9 @@ export default function LocationPage() {
           </ul>
         </div>
       )}
+        </div>
+      </div>
+
       {logTarget && (
         <LogFormModal
           mode="create"

@@ -1,10 +1,20 @@
+/* The page owns its full-height layout — see .app-shell--fullbleed in
+   AppLayout.css, which zeroes out the normal padded/scrolled view-area
+   for this route so the map can go edge-to-edge. */
 .loc-page {
+  height: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
-  padding-bottom: calc(80px + env(safe-area-inset-bottom));
-  min-height: 100%;
+}
+
+/* Single scroll container: the map is sticky-pinned inside it at full
+   height, so scrolling only moves .loc-sheet, which slides up and
+   overlays the (still-visible) map underneath it. */
+.loc-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .loc-header {
@@ -99,15 +109,62 @@
 .loc-banner--ok    { background: #dcfce7; color: #166534; }
 .loc-banner--error { background: #fee2e2; color: #991b1b; }
 
-.loc-map-wrap {
-  position: relative;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
-  height: 380px;
+/* ── Full-screen sticky map ───────────────────────────────────────────────── */
+
+.loc-map-full {
+  position: sticky;
+  top: 0;
+  height: 100%;
+  z-index: 1;
 }
 
 .loc-map { width: 100%; height: 100%; }
+
+/* Translucent bar floating over the map — replaces the old opaque header
+   row so the map genuinely fills the screen behind it. */
+.loc-header-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(to bottom, rgba(15, 23, 42, 0.6) 0%, rgba(15, 23, 42, 0.25) 65%, transparent 100%);
+}
+
+.loc-header-overlay .loc-title {
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.loc-header-overlay .loc-subtitle {
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.loc-header-overlay .loc-out-of-window {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.loc-header-overlay .loc-track-toggle {
+  background: rgba(15, 23, 42, 0.5);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #fff;
+  backdrop-filter: blur(6px);
+}
+
+.loc-header-overlay .loc-track-toggle--on {
+  background: rgba(34, 197, 94, 0.28);
+  border-color: #22c55e;
+  color: #bbf7d0;
+}
+
+.loc-header-overlay .loc-banner {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
 
 .loc-map .leaflet-pane  { z-index: 1; }
 .loc-map .leaflet-top,
@@ -133,6 +190,38 @@
   transition: box-shadow 0.15s;
 }
 .loc-locate-btn:active { box-shadow: 0 1px 4px rgba(0,0,0,0.18); }
+
+/* ── Bottom sheet — slides up over the sticky map as .loc-scroll scrolls ──── */
+
+.loc-sheet {
+  position: relative;
+  z-index: 2;
+  background: var(--color-surface, #fff);
+  border-radius: 20px 20px 0 0;
+  margin-top: -24px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: calc(100% + 24px);
+  padding: 10px 16px calc(58px + env(safe-area-inset-bottom, 0px) + 16px + 52px + 32px);
+}
+
+.loc-sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border, #cbd5e1);
+  margin: 0 auto 4px;
+  flex-shrink: 0;
+}
+
+.loc-sheet-empty {
+  text-align: center;
+  color: var(--color-text-secondary, #64748b);
+  font-size: 0.85rem;
+  padding: 24px 0;
+}
 
 /* ── Lists ─────────────────────────────────────────────────────────────────── */
 
