@@ -1,6 +1,6 @@
 /* ── Page shell ──────────────────────────────────────────────────────────────── */
 .cfg-page {
-  padding: 20px 16px 40px;
+  padding: 20px 16px calc(72px + env(safe-area-inset-bottom, 0px));
   max-width: 640px;
   margin: 0 auto;
   display: flex;
@@ -259,7 +259,7 @@
 
 /* ── Mobile ──────────────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
-  .cfg-page  { padding: 14px 12px 40px; }
+  .cfg-page  { padding: 14px 12px calc(72px + env(safe-area-inset-bottom, 0px)); }
   .cfg-grid  { grid-template-columns: 1fr 1fr; }
   .cfg-acc-sub { display: none; }
 }
@@ -301,6 +301,17 @@
   background: var(--bg-surface, #FFFFFF);
   color: var(--text-primary, #1A1C2A);
   font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.cfg-track-window__time {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border-light, #C4C8D8);
+  background: var(--bg-surface, #FFFFFF);
+  color: var(--text-primary, #1A1C2A);
+  font-size: 0.8rem;
+  font-family: inherit;
   cursor: pointer;
 }
 

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { useLocationPoints } from '@/hooks/useLocationPoints';
 import { useLocationTrackingContext } from '@/contexts/LocationTrackingContext';
-import { LOCATION_INTERVAL_OPTIONS } from '@/hooks/useLocationTracking';
+import { LOCATION_INTERVAL_OPTIONS, minutesToHHMM, hhmmToMinutes } from '@/hooks/useLocationTracking';
 
 const LocationPointPicker = lazy(
   () => import('@/components/location/LocationPointPicker')
@@ -576,16 +576,10 @@ function NotificationsSection({
 
 interface EditState { name: string; radius: number; }
 
-function fmtHour(h: number) {
-  if (h === 0)  return '12 AM';
-  if (h === 12) return '12 PM';
-  return h < 12 ? `${h} AM` : `${h - 12} PM`;
-}
-
 function LocationPointsAccordion() {
   const { points, loading, create, update, remove, removeMany } = useLocationPoints();
   const {
-    trackStartHour, trackEndHour, setTrackingWindow,
+    trackStartMin, trackEndMin, setTrackingWindow,
     trackIntervalMin, setTrackInterval,
   } = useLocationTrackingContext();
   const [showPicker, setShowPicker] = useState(false);
@@ -672,25 +666,19 @@ function LocationPointsAccordion() {
             <div className="cfg-track-window">
               <span className="cfg-track-window__label">Tracking hours</span>
               <div className="cfg-track-window__selects">
-                <select
-                  className="cfg-track-window__sel"
-                  value={trackStartHour}
-                  onChange={e => setTrackingWindow(Number(e.target.value), trackEndHour)}
-                >
-                  {Array.from({ length: 24 }, (_, h) => (
-                    <option key={h} value={h}>{fmtHour(h)}</option>
-                  ))}
-                </select>
+                <input
+                  type="time"
+                  className="cfg-track-window__time"
+                  value={minutesToHHMM(trackStartMin)}
+                  onChange={e => e.target.value && setTrackingWindow(hhmmToMinutes(e.target.value), trackEndMin)}
+                />
                 <span className="cfg-track-window__to">to</span>
-                <select
-                  className="cfg-track-window__sel"
-                  value={trackEndHour}
-                  onChange={e => setTrackingWindow(trackStartHour, Number(e.target.value))}
-                >
-                  {Array.from({ length: 24 }, (_, h) => (
-                    <option key={h} value={h}>{fmtHour(h)}</option>
-                  ))}
-                </select>
+                <input
+                  type="time"
+                  className="cfg-track-window__time"
+                  value={minutesToHHMM(trackEndMin)}
+                  onChange={e => e.target.value && setTrackingWindow(trackStartMin, hhmmToMinutes(e.target.value))}
+                />
               </div>
             </div>
 
