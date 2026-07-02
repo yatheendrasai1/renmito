@@ -277,14 +277,14 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 0 14px;
-  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  border-bottom: 1px solid var(--border-light, #C4C8D8);
   margin-bottom: 14px;
 }
 
 .cfg-track-window__label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--color-text-primary, #0f172a);
+  color: var(--text-primary, #1A1C2A);
   flex-shrink: 0;
 }
 
@@ -297,16 +297,16 @@
 .cfg-track-window__sel {
   padding: 5px 8px;
   border-radius: 6px;
-  border: 1.5px solid var(--color-border, #e2e8f0);
-  background: var(--color-surface, #fff);
-  color: var(--color-text-primary, #0f172a);
+  border: 1.5px solid var(--border-light, #C4C8D8);
+  background: var(--bg-surface, #FFFFFF);
+  color: var(--text-primary, #1A1C2A);
   font-size: 0.8rem;
   cursor: pointer;
 }
 
 .cfg-track-window__to {
   font-size: 0.8rem;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--text-secondary, #3A4060);
 }
 
 .cfg-loc-toolbar {
@@ -320,9 +320,9 @@
   flex: 1;
   padding: 10px;
   border-radius: 8px;
-  border: 1.5px dashed var(--color-primary, #6366f1);
+  border: 1.5px dashed var(--highlight-selected, #2878D8);
   background: transparent;
-  color: var(--color-primary, #6366f1);
+  color: var(--highlight-selected, #2878D8);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -331,9 +331,9 @@
 .cfg-loc-sel-all {
   padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid var(--color-border, #e2e8f0);
-  background: var(--color-surface, #f8fafc);
-  color: var(--color-text-secondary, #64748b);
+  border: 1px solid var(--border-light, #C4C8D8);
+  background: var(--bg-surface, #FFFFFF);
+  color: var(--text-secondary, #3A4060);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -356,7 +356,7 @@
 
 .cfg-loc-empty {
   font-size: 0.85rem;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--text-secondary, #3A4060);
   text-align: center;
   padding: 8px 0;
   margin: 0;
@@ -377,7 +377,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 10px 12px;
-  background: var(--color-surface, #f8fafc);
+  background: var(--bg-surface, #FFFFFF);
   border-radius: 8px;
   border: 1.5px solid transparent;
   transition: border-color 0.15s, background 0.15s;
@@ -385,14 +385,14 @@
 
 .cfg-loc-item--sel {
   background: #eef2ff;
-  border-color: var(--color-primary, #6366f1);
+  border-color: var(--highlight-selected, #2878D8);
 }
 
 .cfg-loc-check {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
-  accent-color: var(--color-primary, #6366f1);
+  accent-color: var(--highlight-selected, #2878D8);
   cursor: pointer;
 }
 
@@ -401,7 +401,7 @@
 .cfg-loc-name {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--color-text-primary, #0f172a);
+  color: var(--text-primary, #1A1C2A);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -410,27 +410,27 @@
 .cfg-loc-coords {
   font-size: 0.72rem;
   font-family: monospace;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--text-secondary, #3A4060);
 }
 
 .cfg-loc-radius {
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--color-primary, #6366f1);
+  color: var(--highlight-selected, #2878D8);
 }
 
 .cfg-loc-edit-btn-icon {
   flex-shrink: 0;
   background: none;
   border: none;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--text-secondary, #3A4060);
   cursor: pointer;
   padding: 4px;
   display: flex;
   align-items: center;
   pointer-events: auto;
 }
-.cfg-loc-edit-btn-icon:hover { color: var(--color-primary, #6366f1); }
+.cfg-loc-edit-btn-icon:hover { color: var(--highlight-selected, #2878D8); }
 
 .cfg-loc-del {
   flex-shrink: 0;
@@ -462,11 +462,11 @@
 
 .cfg-loc-edit-name {
   padding: 8px 10px;
-  border: 1px solid var(--color-primary, #6366f1);
+  border: 1px solid var(--highlight-selected, #2878D8);
   border-radius: 6px;
   font-size: 0.875rem;
-  background: var(--color-card, #fff);
-  color: var(--color-text-primary, #0f172a);
+  background: var(--bg-card, #F0F2F5);
+  color: var(--text-primary, #1A1C2A);
 }
 .cfg-loc-edit-name:focus { outline: none; }
 
@@ -478,12 +478,12 @@
 
 .cfg-loc-edit-radius-lbl {
   font-size: 0.78rem;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--text-secondary, #3A4060);
 }
 
 .cfg-loc-edit-slider {
   width: 100%;
-  accent-color: var(--color-primary, #6366f1);
+  accent-color: var(--highlight-selected, #2878D8);
 }
 
 .cfg-loc-edit-actions {
@@ -500,6 +500,6 @@
   font-weight: 600;
   cursor: pointer;
 }
-.cfg-loc-edit-btn--cancel { background: var(--color-surface, #f1f5f9); color: var(--color-text-primary, #0f172a); }
-.cfg-loc-edit-btn--save   { background: var(--color-primary, #6366f1); color: #fff; }
+.cfg-loc-edit-btn--cancel { background: var(--bg-surface, #FFFFFF); color: var(--text-primary, #1A1C2A); }
+.cfg-loc-edit-btn--save   { background: var(--highlight-selected, #2878D8); color: #fff; }
 .cfg-loc-edit-btn:disabled { opacity: 0.45; cursor: default; }

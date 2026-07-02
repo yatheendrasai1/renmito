@@ -28,12 +28,12 @@
   font-size: 1.25rem;
   font-weight: 700;
   margin: 0;
-  color: var(--color-text-primary, #0f172a);
+  color: var(--text-primary, #1A1C2A);
 }
 
 .loc-subtitle {
   font-size: 0.8rem;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--text-secondary, #3A4060);
   margin: 4px 0 0;
 }
 
@@ -49,7 +49,7 @@
   padding: 8px 20px;
   border-radius: 8px;
   border: none;
-  background: var(--color-primary, #6366f1);
+  background: var(--highlight-selected, #2878D8);
   color: #fff;
   font-size: 0.875rem;
   font-weight: 600;
@@ -66,9 +66,9 @@
   gap: 6px;
   padding: 7px 14px;
   border-radius: 8px;
-  border: 1.5px solid var(--color-border, #e2e8f0);
+  border: 1.5px solid var(--border-light, #C4C8D8);
   background: transparent;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--text-secondary, #3A4060);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -83,7 +83,7 @@
 
 .loc-out-of-window {
   font-size: 0.78rem;
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--text-secondary, #3A4060);
   font-style: italic;
   white-space: nowrap;
 }
@@ -92,7 +92,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-text-secondary, #94a3b8);
+  background: var(--text-secondary, #3A4060);
   transition: background 0.15s;
 }
 
@@ -111,10 +111,14 @@
 
 /* ── Full-screen sticky map ───────────────────────────────────────────────── */
 
+/* Leaflet captures all touch/drag gestures on itself for panning, so a
+   swipe starting on the map never reaches the page scroll. Reserving a
+   peek strip below the map — outside Leaflet's own element — gives touch
+   a real, always-reachable target to swipe the sheet up from. */
 .loc-map-full {
   position: sticky;
   top: 0;
-  height: 100%;
+  height: calc(100% - 96px);
   z-index: 1;
 }
 
@@ -196,7 +200,7 @@
 .loc-sheet {
   position: relative;
   z-index: 2;
-  background: var(--color-surface, #fff);
+  background: var(--bg-surface, #FFFFFF);
   border-radius: 20px 20px 0 0;
   margin-top: -24px;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
@@ -211,14 +215,14 @@
   width: 40px;
   height: 4px;
   border-radius: 2px;
-  background: var(--color-border, #cbd5e1);
+  background: var(--border-light, #C4C8D8);
   margin: 0 auto 4px;
   flex-shrink: 0;
 }
 
 .loc-sheet-empty {
   text-align: center;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--text-secondary, #3A4060);
   font-size: 0.85rem;
   padding: 24px 0;
 }
@@ -226,7 +230,7 @@
 /* ── Lists ─────────────────────────────────────────────────────────────────── */
 
 .loc-log-list {
-  background: var(--color-surface, #f8fafc);
+  background: var(--bg-surface, #FFFFFF);
   border-radius: 12px;
   padding: 12px;
 }
@@ -253,7 +257,7 @@
   font-size: 0.9rem;
   font-weight: 600;
   margin: 0;
-  color: var(--color-text-primary, #0f172a);
+  color: var(--text-primary, #1A1C2A);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -262,9 +266,9 @@
 .loc-sel-toggle {
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid var(--color-border, #e2e8f0);
-  background: var(--color-surface, #f8fafc);
-  color: var(--color-text-secondary, #64748b);
+  border: 1px solid var(--border-light, #C4C8D8);
+  background: var(--bg-surface, #FFFFFF);
+  color: var(--text-secondary, #3A4060);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -278,9 +282,9 @@
 .loc-sel-all-btn {
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid var(--color-border, #e2e8f0);
-  background: var(--color-surface, #f8fafc);
-  color: var(--color-text-secondary, #64748b);
+  border: 1px solid var(--border-light, #C4C8D8);
+  background: var(--bg-surface, #FFFFFF);
+  color: var(--text-secondary, #3A4060);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -335,7 +339,7 @@
 
 .loc-log-item--expanded {
   background: #eef2ff;
-  border-left: 3px solid var(--color-primary, #6366f1);
+  border-left: 3px solid var(--highlight-selected, #2878D8);
 }
 
 .loc-log-expand {
@@ -352,7 +356,7 @@
   padding: 6px 14px;
   border-radius: 6px;
   border: none;
-  background: var(--color-primary, #6366f1);
+  background: var(--highlight-selected, #2878D8);
   color: #fff;
   font-size: 0.8rem;
   font-weight: 700;
@@ -396,7 +400,7 @@
   align-items: center;
   font-size: 0.78rem;
   padding: 6px 8px;
-  background: var(--color-card, #fff);
+  background: var(--bg-card, #F0F2F5);
   border-radius: 6px;
   gap: 8px;
 }
@@ -431,9 +435,9 @@
   min-width: 0;
 }
 
-.loc-log-time   { color: var(--color-text-primary, #0f172a); font-weight: 500; }
+.loc-log-time   { color: var(--text-primary, #1A1C2A); font-weight: 500; }
 .loc-log-place  { font-size: 0.75rem; font-weight: 600; color: #059669; }
-.loc-log-coords { color: var(--color-text-secondary, #64748b); font-family: monospace; font-size: 0.72rem; }
+.loc-log-coords { color: var(--text-secondary, #3A4060); font-family: monospace; font-size: 0.72rem; }
 
 .loc-big-distance {
   flex-shrink: 0;
