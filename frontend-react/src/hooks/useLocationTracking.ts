@@ -61,6 +61,14 @@ export function isLowConfidence(accuracy: number | null | undefined): boolean {
   return accuracy != null && accuracy > ACCURACY_THRESHOLD_M;
 }
 
+// Cap on how much a fix's own uncertainty can widen a stored point's
+// geofence when matching "nearby" locations. Without a cap, a badly noisy
+// fix (e.g. ~150m indoor cell/wifi fallback) would appear to match almost
+// any nearby point; without any buffer at all, a small-radius point (e.g.
+// a 5m meeting room) would routinely miss real matches to ordinary GPS
+// noise, since consumer GPS realistically reports 5-15m even outdoors.
+const NEARBY_ACCURACY_BUFFER_CAP_M = 20;
+
 export const LOCATION_INTERVAL_OPTIONS = [
   { label: '10 sec', value: 10 / 60 },
   { label: '5 min',  value: 5 },
@@ -311,8 +319,9 @@ export function useLocationTracking() {
             : null;
 
           const savedPoints = await getLocationPoints();
+          const accuracyBuffer = Math.min(coord.accuracy ?? 0, NEARBY_ACCURACY_BUFFER_CAP_M);
           const nearby = savedPoints.find(
-            p => haversineMeters(coord, p) <= (p.radius ?? 10)
+            p => haversineMeters(coord, p) <= (p.radius ?? 10) + accuracyBuffer
           );
 
           const point: StoredPoint = {
