@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
-import { MapContainer, TileLayer, Polyline, CircleMarker, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import { MapContainer, TileLayer, Polyline, CircleMarker, Marker, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Coordinate, StoredPoint } from '@/hooks/useLocationTracking';
+import { isLowConfidence } from '@/hooks/useLocationTracking';
 import { useLocationTrackingContext } from '@/contexts/LocationTrackingContext';
 import LogFormModal from '@/components/logger/LogFormModal';
 import { isoToLocal24h, isoToLocalDate } from '@/lib/time';
@@ -13,6 +15,15 @@ const INDIA_BOUNDS: [[number, number], [number, number]] = [
   [6.55, 68.1],
   [35.67, 97.4],
 ];
+
+// Small badge overlaid on low-confidence points — flags a weak GPS fix
+// without hiding it, so tracking never looks like it silently stopped.
+const lowConfidenceIcon = L.divIcon({
+  className: 'loc-low-confidence-icon',
+  html: '⚠',
+  iconSize: [16, 16],
+  iconAnchor: [8, 16],
+});
 
 function MapRefCapture({ mapRef }: { mapRef: React.MutableRefObject<LeafletMap | null> }) {
   const map = useMap();
@@ -67,30 +78,45 @@ function PointMarker({
   isSelected: boolean;
   onClick: () => void;
 }) {
+  const lowConfidence = isLowConfidence(point.accuracy);
   const color = isSelected ? '#facc15' : isBig ? '#f97316' : '#6366f1';
   return (
-    <CircleMarker
-      center={[point.lat, point.lng]}
-      radius={isSelected ? 11 : isBig ? 7 : 4}
-      pathOptions={{
-        color,
-        fillColor:   color,
-        fillOpacity: isSelected ? 1 : 0.9,
-        weight:      isSelected ? 3 : isBig ? 2 : 1,
-      }}
-      eventHandlers={{ click: onClick }}
-    >
-      <Tooltip>
-        {isSelected && <><strong>Selected</strong><br /></>}
-        {isBig && !isSelected && <><strong>Big movement</strong><br /></>}
-        {new Date(point.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-        <br />
-        {point.lat.toFixed(6)}, {point.lng.toFixed(6)}
-        {point.distanceFromPrev != null && (
-          <><br />{point.distanceFromPrev.toFixed(1)} m from previous</>
-        )}
-      </Tooltip>
-    </CircleMarker>
+    <>
+      <CircleMarker
+        center={[point.lat, point.lng]}
+        radius={isSelected ? 11 : isBig ? 7 : 4}
+        pathOptions={{
+          color,
+          fillColor:   color,
+          fillOpacity: isSelected ? 1 : lowConfidence ? 0.5 : 0.9,
+          weight:      isSelected ? 3 : isBig ? 2 : 1,
+          dashArray:   lowConfidence ? '3, 3' : undefined,
+        }}
+        eventHandlers={{ click: onClick }}
+      >
+        <Tooltip>
+          {isSelected && <><strong>Selected</strong><br /></>}
+          {isBig && !isSelected && <><strong>Big movement</strong><br /></>}
+          {lowConfidence && <><strong>⚠ Low-confidence fix</strong><br /></>}
+          {new Date(point.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+          <br />
+          {point.lat.toFixed(6)}, {point.lng.toFixed(6)}
+          {point.distanceFromPrev != null && (
+            <><br />{point.distanceFromPrev.toFixed(1)} m from previous</>
+          )}
+          {point.accuracy != null && (
+            <><br />±{point.accuracy.toFixed(0)} m accuracy</>
+          )}
+        </Tooltip>
+      </CircleMarker>
+      {lowConfidence && (
+        <Marker
+          position={[point.lat, point.lng]}
+          icon={lowConfidenceIcon}
+          interactive={false}
+        />
+      )}
+    </>
   );
 }
 
@@ -100,16 +126,19 @@ export default function LocationPage() {
   const {
     stored, bigMovements, currentPosition, syncing, syncMsg, sync, refresh, removePoints,
     trackingEnabled, setTrackingEnabled,
-    trackStartHour, trackEndHour,
+    trackStartMin, trackEndMin,
   } = useLocationTrackingContext();
 
-  const currentHour    = new Date().getHours();
-  const inTrackingWindow = currentHour >= trackStartHour && currentHour < trackEndHour;
+  const now               = new Date();
+  const minutesOfDay      = now.getHours() * 60 + now.getMinutes();
+  const inTrackingWindow  = minutesOfDay >= trackStartMin && minutesOfDay < trackEndMin;
 
-  function fmtHour(h: number) {
-    if (h === 0)  return '12 AM';
-    if (h === 12) return '12 PM';
-    return h < 12 ? `${h} AM` : `${h - 12} PM`;
+  function fmtMinutes(totalMin: number) {
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    const period = h < 12 ? 'AM' : 'PM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${period}`;
   }
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -200,6 +229,9 @@ export default function LocationPage() {
               day: '2-digit', month: 'short',
               hour: '2-digit', minute: '2-digit',
             })}
+            {isLowConfidence(c.accuracy) && (
+              <span className="loc-low-confidence-badge" title={`Low-confidence fix (±${c.accuracy?.toFixed(0)} m)`}>⚠</span>
+            )}
           </span>
           {c.nearbyLocationName && (
             <span className="loc-log-place">📍 {c.nearbyLocationName}</span>
@@ -234,7 +266,7 @@ export default function LocationPage() {
                     : currentPosition
                       ? `Live · ${stored.length} points stored`
                       : 'Waiting for GPS fix…'}
-                  {trackingEnabled && ` · ${fmtHour(trackStartHour)}–${fmtHour(trackEndHour)}`}
+                  {trackingEnabled && ` · ${fmtMinutes(trackStartMin)}–${fmtMinutes(trackEndMin)}`}
                 </p>
               </div>
               <div className="loc-header__actions">
@@ -249,7 +281,7 @@ export default function LocationPage() {
                   </button>
                 ) : (
                   <span className="loc-out-of-window">
-                    Outside {fmtHour(trackStartHour)}–{fmtHour(trackEndHour)}
+                    Outside {fmtMinutes(trackStartMin)}–{fmtMinutes(trackEndMin)}
                   </span>
                 )}
                 <button className="loc-sync-btn" onClick={sync} disabled={syncing || stored.length === 0}>
@@ -408,6 +440,9 @@ export default function LocationPage() {
                         day: '2-digit', month: 'short',
                         hour: '2-digit', minute: '2-digit',
                       })}
+                      {isLowConfidence(c.accuracy) && (
+                        <span className="loc-low-confidence-badge" title={`Low-confidence fix (±${c.accuracy?.toFixed(0)} m)`}>⚠</span>
+                      )}
                     </span>
                     {c.nearbyLocationName && (
                       <span className="loc-log-place">📍 {c.nearbyLocationName}</span>

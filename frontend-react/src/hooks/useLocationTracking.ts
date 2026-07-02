@@ -38,6 +38,7 @@ export interface Coordinate {
   lat: number;
   lng: number;
   timestamp: string;
+  accuracy?: number | null;
 }
 
 export interface StoredPoint extends Coordinate {
@@ -49,8 +50,19 @@ export interface StoredPoint extends Coordinate {
 const STORAGE_KEY             = 'renmito-location-logs';
 const BIG_MOVEMENT_THRESHOLD  = 10; // metres
 const LOCATION_POINTS_TTL_MS  = 15 * 60 * 1000;
+// Fixes worse than this (metres, 68% confidence radius) are still logged —
+// going silent instead would look like tracking had stopped working — but
+// are flagged as low-confidence so the UI can mark them distinctly. Realistic
+// outdoor GPS reports ~5-15m; anything looser is usually a cell/wifi-based
+// fallback fix (indoors, urban canyon, cold GPS start).
+export const ACCURACY_THRESHOLD_M = 15;
+
+export function isLowConfidence(accuracy: number | null | undefined): boolean {
+  return accuracy != null && accuracy > ACCURACY_THRESHOLD_M;
+}
 
 export const LOCATION_INTERVAL_OPTIONS = [
+  { label: '10 sec', value: 10 / 60 },
   { label: '5 min',  value: 5 },
   { label: '10 min', value: 10 },
   { label: '15 min', value: 15 },
@@ -80,11 +92,12 @@ async function readStored(): Promise<StoredPoint[]> {
   try {
     const parsed = JSON.parse(value);
     if (!Array.isArray(parsed)) return [];
-    // Normalise legacy records that predate distanceFromPrev
+    // Normalise legacy records that predate distanceFromPrev/accuracy
     return parsed.map(p => ({
       lat:                p.lat,
       lng:                p.lng,
       timestamp:          p.timestamp,
+      accuracy:           p.accuracy          ?? null,
       distanceFromPrev:   p.distanceFromPrev  ?? null,
       nearbyLocationName: p.nearbyLocationName ?? null,
       nearbyLocationId:   p.nearbyLocationId   ?? null,
@@ -111,17 +124,31 @@ async function removeStoredByTimestamps(timestamps: Set<string>): Promise<Stored
   return kept;
 }
 
-const TRACKING_ENABLED_KEY    = 'renmito-location-tracking-enabled';
-const TRACKING_START_HOUR_KEY = 'renmito-location-track-start';
-const TRACKING_END_HOUR_KEY   = 'renmito-location-track-end';
-const TRACKING_INTERVAL_KEY   = 'renmito-location-track-interval';
-const DEFAULT_START_HOUR      = 8;
-const DEFAULT_END_HOUR        = 22;
-const DEFAULT_INTERVAL_MIN    = 15;
+const TRACKING_ENABLED_KEY   = 'renmito-location-tracking-enabled';
+const TRACKING_START_MIN_KEY = 'renmito-location-track-start-min';
+const TRACKING_END_MIN_KEY   = 'renmito-location-track-end-min';
+const TRACKING_INTERVAL_KEY  = 'renmito-location-track-interval';
+const DEFAULT_START_MIN      = 8 * 60;  // 08:00
+const DEFAULT_END_MIN        = 22 * 60; // 22:00
+const DEFAULT_INTERVAL_MIN   = 15;
 
-function readHour(key: string, fallback: number): number {
-  const v = parseInt(localStorage.getItem(key) ?? '', 10);
+// Interval values can be fractional (e.g. 10 sec = 1/6 min), so this must
+// use parseFloat rather than parseInt — parseInt would truncate anything
+// under 1 down to 0, collapsing the interval gate to "save every callback".
+function readNumber(key: string, fallback: number): number {
+  const v = parseFloat(localStorage.getItem(key) ?? '');
   return isNaN(v) ? fallback : v;
+}
+
+export function minutesToHHMM(totalMin: number): string {
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+export function hhmmToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
@@ -134,23 +161,25 @@ export function useLocationTracking() {
   const [trackingEnabled, setTrackingEnabledState] = useState<boolean>(
     () => localStorage.getItem(TRACKING_ENABLED_KEY) === 'true'
   );
-  const [trackStartHour, setTrackStartHourState] = useState<number>(
-    () => readHour(TRACKING_START_HOUR_KEY, DEFAULT_START_HOUR)
+  // Minutes since midnight (0-1439), so the tracking window can be set to
+  // any time of day, not just whole hours.
+  const [trackStartMin, setTrackStartMinState] = useState<number>(
+    () => readNumber(TRACKING_START_MIN_KEY, DEFAULT_START_MIN)
   );
-  const [trackEndHour, setTrackEndHourState] = useState<number>(
-    () => readHour(TRACKING_END_HOUR_KEY, DEFAULT_END_HOUR)
+  const [trackEndMin, setTrackEndMinState] = useState<number>(
+    () => readNumber(TRACKING_END_MIN_KEY, DEFAULT_END_MIN)
   );
   const [trackIntervalMin, setTrackIntervalMinState] = useState<number>(
-    () => readHour(TRACKING_INTERVAL_KEY, DEFAULT_INTERVAL_MIN)
+    () => readNumber(TRACKING_INTERVAL_KEY, DEFAULT_INTERVAL_MIN)
   );
 
   // Refs so the watcher callback always sees current window/interval values
   // without needing to restart the watcher when they change.
-  const trackStartRef    = useRef(trackStartHour);
-  const trackEndRef      = useRef(trackEndHour);
+  const trackStartRef    = useRef(trackStartMin);
+  const trackEndRef      = useRef(trackEndMin);
   const trackIntervalRef = useRef(trackIntervalMin);
-  useEffect(() => { trackStartRef.current    = trackStartHour;   }, [trackStartHour]);
-  useEffect(() => { trackEndRef.current      = trackEndHour;     }, [trackEndHour]);
+  useEffect(() => { trackStartRef.current    = trackStartMin;    }, [trackStartMin]);
+  useEffect(() => { trackEndRef.current      = trackEndMin;      }, [trackEndMin]);
   useEffect(() => { trackIntervalRef.current = trackIntervalMin; }, [trackIntervalMin]);
 
   const watcherIdRef      = useRef<string | null>(null);
@@ -188,11 +217,11 @@ export function useLocationTracking() {
     }
   }, []);
 
-  const setTrackingWindow = useCallback((startHour: number, endHour: number) => {
-    localStorage.setItem(TRACKING_START_HOUR_KEY, String(startHour));
-    localStorage.setItem(TRACKING_END_HOUR_KEY,   String(endHour));
-    setTrackStartHourState(startHour);
-    setTrackEndHourState(endHour);
+  const setTrackingWindow = useCallback((startMin: number, endMin: number) => {
+    localStorage.setItem(TRACKING_START_MIN_KEY, String(startMin));
+    localStorage.setItem(TRACKING_END_MIN_KEY,   String(endMin));
+    setTrackStartMinState(startMin);
+    setTrackEndMinState(endMin);
   }, []);
 
   const setTrackInterval = useCallback((minutes: number) => {
@@ -250,6 +279,7 @@ export function useLocationTracking() {
           lat:       location.latitude,
           lng:       location.longitude,
           timestamp: new Date(fixMs).toISOString(), // always UTC ISO-8601
+          accuracy:  location.accuracy ?? null,
         };
 
         // Only update React state if position changed by >1 m to avoid
@@ -259,8 +289,9 @@ export function useLocationTracking() {
           return coord;
         });
 
-        const h = new Date().getHours();
-        if (h < trackStartRef.current || h >= trackEndRef.current) return;
+        const nowDate = new Date();
+        const minutesOfDay = nowDate.getHours() * 60 + nowDate.getMinutes();
+        if (minutesOfDay < trackStartRef.current || minutesOfDay >= trackEndRef.current) return;
 
         const now          = Date.now();
         const msSinceLast  = now - lastSavedAtRef.current;
@@ -339,7 +370,7 @@ export function useLocationTracking() {
     stored, bigMovements, currentPosition,
     syncing, syncMsg, sync, refresh, removePoints,
     trackingEnabled, setTrackingEnabled,
-    trackStartHour, trackEndHour, setTrackingWindow,
+    trackStartMin, trackEndMin, setTrackingWindow,
     trackIntervalMin, setTrackInterval,
   };
 }
