@@ -514,3 +514,41 @@
 .cfg-loc-edit-btn--cancel { background: var(--bg-surface, #FFFFFF); color: var(--text-primary, #1A1C2A); }
 .cfg-loc-edit-btn--save   { background: var(--highlight-selected, #2878D8); color: #fff; }
 .cfg-loc-edit-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* ── Home-screen widget tiles ─────────────────────────────────────────────── */
+
+.cfg-icon--widget { background: rgba(167,139,250,0.12); color: #a78bfa; }
+
+.cfg-widget-hint {
+  font-size: 0.82rem; line-height: 1.4;
+  color: var(--text-muted, #6A7290);
+  margin: 0 0 12px;
+}
+.cfg-widget-hint--muted { margin: 12px 0 0; opacity: 0.75; }
+
+.cfg-widget-tiles {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.cfg-tile-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 500;
+  border: 1px solid var(--border-light, rgba(255,255,255,0.12));
+  background: var(--bg-surface, rgba(255,255,255,0.04));
+  color: var(--text-muted, #6A7290);
+  cursor: pointer; transition: all 0.15s;
+}
+.cfg-tile-pill.is-selected {
+  background: rgba(167,139,250,0.15);
+  border-color: #a78bfa;
+  color: #a78bfa;
+  font-weight: 600;
+}
+.cfg-tile-pill:disabled {
+  opacity: 0.4; cursor: not-allowed;
+}
+.cfg-tile-order {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #a78bfa; color: #fff;
+  font-size: 0.66rem; font-weight: 700;
+}

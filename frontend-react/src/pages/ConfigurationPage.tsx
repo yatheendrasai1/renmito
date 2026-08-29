@@ -21,6 +21,8 @@ import {
 } from '@/hooks/useLogTypes';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications, FREQUENCY_OPTIONS, refreshMealNotificationsOnSettingsSave } from '@/hooks/useNotifications';
+import { Capacitor } from '@capacitor/core';
+import { loadWidgetTileSelection, saveWidgetTileSelection, MAX_WIDGET_TILES } from '@/lib/tokenSync';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -112,8 +114,94 @@ export default function ConfigurationPage() {
         {/* Notifications */}
         <NotificationsAccordion />
         <LocationPointsAccordion />
+        <WidgetTilesAccordion />
 
       </Accordion>
+    </div>
+  );
+}
+
+// ── Home-screen widget tiles (Android only) ───────────────────────────────────
+
+function WidgetTilesAccordion() {
+  // The widget only exists on the native Android build.
+  if (!Capacitor.isNativePlatform()) return null;
+
+  return (
+    <AccordionItem value="widget" className="cfg-acc">
+      <AccordionTrigger className="cfg-acc-head">
+        <div className="cfg-acc-icon cfg-icon--widget">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/>
+          </svg>
+        </div>
+        <div className="cfg-acc-meta">
+          <span className="cfg-acc-title">Home-screen widget</span>
+          <span className="cfg-acc-sub">Choose up to {MAX_WIDGET_TILES} quick-log tiles</span>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="cfg-acc-body">
+        <WidgetTilesSection />
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+function WidgetTilesSection() {
+  const { data: logTypes } = useLogTypes();
+  const [selected, setSelected] = useState<string[]>(() => loadWidgetTileSelection());
+
+  const types = logTypes ?? [];
+  const atMax = selected.length >= MAX_WIDGET_TILES;
+
+  function toggle(id: string) {
+    setSelected(prev => {
+      let next: string[];
+      if (prev.includes(id)) {
+        next = prev.filter(x => x !== id);
+      } else if (prev.length >= MAX_WIDGET_TILES) {
+        return prev; // at cap — ignore
+      } else {
+        next = [...prev, id];
+      }
+      saveWidgetTileSelection(next, logTypes);
+      return next;
+    });
+  }
+
+  return (
+    <div className="cfg-section">
+      <p className="cfg-widget-hint">
+        Pick up to {MAX_WIDGET_TILES} log types to show as one-tap tiles on your Android
+        home-screen widget. The number shows tile order.
+      </p>
+      <div className="cfg-widget-tiles">
+        {types.map(t => {
+          const order = selected.indexOf(t._id);
+          const isSel = order >= 0;
+          return (
+            <button
+              key={t._id}
+              type="button"
+              className={`cfg-tile-pill${isSel ? ' is-selected' : ''}`}
+              disabled={!isSel && atMax}
+              onClick={() => toggle(t._id)}
+            >
+              {isSel && <span className="cfg-tile-order">{order + 1}</span>}
+              {t.name}
+            </button>
+          );
+        })}
+      </div>
+      {selected.length === 0 && (
+        <p className="cfg-widget-hint cfg-widget-hint--muted">
+          Using defaults: Woke Up, Breakfast, Lunch, Dinner.
+        </p>
+      )}
     </div>
   );
 }

@@ -1,6 +1,9 @@
 package com.renmito.app;
 
+import android.appwidget.AppWidgetManager;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 
 import com.getcapacitor.Plugin;
@@ -52,6 +55,20 @@ public class TokenSyncPlugin extends Plugin {
             return;
         }
         prefs().edit().putString(KEY_TILES, tiles).apply();
+        refreshWidgets();
         call.resolve();
+    }
+
+    // Nudge any placed widgets to re-render with the new tile labels.
+    private void refreshWidgets() {
+        Context ctx = getContext();
+        AppWidgetManager mgr = AppWidgetManager.getInstance(ctx);
+        ComponentName widget = new ComponentName(ctx, RenmitoPointLogWidget.class);
+        int[] ids = mgr.getAppWidgetIds(widget);
+        if (ids == null || ids.length == 0) return;
+        Intent intent = new Intent(ctx, RenmitoPointLogWidget.class);
+        intent.setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
+        intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids);
+        ctx.sendBroadcast(intent);
     }
 }

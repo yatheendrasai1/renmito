@@ -18,13 +18,15 @@
         android:letterSpacing="0.05" />
 
     <LinearLayout
+        android:id="@+id/row_top"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:orientation="horizontal">
 
-        <!-- Woke Up -->
+        <!-- Slot 0 -->
         <LinearLayout
+            android:id="@+id/box_0"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -51,8 +53,9 @@
                 android:background="@drawable/widget_note_bg" />
         </LinearLayout>
 
-        <!-- Breakfast -->
+        <!-- Slot 1 -->
         <LinearLayout
+            android:id="@+id/box_1"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -81,14 +84,16 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/row_bottom"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:layout_marginTop="8dp"
         android:orientation="horizontal">
 
-        <!-- Lunch -->
+        <!-- Slot 2 -->
         <LinearLayout
+            android:id="@+id/box_2"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -115,8 +120,9 @@
                 android:background="@drawable/widget_note_bg" />
         </LinearLayout>
 
-        <!-- Dinner -->
+        <!-- Slot 3 -->
         <LinearLayout
+            android:id="@+id/box_3"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
