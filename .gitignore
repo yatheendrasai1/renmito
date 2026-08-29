@@ -10,6 +10,9 @@ backend/data/
 frontend/dist/
 frontend/.angular/
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # Environment & OS
 .env
 .env.*
